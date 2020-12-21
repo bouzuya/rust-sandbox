@@ -1,10 +1,11 @@
+use super::log_in;
 use anyhow::Result;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
 struct Mfa {
     #[structopt(subcommand)]
-    sub_command: SubCommand
+    sub_command: SubCommand,
 }
 
 #[derive(Debug, StructOpt)]
@@ -18,6 +19,11 @@ enum SubCommand {
 
 pub fn run() -> Result<()> {
     let mfa = Mfa::from_args();
-    println!("{:?}", mfa);
-    Ok(())
+    match mfa.sub_command {
+        SubCommand::ClockIn => Ok(()),
+        SubCommand::ClockOut => Ok(()),
+        SubCommand::List => Ok(()),
+        SubCommand::LogIn => log_in(),
+        SubCommand::LogOut => Ok(()),
+    }
 }
