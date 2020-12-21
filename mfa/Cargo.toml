@@ -10,5 +10,5 @@ edition = "2018"
 anyhow = "1.0.36"
 dialoguer = "0.7.1"
 dirs = "3.0.1"
-reqwest = { version = "0.10", features = ["blocking"] }
+reqwest = { version = "0.10", features = ["blocking", "cookies"] }
 scraper = "0.12.0"
