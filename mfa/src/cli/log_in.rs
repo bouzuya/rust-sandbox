@@ -125,7 +125,7 @@ fn post_employee_session(
             &employee_session_form.password,
         ),
     ];
-    let response = client.post(url, cookie, &body)?;
+    let response = client.post(url, &[("Cookie", cookie)], &body)?;
     ensure!(
         response.status() == 302,
         "post_employee_session status: {}",

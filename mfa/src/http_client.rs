@@ -23,13 +23,17 @@ impl HttpClient {
         Ok(HttpResponse::of(response)?)
     }
 
-    pub fn post(&self, url: &str, cookie: &str, body: &[(&str, &str)]) -> Result<HttpResponse> {
-        let request = self
-            .0
-            .post(url)
-            .header("Cookie", cookie)
-            .form(body)
-            .build()?;
+    pub fn post(
+        &self,
+        url: &str,
+        headers: &[(&str, &str)],
+        body: &[(&str, &str)],
+    ) -> Result<HttpResponse> {
+        let mut request_builder = self.0.post(url);
+        for &(key, value) in headers.iter() {
+            request_builder = request_builder.header(key, value);
+        }
+        let request = request_builder.form(body).build()?;
         let response = self.0.execute(request)?;
         Ok(HttpResponse::of(response)?)
     }
