@@ -6,10 +6,8 @@ pub fn log_in() -> Result<()> {
     let html = response.body();
     let authenticity_token =
         parse_employee_session_new_html(&html).with_context(|| "no authenticity_token")?;
-    println!("{:?}", response.status());
-    println!("{:?}", response.body());
-    println!("{:?}", response.cookie());
-    println!("{:?}", authenticity_token);
+    let employee_session_form = EmployeeSessionForm::from_input()?;
+    println!("{:?}", employee_session_form);
     Ok(())
 }
 
@@ -35,3 +33,30 @@ fn parse_employee_session_new_html(s: &str) -> Option<String> {
         value.map(|s| s.to_string())
     })
 }
+
+#[derive(Debug)]
+struct EmployeeSessionForm {
+    office_account_name: String,
+    account_name_or_email: String,
+    password: String,
+}
+
+impl EmployeeSessionForm {
+    fn from_input() -> Result<Self> {
+        let office_account_name = dialoguer::Input::<String>::new()
+            .with_prompt("office_account_name")
+            .interact()?;
+        let account_name_or_email = dialoguer::Input::<String>::new()
+            .with_prompt("account_name_or_email")
+            .interact()?;
+        let password = dialoguer::Password::new()
+            .with_prompt("password")
+            .interact()?;
+        Ok(Self {
+            office_account_name,
+            account_name_or_email,
+            password,
+        })
+    }
+}
+
