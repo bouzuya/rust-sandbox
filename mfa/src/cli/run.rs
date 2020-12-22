@@ -1,4 +1,4 @@
-use super::log_in;
+use super::{log_in, log_out};
 use anyhow::Result;
 use structopt::StructOpt;
 
@@ -24,6 +24,6 @@ pub fn run() -> Result<()> {
         SubCommand::ClockOut => Ok(()),
         SubCommand::List => Ok(()),
         SubCommand::LogIn => log_in(),
-        SubCommand::LogOut => Ok(()),
+        SubCommand::LogOut => log_out(),
     }
 }
