@@ -1,7 +1,23 @@
 use crate::http_client::{HttpClient, HttpResponse};
-use anyhow::{bail, Context, Result};
+use anyhow::{ensure, Context, Result};
+use dirs::cache_dir;
+use std::{
+    fs::{create_dir_all, remove_file, File},
+    io::Write,
+    path::PathBuf,
+};
 
 pub fn log_in() -> Result<()> {
+    let session_file = get_session_file()?;
+    if session_file.exists() {
+        remove_file(&session_file)?;
+        println!(
+            "session file removed: {}",
+            session_file
+                .to_str()
+                .with_context(|| "session_file.to_str()")?
+        );
+    }
     let response = get_employee_session_new()?;
     let html = response.body();
     let authenticity_token =
@@ -12,17 +28,37 @@ pub fn log_in() -> Result<()> {
         &authenticity_token,
         &employee_session_form,
     )?;
-    println!("{:?}", response);
+    let cookie = response.cookie();
+    let mut file = File::create(&session_file)?;
+    file.write_all(cookie.as_bytes())?;
+    println!(
+        "session file created: {}",
+        session_file
+            .to_str()
+            .with_context(|| "session_file.to_str()")?
+    );
     Ok(())
+}
+
+fn get_session_file() -> Result<PathBuf> {
+    let cache_dir = cache_dir().with_context(|| "dirs::cache_dir")?;
+    let app_cache_dir = cache_dir.join("rust-sandbox-mfa");
+    if !app_cache_dir.is_dir() {
+        ensure!(!app_cache_dir.exists(), "cache_dir is not dir");
+        create_dir_all(&app_cache_dir).with_context(|| "fs::create_dir_all(cache_dir)")?;
+    }
+    Ok(app_cache_dir.join("session"))
 }
 
 fn get_employee_session_new() -> Result<HttpResponse> {
     let url = "https://attendance.moneyforward.com/employee_session/new";
     let client = HttpClient::new()?;
     let response = client.get(url)?;
-    if response.status() != 200 {
-        bail!("get_employee_session_new status: {}", response.status())
-    }
+    ensure!(
+        response.status() == 200,
+        "get_employee_session_new status: {}",
+        response.status()
+    );
     Ok(response)
 }
 
@@ -90,8 +126,10 @@ fn post_employee_session(
         ),
     ];
     let response = client.post(url, cookie, &body)?;
-    if response.status() != 302 {
-        bail!("post_employee_session status: {}", response.status())
-    }
+    ensure!(
+        response.status() == 302,
+        "post_employee_session status: {}",
+        response.status()
+    );
     Ok(response)
 }
