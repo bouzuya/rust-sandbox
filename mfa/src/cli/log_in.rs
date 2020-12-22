@@ -1,5 +1,5 @@
 use crate::http_client::{HttpClient, HttpResponse};
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 
 pub fn log_in() -> Result<()> {
     let response = get_employee_session_new()?;
@@ -20,6 +20,9 @@ fn get_employee_session_new() -> Result<HttpResponse> {
     let url = "https://attendance.moneyforward.com/employee_session/new";
     let client = HttpClient::new()?;
     let response = client.get(url)?;
+    if response.status() != 200 {
+        bail!("get_employee_session_new status: {}", response.status())
+    }
     Ok(response)
 }
 
@@ -87,5 +90,8 @@ fn post_employee_session(
         ),
     ];
     let response = client.post(url, cookie, &body)?;
+    if response.status() != 302 {
+        bail!("post_employee_session status: {}", response.status())
+    }
     Ok(response)
 }
