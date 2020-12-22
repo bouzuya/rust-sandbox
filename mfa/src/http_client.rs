@@ -1,6 +1,6 @@
 use anyhow::Result;
 use reqwest::{
-    blocking::{Client, Request, Response},
+    blocking::{Client, Response},
     redirect::Policy,
 };
 
@@ -13,30 +13,21 @@ impl HttpClient {
         Ok(Self(client))
     }
 
-    pub fn execute(&self, request: HttpRequest) -> Result<HttpResponse> {
-        let response = self.0.execute(request.0)?;
+    pub fn get(&self, url: &str) -> Result<HttpResponse> {
+        let request = self.0.get(url).build()?;
+        let response = self.0.execute(request)?;
         Ok(HttpResponse::of(response)?)
     }
 
-    pub fn request(&self, method: HttpMethod, url: &str) -> Result<HttpRequest> {
-        let request = match method {
-            HttpMethod::GET => self.0.get(url).build()?,
-        };
-        Ok(HttpRequest::of(request))
-    }
-}
-
-#[derive(Debug)]
-pub enum HttpMethod {
-    GET,
-}
-
-#[derive(Debug)]
-pub struct HttpRequest(Request);
-
-impl HttpRequest {
-    fn of(request: Request) -> Self {
-        Self(request)
+    pub fn post(&self, url: &str, cookie: &str, body: &[(&str, &str)]) -> Result<HttpResponse> {
+        let request = self
+            .0
+            .post(url)
+            .header("Cookie", cookie)
+            .form(body)
+            .build()?;
+        let response = self.0.execute(request)?;
+        Ok(HttpResponse::of(response)?)
     }
 }
 
