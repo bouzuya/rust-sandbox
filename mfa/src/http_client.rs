@@ -19,6 +19,12 @@ impl HttpClient {
         Ok(HttpResponse::of(response)?)
     }
 
+    pub fn get_with_cookie(&self, url: &str, cookie: &str) -> Result<HttpResponse> {
+        let request = self.0.get(url).header("Cookie", cookie).build()?;
+        let response = self.0.execute(request)?;
+        Ok(HttpResponse::of(response)?)
+    }
+
     pub fn post(&self, url: &str, cookie: &str, body: &[(&str, &str)]) -> Result<HttpResponse> {
         let request = self
             .0

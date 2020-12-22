@@ -1,4 +1,4 @@
-use super::{log_in, log_out};
+use super::{list, log_in, log_out};
 use anyhow::Result;
 use structopt::StructOpt;
 
@@ -22,7 +22,7 @@ pub fn run() -> Result<()> {
     match mfa.sub_command {
         SubCommand::ClockIn => Ok(()),
         SubCommand::ClockOut => Ok(()),
-        SubCommand::List => Ok(()),
+        SubCommand::List => list(),
         SubCommand::LogIn => log_in(),
         SubCommand::LogOut => log_out(),
     }
