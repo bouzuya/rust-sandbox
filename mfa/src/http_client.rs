@@ -13,14 +13,12 @@ impl HttpClient {
         Ok(Self(client))
     }
 
-    pub fn get(&self, url: &str) -> Result<HttpResponse> {
-        let request = self.0.get(url).build()?;
-        let response = self.0.execute(request)?;
-        Ok(HttpResponse::of(response)?)
-    }
-
-    pub fn get_with_cookie(&self, url: &str, cookie: &str) -> Result<HttpResponse> {
-        let request = self.0.get(url).header("Cookie", cookie).build()?;
+    pub fn get(&self, url: &str, headers: &[(&str, &str)]) -> Result<HttpResponse> {
+        let mut request_builder = self.0.get(url);
+        for &(key, value) in headers.iter() {
+            request_builder = request_builder.header(key, value);
+        }
+        let request = request_builder.build()?;
         let response = self.0.execute(request)?;
         Ok(HttpResponse::of(response)?)
     }

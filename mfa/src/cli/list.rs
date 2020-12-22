@@ -28,6 +28,6 @@ fn get_session_file() -> Result<PathBuf> {
 fn get_my_page_attendances(cookie: &str) -> Result<HttpResponse> {
     let url = "https://attendance.moneyforward.com/my_page/attendances";
     let client = HttpClient::new()?;
-    let response = client.get_with_cookie(url, cookie)?;
+    let response = client.get(url, &[("Cookie", &cookie)])?;
     Ok(response)
 }

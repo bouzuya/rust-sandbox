@@ -53,7 +53,7 @@ fn get_session_file() -> Result<PathBuf> {
 fn get_employee_session_new() -> Result<HttpResponse> {
     let url = "https://attendance.moneyforward.com/employee_session/new";
     let client = HttpClient::new()?;
-    let response = client.get(url)?;
+    let response = client.get(url, &[])?;
     ensure!(
         response.status() == 200,
         "get_employee_session_new status: {}",
