@@ -1,4 +1,4 @@
-use super::{clock_in, list, log_in, log_out};
+use super::{clock_in, clock_out, list, log_in, log_out};
 use anyhow::Result;
 use structopt::StructOpt;
 
@@ -21,7 +21,7 @@ pub fn run() -> Result<()> {
     let mfa = Mfa::from_args();
     match mfa.sub_command {
         SubCommand::ClockIn => clock_in(),
-        SubCommand::ClockOut => Ok(()),
+        SubCommand::ClockOut => clock_out(),
         SubCommand::List => list(),
         SubCommand::LogIn => log_in(),
         SubCommand::LogOut => log_out(),
