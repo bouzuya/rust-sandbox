@@ -1,4 +1,4 @@
-use super::{list, log_in, log_out};
+use super::{clock_in, list, log_in, log_out};
 use anyhow::Result;
 use structopt::StructOpt;
 
@@ -20,7 +20,7 @@ enum SubCommand {
 pub fn run() -> Result<()> {
     let mfa = Mfa::from_args();
     match mfa.sub_command {
-        SubCommand::ClockIn => Ok(()),
+        SubCommand::ClockIn => clock_in(),
         SubCommand::ClockOut => Ok(()),
         SubCommand::List => list(),
         SubCommand::LogIn => log_in(),
