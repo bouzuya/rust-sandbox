@@ -44,7 +44,8 @@ fn main() -> Result<()> {
         {
             commit_li.push(format!(
                 "  - [{}]({})",
-                commit.commit.message, commit.html_url
+                commit.commit.message.split('\n').nth(0).unwrap(),
+                commit.html_url
             ));
         }
         repo_li.push((
