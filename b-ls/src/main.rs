@@ -17,7 +17,9 @@ fn main() -> io::Result<()> {
             .file_name()
             .into_string()
             .expect("file_name is not string");
-        file_names.push(file_name);
+        let file_type = entry.file_type().expect("file_type failed");
+        let is_dir = file_type.is_dir();
+        file_names.push(format!("{}{}", file_name, if is_dir { "/" } else { "" }));
     }
 
     file_names.sort();
