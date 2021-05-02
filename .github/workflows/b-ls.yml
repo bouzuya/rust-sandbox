@@ -1,0 +1,25 @@
+name: b-ls
+on:
+  push:
+    branches: [workflows]
+    paths:
+      - "b-ls/**"
+      - ".github/workflows/b-ls.yml"
+defaults:
+  run:
+    working-directory: b-ls
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo build --verbose
+      - run: cargo test --verbose
