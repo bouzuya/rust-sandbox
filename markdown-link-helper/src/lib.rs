@@ -48,6 +48,10 @@ pub fn build_rules() -> Vec<Rule> {
             r"^([0-9A-Za-z]+(?:-?[0-9A-Za-z])*)/((?:..[-.0-9A-Z_a-z]+)|(?:.[-0-9A-Z_a-z][-.0-9A-Z_a-z]*)|(?:[-0-9A-Z_a-z][-.0-9A-Z_a-z]*))$",
             "[$0]: https://github.com/$1/$2",
         ),
+        (
+            r"^crates:([a-z]+(?:[-_]?[0-9a-z])*)$",
+            "[$0]: https://crates.io/crates/$1",
+        ),
     ]
     .iter()
     .map(|&rule| Rule::try_from(rule).expect("re is not valid"))
@@ -128,6 +132,15 @@ mod tests {
                     .to_owned()
             ))
         );
+        assert_eq!(
+            rules
+                .iter()
+                .map(|rule| rule.apply("crates:chrono"))
+                .find(|r| r.is_some()),
+            Some(Some(
+                "[crates:chrono]: https://crates.io/crates/chrono".to_owned()
+            ))
+        );
     }
 
     #[test]
@@ -173,5 +186,28 @@ mod tests {
         assert_eq!(f("owner/.."), false);
         assert_eq!(f("owner/..-"), true);
         assert_eq!(f("owner/..."), true);
+    }
+
+    #[test]
+    fn test_crate_rule() {
+        let rules = build_rules();
+        let f = |s| {
+            rules
+                .iter()
+                .map(|rule| rule.apply(s))
+                .find(|r| r.is_some())
+                .is_some()
+        };
+        assert_eq!(f("crates:a"), true);
+        assert_eq!(f("crates:0"), false);
+        assert_eq!(f("crates:-"), false);
+        assert_eq!(f("crates:_"), false);
+        assert_eq!(f("crates:a0"), true);
+        assert_eq!(f("crates:a-"), false);
+        assert_eq!(f("crates:a_"), false);
+        assert_eq!(f("crates:a-a"), true);
+        assert_eq!(f("crates:a-0"), true);
+        assert_eq!(f("crates:a_a"), true);
+        assert_eq!(f("crates:a_0"), true);
     }
 }
