@@ -1,29 +1,46 @@
-use std::{env, fs};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TasksJson {
     tasks: Vec<String>,
 }
 
-fn main() {
+fn tasks_json_path() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap();
-    let path = data_dir.join("tasks.json");
+    data_dir.join("tasks.json")
+}
+
+fn read_tasks_json(path: &Path) -> TasksJson {
     let json_string = if path.exists() {
-        fs::read_to_string(path.as_path()).expect("read failed")
+        fs::read_to_string(path).unwrap()
     } else {
         r#"{"tasks":[]}"#.to_owned()
     };
-    let mut json: TasksJson = serde_json::from_str(json_string.as_str()).expect("invalid json");
+    serde_json::from_str(json_string.as_str()).unwrap()
+}
 
-    let command = env::args().nth(1).expect("no subcommand");
-    if command.as_str() != "add" {
-        panic!("invalid subcommand");
+fn write_tasks_json(path: &Path, json: &TasksJson) {
+    let json_string = serde_json::to_string(&json).unwrap();
+    fs::write(path, json_string).unwrap();
+}
+
+fn main() {
+    let path = tasks_json_path();
+    let command = env::args().nth(1).unwrap();
+    match command.as_str() {
+        "add" => {
+            let text = env::args().nth(2).unwrap();
+            let mut json = read_tasks_json(path.as_path());
+            json.tasks.push(text);
+            write_tasks_json(path.as_path(), &json);
+        }
+        "list" => {
+            let json = read_tasks_json(path.as_path());
+            println!("{}", json.tasks.join("\n"));
+        }
+        _ => panic!("invalid subcommand"),
     }
-    let text = env::args().nth(2).expect("no text");
-    json.tasks.push(text);
-
-    println!("{}", json.tasks.join("\n"));
-
-    let json_string = serde_json::to_string(&json).expect("invalid data");
-    fs::write(path.as_path(), json_string).expect("write failed");
 }
