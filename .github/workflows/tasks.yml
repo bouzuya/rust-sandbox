@@ -1,0 +1,25 @@
+name: tasks
+on:
+  push:
+    branches: [workflows]
+    paths:
+      - "tasks/**"
+      - ".github/workflows/tasks.yml"
+defaults:
+  run:
+    working-directory: tasks
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo build --verbose
+      - run: cargo test --verbose
