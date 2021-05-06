@@ -16,6 +16,10 @@ struct TasksJson {
 
 fn tasks_json_path() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap();
+    let data_dir = data_dir.join("net.bouzuya.rust-sandbox.tasks");
+    if !data_dir.exists() {
+        fs::create_dir(data_dir.as_path()).unwrap();
+    }
     data_dir.join("tasks.json")
 }
 
