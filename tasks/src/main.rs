@@ -4,8 +4,14 @@ use std::{
 };
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct Task {
+    done: bool,
+    text: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TasksJson {
-    tasks: Vec<String>,
+    tasks: Vec<Task>,
 }
 
 fn tasks_json_path() -> PathBuf {
@@ -34,12 +40,19 @@ fn main() {
         "add" => {
             let text = env::args().nth(2).unwrap();
             let mut json = read_tasks_json(path.as_path());
-            json.tasks.push(text);
+            json.tasks.push(Task { done: false, text });
             write_tasks_json(path.as_path(), &json);
         }
         "list" => {
             let json = read_tasks_json(path.as_path());
-            println!("{}", json.tasks.join("\n"));
+            println!(
+                "{}",
+                json.tasks
+                    .iter()
+                    .map(|task| format!("{} {}", if task.done { "☑" } else { "☐" }, task.text))
+                    .collect::<Vec<String>>()
+                    .join("\n")
+            );
         }
         _ => panic!("invalid subcommand"),
     }
