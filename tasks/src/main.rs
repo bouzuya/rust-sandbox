@@ -47,13 +47,26 @@ fn main() {
             json.tasks.push(Task { done: false, text });
             write_tasks_json(path.as_path(), &json);
         }
+        "done" => {
+            let id = env::args().nth(2).unwrap().parse::<usize>().unwrap();
+            let mut json = read_tasks_json(path.as_path());
+            let task = json.tasks.get_mut(id - 1).unwrap();
+            task.done = true;
+            write_tasks_json(path.as_path(), &json);
+        }
         "list" => {
             let json = read_tasks_json(path.as_path());
             println!(
                 "{}",
                 json.tasks
                     .iter()
-                    .map(|task| format!("{} {}", if task.done { "☑" } else { "☐" }, task.text))
+                    .enumerate()
+                    .map(|(i, task)| format!(
+                        "{} {} {}",
+                        i + 1,
+                        if task.done { "☑" } else { "☐" },
+                        task.text
+                    ))
                     .collect::<Vec<String>>()
                     .join("\n")
             );
