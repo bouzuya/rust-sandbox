@@ -30,7 +30,7 @@ struct Task {
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
-struct TasksJson {
+struct Tasks {
     next_id: usize,
     tasks: Vec<Task>,
 }
@@ -44,7 +44,7 @@ fn tasks_json_path() -> PathBuf {
     data_dir.join("tasks.json")
 }
 
-fn read_tasks_json(path: &Path) -> TasksJson {
+fn read_tasks(path: &Path) -> Tasks {
     let json_string = if path.exists() {
         fs::read_to_string(path).unwrap()
     } else {
@@ -53,7 +53,7 @@ fn read_tasks_json(path: &Path) -> TasksJson {
     serde_json::from_str(json_string.as_str()).unwrap()
 }
 
-fn write_tasks_json(path: &Path, json: &TasksJson) {
+fn write_tasks(path: &Path, json: &Tasks) {
     let json_string = serde_json::to_string(&json).unwrap();
     fs::write(path, json_string).unwrap();
 }
@@ -63,24 +63,24 @@ fn main() {
     let path = tasks_json_path();
     match opt.sub_command {
         SubCommand::Add { text } => {
-            let mut json = read_tasks_json(path.as_path());
+            let mut json = read_tasks(path.as_path());
             json.tasks.push(Task {
                 done: false,
                 id: json.next_id,
                 text,
             });
             json.next_id += 1;
-            write_tasks_json(path.as_path(), &json);
+            write_tasks(path.as_path(), &json);
         }
         SubCommand::Done { id } => {
-            let mut json = read_tasks_json(path.as_path());
+            let mut json = read_tasks(path.as_path());
             let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
             let task = json.tasks.get_mut(task_position).unwrap();
             task.done = true;
-            write_tasks_json(path.as_path(), &json);
+            write_tasks(path.as_path(), &json);
         }
         SubCommand::List => {
-            let json = read_tasks_json(path.as_path());
+            let json = read_tasks(path.as_path());
             println!(
                 "{}",
                 json.tasks
@@ -96,10 +96,10 @@ fn main() {
             );
         }
         SubCommand::Remove { id } => {
-            let mut json = read_tasks_json(path.as_path());
+            let mut json = read_tasks(path.as_path());
             let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
             json.tasks.remove(task_position);
-            write_tasks_json(path.as_path(), &json);
+            write_tasks(path.as_path(), &json);
         }
     }
 }
