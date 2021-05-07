@@ -25,11 +25,13 @@ enum SubCommand {
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Task {
     done: bool,
+    id: usize,
     text: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TasksJson {
+    next_id: usize,
     tasks: Vec<Task>,
 }
 
@@ -46,7 +48,7 @@ fn read_tasks_json(path: &Path) -> TasksJson {
     let json_string = if path.exists() {
         fs::read_to_string(path).unwrap()
     } else {
-        r#"{"tasks":[]}"#.to_owned()
+        r#"{"next_id":1,"tasks":[]}"#.to_owned()
     };
     serde_json::from_str(json_string.as_str()).unwrap()
 }
@@ -62,12 +64,18 @@ fn main() {
     match opt.sub_command {
         SubCommand::Add { text } => {
             let mut json = read_tasks_json(path.as_path());
-            json.tasks.push(Task { done: false, text });
+            json.tasks.push(Task {
+                done: false,
+                id: json.next_id,
+                text,
+            });
+            json.next_id += 1;
             write_tasks_json(path.as_path(), &json);
         }
         SubCommand::Done { id } => {
             let mut json = read_tasks_json(path.as_path());
-            let task = json.tasks.get_mut(id - 1).unwrap();
+            let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
+            let task = json.tasks.get_mut(task_position).unwrap();
             task.done = true;
             write_tasks_json(path.as_path(), &json);
         }
@@ -77,10 +85,9 @@ fn main() {
                 "{}",
                 json.tasks
                     .iter()
-                    .enumerate()
-                    .map(|(i, task)| format!(
+                    .map(|task| format!(
                         "{} {} {}",
-                        i + 1,
+                        task.id,
                         if task.done { "☑" } else { "☐" },
                         task.text
                     ))
@@ -90,7 +97,8 @@ fn main() {
         }
         SubCommand::Remove { id } => {
             let mut json = read_tasks_json(path.as_path());
-            json.tasks.remove(id - 1);
+            let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
+            json.tasks.remove(task_position);
             write_tasks_json(path.as_path(), &json);
         }
     }
