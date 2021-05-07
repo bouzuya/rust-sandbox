@@ -18,6 +18,8 @@ enum SubCommand {
     Done { id: usize },
     #[structopt(about = "Lists tasks")]
     List,
+    #[structopt(about = "Removes the task")]
+    Remove { id: usize },
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -85,6 +87,11 @@ fn main() {
                     .collect::<Vec<String>>()
                     .join("\n")
             );
+        }
+        SubCommand::Remove { id } => {
+            let mut json = read_tasks_json(path.as_path());
+            json.tasks.remove(id - 1);
+            write_tasks_json(path.as_path(), &json);
         }
     }
 }
