@@ -35,6 +35,26 @@ struct Tasks {
     tasks: Vec<Task>,
 }
 
+struct TaskRepository {
+    path: PathBuf,
+}
+
+impl TaskRepository {
+    fn read(&self) -> Tasks {
+        let json_string = if self.path.exists() {
+            fs::read_to_string(self.path.as_path()).unwrap()
+        } else {
+            r#"{"next_id":1,"tasks":[]}"#.to_owned()
+        };
+        serde_json::from_str(json_string.as_str()).unwrap()
+    }
+
+    fn write(&self, tasks: &Tasks) {
+        let json_string = serde_json::to_string(tasks).unwrap();
+        fs::write(self.path.as_path(), json_string).unwrap();
+    }
+}
+
 fn tasks_json_path() -> PathBuf {
     let data_dir = dirs::data_dir().unwrap();
     let data_dir = data_dir.join("net.bouzuya.rust-sandbox.tasks");
@@ -44,43 +64,30 @@ fn tasks_json_path() -> PathBuf {
     data_dir.join("tasks.json")
 }
 
-fn read_tasks(path: &Path) -> Tasks {
-    let json_string = if path.exists() {
-        fs::read_to_string(path).unwrap()
-    } else {
-        r#"{"next_id":1,"tasks":[]}"#.to_owned()
-    };
-    serde_json::from_str(json_string.as_str()).unwrap()
-}
-
-fn write_tasks(path: &Path, json: &Tasks) {
-    let json_string = serde_json::to_string(&json).unwrap();
-    fs::write(path, json_string).unwrap();
-}
-
 fn main() {
     let opt = Opt::from_args();
     let path = tasks_json_path();
+    let repository = TaskRepository { path };
     match opt.sub_command {
         SubCommand::Add { text } => {
-            let mut json = read_tasks(path.as_path());
+            let mut json = repository.read();
             json.tasks.push(Task {
                 done: false,
                 id: json.next_id,
                 text,
             });
             json.next_id += 1;
-            write_tasks(path.as_path(), &json);
+            repository.write(&json);
         }
         SubCommand::Done { id } => {
-            let mut json = read_tasks(path.as_path());
+            let mut json = repository.read();
             let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
             let task = json.tasks.get_mut(task_position).unwrap();
             task.done = true;
-            write_tasks(path.as_path(), &json);
+            repository.write(&json);
         }
         SubCommand::List => {
-            let json = read_tasks(path.as_path());
+            let json = repository.read();
             println!(
                 "{}",
                 json.tasks
@@ -96,10 +103,10 @@ fn main() {
             );
         }
         SubCommand::Remove { id } => {
-            let mut json = read_tasks(path.as_path());
+            let mut json = repository.read();
             let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
             json.tasks.remove(task_position);
-            write_tasks(path.as_path(), &json);
+            repository.write(&json);
         }
     }
 }
