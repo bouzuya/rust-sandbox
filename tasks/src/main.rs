@@ -1,7 +1,24 @@
 use std::{
-    env, fs,
+    fs,
     path::{Path, PathBuf},
 };
+use structopt::StructOpt;
+
+#[derive(Debug, StructOpt)]
+struct Opt {
+    #[structopt(subcommand)]
+    sub_command: SubCommand,
+}
+
+#[derive(Debug, StructOpt)]
+enum SubCommand {
+    #[structopt(about = "Adds a new task")]
+    Add { text: String },
+    #[structopt(about = "Completes the task")]
+    Done { id: usize },
+    #[structopt(about = "Lists tasks")]
+    List,
+}
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Task {
@@ -38,23 +55,21 @@ fn write_tasks_json(path: &Path, json: &TasksJson) {
 }
 
 fn main() {
+    let opt = Opt::from_args();
     let path = tasks_json_path();
-    let command = env::args().nth(1).unwrap();
-    match command.as_str() {
-        "add" => {
-            let text = env::args().nth(2).unwrap();
+    match opt.sub_command {
+        SubCommand::Add { text } => {
             let mut json = read_tasks_json(path.as_path());
             json.tasks.push(Task { done: false, text });
             write_tasks_json(path.as_path(), &json);
         }
-        "done" => {
-            let id = env::args().nth(2).unwrap().parse::<usize>().unwrap();
+        SubCommand::Done { id } => {
             let mut json = read_tasks_json(path.as_path());
             let task = json.tasks.get_mut(id - 1).unwrap();
             task.done = true;
             write_tasks_json(path.as_path(), &json);
         }
-        "list" => {
+        SubCommand::List => {
             let json = read_tasks_json(path.as_path());
             println!(
                 "{}",
@@ -71,6 +86,5 @@ fn main() {
                     .join("\n")
             );
         }
-        _ => panic!("invalid subcommand"),
     }
 }
