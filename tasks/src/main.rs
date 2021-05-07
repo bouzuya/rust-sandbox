@@ -1,7 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::{fs, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -40,6 +37,42 @@ struct TaskRepository {
 }
 
 impl TaskRepository {
+    fn create(&self, text: String) {
+        let mut tasks = self.read();
+        tasks.tasks.push(Task {
+            done: false,
+            id: tasks.next_id,
+            text,
+        });
+        tasks.next_id += 1;
+        self.write(&tasks);
+    }
+
+    fn delete(&self, id: usize) {
+        let mut tasks = self.read();
+        let task_position = tasks.tasks.iter().position(|t| t.id == id).unwrap();
+        tasks.tasks.remove(task_position);
+        self.write(&tasks);
+    }
+
+    fn find_all(&self) -> Vec<Task> {
+        let tasks = self.read();
+        tasks.tasks
+    }
+
+    fn find_by_id(&self, id: usize) -> Option<Task> {
+        let tasks = self.read();
+        tasks.tasks.into_iter().find(|t| t.id == id)
+    }
+
+    fn save(&self, task: Task) {
+        let mut tasks = self.read();
+        let task_position = tasks.tasks.iter().position(|t| t.id == task.id).unwrap();
+        let task = tasks.tasks.get_mut(task_position).unwrap();
+        task.done = true;
+        self.write(&tasks);
+    }
+
     fn read(&self) -> Tasks {
         let json_string = if self.path.exists() {
             fs::read_to_string(self.path.as_path()).unwrap()
@@ -70,27 +103,18 @@ fn main() {
     let repository = TaskRepository { path };
     match opt.sub_command {
         SubCommand::Add { text } => {
-            let mut json = repository.read();
-            json.tasks.push(Task {
-                done: false,
-                id: json.next_id,
-                text,
-            });
-            json.next_id += 1;
-            repository.write(&json);
+            repository.create(text);
         }
         SubCommand::Done { id } => {
-            let mut json = repository.read();
-            let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
-            let task = json.tasks.get_mut(task_position).unwrap();
+            let mut task = repository.find_by_id(id).unwrap();
             task.done = true;
-            repository.write(&json);
+            repository.save(task);
         }
         SubCommand::List => {
-            let json = repository.read();
+            let tasks = repository.find_all();
             println!(
                 "{}",
-                json.tasks
+                tasks
                     .iter()
                     .map(|task| format!(
                         "{} {} {}",
@@ -103,10 +127,7 @@ fn main() {
             );
         }
         SubCommand::Remove { id } => {
-            let mut json = repository.read();
-            let task_position = json.tasks.iter().position(|t| t.id == id).unwrap();
-            json.tasks.remove(task_position);
-            repository.write(&json);
+            repository.delete(id);
         }
     }
 }
