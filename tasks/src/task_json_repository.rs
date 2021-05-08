@@ -38,12 +38,12 @@ impl TaskJsonRepository {
 }
 
 impl TaskRepository for TaskJsonRepository {
-    fn create(&self, text: String) {
+    fn create(&self, text: impl Into<String>) {
         let mut tasks = self.read();
         tasks.tasks.push(Task {
             done: false,
             id: tasks.next_id,
-            text,
+            text: text.into(),
         });
         tasks.next_id += 1;
         self.write(&tasks);
