@@ -18,7 +18,10 @@ enum Subcommand {
     #[structopt(about = "Completes the task")]
     Done { id: usize },
     #[structopt(about = "Lists tasks")]
-    List,
+    List {
+        #[structopt(long = "all")]
+        all: bool,
+    },
     #[structopt(about = "Removes the task")]
     Remove { id: usize },
 }
@@ -29,7 +32,7 @@ fn main() {
     match opt.subcommand {
         Subcommand::Add { text } => AddUseCase::new(repository.clone()).add(text),
         Subcommand::Done { id } => CompleteUseCase::new(repository.clone()).complete(id),
-        Subcommand::List => ListUseCase::new(repository.clone()).list(),
+        Subcommand::List { all } => ListUseCase::new(repository.clone()).list(all),
         Subcommand::Remove { id } => RemoveUseCase::new(repository.clone()).remove(id),
     }
 }

@@ -10,12 +10,13 @@ impl ListUseCase {
         Self { repository }
     }
 
-    pub fn list(&self) {
+    pub fn list(&self, all: bool) {
         let tasks = self.repository.find_all();
         println!(
             "{}",
             tasks
                 .iter()
+                .filter(|task| all || !task.done)
                 .map(|task| format!(
                     "{} {} {}",
                     task.id,
