@@ -1,5 +1,9 @@
+use std::rc::Rc;
 use structopt::StructOpt;
-use tasks::{TaskJsonRepository, TaskRepository};
+use tasks::{
+    use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase},
+    TaskJsonRepository,
+};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -21,34 +25,11 @@ enum Subcommand {
 
 fn main() {
     let opt = Opt::from_args();
-    let repository = TaskJsonRepository::new();
+    let repository = Rc::new(TaskJsonRepository::new());
     match opt.subcommand {
-        Subcommand::Add { text } => {
-            repository.create(text);
-        }
-        Subcommand::Done { id } => {
-            let mut task = repository.find_by_id(id).unwrap();
-            task.done = true;
-            repository.save(task);
-        }
-        Subcommand::List => {
-            let tasks = repository.find_all();
-            println!(
-                "{}",
-                tasks
-                    .iter()
-                    .map(|task| format!(
-                        "{} {} {}",
-                        task.id,
-                        if task.done { "☑" } else { "☐" },
-                        task.text
-                    ))
-                    .collect::<Vec<String>>()
-                    .join("\n")
-            );
-        }
-        Subcommand::Remove { id } => {
-            repository.delete(id);
-        }
+        Subcommand::Add { text } => AddUseCase::new(repository.clone()).add(text),
+        Subcommand::Done { id } => CompleteUseCase::new(repository.clone()).complete(id),
+        Subcommand::List => ListUseCase::new(repository.clone()).list(),
+        Subcommand::Remove { id } => RemoveUseCase::new(repository.clone()).remove(id),
     }
 }

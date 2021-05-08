@@ -38,7 +38,7 @@ impl TaskJsonRepository {
 }
 
 impl TaskRepository for TaskJsonRepository {
-    fn create(&self, text: impl Into<String>) {
+    fn create(&self, text: String) {
         let mut tasks = self.read();
         tasks.tasks.push(Task {
             done: false,

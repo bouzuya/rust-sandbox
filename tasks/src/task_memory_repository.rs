@@ -24,7 +24,7 @@ impl TaskMemoryRepository {
 }
 
 impl TaskRepository for TaskMemoryRepository {
-    fn create(&self, text: impl Into<String>) {
+    fn create(&self, text: String) {
         let mut tasks = self.rc.borrow_mut();
         let next_id = tasks.next_id;
         tasks.tasks.push(Task {
@@ -67,7 +67,7 @@ mod tests {
     fn test() {
         let repository = TaskMemoryRepository::new();
         assert!(repository.find_all().is_empty());
-        repository.create("task1");
+        repository.create("task1".to_string());
 
         assert_eq!(
             repository.find_all(),
@@ -102,7 +102,7 @@ mod tests {
             })
         );
 
-        repository.create("task2");
+        repository.create("task2".to_string());
         assert_eq!(
             repository.find_all(),
             vec![
