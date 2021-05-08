@@ -1,5 +1,5 @@
 use structopt::StructOpt;
-use tasks::TaskRepository;
+use tasks::{TaskJsonRepository, TaskRepository};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -21,7 +21,7 @@ enum SubCommand {
 
 fn main() {
     let opt = Opt::from_args();
-    let repository = TaskRepository::new();
+    let repository = TaskJsonRepository::new();
     match opt.sub_command {
         SubCommand::Add { text } => {
             repository.create(text);
