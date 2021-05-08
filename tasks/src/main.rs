@@ -4,11 +4,11 @@ use tasks::{TaskJsonRepository, TaskRepository};
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(subcommand)]
-    sub_command: SubCommand,
+    subcommand: Subcommand,
 }
 
 #[derive(Debug, StructOpt)]
-enum SubCommand {
+enum Subcommand {
     #[structopt(about = "Adds a new task")]
     Add { text: String },
     #[structopt(about = "Completes the task")]
@@ -22,16 +22,16 @@ enum SubCommand {
 fn main() {
     let opt = Opt::from_args();
     let repository = TaskJsonRepository::new();
-    match opt.sub_command {
-        SubCommand::Add { text } => {
+    match opt.subcommand {
+        Subcommand::Add { text } => {
             repository.create(text);
         }
-        SubCommand::Done { id } => {
+        Subcommand::Done { id } => {
             let mut task = repository.find_by_id(id).unwrap();
             task.done = true;
             repository.save(task);
         }
-        SubCommand::List => {
+        Subcommand::List => {
             let tasks = repository.find_all();
             println!(
                 "{}",
@@ -47,7 +47,7 @@ fn main() {
                     .join("\n")
             );
         }
-        SubCommand::Remove { id } => {
+        Subcommand::Remove { id } => {
             repository.delete(id);
         }
     }
