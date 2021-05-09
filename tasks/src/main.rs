@@ -15,16 +15,16 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
-    #[structopt(about = "Adds a new task")]
+    #[structopt(name = "add", about = "Adds a new task")]
     Add { text: String },
-    #[structopt(about = "Completes the task")]
-    Done { id: usize },
-    #[structopt(about = "Lists tasks")]
+    #[structopt(name = "complete", about = "Completes the task")]
+    Complete { id: usize },
+    #[structopt(name = "list", about = "Lists tasks")]
     List {
         #[structopt(long = "all", help = "Prints all tasks")]
         all: bool,
     },
-    #[structopt(about = "Removes the task")]
+    #[structopt(name = "remove", about = "Removes the task")]
     Remove { id: usize },
 }
 
@@ -34,7 +34,7 @@ fn main() {
     let repository = Rc::new(TaskJsonRepository::new());
     match opt.subcommand {
         Subcommand::Add { text } => AddUseCase::new(repository.clone()).handle(text),
-        Subcommand::Done { id } => CompleteUseCase::new(repository.clone()).handle(id),
+        Subcommand::Complete { id } => CompleteUseCase::new(repository.clone()).handle(id),
         Subcommand::List { all } => {
             ListUseCase::new(list_presenter.clone(), repository.clone()).handle(all)
         }
