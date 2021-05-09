@@ -26,11 +26,7 @@ impl TaskRepository for TaskMemoryRepository {
     fn create(&self, text: String) {
         let mut tasks = self.rc.borrow_mut();
         let next_id = tasks.next_id;
-        tasks.tasks.push(Task {
-            done: false,
-            id: next_id,
-            text: text.into(),
-        });
+        tasks.tasks.push(Task::new(next_id, text));
         tasks.next_id += 1;
     }
 
@@ -68,64 +64,19 @@ mod tests {
         assert!(repository.find_all().is_empty());
         repository.create("task1".to_string());
 
-        assert_eq!(
-            repository.find_all(),
-            vec![Task {
-                done: false,
-                id: 1,
-                text: "task1".to_string()
-            }]
-        );
+        assert_eq!(repository.find_all(), vec![Task::new(1, "task1")]);
         assert_eq!(repository.find_by_id(2), None);
-        assert_eq!(
-            repository.find_by_id(1),
-            Some(Task {
-                done: false,
-                id: 1,
-                text: "task1".to_string()
-            })
-        );
+        assert_eq!(repository.find_by_id(1), Some(Task::new(1, "task1")));
 
-        let updated = Task {
-            done: true,
-            id: 1,
-            text: "task1".to_string(),
-        };
-        repository.save(updated);
-        assert_eq!(
-            repository.find_by_id(1),
-            Some(Task {
-                done: true,
-                id: 1,
-                text: "task1".to_string()
-            })
-        );
+        let mut updated = Task::new(1, "task1");
+        updated.done = true;
+        repository.save(updated.clone());
+        assert_eq!(repository.find_by_id(1), Some(updated.clone()));
 
         repository.create("task2".to_string());
-        assert_eq!(
-            repository.find_all(),
-            vec![
-                Task {
-                    done: true,
-                    id: 1,
-                    text: "task1".to_string()
-                },
-                Task {
-                    done: false,
-                    id: 2,
-                    text: "task2".to_string()
-                }
-            ]
-        );
+        assert_eq!(repository.find_all(), vec![updated, Task::new(2, "task2"),]);
 
         repository.delete(1);
-        assert_eq!(
-            repository.find_all(),
-            vec![Task {
-                done: false,
-                id: 2,
-                text: "task2".to_string()
-            }]
-        );
+        assert_eq!(repository.find_all(), vec![Task::new(2, "task2")]);
     }
 }
