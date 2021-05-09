@@ -19,7 +19,7 @@ enum Subcommand {
     Done { id: usize },
     #[structopt(about = "Lists tasks")]
     List {
-        #[structopt(long = "all")]
+        #[structopt(long = "all", help = "Prints all tasks")]
         all: bool,
     },
     #[structopt(about = "Removes the task")]
