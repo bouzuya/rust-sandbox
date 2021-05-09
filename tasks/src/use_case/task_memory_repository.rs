@@ -1,6 +1,5 @@
+use crate::{task::Task, use_case::TaskRepository};
 use std::{cell::RefCell, rc::Rc};
-
-use crate::{task::Task, TaskRepository};
 
 #[derive(Debug)]
 struct Tasks {

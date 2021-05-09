@@ -1,6 +1,5 @@
+use crate::use_case::TaskRepository;
 use std::rc::Rc;
-
-use crate::TaskRepository;
 
 pub struct AddUseCase {
     repository: Rc<dyn TaskRepository>,
@@ -19,7 +18,7 @@ impl AddUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TaskMemoryRepository;
+    use crate::use_case::TaskMemoryRepository;
 
     #[test]
     fn test() {

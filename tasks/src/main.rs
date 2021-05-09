@@ -1,12 +1,11 @@
 mod list_console_presenter;
+mod task_json_repository;
 
 use list_console_presenter::ListConsolePresenter;
 use std::rc::Rc;
 use structopt::StructOpt;
-use tasks::{
-    use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase},
-    TaskJsonRepository,
-};
+use task_json_repository::TaskJsonRepository;
+use tasks::use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase};
 
 #[derive(Debug, StructOpt)]
 struct Opt {

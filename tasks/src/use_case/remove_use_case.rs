@@ -1,4 +1,4 @@
-use crate::TaskRepository;
+use crate::use_case::TaskRepository;
 use std::rc::Rc;
 
 pub struct RemoveUseCase {
@@ -18,7 +18,7 @@ impl RemoveUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::TaskMemoryRepository;
+    use crate::use_case::TaskMemoryRepository;
 
     #[test]
     fn test() {

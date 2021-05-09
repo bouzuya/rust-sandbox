@@ -1,5 +1,5 @@
-use crate::{task::Task, TaskRepository};
 use std::{fs, path::PathBuf};
+use tasks::{use_case::TaskRepository, Task};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Tasks {
