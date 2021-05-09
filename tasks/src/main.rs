@@ -1,10 +1,8 @@
-mod list_console_presenter;
-mod task_json_repository;
+mod driver;
 
-use list_console_presenter::ListConsolePresenter;
+use driver::{ListConsolePresenter, TaskJsonRepository};
 use std::rc::Rc;
 use structopt::StructOpt;
-use task_json_repository::TaskJsonRepository;
 use tasks::use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase};
 
 #[derive(Debug, StructOpt)]
