@@ -10,7 +10,7 @@ impl CompleteUseCase {
         Self { repository }
     }
 
-    pub fn complete(&self, id: usize) {
+    pub fn handle(&self, id: usize) {
         let mut task = self.repository.find_by_id(id).unwrap();
         task.done = true;
         self.repository.save(task);

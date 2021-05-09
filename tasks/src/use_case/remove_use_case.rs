@@ -10,7 +10,7 @@ impl RemoveUseCase {
         Self { repository }
     }
 
-    pub fn remove(&self, id: usize) {
+    pub fn handle(&self, id: usize) {
         self.repository.delete(id);
     }
 }

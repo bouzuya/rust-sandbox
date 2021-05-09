@@ -10,7 +10,7 @@ impl ListUseCase {
         Self { repository }
     }
 
-    pub fn list(&self, all: bool) {
+    pub fn handle(&self, all: bool) {
         let tasks = self.repository.find_all();
         println!(
             "{}",

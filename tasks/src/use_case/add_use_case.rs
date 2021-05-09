@@ -11,7 +11,7 @@ impl AddUseCase {
         Self { repository }
     }
 
-    pub fn add(&self, text: String) {
+    pub fn handle(&self, text: String) {
         self.repository.create(text)
     }
 }
