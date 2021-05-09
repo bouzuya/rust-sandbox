@@ -1,3 +1,6 @@
+mod list_console_presenter;
+
+use list_console_presenter::ListConsolePresenter;
 use std::rc::Rc;
 use structopt::StructOpt;
 use tasks::{
@@ -28,11 +31,14 @@ enum Subcommand {
 
 fn main() {
     let opt = Opt::from_args();
+    let list_presenter = Rc::new(ListConsolePresenter::new());
     let repository = Rc::new(TaskJsonRepository::new());
     match opt.subcommand {
         Subcommand::Add { text } => AddUseCase::new(repository.clone()).handle(text),
         Subcommand::Done { id } => CompleteUseCase::new(repository.clone()).handle(id),
-        Subcommand::List { all } => ListUseCase::new(repository.clone()).handle(all),
+        Subcommand::List { all } => {
+            ListUseCase::new(list_presenter.clone(), repository.clone()).handle(all)
+        }
         Subcommand::Remove { id } => RemoveUseCase::new(repository.clone()).handle(id),
     }
 }
