@@ -1,5 +1,4 @@
-use tasks::{use_case::ListPresenter, Task};
-
+use tasks::{entity::Task, use_case::ListPresenter};
 pub struct ListConsolePresenter;
 
 impl ListConsolePresenter {

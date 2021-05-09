@@ -1,4 +1,5 @@
-use crate::{task::Task, use_case::TaskRepository};
+use crate::entity::Task;
+use crate::use_case::TaskRepository;
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]

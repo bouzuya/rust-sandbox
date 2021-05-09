@@ -1,7 +1,5 @@
-use crate::{
-    use_case::{ListPresenter, TaskRepository},
-    Task,
-};
+use crate::entity::Task;
+use crate::use_case::{ListPresenter, TaskRepository};
 use std::rc::Rc;
 
 pub struct ListUseCase {

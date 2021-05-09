@@ -1,4 +1,5 @@
-use crate::{use_case::ListPresenter, Task};
+use crate::entity::Task;
+use crate::use_case::ListPresenter;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct ListMemoryPresenter {

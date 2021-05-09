@@ -1,4 +1,4 @@
-use crate::task::Task;
+use crate::entity::Task;
 
 pub trait TaskRepository {
     fn create(&self, text: String);
