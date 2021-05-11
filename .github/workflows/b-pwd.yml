@@ -1,7 +1,7 @@
 name: b-pwd
 on:
   push:
-    branches: [workflows]
+    branches: [master]
     paths:
       - "b-pwd/**"
       - ".github/workflows/b-pwd.yml"
