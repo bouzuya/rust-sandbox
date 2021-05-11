@@ -9,7 +9,7 @@ $ b-pwd
 /Users/bouzuya
 
 $ b-pwd --help
-b-pwd 0.1.0
+b-pwd 0.2.0
 bouzuya's pwd: print working directory
 
 USAGE:
