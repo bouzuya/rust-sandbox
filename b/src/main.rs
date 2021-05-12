@@ -1,5 +1,5 @@
 use serde_json::Value;
-use std::{collections::BTreeMap, fs, path::PathBuf, str::FromStr};
+use std::{collections::BTreeMap, fs, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -13,9 +13,9 @@ enum Subcommand {
     #[structopt(name = "new", about = "Creates a new file")]
     New {
         #[structopt(short = "d", long = "data-file", help = "The data file")]
-        data_file: String,
+        data_file: PathBuf,
         #[structopt(short = "t", long = "template-file", help = "The template file")]
-        template_file: String,
+        template_file: PathBuf,
     },
 }
 
@@ -72,8 +72,7 @@ fn main() {
 
             let template = fs::read_to_string(&template_file).unwrap();
 
-            let template_path = PathBuf::from_str(template_file.as_str()).unwrap();
-            let dest_file = template_path.file_name().unwrap().to_str().unwrap();
+            let dest_file = template_file.file_name().unwrap().to_str().unwrap();
             let dest_file = render(dest_file, &data);
             let content = render(&template, &data);
 
