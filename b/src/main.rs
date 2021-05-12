@@ -1,5 +1,10 @@
 use serde_json::Value;
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs, io,
+    path::{Path, PathBuf},
+    str::FromStr,
+};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -14,8 +19,12 @@ enum Subcommand {
     New {
         #[structopt(short = "d", long = "data-file", help = "The data file")]
         data_file: PathBuf,
-        #[structopt(short = "t", long = "template-file", help = "The template file")]
-        template_file: PathBuf,
+        #[structopt(
+            short = "t",
+            long = "template",
+            help = "The template file or directory"
+        )]
+        template: PathBuf,
     },
 }
 
@@ -48,12 +57,61 @@ fn render(template: &str, data: &BTreeMap<String, String>) -> String {
     t
 }
 
+fn read_dir(dir: &Path) -> io::Result<Vec<fs::DirEntry>> {
+    let mut entries = vec![];
+    for entry in dir.read_dir()? {
+        entries.push(entry?);
+    }
+    Ok(entries)
+}
+
+fn list(template_file: &Path) -> Vec<String> {
+    let mut file_names = vec![];
+    file_names.push(template_file.to_str().unwrap().to_string());
+    if template_file.is_dir() {
+        list2(&mut file_names, template_file);
+    }
+    file_names
+}
+
+fn list2(file_names: &mut Vec<String>, dir: &Path) {
+    let entries = read_dir(dir).expect("read_dir failed");
+    for entry in entries {
+        let path_buf = entry.path();
+        let file_name = path_buf
+            .to_str()
+            .expect("file_name is not string")
+            .to_string();
+        let file_type = entry.file_type().expect("file_type failed");
+        let is_dir = file_type.is_dir();
+        file_names.push(file_name);
+        if is_dir {
+            list2(file_names, path_buf.as_path());
+        }
+    }
+}
+
+fn create(tmpl: &Path, root_dir: &Path, data: &BTreeMap<String, String>) {
+    let file_name_tmpl = tmpl.strip_prefix(root_dir).unwrap().to_str().unwrap();
+    let dest = render(file_name_tmpl, &data);
+    if tmpl.is_dir() {
+        if !PathBuf::from_str(dest.as_str()).unwrap().exists() {
+            fs::create_dir(dest.as_str()).unwrap();
+        }
+    } else {
+        let content_tmpl = fs::read_to_string(tmpl).unwrap();
+        let content = render(content_tmpl.as_str(), &data);
+        fs::write(dest.as_str(), content).unwrap();
+    }
+    println!("{}", dest.as_str());
+}
+
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::New {
             data_file,
-            template_file,
+            template,
         } => {
             let data = {
                 let data = fs::read_to_string(&data_file).unwrap();
@@ -70,14 +128,11 @@ fn main() {
                 map
             };
 
-            let template = fs::read_to_string(&template_file).unwrap();
-
-            let dest_file = template_file.file_name().unwrap().to_str().unwrap();
-            let dest_file = render(dest_file, &data);
-            let content = render(&template, &data);
-
-            fs::write(dest_file.as_str(), content).unwrap();
-            println!("{}", dest_file.as_str());
+            let file_names = list(template.as_path());
+            let root_dir = template.parent().unwrap();
+            for file_name in file_names {
+                create(PathBuf::from(file_name).as_path(), root_dir, &data);
+            }
         }
     }
 }
