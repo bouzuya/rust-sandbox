@@ -1,3 +1,4 @@
+use b::render;
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
@@ -26,35 +27,6 @@ enum Subcommand {
         )]
         template: PathBuf,
     },
-}
-
-fn render(template: &str, data: &BTreeMap<String, String>) -> String {
-    let mut t = String::new();
-    let mut expr: Option<String> = None;
-    for c in template.chars() {
-        match expr {
-            Some(mut s) => match c {
-                '{' => panic!(),
-                '}' => {
-                    let v = data.get(&s).unwrap();
-                    t.push_str(v.as_str());
-                    expr = None;
-                }
-                c => {
-                    if !c.is_ascii_lowercase() {
-                        panic!();
-                    }
-                    s.push(c);
-                    expr = Some(s);
-                }
-            },
-            None => match c {
-                '{' => expr = Some(String::new()),
-                c => t.push(c),
-            },
-        }
-    }
-    t
 }
 
 fn read_dir(dir: &Path) -> io::Result<Vec<fs::DirEntry>> {
@@ -134,17 +106,5 @@ fn main() {
                 create(PathBuf::from(file_name).as_path(), root_dir, &data);
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test() {
-        let mut map = BTreeMap::new();
-        map.insert("x".to_string(), "y".to_string());
-        assert_eq!(render("{x}", &map), "y".to_string());
     }
 }
