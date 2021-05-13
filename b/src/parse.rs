@@ -1,0 +1,108 @@
+use nom::{
+    branch::alt,
+    bytes::complete::{is_a, tag},
+    combinator::all_consuming,
+    error::ParseError,
+    multi::many0,
+    sequence::delimited,
+    FindSubstring, InputTake,
+};
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Token<'a> {
+    Str(&'a str),
+    Var(&'a str),
+}
+
+pub fn parse(input: &str) -> Result<Vec<Token>, &str> {
+    template(input)
+        .map(|(_, tokens)| tokens)
+        .map_err(|_| "parse error")
+}
+
+fn template(input: &str) -> nom::IResult<&str, Vec<Token>> {
+    all_consuming(many0(template_token))(input)
+}
+
+fn template_token(input: &str) -> nom::IResult<&str, Token> {
+    alt((template_str, template_var))(input)
+}
+
+fn template_str(input: &str) -> nom::IResult<&str, Token> {
+    let (input, s) = match input.find_substring("{{") {
+        None => {
+            if input.is_empty() {
+                Err(nom::Err::Error(nom::error::Error::from_error_kind(
+                    input,
+                    nom::error::ErrorKind::TakeUntil,
+                )))
+            } else {
+                Ok(input.take_split(input.len()))
+            }
+        }
+        Some(0) => Err(nom::Err::Error(nom::error::Error::from_error_kind(
+            input,
+            nom::error::ErrorKind::TakeUntil,
+        ))),
+        Some(index) => Ok(input.take_split(index)),
+    }?;
+    Ok((input, Token::Str(s)))
+}
+
+fn template_var(input: &str) -> nom::IResult<&str, Token> {
+    let (input, v) = delimited(
+        tag("{{"),
+        is_a("_0123456789abcdefghijklmnopqrstuvwxyz"),
+        tag("}}"),
+    )(input)?;
+    Ok((input, Token::Var(v)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn template_test() {
+        assert_eq!(template(""), Ok(("", vec![])));
+        assert_eq!(
+            template("abc{{foo}}def{{bar}}"),
+            Ok((
+                "",
+                vec![
+                    Token::Str("abc"),
+                    Token::Var("foo"),
+                    Token::Str("def"),
+                    Token::Var("bar"),
+                ]
+            ))
+        );
+        assert_eq!(template("abc{{foo}}def{{bar").is_err(), true);
+    }
+
+    #[test]
+    fn template_token_test() {
+        assert_eq!(template_token("").is_err(), true);
+        assert_eq!(template_token("abc"), Ok(("", Token::Str("abc"))));
+        assert_eq!(template_token("{{foo}}"), Ok(("", Token::Var("foo"))));
+    }
+
+    #[test]
+    fn template_str_test() {
+        assert_eq!(template_str("").is_err(), true);
+        assert_eq!(template_str("{{").is_err(), true);
+        assert_eq!(template_str("a{{"), Ok(("{{", Token::Str("a"))));
+        assert_eq!(template_str("abc{{"), Ok(("{{", Token::Str("abc"))));
+    }
+
+    #[test]
+    fn template_var_test() {
+        assert_eq!(template_var("").is_err(), true);
+        assert_eq!(template_var("{{_}}"), Ok(("", Token::Var("_"))));
+        assert_eq!(template_var("{{0}}"), Ok(("", Token::Var("0"))));
+        assert_eq!(template_var("{{a}}"), Ok(("", Token::Var("a"))));
+        assert_eq!(template_var("{{abc}}"), Ok(("", Token::Var("abc"))));
+        assert_eq!(template_var("{{abc}}bar"), Ok(("bar", Token::Var("abc"))));
+        assert_eq!(template_var("foo{{abc}}").is_err(), true);
+    }
+}
