@@ -2,7 +2,8 @@ use b::render;
 use serde_json::Value;
 use std::{
     collections::BTreeMap,
-    fs, io,
+    fs,
+    io::{self, Read},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -86,7 +87,15 @@ fn main() {
             template,
         } => {
             let data = {
-                let data = fs::read_to_string(&data_file).unwrap();
+                let data = if data_file == PathBuf::from("-") {
+                    let stdin = io::stdin();
+                    let mut handle = stdin.lock();
+                    let mut buf = String::new();
+                    handle.read_to_string(&mut buf).unwrap();
+                    buf
+                } else {
+                    fs::read_to_string(&data_file).unwrap()
+                };
                 let data: Value = serde_json::from_str(&data).unwrap();
                 let object = data.as_object().unwrap();
                 let mut map = BTreeMap::new();
