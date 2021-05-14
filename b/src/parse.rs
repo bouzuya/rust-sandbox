@@ -1,6 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::{is_a, tag},
+    character::complete::char,
     combinator::all_consuming,
     error::ParseError,
     multi::many0,
@@ -25,10 +26,10 @@ fn template(input: &str) -> nom::IResult<&str, Vec<Token>> {
 }
 
 fn template_token(input: &str) -> nom::IResult<&str, Token> {
-    alt((template_str, template_var))(input)
+    alt((template_non_block, template_block))(input)
 }
 
-fn template_str(input: &str) -> nom::IResult<&str, Token> {
+fn template_non_block(input: &str) -> nom::IResult<&str, Token> {
     let (input, s) = match input.find_substring("{{") {
         None => {
             if input.is_empty() {
@@ -49,12 +50,23 @@ fn template_str(input: &str) -> nom::IResult<&str, Token> {
     Ok((input, Token::Str(s)))
 }
 
+fn template_block(input: &str) -> nom::IResult<&str, Token> {
+    let (input, v) = delimited(tag("{{"), template_expr, tag("}}"))(input)?;
+    Ok((input, v))
+}
+
+fn template_expr(input: &str) -> nom::IResult<&str, Token> {
+    let (input, expr) = alt((template_str, template_var))(input)?;
+    Ok((input, expr))
+}
+
+fn template_str(input: &str) -> nom::IResult<&str, Token> {
+    let (input, s) = delimited(char('"'), tag("{{"), char('"'))(input)?;
+    Ok((input, Token::Str(s)))
+}
+
 fn template_var(input: &str) -> nom::IResult<&str, Token> {
-    let (input, v) = delimited(
-        tag("{{"),
-        is_a("_0123456789abcdefghijklmnopqrstuvwxyz"),
-        tag("}}"),
-    )(input)?;
+    let (input, v) = is_a("_0123456789abcdefghijklmnopqrstuvwxyz")(input)?;
     Ok((input, Token::Var(v)))
 }
 
@@ -89,20 +101,21 @@ mod tests {
 
     #[test]
     fn template_str_test() {
-        assert_eq!(template_str("").is_err(), true);
-        assert_eq!(template_str("{{").is_err(), true);
-        assert_eq!(template_str("a{{"), Ok(("{{", Token::Str("a"))));
-        assert_eq!(template_str("abc{{"), Ok(("{{", Token::Str("abc"))));
+        assert_eq!(template_non_block("").is_err(), true);
+        assert_eq!(template_non_block("{{").is_err(), true);
+        assert_eq!(template_non_block("a{{"), Ok(("{{", Token::Str("a"))));
+        assert_eq!(template_non_block("abc{{"), Ok(("{{", Token::Str("abc"))));
     }
 
     #[test]
-    fn template_var_test() {
-        assert_eq!(template_var("").is_err(), true);
-        assert_eq!(template_var("{{_}}"), Ok(("", Token::Var("_"))));
-        assert_eq!(template_var("{{0}}"), Ok(("", Token::Var("0"))));
-        assert_eq!(template_var("{{a}}"), Ok(("", Token::Var("a"))));
-        assert_eq!(template_var("{{abc}}"), Ok(("", Token::Var("abc"))));
-        assert_eq!(template_var("{{abc}}bar"), Ok(("bar", Token::Var("abc"))));
-        assert_eq!(template_var("foo{{abc}}").is_err(), true);
+    fn template_block_test() {
+        assert_eq!(template_block("").is_err(), true);
+        assert_eq!(template_block("{{_}}"), Ok(("", Token::Var("_"))));
+        assert_eq!(template_block("{{0}}"), Ok(("", Token::Var("0"))));
+        assert_eq!(template_block("{{a}}"), Ok(("", Token::Var("a"))));
+        assert_eq!(template_block("{{abc}}"), Ok(("", Token::Var("abc"))));
+        assert_eq!(template_block("{{abc}}bar"), Ok(("bar", Token::Var("abc"))));
+        assert_eq!(template_block("foo{{abc}}").is_err(), true);
+        assert_eq!(template_block(r#"{{"{{"}}"#), Ok(("", Token::Str("{{"))));
     }
 }
