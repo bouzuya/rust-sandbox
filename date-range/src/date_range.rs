@@ -1,17 +1,17 @@
-use crate::{DateString, InputFormat};
+use crate::{Date, InputFormat};
 use chrono::{Datelike, NaiveDate, Weekday};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct DateRange {
-    first: DateString,
-    last: DateString,
+    first: Date,
+    last: Date,
 }
 
 impl DateRange {
     fn new(first: NaiveDate, last: NaiveDate) -> DateRange {
         DateRange {
-            first: DateString(first.format("%Y-%m-%d").to_string()),
-            last: DateString(last.format("%Y-%m-%d").to_string()),
+            first: first.format("%Y-%m-%d").to_string().parse().unwrap(),
+            last: last.format("%Y-%m-%d").to_string().parse().unwrap(),
         }
     }
 
@@ -74,12 +74,12 @@ impl DateRange {
         }
     }
 
-    pub fn first(&self) -> DateString {
-        self.first.clone()
+    pub fn first(&self) -> Date {
+        self.first
     }
 
-    pub fn last(&self) -> DateString {
-        self.last.clone()
+    pub fn last(&self) -> Date {
+        self.last
     }
 }
 
@@ -92,8 +92,8 @@ mod tests {
     fn test() {
         let parse = DateRange::parse;
         let f = |first: &str, last: &str| DateRange {
-            first: DateString(first.to_string()),
-            last: DateString(last.to_string()),
+            first: first.to_string().parse().unwrap(),
+            last: last.to_string().parse().unwrap(),
         };
         assert_eq!(
             parse(&Date, "2021-02-03"),

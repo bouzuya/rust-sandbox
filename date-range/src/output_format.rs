@@ -10,9 +10,9 @@ pub enum OutputFormat {
 impl OutputFormat {
     pub fn format(&self, date_range: &DateRange) -> String {
         match self {
-            OutputFormat::First => date_range.first().0,
-            OutputFormat::Last => date_range.last().0,
-            OutputFormat::Range => format!("{}/{}", date_range.first().0, date_range.last().0),
+            OutputFormat::First => date_range.first().to_string(),
+            OutputFormat::Last => date_range.last().to_string(),
+            OutputFormat::Range => format!("{}/{}", date_range.first(), date_range.last()),
         }
     }
 }
