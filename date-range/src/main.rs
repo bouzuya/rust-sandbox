@@ -4,13 +4,13 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 #[structopt(name = "date-range", about = "date range")]
 struct Opt {
-    #[structopt(long = "format")]
+    #[structopt(long = "format", help = "Specifies the input format")]
     format: Option<InputFormat>,
-    #[structopt(long = "first")]
+    #[structopt(long = "first", help = "Prints the first day of the date range")]
     first: bool,
-    #[structopt(name = "input")]
+    #[structopt(name = "INPUT")]
     input: String,
-    #[structopt(long = "last")]
+    #[structopt(long = "last", help = "Prints the last day of the date range")]
     last: bool,
 }
 
