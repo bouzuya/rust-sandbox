@@ -1,3 +1,4 @@
+mod date;
 mod date_range;
 mod date_string;
 mod input_format;
