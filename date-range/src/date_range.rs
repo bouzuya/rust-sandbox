@@ -1,4 +1,7 @@
-use crate::{Date, InputFormat};
+use crate::{
+    date::{Date, Year, YearMonth},
+    InputFormat,
+};
 use chrono::{Datelike, NaiveDate, Weekday};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -8,6 +11,26 @@ pub struct DateRange {
 }
 
 impl DateRange {
+    fn from_date(d: Date) -> Self {
+        Self { first: d, last: d }
+    }
+
+    fn from_year_month(year_month: YearMonth) -> Self {
+        let f = format!("{}-01", year_month);
+        let l = format!("{}-{}", year_month, year_month.last_day_of_month());
+        let first = f.parse().expect("internal error");
+        let last = l.parse().expect("internal error");
+        Self { first, last }
+    }
+
+    fn from_year(year: Year) -> Self {
+        let f = format!("{}-01-01", year);
+        let l = format!("{}-12-31", year);
+        let first = f.parse().expect("internal error");
+        let last = l.parse().expect("internal error");
+        Self { first, last }
+    }
+
     fn new(first: NaiveDate, last: NaiveDate) -> DateRange {
         DateRange {
             first: first.format("%Y-%m-%d").to_string().parse().unwrap(),
@@ -19,24 +42,16 @@ impl DateRange {
         // TODO: error message
         match fmt {
             InputFormat::Date => {
-                let d = NaiveDate::parse_from_str(s, "%Y-%m-%d").unwrap();
-                Ok(Self::new(d, d))
+                let d = s.parse().unwrap();
+                Ok(Self::from_date(d))
             }
             InputFormat::Month => {
-                let first = NaiveDate::parse_from_str(&format!("{}-01", s), "%Y-%m-%d").unwrap();
-                let last = if first.month() == 12 {
-                    NaiveDate::from_ymd(first.year() + 1, 1, 1)
-                } else {
-                    NaiveDate::from_ymd(first.year(), first.month() + 1, 1)
-                }
-                .pred();
-                Ok(Self::new(first, last))
+                let d: Date = format!("{}-01", s).parse().unwrap();
+                Ok(Self::from_year_month(d.year_month()))
             }
             InputFormat::Year => {
-                let d = NaiveDate::parse_from_str(&format!("{}-01-01", s), "%Y-%m-%d").unwrap();
-                let first = NaiveDate::from_ymd(d.year(), 1, 1);
-                let last = NaiveDate::from_ymd(d.year(), 12, 31);
-                Ok(Self::new(first, last))
+                let d: Date = format!("{}-01-01", s).parse().unwrap();
+                Ok(Self::from_year(d.year()))
             }
             InputFormat::WeekDate => {
                 let d = NaiveDate::parse_from_str(s, "%G-W%V-%u").unwrap();
