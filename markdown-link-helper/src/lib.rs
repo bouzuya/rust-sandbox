@@ -1,8 +1,9 @@
 mod rule;
 
 use crate::rule::Rule;
+use anyhow::anyhow;
 use pulldown_cmark::{BrokenLink, Options, Parser};
-use std::{collections::BTreeSet, convert::TryFrom};
+use std::{collections::BTreeSet, convert::TryFrom, fs, path::PathBuf};
 
 fn broken_links(content: &str) -> Vec<String> {
     let mut res = vec![];
@@ -34,180 +35,11 @@ pub fn run(rules: &Vec<Rule>, content: &str) {
     }
 }
 
-pub fn build_rules() -> Vec<Rule> {
-    vec![
-        (
-            r"^(\d{4})-(\d{2})-(\d{2})$",
-            "[$1-$2-$3]: https://blog.bouzuya.net/$1/$2/$3/",
-        ),
-        (
-            r"^github:([0-9A-Za-z]+(?:-?[0-9A-Za-z])*)/((?:..[-.0-9A-Z_a-z]+)|(?:.[-0-9A-Z_a-z][-.0-9A-Z_a-z]*)|(?:[-0-9A-Z_a-z][-.0-9A-Z_a-z]*))$",
-            "[$0]: https://github.com/$1/$2",
-        ),
-        (
-            r"^([0-9A-Za-z]+(?:-?[0-9A-Za-z])*)/((?:..[-.0-9A-Z_a-z]+)|(?:.[-0-9A-Z_a-z][-.0-9A-Z_a-z]*)|(?:[-0-9A-Z_a-z][-.0-9A-Z_a-z]*))$",
-            "[$0]: https://github.com/$1/$2",
-        ),
-        (
-            r"^crates:([a-z]+(?:[-_]?[0-9a-z])*)$",
-            "[$0]: https://crates.io/crates/$1",
-        ),
-    ]
-    .iter()
-    .map(|&rule| Rule::try_from(rule).expect("re is not valid"))
-    .collect::<Vec<Rule>>()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_broken_links() {
-        assert_eq!(
-            broken_links(
-                &vec![
-                    "[a][]",
-                    "",
-                    "[][b]",
-                    "",
-                    "[c]",
-                    "",
-                    "[d] [e]",
-                    "",
-                    "[ok1](http://example.com)",
-                    "",
-                    "[ok2][]",
-                    "",
-                    "[][ok3]",
-                    "",
-                    "[ok2]: http://example.com",
-                    "[ok3]: http://example.com"
-                ]
-                .join("\n")
-            ),
-            vec![
-                "a".to_string(),
-                "b".to_string(),
-                "c".to_string(),
-                "d".to_string(),
-                "e".to_string(),
-            ]
-        );
-        assert_eq!(
-            broken_links(&vec!["[a]", "[a]",].join("\n")),
-            vec!["a".to_string(), "a".to_string(),]
-        );
-    }
-
-    #[test]
-    fn test_rules() {
-        let rules = build_rules();
-        assert_eq!(
-            rules
-                .iter()
-                .map(|rule| rule.apply("2021-04-29"))
-                .find(|r| r.is_some()),
-            Some(Some(
-                "[2021-04-29]: https://blog.bouzuya.net/2021/04/29/".to_owned()
-            ))
-        );
-        assert_eq!(
-            rules
-                .iter()
-                .map(|rule| rule.apply("bouzuya/blog.bouzuya.net"))
-                .find(|r| r.is_some()),
-            Some(Some(
-                "[bouzuya/blog.bouzuya.net]: https://github.com/bouzuya/blog.bouzuya.net"
-                    .to_owned()
-            ))
-        );
-        assert_eq!(
-            rules
-                .iter()
-                .map(|rule| rule.apply("github:bouzuya/blog.bouzuya.net"))
-                .find(|r| r.is_some()),
-            Some(Some(
-                "[github:bouzuya/blog.bouzuya.net]: https://github.com/bouzuya/blog.bouzuya.net"
-                    .to_owned()
-            ))
-        );
-        assert_eq!(
-            rules
-                .iter()
-                .map(|rule| rule.apply("crates:chrono"))
-                .find(|r| r.is_some()),
-            Some(Some(
-                "[crates:chrono]: https://crates.io/crates/chrono".to_owned()
-            ))
-        );
-    }
-
-    #[test]
-    fn test_bbn_rule() {
-        let rules = build_rules();
-        let f = |s| {
-            rules
-                .iter()
-                .map(|rule| rule.apply(s))
-                .find(|r| r.is_some())
-                .is_some()
-        };
-        assert_eq!(f("2021-04-29"), true);
-    }
-
-    #[test]
-    fn test_github_rule() {
-        let rules = build_rules();
-        let f = |s| {
-            rules
-                .iter()
-                .map(|rule| rule.apply(s))
-                .find(|r| r.is_some())
-                .is_some()
-        };
-        assert_eq!(f("-/repo"), false);
-        assert_eq!(f("0/repo"), true);
-        assert_eq!(f("A/repo"), true);
-        assert_eq!(f("a/repo"), true);
-        assert_eq!(f("-0/repo"), false);
-        assert_eq!(f("0-/repo"), false);
-        assert_eq!(f("0-0/repo"), true);
-        assert_eq!(f("0-A/repo"), true);
-        assert_eq!(f("0-a/repo"), true);
-        assert_eq!(f("0--0/repo"), false);
-        assert_eq!(f("owner/-"), true);
-        assert_eq!(f("owner/."), false);
-        assert_eq!(f("owner/0"), true);
-        assert_eq!(f("owner/A"), true);
-        assert_eq!(f("owner/_"), true);
-        assert_eq!(f("owner/a"), true);
-        assert_eq!(f("owner/.-"), true);
-        assert_eq!(f("owner/.."), false);
-        assert_eq!(f("owner/..-"), true);
-        assert_eq!(f("owner/..."), true);
-    }
-
-    #[test]
-    fn test_crate_rule() {
-        let rules = build_rules();
-        let f = |s| {
-            rules
-                .iter()
-                .map(|rule| rule.apply(s))
-                .find(|r| r.is_some())
-                .is_some()
-        };
-        assert_eq!(f("crates:a"), true);
-        assert_eq!(f("crates:0"), false);
-        assert_eq!(f("crates:-"), false);
-        assert_eq!(f("crates:_"), false);
-        assert_eq!(f("crates:a0"), true);
-        assert_eq!(f("crates:a-"), false);
-        assert_eq!(f("crates:a_"), false);
-        assert_eq!(f("crates:a-a"), true);
-        assert_eq!(f("crates:a-0"), true);
-        assert_eq!(f("crates:a_a"), true);
-        assert_eq!(f("crates:a_0"), true);
-    }
+pub fn build_rules(path: &PathBuf) -> anyhow::Result<Vec<Rule>> {
+    let content = fs::read_to_string(path)?;
+    let json: Vec<(String, String)> = serde_json::from_str(content.as_str())?;
+    json.into_iter()
+        .map(|i| Rule::try_from((i.0.as_str(), i.1.as_str())))
+        .collect::<Result<Vec<Rule>, &'static str>>()
+        .map_err(|e| anyhow!(e))
 }
