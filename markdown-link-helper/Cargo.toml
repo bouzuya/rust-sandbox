@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 pulldown-cmark = "0.8.0"
 regex = "1.4.6"
+structopt = "0.3.21"
