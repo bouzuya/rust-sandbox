@@ -45,6 +45,12 @@ impl std::str::FromStr for DayOfMonth {
     }
 }
 
+impl From<DayOfMonth> for u8 {
+    fn from(day_of_month: DayOfMonth) -> Self {
+        day_of_month.0
+    }
+}
+
 impl std::convert::TryFrom<u8> for DayOfMonth {
     type Error = TryFromDayOfMonthError;
 
@@ -58,39 +64,34 @@ impl std::convert::TryFrom<u8> for DayOfMonth {
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
-    fn from_str() {
-        type DOM = DayOfMonth;
+    fn str_convert() {
+        // str -(from_str / parse)-> DayOfMonth
+        // str <-(to_string & as_str)- DayOfMonth
         type PDE = ParseDayOfMonthError;
-        assert_eq!(DOM::from_str("01"), Ok(DayOfMonth(1)));
-        assert_eq!(DOM::from_str("31"), Ok(DayOfMonth(31)));
-        assert_eq!(DOM::from_str(""), Err(PDE::InvalidLength));
-        assert_eq!(DOM::from_str("1"), Err(PDE::InvalidLength));
-        assert_eq!(DOM::from_str("100"), Err(PDE::InvalidLength));
-        assert_eq!(DOM::from_str("0a"), Err(PDE::InvalidDigit));
-        assert_eq!(DOM::from_str("+1"), Err(PDE::InvalidDigit));
-        assert_eq!(DOM::from_str("00"), Err(PDE::OutOfRange));
-        assert_eq!(DOM::from_str("32"), Err(PDE::OutOfRange));
+        let f = |s: &str| s.parse::<DayOfMonth>();
+        assert_eq!(f("01").map(|d| d.to_string()), Ok("01".to_string()));
+        assert_eq!(f("31").map(|d| d.to_string()), Ok("31".to_string()));
+        assert_eq!(f(""), Err(PDE::InvalidLength));
+        assert_eq!(f("1"), Err(PDE::InvalidLength));
+        assert_eq!(f("100"), Err(PDE::InvalidLength));
+        assert_eq!(f("0a"), Err(PDE::InvalidDigit));
+        assert_eq!(f("+1"), Err(PDE::InvalidDigit));
+        assert_eq!(f("00"), Err(PDE::OutOfRange));
+        assert_eq!(f("32"), Err(PDE::OutOfRange));
     }
 
     #[test]
-    fn to_string() {
-        for s in vec!["01", "31"] {
-            assert_eq!(DayOfMonth::from_str(s).unwrap().to_string(), s.to_string());
-        }
-    }
-
-    #[test]
-    fn try_from() {
-        type DOM = DayOfMonth;
-        type TDE = TryFromDayOfMonthError;
-        assert_eq!(DOM::try_from(0), Err(TDE::OutOfRange));
-        assert_eq!(DOM::try_from(1), Ok(DayOfMonth(1)));
-        assert_eq!(DOM::try_from(31), Ok(DayOfMonth(31)));
-        assert_eq!(DOM::try_from(32), Err(TDE::OutOfRange));
+    fn u8_convert() {
+        // u8 -(try_from)-> DayOfMonth
+        // u8 <-(from)- DayOfMonth
+        type E = TryFromDayOfMonthError;
+        let f = |d: u8| DayOfMonth::try_from(d);
+        assert_eq!(f(0_u8), Err(E::OutOfRange));
+        assert_eq!(f(1_u8).map(|d| u8::from(d)), Ok(1_u8));
+        assert_eq!(f(31_u8).map(|d| u8::from(d)), Ok(31_u8));
+        assert_eq!(f(32_u8), Err(E::OutOfRange));
     }
 }
