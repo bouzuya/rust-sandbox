@@ -114,20 +114,17 @@ mod tests {
     }
 
     #[test]
-    fn from_str() {
-        type YM = YearMonth;
-        type PYE = ParseYearMonthError;
+    fn str_convert() {
+        type E = ParseYearMonthError;
+        let f = |s| YearMonth::from_str(s);
         assert_eq!(
-            YM::from_str("2000-01"),
-            Ok(YearMonth {
-                year: Year::from_str("2000").unwrap(),
-                month: Month::from_str("01").unwrap()
-            })
+            f("2000-01").map(|ym| ym.to_string()),
+            Ok("2000-01".to_string())
         );
-        assert!(matches!(YM::from_str("20000-01"), Err(PYE::InvalidLength)));
-        assert!(matches!(YM::from_str("2000+01"), Err(PYE::InvalidFormat)));
-        assert!(matches!(YM::from_str("+000-01"), Err(PYE::ParseYear(_))));
-        assert!(matches!(YM::from_str("2000-13"), Err(PYE::ParseMonth(_))));
+        assert!(matches!(f("20000-01"), Err(E::InvalidLength)));
+        assert!(matches!(f("2000+01"), Err(E::InvalidFormat)));
+        assert!(matches!(f("+000-01"), Err(E::ParseYear(_))));
+        assert!(matches!(f("2000-13"), Err(E::ParseMonth(_))));
     }
 
     #[test]
@@ -147,12 +144,5 @@ mod tests {
         assert_eq!(f("1999-11"), d(30));
         assert_eq!(f("1999-12"), d(31));
         assert_eq!(f("2000-02"), d(29));
-    }
-
-    #[test]
-    fn to_string() {
-        for s in vec!["2021-01", "2021-12"] {
-            assert_eq!(YearMonth::from_str(s).unwrap().to_string(), s.to_string());
-        }
     }
 }
