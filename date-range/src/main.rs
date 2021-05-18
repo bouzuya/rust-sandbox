@@ -12,6 +12,8 @@ struct Opt {
     input: String,
     #[structopt(long = "last", help = "Prints the last day of the date range")]
     last: bool,
+    #[structopt(long = "week-date", help = "Prints the week date instead of the date")]
+    week_date: bool,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -27,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         (true, true) => OutputFormat::Range,
     };
     let r = DateRange::parse(&input_format, &opt.input).unwrap();
-    let m = output_format.format(&r);
+    let m = output_format.format(opt.week_date, &r);
     println!("{}", m);
     Ok(())
 }
