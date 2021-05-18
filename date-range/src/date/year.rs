@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -9,6 +10,14 @@ pub enum ParseYearError {
     InvalidDigit,
     #[error("invalid length")]
     InvalidLength,
+    #[error("out of range")]
+    OutOfRange,
+}
+
+#[derive(Debug, Eq, Error, PartialEq)]
+pub enum TryFromYearError {
+    #[error("out of range")]
+    OutOfRange,
 }
 
 impl Year {
@@ -38,39 +47,64 @@ impl std::str::FromStr for Year {
             };
             y = y * 10 + d;
         }
-        Ok(Self(y))
+        Self::try_from(y).map_err(|_| Self::Err::OutOfRange)
+    }
+}
+
+impl From<Year> for u16 {
+    fn from(year: Year) -> Self {
+        year.0
+    }
+}
+
+impl std::convert::TryFrom<u16> for Year {
+    type Error = TryFromYearError;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        if !(1970..=9999).contains(&value) {
+            return Err(Self::Error::OutOfRange);
+        }
+        Ok(Self(value))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
-    fn from_str() {
-        type PYE = ParseYearError;
-        assert_eq!(Year::from_str("0000"), Ok(Year(0)));
-        assert_eq!(Year::from_str("9999"), Ok(Year(9999)));
-        assert_eq!(Year::from_str(""), Err(PYE::InvalidLength));
-        assert_eq!(Year::from_str("0"), Err(PYE::InvalidLength));
-        assert_eq!(Year::from_str("10000"), Err(PYE::InvalidLength));
-        assert_eq!(Year::from_str("000a"), Err(PYE::InvalidDigit));
-        assert_eq!(Year::from_str("+000"), Err(PYE::InvalidDigit));
-    }
-
-    #[test]
-    fn to_string() {
-        for s in vec!["0000", "9999"] {
-            assert_eq!(Year::from_str(s).unwrap().to_string(), s.to_string());
-        }
-    }
-
-    #[test]
     fn is_leap_year() {
-        assert_eq!(Year::from_str("2000").unwrap().is_leap_year(), true);
-        assert_eq!(Year::from_str("2004").unwrap().is_leap_year(), true);
-        assert_eq!(Year::from_str("1900").unwrap().is_leap_year(), false);
+        let f = |y: u16| Year::try_from(y).unwrap().is_leap_year();
+        assert_eq!(f(2000), true);
+        assert_eq!(f(2004), true);
+        assert_eq!(f(2100), false);
+    }
+
+    #[test]
+    fn str_convert() {
+        // str -(from_str / parse)-> Year
+        // str <-(to_string & as_str)- Year
+        type E = ParseYearError;
+        let f = |s: &str| s.parse::<Year>();
+        assert_eq!(f("1970").map(|y| y.to_string()), Ok("1970".to_string()));
+        assert_eq!(f("9999").map(|y| y.to_string()), Ok("9999".to_string()));
+        assert_eq!(f(""), Err(E::InvalidLength));
+        assert_eq!(f("0"), Err(E::InvalidLength));
+        assert_eq!(f("10000"), Err(E::InvalidLength));
+        assert_eq!(f("000a"), Err(E::InvalidDigit));
+        assert_eq!(f("+000"), Err(E::InvalidDigit));
+        assert_eq!(f("1969"), Err(E::OutOfRange));
+    }
+
+    #[test]
+    fn u16_convert() {
+        // u16 -(try_from)-> Year
+        // u16 <-(from)- Year
+        type E = TryFromYearError;
+        let f = |y: u16| Year::try_from(y);
+        assert_eq!(f(1969_u16), Err(E::OutOfRange));
+        assert_eq!(f(1970_u16).map(|m| u16::from(m)), Ok(1970_u16));
+        assert_eq!(f(9999_u16).map(|m| u16::from(m)), Ok(9999_u16));
+        assert_eq!(f(10000_u16), Err(E::OutOfRange));
     }
 }
