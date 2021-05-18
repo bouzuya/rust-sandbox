@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -9,6 +10,12 @@ pub enum ParseMonthError {
     InvalidDigit,
     #[error("invalid length")]
     InvalidLength,
+    #[error("out of range")]
+    OutOfRange,
+}
+
+#[derive(Debug, Eq, Error, PartialEq)]
+pub enum TryFromMonthError {
     #[error("out of range")]
     OutOfRange,
 }
@@ -34,10 +41,7 @@ impl std::str::FromStr for Month {
             };
             m = m * 10 + d;
         }
-        if !(1..=12).contains(&m) {
-            return Err(Self::Err::OutOfRange);
-        }
-        Ok(Self(m))
+        Self::try_from(m).map_err(|_| Self::Err::OutOfRange)
     }
 }
 
@@ -47,35 +51,47 @@ impl From<Month> for u8 {
     }
 }
 
+impl std::convert::TryFrom<u8> for Month {
+    type Error = TryFromMonthError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        if !(1..=12).contains(&value) {
+            return Err(Self::Error::OutOfRange);
+        }
+        Ok(Self(value))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
-    fn from_str() {
-        type PME = ParseMonthError;
-        assert_eq!(Month::from_str("01"), Ok(Month(1)));
-        assert_eq!(Month::from_str("12"), Ok(Month(12)));
-        assert_eq!(Month::from_str(""), Err(PME::InvalidLength));
-        assert_eq!(Month::from_str("1"), Err(PME::InvalidLength));
-        assert_eq!(Month::from_str("100"), Err(PME::InvalidLength));
-        assert_eq!(Month::from_str("0a"), Err(PME::InvalidDigit));
-        assert_eq!(Month::from_str("+1"), Err(PME::InvalidDigit));
-        assert_eq!(Month::from_str("00"), Err(PME::OutOfRange));
-        assert_eq!(Month::from_str("13"), Err(PME::OutOfRange));
+    fn str_convert() {
+        // str -(from_str / parse)-> Month
+        // str <-(to_string & as_str)- Month
+        type E = ParseMonthError;
+        let f = |s: &str| s.parse::<Month>();
+        assert_eq!(f("01").map(|m| m.to_string()), Ok("01".to_string()));
+        assert_eq!(f("12").map(|m| m.to_string()), Ok("12".to_string()));
+        assert_eq!(f(""), Err(E::InvalidLength));
+        assert_eq!(f("1"), Err(E::InvalidLength));
+        assert_eq!(f("100"), Err(E::InvalidLength));
+        assert_eq!(f("0a"), Err(E::InvalidDigit));
+        assert_eq!(f("+1"), Err(E::InvalidDigit));
+        assert_eq!(f("00"), Err(E::OutOfRange));
+        assert_eq!(f("13"), Err(E::OutOfRange));
     }
 
     #[test]
-    fn to_string() {
-        for s in vec!["01", "12"] {
-            assert_eq!(Month::from_str(s).unwrap().to_string(), s.to_string());
-        }
-    }
-
-    #[test]
-    fn u8_from_month() {
-        assert_eq!(u8::from(Month::from_str("01").unwrap()), 1_u8);
+    fn u8_convert() {
+        // u8 -(try_from)-> Month
+        // u8 <-(from)- Month
+        type E = TryFromMonthError;
+        let f = |d: u8| Month::try_from(d);
+        assert_eq!(f(0_u8), Err(E::OutOfRange));
+        assert_eq!(f(1_u8).map(|m| u8::from(m)), Ok(1_u8));
+        assert_eq!(f(12_u8).map(|m| u8::from(m)), Ok(12_u8));
+        assert_eq!(f(13_u8), Err(E::OutOfRange));
     }
 }
