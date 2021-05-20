@@ -319,7 +319,7 @@ checksum = "1a143597ca7c7793eff794def352d41792a93c481eb1042423ff7ff72ba2c31f"
 
 [[package]]
 name = "week"
-version = "0.0.0"
+version = "0.2.0"
 dependencies = [
  "date-range",
  "structopt",
