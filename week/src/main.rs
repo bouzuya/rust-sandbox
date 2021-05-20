@@ -6,9 +6,22 @@ use structopt::StructOpt;
 struct Opt {
     #[structopt(name = "DATE", help = "The date")]
     date: Date,
+    #[structopt(long = "week-date", help = "Prints in week date format (YYYY-Www-D)")]
+    week_date: bool,
+    #[structopt(long = "week-year", help = "Prints in week year format (YYYY)")]
+    week_year: bool,
+    #[structopt(long = "week", help = "Prints in week format (YYYY-Www)")]
+    week: bool,
 }
 
 fn main() {
     let opt = Opt::from_args();
-    println!("{}", WeekDate::from(opt.date).year_week());
+    let wd = WeekDate::from(opt.date);
+    let message = match (opt.week_year, opt.week, opt.week_date) {
+        (true, false, false) => wd.year().to_string(),
+        (false, true, false) => wd.year_week().to_string(),
+        (false, false, true) => wd.day_of_week().to_string(),
+        _ => panic!(),
+    };
+    println!("{}", message);
 }
