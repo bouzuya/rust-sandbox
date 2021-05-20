@@ -5,6 +5,8 @@ on:
     paths:
       - "week/**"
       - ".github/workflows/week.yml"
+    tags:
+      - "week/*"
 defaults:
   run:
     working-directory: week
@@ -12,7 +14,7 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions/cache@v2
@@ -21,5 +23,19 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      - run: cargo build --verbose
       - run: cargo test --verbose
+      - run: cargo build --release --target ${{ matrix.target }} --verbose
+      - uses: svenstaro/upload-release-action@2.2.1
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: week/target/${{ matrix.target }}/release/week
+          asset_name: week-${{ matrix.target }}
+          tag: ${{ github.ref }}
+          overwrite: true
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
