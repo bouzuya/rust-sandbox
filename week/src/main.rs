@@ -18,9 +18,10 @@ fn main() {
     let opt = Opt::from_args();
     let wd = WeekDate::from(opt.date);
     let message = match (opt.week_year, opt.week, opt.week_date) {
+        (false, false, false) => wd.year_week().to_string(),
         (true, false, false) => wd.year().to_string(),
         (false, true, false) => wd.year_week().to_string(),
-        (false, false, true) => wd.day_of_week().to_string(),
+        (false, false, true) => wd.to_string(),
         _ => panic!(),
     };
     println!("{}", message);

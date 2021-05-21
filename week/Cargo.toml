@@ -9,3 +9,6 @@ edition = "2018"
 [dependencies]
 structopt = "0.3.21"
 date-range = { path = "../date-range/" }
+
+[dev-dependencies]
+assert_cmd = "1.0.4"
