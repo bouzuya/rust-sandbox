@@ -15,7 +15,7 @@ pub enum Token<'a> {
     Var(&'a str),
 }
 
-pub fn parse(input: &str) -> Result<Vec<Token>, &str> {
+pub fn parse<'a>(input: &'a str) -> Result<Vec<Token<'a>>, &'static str> {
     template(input)
         .map(|(_, tokens)| tokens)
         .map_err(|_| "parse error")
