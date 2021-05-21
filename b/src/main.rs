@@ -1,12 +1,5 @@
-use b::{list_entries, TemplateEntry};
-use serde_json::Value;
-use std::{
-    collections::BTreeMap,
-    convert::TryFrom,
-    env, fs,
-    io::{self, Read},
-    path::PathBuf,
-};
+use b::{build_data, list_entries, TemplateEntry};
+use std::{convert::TryFrom, env, fs, io, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -37,29 +30,14 @@ fn main() {
             data_file,
             template,
         } => {
-            let data = {
-                let data = if data_file == PathBuf::from("-") {
-                    let stdin = io::stdin();
-                    let mut handle = stdin.lock();
-                    let mut buf = String::new();
-                    handle.read_to_string(&mut buf).unwrap();
-                    buf
-                } else {
-                    fs::read_to_string(&data_file).unwrap()
-                };
-                let data: Value = serde_json::from_str(&data).unwrap();
-                let object = data.as_object().unwrap();
-                let mut map = BTreeMap::new();
-                for (k, v) in object {
-                    if !k.chars().all(|c| c.is_ascii_lowercase()) {
-                        panic!();
-                    }
-                    let v = v.as_str().unwrap().to_string();
-                    map.insert(k.clone(), v);
-                }
-                map
-            };
-
+            let data = if data_file == PathBuf::from("-").as_path() {
+                let stdin = io::stdin();
+                let mut handle = stdin.lock();
+                build_data(&mut handle)
+            } else {
+                build_data(&mut fs::File::open(&data_file).unwrap())
+            }
+            .unwrap();
             let entries = list_entries(template.as_path()).unwrap();
             let templates = entries
                 .iter()
