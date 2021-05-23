@@ -16,6 +16,8 @@ pub enum ListEntriesError {
     FileName,
     #[error("read_dir or next")]
     ReadDir(#[from] io::Error),
+    #[error("canonicalize")]
+    Canonicalize(#[source] io::Error),
 }
 
 fn list_entries_impl(first: bool, path: &Path) -> Result<Vec<Entry>, ListEntriesError> {
@@ -41,15 +43,18 @@ fn list_entries_impl(first: bool, path: &Path) -> Result<Vec<Entry>, ListEntries
 }
 
 pub fn list_entries(path: &Path) -> Result<Vec<Entry>, ListEntriesError> {
+    let path = path
+        .canonicalize()
+        .map_err(|e| ListEntriesError::Canonicalize(e))?;
     let strip_prefix = |s: String| -> Result<String, ListEntriesError> {
         Ok(PathBuf::from(s)
-            .strip_prefix(path)
+            .strip_prefix(path.as_path())
             .expect("internal error")
             .to_str()
             .ok_or_else(|| ListEntriesError::FileName)?
             .to_string())
     };
-    list_entries_impl(true, path)?
+    list_entries_impl(true, path.as_path())?
         .into_iter()
         .map(|e| {
             Ok(match e {
