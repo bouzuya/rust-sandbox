@@ -19,6 +19,20 @@ pub enum ParseQueryError {
     Parse,
 }
 
+impl<'a> Query<'a> {
+    pub fn year(&self) -> Option<&str> {
+        self.0 .0
+    }
+
+    pub fn month(&self) -> Option<&str> {
+        self.0 .1
+    }
+
+    pub fn day(&self) -> Option<&str> {
+        self.0 .2
+    }
+}
+
 impl<'a> std::fmt::Display for Query<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let date = &self.0;
@@ -113,5 +127,31 @@ mod tests {
         f("date:--02-03");
         f("date:--02");
         f("date:---03");
+    }
+
+    #[test]
+    fn year() {
+        let q = |s| Query::try_from(s).unwrap();
+        assert_eq!(q("date:2021-02-03").year(), Some("2021"));
+        assert_eq!(q("date:2021-02").year(), Some("2021"));
+        assert_eq!(q("date:2021").year(), Some("2021"));
+        assert_eq!(q("date:--02-03").year(), None);
+    }
+
+    #[test]
+    fn month() {
+        let q = |s| Query::try_from(s).unwrap();
+        assert_eq!(q("date:2021-02-03").month(), Some("02"));
+        assert_eq!(q("date:2021-02").month(), Some("02"));
+        assert_eq!(q("date:2021").month(), None);
+        assert_eq!(q("date:---03").month(), None);
+    }
+
+    #[test]
+    fn day() {
+        let q = |s| Query::try_from(s).unwrap();
+        assert_eq!(q("date:2021-02-03").day(), Some("03"));
+        assert_eq!(q("date:---03").day(), Some("03"));
+        assert_eq!(q("date:2021-02").day(), None);
     }
 }
