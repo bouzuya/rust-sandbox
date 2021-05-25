@@ -3,6 +3,7 @@ mod query;
 use query::Query;
 use serde_json::Value;
 use std::{
+    convert::TryFrom,
     ffi::OsStr,
     fs, io,
     path::{Path, PathBuf},
@@ -23,7 +24,7 @@ enum Subcommand {
         #[structopt(long = "data-dir", help = "the data dir")]
         data_dir: PathBuf,
         #[structopt(name = "query", help = "query")]
-        query: Query,
+        query: String,
     },
 }
 
@@ -66,6 +67,7 @@ fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::List { data_dir, query } => {
+            let query = Query::try_from(query.as_str()).unwrap();
             let q = query.to_string().as_bytes()[7..]
                 .iter()
                 .map(|&b| char::from_u32(b as u32).unwrap())

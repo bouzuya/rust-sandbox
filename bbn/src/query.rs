@@ -1,18 +1,17 @@
 use nom::{
     branch::alt,
-    bytes::complete::tag,
-    character::complete::{char, one_of},
+    bytes::complete::{tag, take_while_m_n},
+    character::complete::char,
     combinator::all_consuming,
-    multi::count,
     IResult,
 };
 use thiserror::Error;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Query(Date);
+pub struct Query<'a>(Date<'a>);
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Date(Option<String>, Option<String>, Option<String>);
+pub struct Date<'a>(Option<&'a str>, Option<&'a str>, Option<&'a str>);
 
 #[derive(Debug, Error)]
 pub enum ParseQueryError {
@@ -20,7 +19,7 @@ pub enum ParseQueryError {
     Parse,
 }
 
-impl std::fmt::Display for Query {
+impl<'a> std::fmt::Display for Query<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let date = &self.0;
         match (&date.0, &date.1, &date.2) {
@@ -36,70 +35,53 @@ impl std::fmt::Display for Query {
     }
 }
 
+fn is_digit(c: char) -> bool {
+    c.is_ascii_digit()
+}
+
 fn yyyymmdd(s: &str) -> IResult<&str, Date> {
-    let (s, y) = count(one_of("0123456789"), 4)(s)?;
+    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = count(one_of("0123456789"), 2)(s)?;
+    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = count(one_of("0123456789"), 2)(s)?;
-    Ok((
-        s,
-        Date(
-            Some(y.iter().collect::<String>()),
-            Some(m.iter().collect::<String>()),
-            Some(d.iter().collect::<String>()),
-        ),
-    ))
+    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    Ok((s, Date(Some(y), Some(m), Some(d))))
 }
 
 fn yyyymm(s: &str) -> IResult<&str, Date> {
-    let (s, y) = count(one_of("0123456789"), 4)(s)?;
+    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = count(one_of("0123456789"), 2)(s)?;
-    Ok((
-        s,
-        Date(
-            Some(y.iter().collect::<String>()),
-            Some(m.iter().collect::<String>()),
-            None,
-        ),
-    ))
+    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    Ok((s, Date(Some(y), Some(m), None)))
 }
 
 fn yyyy(s: &str) -> IResult<&str, Date> {
-    let (s, y) = count(one_of("0123456789"), 4)(s)?;
-    Ok((s, Date(Some(y.iter().collect::<String>()), None, None)))
+    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
+    Ok((s, Date(Some(y), None, None)))
 }
 
 fn mmdd(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = count(one_of("0123456789"), 2)(s)?;
+    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = count(one_of("0123456789"), 2)(s)?;
-    Ok((
-        s,
-        Date(
-            None,
-            Some(m.iter().collect::<String>()),
-            Some(d.iter().collect::<String>()),
-        ),
-    ))
+    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    Ok((s, Date(None, Some(m), Some(d))))
 }
 
 fn mm(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = count(one_of("0123456789"), 2)(s)?;
-    Ok((s, Date(None, Some(m.iter().collect::<String>()), None)))
+    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    Ok((s, Date(None, Some(m), None)))
 }
 
 fn dd(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = count(one_of("0123456789"), 2)(s)?;
-    Ok((s, Date(None, None, Some(d.iter().collect::<String>()))))
+    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    Ok((s, Date(None, None, Some(d))))
 }
 
 fn parse(s: &str) -> IResult<&str, Date> {
@@ -108,11 +90,11 @@ fn parse(s: &str) -> IResult<&str, Date> {
     Ok((s, date))
 }
 
-impl std::str::FromStr for Query {
-    type Err = ParseQueryError;
+impl<'a> std::convert::TryFrom<&'a str> for Query<'a> {
+    type Error = ParseQueryError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (_, date) = parse(s).map_err(|_| ParseQueryError::Parse)?;
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        let (_, date) = parse(value).map_err(|_| ParseQueryError::Parse)?;
         Ok(Self(date))
     }
 }
@@ -120,10 +102,11 @@ impl std::str::FromStr for Query {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::convert::TryFrom;
 
     #[test]
     fn str_convert() {
-        let f = |s: &str| assert_eq!(s.parse::<Query>().unwrap().to_string(), s.to_string());
+        let f = |s: &str| assert_eq!(Query::try_from(s).unwrap().to_string(), s.to_string());
         f("date:2021-02-03");
         f("date:2021-02");
         f("date:2021");
