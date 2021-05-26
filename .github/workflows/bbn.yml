@@ -32,6 +32,7 @@ jobs:
           asset_name: bbn-${{ matrix.target }}
           tag: ${{ github.ref }}
           overwrite: true
+        if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
     strategy:
       matrix:
         include:
