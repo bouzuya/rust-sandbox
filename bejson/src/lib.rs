@@ -9,11 +9,11 @@ use nom::{
     IResult,
 };
 use ordered_float::NotNan;
-use std::{collections::BTreeMap, iter};
+use std::iter;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum JsonValue {
-    Object(BTreeMap<JsonString, JsonValue>),
+    Object(Vec<(JsonString, JsonValue)>),
     Array(Vec<JsonValue>),
     String(JsonString),
     Number(JsonNumber),
@@ -93,29 +93,24 @@ fn json_value(s: &str) -> IResult<&str, JsonValue> {
 fn json_object(s: &str) -> IResult<&str, JsonValue> {
     map(
         alt((
-            map(tuple((char('{'), json_ws, char('}'))), |_| BTreeMap::new()),
+            map(tuple((char('{'), json_ws, char('}'))), |_| vec![]),
             delimited(char('{'), json_members, char('}')),
         )),
         |o| JsonValue::Object(o),
     )(s)
 }
 
-fn json_members(s: &str) -> IResult<&str, BTreeMap<JsonString, JsonValue>> {
+fn json_members(s: &str) -> IResult<&str, Vec<(JsonString, JsonValue)>> {
     alt((
         map(
             tuple((json_member, char(','), json_members)),
-            |((k, v), _, mut vs)| {
-                let mut map = BTreeMap::new();
-                map.insert(k, v);
-                map.append(&mut vs);
-                map
+            |(m, _, ms)| {
+                iter::once(m)
+                    .chain(ms)
+                    .collect::<Vec<(JsonString, JsonValue)>>()
             },
         ),
-        map(json_member, |(k, v)| {
-            let mut map = BTreeMap::new();
-            map.insert(k, v);
-            map
-        }),
+        map(json_member, |m| vec![m]),
     ))(s)
 }
 
@@ -299,15 +294,7 @@ fn json_ws(s: &str) -> IResult<&str, String> {
 mod tests {
     use super::*;
 
-    fn o(ms: Vec<(JsonString, JsonValue)>) -> BTreeMap<JsonString, JsonValue> {
-        let mut o = BTreeMap::new();
-        for (k, v) in ms {
-            o.insert(k, v);
-        }
-        o
-    }
-
-    fn vo(o: BTreeMap<JsonString, JsonValue>) -> JsonValue {
+    fn vo(o: Vec<(JsonString, JsonValue)>) -> JsonValue {
         JsonValue::Object(o)
     }
 
@@ -356,10 +343,10 @@ mod tests {
             f(r#"{"abc": 123, "def": [123.456, true, false, null]}"#),
             Ok((
                 "",
-                vo(o(vec![
+                vo(vec![
                     (s("abc"), vn(ni(123))),
                     ((s("def"), va(vec![vn(nf(123.456)), vt(), vf(), vnull()])))
-                ]))
+                ])
             ))
         );
     }
@@ -375,7 +362,7 @@ mod tests {
         //   "false"
         //   "null"
         let f = json_value;
-        assert_eq!(f(r#"{}"#), Ok(("", vo(o(vec![])))));
+        assert_eq!(f(r#"{}"#), Ok(("", vo(vec![]))));
         assert_eq!(f(r#"[]"#), Ok(("", va(vec![]))));
         assert_eq!(f(r#""abc""#), Ok(("", vs(s(r#"abc"#)))));
         assert_eq!(f(r#"123"#), Ok(("", vn(ni(123)))));
@@ -391,15 +378,12 @@ mod tests {
         //   '{' ws '}'
         //   '{' members '}'
         let f = json_object;
-        assert_eq!(f(r#"{ }"#), Ok(("", vo(o(vec![])))));
+        assert_eq!(f(r#"{ }"#), Ok(("", vo(vec![]))));
         assert_eq!(
             f(r#"{ "abc" : 123 , "def" : 456 }"#),
             Ok((
                 "",
-                vo(o(vec![
-                    (s(r#"abc"#), vn(ni(123))),
-                    (s(r#"def"#), vn(ni(456)))
-                ]))
+                vo(vec![(s(r#"abc"#), vn(ni(123))), (s(r#"def"#), vn(ni(456)))])
             ))
         );
     }
@@ -412,11 +396,11 @@ mod tests {
         let f = json_members;
         assert_eq!(
             f(r#" "abc" : null"#),
-            Ok(("", o(vec![(s(r#"abc"#), vnull())])))
+            Ok(("", vec![(s(r#"abc"#), vnull())]))
         );
         assert_eq!(
             f(r#" "abc" : null, "def" : null"#),
-            Ok(("", o(vec![(s(r#"abc"#), vnull()), (s(r#"def"#), vnull())])))
+            Ok(("", vec![(s(r#"abc"#), vnull()), (s(r#"def"#), vnull())]))
         );
     }
 
