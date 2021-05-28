@@ -10,9 +10,11 @@ use nom::{
 };
 use std::iter;
 
+type Member = (JsonString, JsonValue);
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum JsonValue {
-    Object(Vec<(JsonString, JsonValue)>),
+    Object(Vec<Member>),
     Array(Vec<JsonValue>),
     String(JsonString),
     Number(String),
@@ -84,21 +86,17 @@ fn json_object(s: &str) -> IResult<&str, JsonValue> {
     )(s)
 }
 
-fn json_members(s: &str) -> IResult<&str, Vec<(JsonString, JsonValue)>> {
+fn json_members(s: &str) -> IResult<&str, Vec<Member>> {
     alt((
         map(
             tuple((json_member, char(','), json_members)),
-            |(m, _, ms)| {
-                iter::once(m)
-                    .chain(ms)
-                    .collect::<Vec<(JsonString, JsonValue)>>()
-            },
+            |(m, _, ms)| iter::once(m).chain(ms).collect::<Vec<Member>>(),
         ),
         map(json_member, |m| vec![m]),
     ))(s)
 }
 
-fn json_member(s: &str) -> IResult<&str, (JsonString, JsonValue)> {
+fn json_member(s: &str) -> IResult<&str, Member> {
     map(
         tuple((json_ws, json_string, json_ws, char(':'), json_element)),
         |(_, s, _, _, e)| {
@@ -273,7 +271,11 @@ fn json_ws(s: &str) -> IResult<&str, String> {
 mod tests {
     use super::*;
 
-    fn vo(o: Vec<(JsonString, JsonValue)>) -> JsonValue {
+    fn m(k: &str, v: JsonValue) -> Member {
+        (JsonString(k.to_string()), v)
+    }
+
+    fn vo(o: Vec<Member>) -> JsonValue {
         JsonValue::Object(o)
     }
 
@@ -281,12 +283,8 @@ mod tests {
         JsonValue::Array(a)
     }
 
-    fn vs(s: JsonString) -> JsonValue {
-        JsonValue::String(s)
-    }
-
-    fn s(s: &str) -> JsonString {
-        JsonString(s.to_string())
+    fn vs(s: &str) -> JsonValue {
+        JsonValue::String(JsonString(s.to_string()))
     }
 
     fn vn(n: &str) -> JsonValue {
@@ -315,8 +313,8 @@ mod tests {
             Ok((
                 "",
                 vo(vec![
-                    (s("abc"), vn("123")),
-                    ((s("def"), va(vec![vn("123.456"), vt(), vf(), vnull()])))
+                    m("abc", vn("123")),
+                    m("def", va(vec![vn("123.456"), vt(), vf(), vnull()]))
                 ])
             ))
         );
@@ -335,7 +333,7 @@ mod tests {
         let f = json_value;
         assert_eq!(f(r#"{}"#), Ok(("", vo(vec![]))));
         assert_eq!(f(r#"[]"#), Ok(("", va(vec![]))));
-        assert_eq!(f(r#""abc""#), Ok(("", vs(s(r#"abc"#)))));
+        assert_eq!(f(r#""abc""#), Ok(("", vs("abc"))));
         assert_eq!(f(r#"123"#), Ok(("", vn("123"))));
         assert_eq!(f(r#"123.456"#), Ok(("", vn("123.456"))));
         assert_eq!(f(r#"true"#), Ok(("", vt())));
@@ -352,10 +350,7 @@ mod tests {
         assert_eq!(f(r#"{ }"#), Ok(("", vo(vec![]))));
         assert_eq!(
             f(r#"{ "abc" : 123 , "def" : 456 }"#),
-            Ok((
-                "",
-                vo(vec![(s(r#"abc"#), vn("123")), (s(r#"def"#), vn("456"))])
-            ))
+            Ok(("", vo(vec![m("abc", vn("123")), m("def", vn("456"))])))
         );
     }
 
@@ -365,13 +360,10 @@ mod tests {
         //   member
         //   member ',' members
         let f = json_members;
-        assert_eq!(
-            f(r#" "abc" : null"#),
-            Ok(("", vec![(s(r#"abc"#), vnull())]))
-        );
+        assert_eq!(f(r#" "abc" : null"#), Ok(("", vec![m("abc", vnull())])));
         assert_eq!(
             f(r#" "abc" : null, "def" : null"#),
-            Ok(("", vec![(s(r#"abc"#), vnull()), (s(r#"def"#), vnull())]))
+            Ok(("", vec![m("abc", vnull()), m("def", vnull())]))
         );
     }
 
@@ -380,7 +372,7 @@ mod tests {
         // member
         //   ws string ws ':' element
         let f = json_member;
-        assert_eq!(f(r#" "abc" : null"#), Ok(("", (s(r#"abc"#), vnull()))));
+        assert_eq!(f(r#" "abc" : null"#), Ok(("", m("abc", vnull()))));
     }
 
     #[test]
@@ -390,10 +382,7 @@ mod tests {
         //   '[' elements ']'
         let f = json_array;
         assert_eq!(f(r#"[ ]"#), Ok(("", va(vec![]))));
-        assert_eq!(
-            f(r#"[ "a" , 1 ]"#),
-            Ok(("", va(vec![vs(s(r#"a"#)), vn("1")])))
-        );
+        assert_eq!(f(r#"[ "a" , 1 ]"#), Ok(("", va(vec![vs("a"), vn("1")]))));
     }
 
     #[test]
@@ -402,8 +391,8 @@ mod tests {
         //   element
         //   element ',' elements
         let f = json_elements;
-        assert_eq!(f(r#""a""#), Ok(("", vec![vs(s(r#"a"#))])));
-        assert_eq!(f(r#""a", 1"#), Ok(("", vec![vs(s(r#"a"#)), vn("1")])));
+        assert_eq!(f(r#""a""#), Ok(("", vec![vs("a")])));
+        assert_eq!(f(r#""a", 1"#), Ok(("", vec![vs("a"), vn("1")])));
     }
 
     #[test]
@@ -411,7 +400,7 @@ mod tests {
         // element
         //   ws value ws
         let f = json_element;
-        assert_eq!(f(r#" "abc" "#), Ok(("", vs(s(r#"abc"#)))));
+        assert_eq!(f(r#" "abc" "#), Ok(("", vs("abc"))));
         assert_eq!(f(r#" 123 "#), Ok(("", vn("123"))));
     }
 
@@ -421,25 +410,25 @@ mod tests {
         //   '"' characters '"'
         let f = json_string;
         assert_eq!(f(r#""#).is_err(), true);
-        assert_eq!(f(r#""a""#), Ok(("", vs(s(r#"a"#)))));
-        assert_eq!(f(r#""ab""#), Ok(("", vs(s(r#"ab"#)))));
-        assert_eq!(f(r#""a\"b""#), Ok(("", vs(s(r#"a\"b"#)))));
-        assert_eq!(f("\"\u{0020}\""), Ok(("", vs(s("\u{0020}")))));
-        assert_eq!(f("\"\u{10FFFF}\""), Ok(("", vs(s("\u{10FFFF}")))));
+        assert_eq!(f(r#""a""#), Ok(("", vs("a"))));
+        assert_eq!(f(r#""ab""#), Ok(("", vs("ab"))));
+        assert_eq!(f(r#""a\"b""#), Ok(("", vs(r#"a\"b"#))));
+        assert_eq!(f("\"\u{0020}\""), Ok(("", vs("\u{0020}"))));
+        assert_eq!(f("\"\u{10FFFF}\""), Ok(("", vs("\u{10FFFF}"))));
         assert_eq!(f(r#"""#).is_err(), true);
-        assert_eq!(f(r#""""#), Ok(("", vs(s(r#""#)))));
-        assert_eq!(f(r#""\"""#), Ok(("", vs(s(r#"\""#)))));
-        assert_eq!(f(r#""\\""#), Ok(("", vs(s(r#"\\"#)))));
-        assert_eq!(f(r#""\/""#), Ok(("", vs(s(r#"\/"#)))));
-        assert_eq!(f(r#""\b""#), Ok(("", vs(s(r#"\b"#)))));
-        assert_eq!(f(r#""\f""#), Ok(("", vs(s(r#"\f"#)))));
-        assert_eq!(f(r#""\n""#), Ok(("", vs(s(r#"\n"#)))));
-        assert_eq!(f(r#""\r""#), Ok(("", vs(s(r#"\r"#)))));
-        assert_eq!(f(r#""\t""#), Ok(("", vs(s(r#"\t"#)))));
-        assert_eq!(f(r#""\u0020""#), Ok(("", vs(s(r#"\u0020"#)))));
+        assert_eq!(f(r#""""#), Ok(("", vs(r#""#))));
+        assert_eq!(f(r#""\"""#), Ok(("", vs(r#"\""#))));
+        assert_eq!(f(r#""\\""#), Ok(("", vs(r#"\\"#))));
+        assert_eq!(f(r#""\/""#), Ok(("", vs(r#"\/"#))));
+        assert_eq!(f(r#""\b""#), Ok(("", vs(r#"\b"#))));
+        assert_eq!(f(r#""\f""#), Ok(("", vs(r#"\f"#))));
+        assert_eq!(f(r#""\n""#), Ok(("", vs(r#"\n"#))));
+        assert_eq!(f(r#""\r""#), Ok(("", vs(r#"\r"#))));
+        assert_eq!(f(r#""\t""#), Ok(("", vs(r#"\t"#))));
+        assert_eq!(f(r#""\u0020""#), Ok(("", vs(r#"\u0020"#))));
         assert_eq!(f(r#""\u002""#).is_err(), true);
-        assert_eq!(f(r#""\u005A""#), Ok(("", vs(s(r#"\u005A"#)))));
-        assert_eq!(f(r#""\u10FFFF""#), Ok(("", vs(s(r#"\u10FFFF"#)))));
+        assert_eq!(f(r#""\u005A""#), Ok(("", vs(r#"\u005A"#))));
+        assert_eq!(f(r#""\u10FFFF""#), Ok(("", vs(r#"\u10FFFF"#))));
     }
 
     #[test]
