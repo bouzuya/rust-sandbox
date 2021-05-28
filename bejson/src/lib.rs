@@ -24,6 +24,14 @@ pub enum JsonValue {
     Null,
 }
 
+impl std::str::FromStr for JsonValue {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        json(s).map(|(_, v)| v).map_err(|_| "parse error")
+    }
+}
+
 impl std::fmt::Display for JsonValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -71,7 +79,7 @@ impl std::fmt::Display for JsonString {
     }
 }
 
-pub fn json(s: &str) -> IResult<&str, JsonValue> {
+fn json(s: &str) -> IResult<&str, JsonValue> {
     all_consuming(json_element)(s)
 }
 
