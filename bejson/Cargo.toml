@@ -10,3 +10,7 @@ edition = "2018"
 nom = "6.1.2"
 structopt = "0.3.21"
 thiserror = "1.0.25"
+
+[dev-dependencies]
+assert_cmd = "1.0.4"
+tempfile = "3.2.0"
