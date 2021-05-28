@@ -8,11 +8,30 @@ use nom::{
     sequence::{delimited, tuple},
     IResult,
 };
-use std::iter;
+use std::{
+    io, iter,
+    process::{Command, ExitStatus},
+    str::Chars,
+    string::FromUtf8Error,
+};
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum EvalError {
+    #[error("command execution error: {command}")]
+    CommandExecution { command: String, source: io::Error },
+    #[error("command status error: {status} {command}")]
+    CommandStatus { command: String, status: ExitStatus },
+    #[error("command output UTF-8 convertion error: {command}")]
+    CommandOutput {
+        command: String,
+        source: FromUtf8Error,
+    },
+}
 
 type Member = (JsonString, JsonValue);
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum JsonValue {
     CommandString(JsonCommandString),
     Object(Vec<Member>),
@@ -22,6 +41,127 @@ pub enum JsonValue {
     True,
     False,
     Null,
+}
+
+// stdout -> JsonValue::String
+fn escape_string(s: &str) -> String {
+    let mut t = String::new();
+    for c in s.chars() {
+        match c {
+            '"' => t.push_str(r#"\""#),
+            '\\' => t.push_str(r#"\\"#),
+            '/' => t.push_str(r#"/"#), // use '/' instead of r#"\/"#
+            '\u{0008}' => t.push_str(r#"\b"#),
+            '\u{000C}' => t.push_str(r#"\f"#),
+            '\u{000A}' => t.push_str(r#"\n"#),
+            '\u{000D}' => t.push_str(r#"\r"#),
+            '\u{0009}' => t.push_str(r#"\t"#),
+            '\u{0000}'..='\u{001F}' => t.push_str(&format!(r#"\u{:04X}"#, c as u32)),
+            _ => t.push(c),
+        };
+    }
+    t
+}
+
+fn unescape_command_string(s: &JsonCommandString) -> String {
+    let mut t = String::new();
+    let mut unicode: Option<Vec<char>> = None;
+    let mut escaped = false;
+    for c in s.chars() {
+        if escaped {
+            if escaped && unicode.is_some() {
+                if let Some(ref mut u) = unicode {
+                    u.push(c);
+                    if u.len() == 4 {
+                        let c = char::from_u32(u.iter().fold(0_u32, |ref mut acc, &x| {
+                            *acc *= 16;
+                            *acc += x.to_digit(16).expect("internal error");
+                            *acc
+                        }))
+                        .expect("invalid unicode code point");
+                        t.push(c);
+                        escaped = false;
+                        unicode = None;
+                    }
+                } else {
+                    unreachable!()
+                }
+            } else {
+                escaped = false;
+                let c = match c {
+                    '`' => '\u{0060}',
+                    '"' => '\u{0022}',
+                    '\\' => '\u{005C}',
+                    '/' => '\u{002F}',
+                    'b' => '\u{0008}',
+                    'f' => '\u{000C}',
+                    'n' => '\u{000A}',
+                    'r' => '\u{000D}',
+                    't' => '\u{0009}',
+                    'u' => {
+                        escaped = true;
+                        unicode = Some(vec![]);
+                        continue;
+                    }
+                    _ => unreachable!(),
+                };
+                t.push(c);
+            }
+        } else {
+            if c == '\\' {
+                escaped = true;
+            } else {
+                t.push(c);
+            }
+        }
+    }
+    t
+}
+
+impl JsonValue {
+    pub fn eval(&self) -> Result<JsonValue, EvalError> {
+        Ok(match self {
+            JsonValue::CommandString(s) => {
+                let arg = unescape_command_string(s);
+                let command = format!(r#"sh -c "{}""#, arg.as_str());
+                let output = Command::new("sh")
+                    .arg("-c")
+                    .arg(arg)
+                    .output()
+                    .map_err(|e| EvalError::CommandExecution {
+                        command: command.clone(),
+                        source: e,
+                    })?;
+                if !output.status.success() {
+                    return Err(EvalError::CommandStatus {
+                        command: command.clone(),
+                        status: output.status,
+                    });
+                }
+                let t = String::from_utf8(output.stdout).map_err(|e| EvalError::CommandOutput {
+                    command: command.clone(),
+                    source: e,
+                })?;
+                let t = escape_string(t.as_str());
+                JsonValue::String(JsonString(t))
+            }
+            JsonValue::Object(o) => JsonValue::Object(
+                o.iter()
+                    .map(|(k, v)| v.eval().and_then(|v| Ok((k.clone(), v))))
+                    .collect::<Result<Vec<Member>, EvalError>>()?,
+            ),
+            JsonValue::Array(a) => JsonValue::Array(
+                a.iter()
+                    .map(|i| i.eval())
+                    .collect::<Result<Vec<JsonValue>, EvalError>>()?,
+            ),
+            JsonValue::String(_) => self.clone(),
+            JsonValue::Number(_) => self.clone(),
+            JsonValue::True => self.clone(),
+            JsonValue::False => self.clone(),
+            JsonValue::Null => self.clone(),
+        })
+    }
 }
 
 impl std::str::FromStr for JsonValue {
@@ -60,9 +200,14 @@ impl std::fmt::Display for JsonValue {
         }
     }
 }
-
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct JsonCommandString(String);
+
+impl JsonCommandString {
+    fn chars(&self) -> Chars<'_> {
+        self.0.chars()
+    }
+}
 
 impl std::fmt::Display for JsonCommandString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -367,6 +512,59 @@ mod tests {
 
     fn vnull() -> JsonValue {
         JsonValue::Null
+    }
+
+    #[test]
+    fn escape_string_test() {
+        let f = escape_string;
+        let s = |s: &str| -> String { s.to_string() };
+        assert_eq!(f("\u{0000}"), s(r#"\u0000"#));
+        assert_eq!(f("\u{0008}"), s(r#"\b"#));
+        assert_eq!(f("\u{0009}"), s(r#"\t"#));
+        assert_eq!(f("\u{000A}"), s(r#"\n"#));
+        assert_eq!(f("\u{000C}"), s(r#"\f"#));
+        assert_eq!(f("\u{000D}"), s(r#"\r"#));
+        assert_eq!(f("\u{0019}"), s(r#"\u0019"#));
+        assert_eq!(f("\u{0020}"), s(r#" "#));
+        assert_eq!(f("\u{0022}"), s(r#"\""#));
+        assert_eq!(f("\u{002F}"), s(r#"/"#));
+        assert_eq!(f("\u{005C}"), s(r#"\\"#));
+        assert_eq!(f("\u{0060}"), s(r#"`"#));
+        assert_eq!(f("\u{10FFFF}"), s("\u{10FFFF}"));
+    }
+
+    #[test]
+    fn unescape_string_test() {
+        let f = |s: &str| unescape_command_string(&JsonCommandString(s.to_string()));
+        let s = |s: &str| -> String { s.to_string() };
+        assert_eq!(f(r#"a\\b"#), s("a\\b"));
+        assert_eq!(f(r#"\u0020"#), s("\u{0020}"));
+        assert_eq!(f(r#"\`"#), s("`"));
+        assert_eq!(f(r#"\`"#), s("\u{0060}"));
+        assert_eq!(f(r#"\""#), s("\""));
+        assert_eq!(f(r#"\""#), s("\u{0022}"));
+        assert_eq!(f(r#"\\"#), s("\u{005C}"));
+        assert_eq!(f(r#"\\"#), s("\\"));
+        assert_eq!(f(r#"\/"#), s("/"));
+        assert_eq!(f(r#"\/"#), s("\u{002F}"));
+        assert_eq!(f(r#"\b"#), s("\u{0008}"));
+        assert_eq!(f(r#"\f"#), s("\u{000C}"));
+        assert_eq!(f(r#"\n"#), s("\n"));
+        assert_eq!(f(r#"\n"#), s("\u{000A}"));
+        assert_eq!(f(r#"\r"#), s("\r"));
+        assert_eq!(f(r#"\r"#), s("\u{000D}"));
+        assert_eq!(f(r#"\t"#), s("\t"));
+        assert_eq!(f(r#"\t"#), s("\u{0009}"));
+        assert_eq!(f(r#"\u0020"#), s(" "));
+        assert_eq!(f(r#"\u0020"#), s("\u{0020}"));
+    }
+
+    #[test]
+    fn to_string_test() {
+        assert_eq!(
+            json(r#"["\u0020","\n"]"#).unwrap().1.to_string(),
+            r#"["\u0020","\n"]"#.to_string()
+        );
     }
 
     #[test]

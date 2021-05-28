@@ -9,3 +9,4 @@ edition = "2018"
 [dependencies]
 nom = "6.1.2"
 structopt = "0.3.21"
+thiserror = "1.0.25"

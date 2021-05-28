@@ -12,5 +12,5 @@ fn main() {
     let opt = Opt::from_args();
     let content = fs::read_to_string(opt.file).unwrap();
     let json = content.parse::<JsonValue>().unwrap();
-    println!("{}", json);
+    println!("{}", json.eval().unwrap());
 }
