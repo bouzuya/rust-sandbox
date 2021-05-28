@@ -3,12 +3,11 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
     character::complete::{char, one_of},
-    combinator::{all_consuming, map, map_res, opt},
+    combinator::{all_consuming, map, opt},
     multi::{fold_many0, many1},
     sequence::{delimited, tuple},
     IResult,
 };
-use ordered_float::NotNan;
 use std::iter;
 
 #[derive(Debug, Eq, PartialEq)]
@@ -16,7 +15,7 @@ pub enum JsonValue {
     Object(Vec<(JsonString, JsonValue)>),
     Array(Vec<JsonValue>),
     String(JsonString),
-    Number(JsonNumber),
+    Number(String),
     True,
     False,
     Null,
@@ -56,21 +55,6 @@ pub struct JsonString(String);
 impl std::fmt::Display for JsonString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, r#""{}""#, self.0)
-    }
-}
-
-#[derive(Debug, Eq, PartialEq)]
-pub enum JsonNumber {
-    Integer(i64),
-    Float(NotNan<f64>),
-}
-
-impl std::fmt::Display for JsonNumber {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            JsonNumber::Integer(i) => write!(f, "{}", i),
-            JsonNumber::Float(n) => write!(f, "{}", n),
-        }
     }
 }
 
@@ -193,25 +177,14 @@ fn json_hex(s: &str) -> IResult<&str, char> {
 }
 
 fn json_number(s: &str) -> IResult<&str, JsonValue> {
-    map_res(
+    map(
         tuple((json_integer, json_fraction, json_exponent)),
-        |(i, f, e)| {
-            let f = match (f, e) {
-                (None, None) => return Ok(JsonValue::Number(JsonNumber::Integer(i))),
-                (Some(f), None) => format!("{}{}", i, f),
-                (None, Some(e)) => format!("{}{}", i, e),
-                (Some(f), Some(e)) => format!("{}{}{}", i, f, e),
-            };
-            f.parse::<f64>()
-                .map_err(|_| "parse float error")
-                .and_then(|f| NotNan::new(f).map_err(|_| "float is nan error"))
-                .map(|f| JsonValue::Number(JsonNumber::Float(f)))
-        },
+        |(i, f, e)| JsonValue::Number(format!("{}{}{}", i, f, e)),
     )(s)
 }
 
-fn json_integer(s: &str) -> IResult<&str, i64> {
-    map_res(
+fn json_integer(s: &str) -> IResult<&str, String> {
+    map(
         alt((
             map(
                 tuple((char('-'), json_onenine, json_digits)),
@@ -234,7 +207,7 @@ fn json_integer(s: &str) -> IResult<&str, i64> {
             }),
             map(json_digit, |c| vec![c]),
         )),
-        |v| v.iter().collect::<String>().parse::<i64>(),
+        |v| v.iter().collect::<String>(),
     )(s)
 }
 
@@ -250,29 +223,35 @@ fn json_onenine(s: &str) -> IResult<&str, char> {
     one_of("123456789")(s)
 }
 
-fn json_fraction(s: &str) -> IResult<&str, Option<String>> {
-    opt(map(tuple((char('.'), json_digits)), |(dot, digits)| {
-        iter::once(dot)
-            .chain(digits.into_iter())
-            .collect::<String>()
-    }))(s)
-}
-
-fn json_exponent(s: &str) -> IResult<&str, Option<String>> {
-    opt(map(
-        tuple((one_of("Ee"), json_sign, json_digits)),
-        |(e, sign, digits)| {
-            iter::once(e)
-                .chain(
-                    sign.map(|s| s.to_string())
-                        .unwrap_or("".to_string())
-                        .chars()
-                        .into_iter(),
-                )
+fn json_fraction(s: &str) -> IResult<&str, String> {
+    map(
+        opt(map(tuple((char('.'), json_digits)), |(dot, digits)| {
+            iter::once(dot)
                 .chain(digits.into_iter())
                 .collect::<String>()
-        },
-    ))(s)
+        })),
+        |s| s.unwrap_or("".to_string()),
+    )(s)
+}
+
+fn json_exponent(s: &str) -> IResult<&str, String> {
+    map(
+        opt(map(
+            tuple((one_of("Ee"), json_sign, json_digits)),
+            |(e, sign, digits)| {
+                iter::once(e)
+                    .chain(
+                        sign.map(|s| s.to_string())
+                            .unwrap_or("".to_string())
+                            .chars()
+                            .into_iter(),
+                    )
+                    .chain(digits.into_iter())
+                    .collect::<String>()
+            },
+        )),
+        |s| s.unwrap_or("".to_string()),
+    )(s)
 }
 
 fn json_sign(s: &str) -> IResult<&str, Option<char>> {
@@ -310,16 +289,8 @@ mod tests {
         JsonString(s.to_string())
     }
 
-    fn vn(n: JsonNumber) -> JsonValue {
-        JsonValue::Number(n)
-    }
-
-    fn ni(i: i64) -> JsonNumber {
-        JsonNumber::Integer(i)
-    }
-
-    fn nf(f: f64) -> JsonNumber {
-        JsonNumber::Float(NotNan::new(f).unwrap())
+    fn vn(n: &str) -> JsonValue {
+        JsonValue::Number(n.to_string())
     }
 
     fn vt() -> JsonValue {
@@ -344,8 +315,8 @@ mod tests {
             Ok((
                 "",
                 vo(vec![
-                    (s("abc"), vn(ni(123))),
-                    ((s("def"), va(vec![vn(nf(123.456)), vt(), vf(), vnull()])))
+                    (s("abc"), vn("123")),
+                    ((s("def"), va(vec![vn("123.456"), vt(), vf(), vnull()])))
                 ])
             ))
         );
@@ -365,8 +336,8 @@ mod tests {
         assert_eq!(f(r#"{}"#), Ok(("", vo(vec![]))));
         assert_eq!(f(r#"[]"#), Ok(("", va(vec![]))));
         assert_eq!(f(r#""abc""#), Ok(("", vs(s(r#"abc"#)))));
-        assert_eq!(f(r#"123"#), Ok(("", vn(ni(123)))));
-        assert_eq!(f(r#"123.456"#), Ok(("", vn(nf(123.456)))));
+        assert_eq!(f(r#"123"#), Ok(("", vn("123"))));
+        assert_eq!(f(r#"123.456"#), Ok(("", vn("123.456"))));
         assert_eq!(f(r#"true"#), Ok(("", vt())));
         assert_eq!(f(r#"false"#), Ok(("", vf())));
         assert_eq!(f(r#"null"#), Ok(("", vnull())));
@@ -383,7 +354,7 @@ mod tests {
             f(r#"{ "abc" : 123 , "def" : 456 }"#),
             Ok((
                 "",
-                vo(vec![(s(r#"abc"#), vn(ni(123))), (s(r#"def"#), vn(ni(456)))])
+                vo(vec![(s(r#"abc"#), vn("123")), (s(r#"def"#), vn("456"))])
             ))
         );
     }
@@ -421,7 +392,7 @@ mod tests {
         assert_eq!(f(r#"[ ]"#), Ok(("", va(vec![]))));
         assert_eq!(
             f(r#"[ "a" , 1 ]"#),
-            Ok(("", va(vec![vs(s(r#"a"#)), vn(ni(1))])))
+            Ok(("", va(vec![vs(s(r#"a"#)), vn("1")])))
         );
     }
 
@@ -432,7 +403,7 @@ mod tests {
         //   element ',' elements
         let f = json_elements;
         assert_eq!(f(r#""a""#), Ok(("", vec![vs(s(r#"a"#))])));
-        assert_eq!(f(r#""a", 1"#), Ok(("", vec![vs(s(r#"a"#)), vn(ni(1))])));
+        assert_eq!(f(r#""a", 1"#), Ok(("", vec![vs(s(r#"a"#)), vn("1")])));
     }
 
     #[test]
@@ -441,7 +412,7 @@ mod tests {
         //   ws value ws
         let f = json_element;
         assert_eq!(f(r#" "abc" "#), Ok(("", vs(s(r#"abc"#)))));
-        assert_eq!(f(r#" 123 "#), Ok(("", vn(ni(123)))));
+        assert_eq!(f(r#" 123 "#), Ok(("", vn("123"))));
     }
 
     #[test]
@@ -573,21 +544,21 @@ mod tests {
         //   integer fraction exponent
         let f = json_number;
         assert_eq!(f("").is_err(), true);
-        assert_eq!(f("0"), Ok(("", vn(ni(0)))));
-        assert_eq!(f("1"), Ok(("", vn(ni(1)))));
-        assert_eq!(f("10"), Ok(("", vn(ni(10)))));
-        assert_eq!(f("12"), Ok(("", vn(ni(12)))));
-        assert_eq!(f("-0"), Ok(("", vn(ni(0)))));
-        assert_eq!(f("-1"), Ok(("", vn(ni(-1)))));
-        assert_eq!(f("-10"), Ok(("", vn(ni(-10)))));
-        assert_eq!(f("-12"), Ok(("", vn(ni(-12)))));
-        assert_eq!(f("0.0"), Ok(("", vn(nf(0.0)))));
-        assert_eq!(f("0.1"), Ok(("", vn(nf(0.1)))));
-        assert_eq!(f("0.01"), Ok(("", vn(nf(0.01)))));
-        assert_eq!(f("0.1e5"), Ok(("", vn(nf(0.1e5)))));
-        assert_eq!(f("0.1e+5"), Ok(("", vn(nf(0.1e+5)))));
-        assert_eq!(f("0.1e-5"), Ok(("", vn(nf(0.1e-5)))));
-        assert_eq!(f("1e-5"), Ok(("", vn(nf(1e-5)))));
+        assert_eq!(f("0"), Ok(("", vn("0"))));
+        assert_eq!(f("1"), Ok(("", vn("1"))));
+        assert_eq!(f("10"), Ok(("", vn("10"))));
+        assert_eq!(f("12"), Ok(("", vn("12"))));
+        assert_eq!(f("-0"), Ok(("", vn("-0"))));
+        assert_eq!(f("-1"), Ok(("", vn("-1"))));
+        assert_eq!(f("-10"), Ok(("", vn("-10"))));
+        assert_eq!(f("-12"), Ok(("", vn("-12"))));
+        assert_eq!(f("0.0"), Ok(("", vn("0.0"))));
+        assert_eq!(f("0.1"), Ok(("", vn("0.1"))));
+        assert_eq!(f("0.01"), Ok(("", vn("0.01"))));
+        assert_eq!(f("0.1e5"), Ok(("", vn("0.1e5"))));
+        assert_eq!(f("0.1e+5"), Ok(("", vn("0.1e+5"))));
+        assert_eq!(f("0.1e-5"), Ok(("", vn("0.1e-5"))));
+        assert_eq!(f("1e-5"), Ok(("", vn("1e-5"))));
     }
 
     #[test]
@@ -599,14 +570,14 @@ mod tests {
         //   '-' onenine digits
         let f = json_integer;
         assert_eq!(f("").is_err(), true);
-        assert_eq!(f("0"), Ok(("", 0)));
-        assert_eq!(f("1"), Ok(("", 1)));
-        assert_eq!(f("10"), Ok(("", 10)));
-        assert_eq!(f("12"), Ok(("", 12)));
-        assert_eq!(f("-0"), Ok(("", 0)));
-        assert_eq!(f("-1"), Ok(("", -1)));
-        assert_eq!(f("-10"), Ok(("", -10)));
-        assert_eq!(f("-12"), Ok(("", -12)));
+        assert_eq!(f("0"), Ok(("", "0".to_string())));
+        assert_eq!(f("1"), Ok(("", "1".to_string())));
+        assert_eq!(f("10"), Ok(("", "10".to_string())));
+        assert_eq!(f("12"), Ok(("", "12".to_string())));
+        assert_eq!(f("-0"), Ok(("", "-0".to_string())));
+        assert_eq!(f("-1"), Ok(("", "-1".to_string())));
+        assert_eq!(f("-10"), Ok(("", "-10".to_string())));
+        assert_eq!(f("-12"), Ok(("", "-12".to_string())));
     }
 
     #[test]
@@ -650,10 +621,10 @@ mod tests {
         //   ""
         //   '.' digits
         let f = json_fraction;
-        assert_eq!(f(""), Ok(("", None)));
-        assert_eq!(f("a"), Ok(("a", None)));
-        assert_eq!(f("."), Ok((".", None)));
-        assert_eq!(f(".123"), Ok(("", Some(".123".to_string()))));
+        assert_eq!(f(""), Ok(("", "".to_string())));
+        assert_eq!(f("a"), Ok(("a", "".to_string())));
+        assert_eq!(f("."), Ok((".", "".to_string())));
+        assert_eq!(f(".123"), Ok(("", ".123".to_string())));
     }
 
     #[test]
@@ -663,12 +634,12 @@ mod tests {
         //   'E' sign digits
         //   'e' sign digits
         let f = json_exponent;
-        assert_eq!(f(""), Ok(("", None)));
-        assert_eq!(f("E123"), Ok(("", Some("E123".to_string()))));
-        assert_eq!(f("e123"), Ok(("", Some("e123".to_string()))));
-        assert_eq!(f("a"), Ok(("a", None)));
-        assert_eq!(f("E"), Ok(("E", None)));
-        assert_eq!(f("e"), Ok(("e", None)));
+        assert_eq!(f(""), Ok(("", "".to_string())));
+        assert_eq!(f("E123"), Ok(("", "E123".to_string())));
+        assert_eq!(f("e123"), Ok(("", "e123".to_string())));
+        assert_eq!(f("a"), Ok(("a", "".to_string())));
+        assert_eq!(f("E"), Ok(("E", "".to_string())));
+        assert_eq!(f("e"), Ok(("e", "".to_string())));
     }
 
     #[test]
