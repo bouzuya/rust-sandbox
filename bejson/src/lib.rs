@@ -119,7 +119,7 @@ fn unescape_command_string(s: &JsonCommandString) -> String {
 }
 
 impl JsonValue {
-    pub fn eval(&self) -> Result<JsonValue, EvalError> {
+    pub fn eval(&self, trim_end: bool) -> Result<JsonValue, EvalError> {
         Ok(match self {
             JsonValue::CommandString(s) => {
                 let arg = unescape_command_string(s);
@@ -142,17 +142,17 @@ impl JsonValue {
                     command: command.clone(),
                     source: e,
                 })?;
-                let t = escape_string(t.as_str());
+                let t = escape_string(if trim_end { t.trim_end() } else { t.as_str() });
                 JsonValue::String(JsonString(t))
             }
             JsonValue::Object(o) => JsonValue::Object(
                 o.iter()
-                    .map(|(k, v)| v.eval().and_then(|v| Ok((k.clone(), v))))
+                    .map(|(k, v)| v.eval(trim_end).and_then(|v| Ok((k.clone(), v))))
                     .collect::<Result<Vec<Member>, EvalError>>()?,
             ),
             JsonValue::Array(a) => JsonValue::Array(
                 a.iter()
-                    .map(|i| i.eval())
+                    .map(|i| i.eval(trim_end))
                     .collect::<Result<Vec<JsonValue>, EvalError>>()?,
             ),
             JsonValue::String(_) => self.clone(),

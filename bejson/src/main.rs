@@ -11,6 +11,8 @@ use structopt::StructOpt;
 #[derive(Debug, StructOpt)]
 struct Opt {
     file: PathBuf,
+    #[structopt(long = "trim-end")]
+    trim_end: bool,
 }
 
 fn read_to_string_from_handle(handle: &mut impl Read) -> io::Result<String> {
@@ -33,7 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let opt = Opt::from_args();
     let content = read_file_or_stdin(opt.file.as_path())?;
     let bejson = content.parse::<JsonValue>()?;
-    let json = bejson.eval()?;
+    let json = bejson.eval(opt.trim_end)?;
     println!("{}", json);
     Ok(())
 }

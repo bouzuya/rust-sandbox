@@ -14,3 +14,17 @@ fn test() {
         .success()
         .stdout("{\"message\":\"Hello,`bejson`.\\n\"}\n");
 }
+
+#[test]
+fn trim_end_test() {
+    let dir = tempdir().unwrap();
+    let file = dir.path().join("hello.bejson");
+    fs::write(file.as_path(), r#"{"message":$`echo 'Hello,\`bejson\`.'`}"#).unwrap();
+    Command::cargo_bin("bejson")
+        .unwrap()
+        .arg("--trim-end")
+        .arg(file.as_path())
+        .assert()
+        .success()
+        .stdout("{\"message\":\"Hello,`bejson`.\"}\n");
+}
