@@ -19,6 +19,8 @@ enum Subcommand {
     List {
         #[structopt(long = "data-dir", help = "the data dir")]
         data_dir: PathBuf,
+        #[structopt(long = "json", help = "json")]
+        json: bool,
         #[structopt(name = "query", help = "query")]
         query: String,
     },
@@ -34,14 +36,36 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
-        Subcommand::List { data_dir, query } => {
+        Subcommand::List {
+            data_dir,
+            json,
+            query,
+        } => {
             let query = Query::try_from(query.as_str()).unwrap();
             let mut posts = list_posts(data_dir.as_path(), &query).unwrap();
             posts.sort();
             posts.reverse();
+            let mut output = vec![];
             for post in posts {
-                println!("{} {}", post.date, post.title);
+                if json {
+                    output.push(format!(
+                        r#"{{"date":"{}","title":"{}"}}"#,
+                        post.date, post.title
+                    ));
+                } else {
+                    output.push(format!("{} {}", post.date, post.title));
+                }
             }
+            let output = if json {
+                let mut s = String::new();
+                s.push('[');
+                s.push_str(&output.join(","));
+                s.push(']');
+                s
+            } else {
+                output.join("\n")
+            };
+            println!("{}", output);
         }
         Subcommand::View { data_dir, date } => {
             let query_string = format!("date:{}", date);
