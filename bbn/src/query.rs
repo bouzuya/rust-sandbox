@@ -4,16 +4,94 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
     character::complete::char,
-    combinator::all_consuming,
+    combinator::{all_consuming, map},
+    sequence::tuple,
     IResult,
 };
 use thiserror::Error;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Query<'a>(Date<'a>);
+pub enum Query<'a> {
+    Date(Date<'a>),
+    DateRange(DateRange<'a>),
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Date<'a>(Option<&'a str>, Option<&'a str>, Option<&'a str>);
+
+impl<'a> Date<'a> {
+    fn match_year(&self, year: &OsStr) -> bool {
+        self.0.map(|y| OsStr::new(y) == year).unwrap_or(true)
+    }
+
+    fn match_month(&self, month: &OsStr) -> bool {
+        self.1.map(|m| OsStr::new(m) == month).unwrap_or(true)
+    }
+
+    fn match_day(&self, day: &OsStr) -> bool {
+        self.2.map(|d| OsStr::new(d) == day).unwrap_or(true)
+    }
+}
+
+impl<'a> std::fmt::Display for Date<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match (&self.0, &self.1, &self.2) {
+            (None, None, None) => write!(f, ""),
+            (None, None, Some(dd)) => write!(f, "---{}", dd),
+            (None, Some(mm), None) => write!(f, "--{}", mm),
+            (None, Some(mm), Some(dd)) => write!(f, "--{}-{}", mm, dd),
+            (Some(yyyy), None, None) => write!(f, "{}", yyyy),
+            (Some(_), None, Some(_)) => unreachable!(),
+            (Some(yyyy), Some(mm), None) => write!(f, "{}-{}", yyyy, mm),
+            (Some(yyyy), Some(mm), Some(dd)) => write!(f, "{}-{}-{}", yyyy, mm, dd),
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct DateRangeDate<'a>(&'a str, &'a str, &'a str);
+
+impl<'a> std::fmt::Display for DateRangeDate<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}-{}", self.0, self.1, self.2)
+    }
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct DateRange<'a>(DateRangeDate<'a>, DateRangeDate<'a>);
+
+impl<'a> DateRange<'a> {
+    fn match_year(&self, year: &OsStr) -> bool {
+        year.to_str()
+            .map(|y| (self.0 .0..=self.1 .0).contains(&y))
+            .unwrap_or(false)
+    }
+
+    fn match_month(&self, month: &OsStr) -> bool {
+        if self.0 .0 != self.1 .0 {
+            return true;
+        }
+        month
+            .to_str()
+            .map(|m| (self.0 .1..=self.1 .1).contains(&m))
+            .unwrap_or(false)
+    }
+
+    fn match_day(&self, day: &OsStr) -> bool {
+        if self.0 .0 != self.1 .0 || self.0 .1 != self.1 .1 {
+            return true;
+        }
+        day.to_str()
+            .map(|d| (self.0 .2..=self.1 .2).contains(&d))
+            .unwrap_or(false)
+    }
+}
+
+impl<'a> std::fmt::Display for DateRange<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}/{}", self.0, self.1)
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum ParseQueryError {
@@ -23,36 +101,58 @@ pub enum ParseQueryError {
 
 impl<'a> Query<'a> {
     pub fn match_year(&self, year: &OsStr) -> bool {
-        self.0 .0.map(|y| OsStr::new(y) == year).unwrap_or(true)
+        match self {
+            Query::Date(date) => date.match_year(year),
+            Query::DateRange(date_range) => date_range.match_year(year),
+        }
     }
 
     pub fn match_month(&self, month: &OsStr) -> bool {
-        self.0 .1.map(|m| OsStr::new(m) == month).unwrap_or(true)
+        match self {
+            Query::Date(date) => date.match_month(month),
+            Query::DateRange(date_range) => date_range.match_month(month),
+        }
     }
 
     pub fn match_day(&self, day: &OsStr) -> bool {
-        self.0 .2.map(|d| OsStr::new(d) == day).unwrap_or(true)
+        match self {
+            Query::Date(date) => date.match_day(day),
+            Query::DateRange(date_range) => date_range.match_day(day),
+        }
     }
 }
 
 impl<'a> std::fmt::Display for Query<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let date = &self.0;
-        match (&date.0, &date.1, &date.2) {
-            (None, None, None) => write!(f, ""),
-            (None, None, Some(dd)) => write!(f, "date:---{}", dd),
-            (None, Some(mm), None) => write!(f, "date:--{}", mm),
-            (None, Some(mm), Some(dd)) => write!(f, "date:--{}-{}", mm, dd),
-            (Some(yyyy), None, None) => write!(f, "date:{}", yyyy),
-            (Some(_), None, Some(_)) => unreachable!(),
-            (Some(yyyy), Some(mm), None) => write!(f, "date:{}-{}", yyyy, mm),
-            (Some(yyyy), Some(mm), Some(dd)) => write!(f, "date:{}-{}-{}", yyyy, mm, dd),
+        match self {
+            Query::Date(date) => write!(f, "date:{}", date),
+            Query::DateRange(date_range) => write!(f, "date:{}", date_range),
         }
     }
 }
 
 fn is_digit(c: char) -> bool {
     c.is_ascii_digit()
+}
+
+fn date_range_date(s: &str) -> IResult<&str, DateRangeDate> {
+    map(
+        tuple((
+            take_while_m_n(4, 4, is_digit),
+            char('-'),
+            take_while_m_n(2, 2, is_digit),
+            char('-'),
+            take_while_m_n(2, 2, is_digit),
+        )),
+        |(y, _, m, _, d)| DateRangeDate(y, m, d),
+    )(s)
+}
+
+fn date_range(s: &str) -> IResult<&str, DateRange> {
+    map(
+        tuple((date_range_date, char('/'), date_range_date)),
+        |(d1, _, d2)| DateRange(d1, d2),
+    )(s)
 }
 
 fn yyyymmdd(s: &str) -> IResult<&str, Date> {
@@ -100,9 +200,14 @@ fn dd(s: &str) -> IResult<&str, Date> {
     Ok((s, Date(None, None, Some(d))))
 }
 
-fn parse(s: &str) -> IResult<&str, Date> {
+fn parse(s: &str) -> IResult<&str, Query> {
     let (s, _) = tag("date:")(s)?;
-    let (s, date) = all_consuming(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)))(s)?;
+    let (s, date) = all_consuming(alt((
+        map(date_range, |dr| Query::DateRange(dr)),
+        map(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)), |d| {
+            Query::Date(d)
+        }),
+    )))(s)?;
     Ok((s, date))
 }
 
@@ -110,8 +215,9 @@ impl<'a> std::convert::TryFrom<&'a str> for Query<'a> {
     type Error = ParseQueryError;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        let (_, date) = parse(value).map_err(|_| ParseQueryError::Parse)?;
-        Ok(Self(date))
+        parse(value)
+            .map(|(_, q)| Ok(q))
+            .map_err(|_| ParseQueryError::Parse)?
     }
 }
 
@@ -129,6 +235,7 @@ mod tests {
         f("date:--02-03");
         f("date:--02");
         f("date:---03");
+        f("date:2021-02-03/2022-03-04");
     }
 
     #[test]
@@ -143,6 +250,10 @@ mod tests {
         assert_eq!(f("date:2021", "2021"), true);
         assert_eq!(f("date:--02-03", "2021"), true);
         assert_eq!(f("date:--02-03", "2020"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2020"), false);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2021"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2022"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2023"), false);
     }
 
     #[test]
@@ -158,6 +269,12 @@ mod tests {
         assert_eq!(f("date:2021", "01"), true);
         assert_eq!(f("date:---03", "02"), true);
         assert_eq!(f("date:---03", "01"), true);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "01"), false);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "02"), true);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "03"), true);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "04"), false);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "01"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "12"), true);
     }
 
     #[test]
@@ -171,5 +288,13 @@ mod tests {
         assert_eq!(f("date:---03", "03"), true);
         assert_eq!(f("date:---03", "02"), false);
         assert_eq!(f("date:2021-02", "03"), true);
+        assert_eq!(f("date:2021-02-03/2021-02-04", "02"), false);
+        assert_eq!(f("date:2021-02-03/2021-02-04", "03"), true);
+        assert_eq!(f("date:2021-02-03/2021-02-04", "04"), true);
+        assert_eq!(f("date:2021-02-03/2021-02-04", "05"), false);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "01"), true);
+        assert_eq!(f("date:2021-02-03/2021-03-04", "31"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "01"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "31"), true);
     }
 }
