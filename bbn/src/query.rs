@@ -30,8 +30,8 @@ impl<'a> Query<'a> {
         self.0 .1.map(|m| OsStr::new(m) == month).unwrap_or(true)
     }
 
-    pub fn day(&self) -> Option<&str> {
-        self.0 .2
+    pub fn match_day(&self, day: &OsStr) -> bool {
+        self.0 .2.map(|d| OsStr::new(d) == day).unwrap_or(true)
     }
 }
 
@@ -161,10 +161,15 @@ mod tests {
     }
 
     #[test]
-    fn day() {
-        let q = |s| Query::try_from(s).unwrap();
-        assert_eq!(q("date:2021-02-03").day(), Some("03"));
-        assert_eq!(q("date:---03").day(), Some("03"));
-        assert_eq!(q("date:2021-02").day(), None);
+    fn match_day() {
+        let f = |s: &str, t: &str| -> bool {
+            let q = Query::try_from(s).unwrap();
+            q.match_day(&OsStr::new(t))
+        };
+        assert_eq!(f("date:2021-02-03", "03"), true);
+        assert_eq!(f("date:2021-02-03", "02"), false);
+        assert_eq!(f("date:---03", "03"), true);
+        assert_eq!(f("date:---03", "02"), false);
+        assert_eq!(f("date:2021-02", "03"), true);
     }
 }

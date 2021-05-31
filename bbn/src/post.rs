@@ -72,17 +72,15 @@ fn list_posts_day(path: &Path, query: &Query) -> Result<Vec<Post>, ListPostsErro
         if path_buf.extension() != Some(OsStr::new("json")) {
             continue;
         }
-        match query.day() {
-            None => days.push(path_buf),
-            Some(dd) => {
-                // YYYY-MM-DD(-TITLE).json
-                if let Some(file_stem) = path_buf.file_stem() {
-                    if let Some(file_stem) = file_stem.to_str() {
-                        if file_stem.get(8..8 + 2) == Some(dd) {
-                            days.push(path_buf);
-                        }
-                    }
-                }
+        // YYYY-MM-DD(-TITLE).json
+        if let Some(day) = path_buf
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .and_then(|s| s.get(8..8 + 2))
+            .map(|s| OsStr::new(s))
+        {
+            if query.match_day(day) {
+                days.push(path_buf);
             }
         }
     }
