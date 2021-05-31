@@ -80,7 +80,15 @@ fn list_posts_day(path: &Path, query: &Query) -> Result<Vec<Post>, ListPostsErro
             .map(|s| OsStr::new(s))
         {
             if query.match_day(day) {
-                days.push(path_buf);
+                if let Some(date) = path_buf
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .and_then(|s| s.get(0..10))
+                {
+                    if query.match_date(date) {
+                        days.push(path_buf);
+                    }
+                }
             }
         }
     }

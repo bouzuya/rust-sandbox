@@ -31,6 +31,22 @@ impl<'a> Date<'a> {
     fn match_day(&self, day: &OsStr) -> bool {
         self.2.map(|d| OsStr::new(d) == day).unwrap_or(true)
     }
+
+    fn match_date(&self, date: &str) -> bool {
+        let y = match date.get(0..0 + 4) {
+            None => return false,
+            Some(y) => OsStr::new(y),
+        };
+        let m = match date.get(5..5 + 2) {
+            None => return false,
+            Some(m) => OsStr::new(m),
+        };
+        let d = match date.get(8..8 + 2) {
+            None => return false,
+            Some(d) => OsStr::new(d),
+        };
+        self.match_year(y) && self.match_month(m) && self.match_day(d)
+    }
 }
 
 impl<'a> std::fmt::Display for Date<'a> {
@@ -85,6 +101,10 @@ impl<'a> DateRange<'a> {
             .map(|d| (self.0 .2..=self.1 .2).contains(&d))
             .unwrap_or(false)
     }
+
+    fn match_date(&self, date: &str) -> bool {
+        (self.0.to_string().as_str()..=self.1.to_string().as_str()).contains(&date)
+    }
 }
 
 impl<'a> std::fmt::Display for DateRange<'a> {
@@ -118,6 +138,13 @@ impl<'a> Query<'a> {
         match self {
             Query::Date(date) => date.match_day(day),
             Query::DateRange(date_range) => date_range.match_day(day),
+        }
+    }
+
+    pub fn match_date(&self, date: &str) -> bool {
+        match self {
+            Query::Date(d) => d.match_date(date),
+            Query::DateRange(dr) => dr.match_date(date),
         }
     }
 }
@@ -296,5 +323,26 @@ mod tests {
         assert_eq!(f("date:2021-02-03/2021-03-04", "31"), true);
         assert_eq!(f("date:2021-02-03/2022-03-04", "01"), true);
         assert_eq!(f("date:2021-02-03/2022-03-04", "31"), true);
+    }
+
+    #[test]
+    fn match_date() {
+        let f = |s: &str, t: &str| -> bool {
+            let q = Query::try_from(s).unwrap();
+            q.match_date(t)
+        };
+        assert_eq!(f("date:2021-02-03", "2021-02-03"), true);
+        assert_eq!(f("date:2021-02-03", "2021-02-02"), false);
+        assert_eq!(f("date:2021-02", "2021-02-03"), true);
+        assert_eq!(f("date:2021-02", "2021-03-01"), false);
+        assert_eq!(f("date:2021", "2021-02-03"), true);
+        assert_eq!(f("date:2021", "2022-01-01"), false);
+        assert_eq!(f("date:--02-03", "2021-02-03"), true);
+        assert_eq!(f("date:--02-03", "2020-02-03"), true);
+        assert_eq!(f("date:--02-03", "2020-02-04"), false);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2021-02-02"), false);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2021-02-03"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2022-03-04"), true);
+        assert_eq!(f("date:2021-02-03/2022-03-04", "2022-03-05"), false);
     }
 }
