@@ -50,12 +50,9 @@ fn list_posts_month(path: &Path, query: &Query) -> Result<Vec<Post>, ListPostsEr
     let mut months = vec![];
     for dir_entry in path.read_dir()? {
         let path_buf = dir_entry?.path();
-        match query.month() {
-            None => months.push(path_buf),
-            Some(mm) => {
-                if path_buf.file_name() == Some(OsStr::new(mm)) {
-                    months.push(path_buf);
-                }
+        if let Some(month) = path_buf.file_name() {
+            if query.match_month(month) {
+                months.push(path_buf);
             }
         }
     }

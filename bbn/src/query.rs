@@ -23,14 +23,11 @@ pub enum ParseQueryError {
 
 impl<'a> Query<'a> {
     pub fn match_year(&self, year: &OsStr) -> bool {
-        match self.0 .0 {
-            None => true,
-            Some(y) => OsStr::new(y) == year,
-        }
+        self.0 .0.map(|y| OsStr::new(y) == year).unwrap_or(true)
     }
 
-    pub fn month(&self) -> Option<&str> {
-        self.0 .1
+    pub fn match_month(&self, month: &OsStr) -> bool {
+        self.0 .1.map(|m| OsStr::new(m) == month).unwrap_or(true)
     }
 
     pub fn day(&self) -> Option<&str> {
@@ -149,12 +146,18 @@ mod tests {
     }
 
     #[test]
-    fn month() {
-        let q = |s| Query::try_from(s).unwrap();
-        assert_eq!(q("date:2021-02-03").month(), Some("02"));
-        assert_eq!(q("date:2021-02").month(), Some("02"));
-        assert_eq!(q("date:2021").month(), None);
-        assert_eq!(q("date:---03").month(), None);
+    fn match_month() {
+        let f = |s: &str, t: &str| -> bool {
+            let q = Query::try_from(s).unwrap();
+            q.match_month(&OsStr::new(t))
+        };
+        assert_eq!(f("date:2021-02-03", "02"), true);
+        assert_eq!(f("date:2021-02-03", "01"), false);
+        assert_eq!(f("date:2021-02", "02"), true);
+        assert_eq!(f("date:2021", "02"), true);
+        assert_eq!(f("date:2021", "01"), true);
+        assert_eq!(f("date:---03", "02"), true);
+        assert_eq!(f("date:---03", "01"), true);
     }
 
     #[test]
