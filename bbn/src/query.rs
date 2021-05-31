@@ -1,3 +1,5 @@
+use std::ffi::OsStr;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
@@ -20,8 +22,11 @@ pub enum ParseQueryError {
 }
 
 impl<'a> Query<'a> {
-    pub fn year(&self) -> Option<&str> {
-        self.0 .0
+    pub fn match_year(&self, year: &OsStr) -> bool {
+        match self.0 .0 {
+            None => true,
+            Some(y) => OsStr::new(y) == year,
+        }
     }
 
     pub fn month(&self) -> Option<&str> {
@@ -130,12 +135,17 @@ mod tests {
     }
 
     #[test]
-    fn year() {
-        let q = |s| Query::try_from(s).unwrap();
-        assert_eq!(q("date:2021-02-03").year(), Some("2021"));
-        assert_eq!(q("date:2021-02").year(), Some("2021"));
-        assert_eq!(q("date:2021").year(), Some("2021"));
-        assert_eq!(q("date:--02-03").year(), None);
+    fn match_year() {
+        let f = |s: &str, t: &str| -> bool {
+            let q = Query::try_from(s).unwrap();
+            q.match_year(&OsStr::new(t))
+        };
+        assert_eq!(f("date:2021-02-03", "2021"), true);
+        assert_eq!(f("date:2021-02-03", "2020"), false);
+        assert_eq!(f("date:2021-02", "2021"), true);
+        assert_eq!(f("date:2021", "2021"), true);
+        assert_eq!(f("date:--02-03", "2021"), true);
+        assert_eq!(f("date:--02-03", "2020"), true);
     }
 
     #[test]

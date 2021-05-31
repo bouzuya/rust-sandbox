@@ -30,12 +30,9 @@ fn list_posts_year(path: &Path, query: &Query) -> Result<Vec<Post>, ListPostsErr
     let mut years = vec![];
     for dir_entry in path.read_dir()? {
         let path_buf = dir_entry?.path();
-        match query.year() {
-            None => years.push(path_buf),
-            Some(yyyy) => {
-                if path_buf.file_name() == Some(OsStr::new(yyyy)) {
-                    years.push(path_buf);
-                }
+        if let Some(year) = path_buf.file_name() {
+            if query.match_year(year) {
+                years.push(path_buf);
             }
         }
     }
