@@ -1,6 +1,8 @@
+mod bbn_date_range;
 mod post;
 mod query;
 
+use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
 use post::list_posts;
 use query::Query;
@@ -15,6 +17,13 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    #[structopt(name = "date-range", about = "Prints the date range")]
+    DateRange {
+        #[structopt(name = "input", help = "input")]
+        month: String,
+        #[structopt(long = "week-date", help = "Prints the date range as week date")]
+        week_date: bool,
+    },
     #[structopt(name = "list", about = "Lists the blog posts")]
     List {
         #[structopt(long = "data-dir", help = "the data dir")]
@@ -36,6 +45,7 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
+        Subcommand::DateRange { month, week_date } => bbn_date_range(month, week_date).unwrap(),
         Subcommand::List {
             data_dir,
             json,
