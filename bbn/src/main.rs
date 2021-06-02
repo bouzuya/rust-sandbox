@@ -6,8 +6,8 @@ use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
 use post::list_posts;
 use query::Query;
-use std::{convert::TryFrom, path::PathBuf};
-use structopt::StructOpt;
+use std::{convert::TryFrom, io, path::PathBuf};
+use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -17,6 +17,11 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    #[structopt(name = "completion", about = "Prints the shell's completion script")]
+    Completion {
+        #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
+        shell: Shell,
+    },
     #[structopt(name = "date-range", about = "Prints the date range")]
     DateRange {
         #[structopt(name = "input", help = "input")]
@@ -45,6 +50,9 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
+        Subcommand::Completion { shell } => {
+            Opt::clap().gen_completions_to("bbn", shell, &mut io::stdout())
+        }
         Subcommand::DateRange { month, week_date } => bbn_date_range(month, week_date).unwrap(),
         Subcommand::List {
             data_dir,
