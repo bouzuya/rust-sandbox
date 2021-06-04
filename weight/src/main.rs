@@ -1,5 +1,9 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, io, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    fs, io,
+    path::{Path, PathBuf},
+};
 use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
@@ -30,21 +34,38 @@ struct Set {
     value: f64,
 }
 
-fn main() {
-    let opt = Opt::from_args();
-    if !opt.data_file.exists() {
-        fs::write(opt.data_file.as_path(), "").unwrap();
+fn read_jsonl(path: &Path) -> Vec<Set> {
+    if !path.exists() {
+        return vec![];
     }
-    let content = fs::read_to_string(opt.data_file.as_path()).unwrap();
-    let mut json = vec![];
+    let content = fs::read_to_string(path).unwrap();
+    let mut jsonl = vec![];
     for line in content.split('\n') {
         if line.is_empty() {
             continue;
         }
         let set: Set = serde_json::from_str(line).unwrap();
-        json.push(set);
+        jsonl.push(set);
     }
-    let state = json.iter().fold(BTreeMap::new(), |mut map, e| {
+    jsonl
+}
+
+fn write_jsonl(path: &Path, jsonl: Vec<Set>) {
+    let mut output = String::new();
+    for set in jsonl {
+        let line = serde_json::to_string(&set).unwrap();
+        output.push_str(line.as_str());
+        output.push('\n');
+    }
+    fs::write(path, output).unwrap();
+}
+
+fn main() {
+    let opt = Opt::from_args();
+
+    let mut jsonl = read_jsonl(opt.data_file.as_path());
+
+    let state = jsonl.iter().fold(BTreeMap::new(), |mut map, e| {
         map.insert(e.key.clone(), e.value.clone());
         map
     });
@@ -59,15 +80,9 @@ fn main() {
             }
         }
         Subcommand::Set { key, value } => {
-            json.push(Set { key, value });
+            jsonl.push(Set { key, value });
         }
     }
 
-    let mut output = String::new();
-    for set in json {
-        let line = serde_json::to_string(&set).unwrap();
-        output.push_str(line.as_str());
-        output.push('\n');
-    }
-    fs::write(opt.data_file.as_path(), output).unwrap();
+    write_jsonl(opt.data_file.as_path(), jsonl);
 }
