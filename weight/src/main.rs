@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fs, path::PathBuf};
-use structopt::StructOpt;
+use std::{collections::BTreeMap, fs, io, path::PathBuf};
+use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -12,8 +12,16 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    #[structopt(name = "completion", about = "Prints the shell's completion script")]
+    Completion {
+        #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
+        shell: Shell,
+    },
     List,
-    Set { key: String, value: f64 },
+    Set {
+        key: String,
+        value: f64,
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -42,6 +50,9 @@ fn main() {
     });
 
     match opt.subcommand {
+        Subcommand::Completion { shell } => {
+            Opt::clap().gen_completions_to("weight", shell, &mut io::stdout())
+        }
         Subcommand::List => {
             for (k, v) in state {
                 println!("{} {}", k, v);
