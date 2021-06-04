@@ -8,7 +8,7 @@ use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
-    #[structopt(long = "data-file")]
+    #[structopt(long = "data-file", default_value = "weight.jsonl")]
     data_file: PathBuf,
     #[structopt(subcommand)]
     subcommand: Subcommand,
@@ -63,26 +63,28 @@ fn write_jsonl(path: &Path, jsonl: Vec<Set>) {
 fn main() {
     let opt = Opt::from_args();
 
-    let mut jsonl = read_jsonl(opt.data_file.as_path());
-
-    let state = jsonl.iter().fold(BTreeMap::new(), |mut map, e| {
-        map.insert(e.key.clone(), e.value.clone());
-        map
-    });
-
     match opt.subcommand {
         Subcommand::Completion { shell } => {
             Opt::clap().gen_completions_to("weight", shell, &mut io::stdout())
         }
         Subcommand::List => {
+            let jsonl = read_jsonl(opt.data_file.as_path());
+
+            let state = jsonl.iter().fold(BTreeMap::new(), |mut map, e| {
+                map.insert(e.key.clone(), e.value.clone());
+                map
+            });
+
             for (k, v) in state {
                 println!("{} {}", k, v);
             }
         }
         Subcommand::Set { key, value } => {
+            let mut jsonl = read_jsonl(opt.data_file.as_path());
+
             jsonl.push(Set { key, value });
+
+            write_jsonl(opt.data_file.as_path(), jsonl);
         }
     }
-
-    write_jsonl(opt.data_file.as_path(), jsonl);
 }
