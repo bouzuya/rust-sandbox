@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{collections::BTreeMap, fs, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -12,6 +12,7 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    List,
     Set { key: String, value: f64 },
 }
 
@@ -35,8 +36,17 @@ fn main() {
         let set: Set = serde_json::from_str(line).unwrap();
         json.push(set);
     }
+    let state = json.iter().fold(BTreeMap::new(), |mut map, e| {
+        map.insert(e.key.clone(), e.value.clone());
+        map
+    });
 
     match opt.subcommand {
+        Subcommand::List => {
+            for (k, v) in state {
+                println!("{} {}", k, v);
+            }
+        }
         Subcommand::Set { key, value } => {
             json.push(Set { key, value });
         }
