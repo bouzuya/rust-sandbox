@@ -1,5 +1,12 @@
 use crate::set::Set;
+use serde::{Deserialize, Serialize};
 use std::{fs, path::Path};
+
+#[derive(Debug, Deserialize, Serialize)]
+struct Line {
+    key: String,
+    value: f64,
+}
 
 pub fn read_jsonl(path: &Path) -> Vec<Set> {
     if !path.exists() {
@@ -11,7 +18,8 @@ pub fn read_jsonl(path: &Path) -> Vec<Set> {
         if line.is_empty() {
             continue;
         }
-        let set: Set = serde_json::from_str(line).unwrap();
+        let set: Line = serde_json::from_str(line).unwrap();
+        let set = Set::new(set.key, set.value).unwrap();
         jsonl.push(set);
     }
     jsonl
@@ -20,6 +28,10 @@ pub fn read_jsonl(path: &Path) -> Vec<Set> {
 pub fn write_jsonl(path: &Path, jsonl: Vec<Set>) {
     let mut output = String::new();
     for set in jsonl {
+        let set = Line {
+            key: set.key(),
+            value: set.value(),
+        };
         let line = serde_json::to_string(&set).unwrap();
         output.push_str(line.as_str());
         output.push('\n');
@@ -48,10 +60,12 @@ mod tests {
         .unwrap();
 
         let set = read_jsonl(jsonl.as_path());
-        assert_eq!(set.len(), 2);
-        assert_eq!(set[0].key, "2021-02-03".to_string());
-        assert_eq!(set[0].value, 50.1);
-        assert_eq!(set[1].key, "2021-03-04".to_string());
-        assert_eq!(set[1].value, 51.2);
+        assert_eq!(
+            set,
+            vec![
+                Set::new("2021-02-03".to_string(), 50.1).unwrap(),
+                Set::new("2021-03-04".to_string(), 51.2).unwrap(),
+            ]
+        );
     }
 }

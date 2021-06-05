@@ -37,7 +37,7 @@ fn main() {
         Subcommand::List => {
             let events = read_jsonl(opt.data_file.as_path());
             let state = events.iter().fold(BTreeMap::new(), |mut map, e| {
-                map.insert(e.key.clone(), e.value.clone());
+                map.insert(e.key(), e.value());
                 map
             });
             for (k, v) in state {
@@ -46,7 +46,7 @@ fn main() {
         }
         Subcommand::Set { key, value } => {
             let mut events = read_jsonl(opt.data_file.as_path());
-            events.push(Set { key, value });
+            events.push(Set::new(key, value).unwrap());
             write_jsonl(opt.data_file.as_path(), events);
         }
     }
