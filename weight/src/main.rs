@@ -35,7 +35,7 @@ fn main() {
             Opt::clap().gen_completions_to("weight", shell, &mut io::stdout())
         }
         Subcommand::List => {
-            let events = read_jsonl(opt.data_file.as_path());
+            let events = read_jsonl(opt.data_file.as_path()).unwrap();
             let state = events.iter().fold(BTreeMap::new(), |mut map, e| {
                 map.insert(e.key(), e.value());
                 map
@@ -45,9 +45,9 @@ fn main() {
             }
         }
         Subcommand::Set { key, value } => {
-            let mut events = read_jsonl(opt.data_file.as_path());
+            let mut events = read_jsonl(opt.data_file.as_path()).unwrap();
             events.push(Set::new(key, value).unwrap());
-            write_jsonl(opt.data_file.as_path(), events);
+            write_jsonl(opt.data_file.as_path(), &events).unwrap();
         }
     }
 }
