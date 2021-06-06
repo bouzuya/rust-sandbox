@@ -1,5 +1,8 @@
 use super::EventRepository;
-use crate::set::{ParseSetError, Set};
+use crate::{
+    event::Event,
+    set::{ParseSetError, Set},
+};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -20,11 +23,11 @@ impl JsonlEventRepository {
 
 #[async_trait]
 impl EventRepository for JsonlEventRepository {
-    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
+    async fn find_all(&self) -> anyhow::Result<Vec<Event>> {
         Ok(read_jsonl(self.data_file.as_path())?)
     }
 
-    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
+    async fn save(&self, events: &Vec<Event>) -> anyhow::Result<()> {
         Ok(write_jsonl(self.data_file.as_path(), events)?)
     }
 }
@@ -45,7 +48,7 @@ pub enum ReadError {
     SetConvert(#[source] ParseSetError),
 }
 
-fn read_jsonl(path: &Path) -> Result<Vec<Set>, ReadError> {
+fn read_jsonl(path: &Path) -> Result<Vec<Event>, ReadError> {
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -56,7 +59,7 @@ fn read_jsonl(path: &Path) -> Result<Vec<Set>, ReadError> {
             continue;
         }
         let set: Line = serde_json::from_str(line).map_err(|e| ReadError::JsonParse(e))?;
-        let set = Set::new(set.key, set.value).map_err(|e| ReadError::SetConvert(e))?;
+        let set = Event::Set(Set::new(set.key, set.value).map_err(|e| ReadError::SetConvert(e))?);
         jsonl.push(set);
     }
     Ok(jsonl)
@@ -70,17 +73,21 @@ enum WriteError {
     JsonConvert(#[source] serde_json::Error),
 }
 
-fn write_jsonl(path: &Path, events: &Vec<Set>) -> Result<(), WriteError> {
+fn write_jsonl(path: &Path, events: &Vec<Event>) -> Result<(), WriteError> {
     let mut output = String::new();
-    for set in events {
-        let set = Line {
-            key: set.key(),
-            value: set.value(),
-        };
-        let line = serde_json::to_string(&set).map_err(|e| WriteError::JsonConvert(e))?;
+    for event in events {
+        match event {
+            Event::Set(set) => {
+                let set = Line {
+                    key: set.key(),
+                    value: set.value(),
+                };
+                let line = serde_json::to_string(&set).map_err(|e| WriteError::JsonConvert(e))?;
 
-        output.push_str(line.as_str());
-        output.push('\n');
+                output.push_str(line.as_str());
+                output.push('\n');
+            }
+        }
     }
     fs::write(path, output).map_err(|e| WriteError::Write(e))?;
     Ok(())
@@ -133,8 +140,8 @@ mod tests {
         assert_eq!(
             read_jsonl(jsonl.as_path()).unwrap(),
             vec![
-                Set::new("2021-02-03".to_string(), 50.1).unwrap(),
-                Set::new("2021-03-04".to_string(), 51.2).unwrap(),
+                Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
+                Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
             ]
         );
     }
@@ -144,8 +151,8 @@ mod tests {
         let dir = tempdir().unwrap();
         let jsonl = dir.path().join("weight.jsonl");
         let events = vec![
-            Set::new("2021-02-03".to_string(), 50.1).unwrap(),
-            Set::new("2021-03-04".to_string(), 51.2).unwrap(),
+            Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
+            Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
         ];
 
         // json convert error (can't test)

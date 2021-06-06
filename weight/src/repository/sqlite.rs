@@ -1,5 +1,5 @@
 use super::EventRepository;
-use crate::set::Set;
+use crate::{event::Event, set::Set};
 use anyhow::Context;
 use async_trait::async_trait;
 use sqlx::{
@@ -24,11 +24,11 @@ impl SqliteEventRepository {
 
 #[async_trait]
 impl EventRepository for SqliteEventRepository {
-    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
+    async fn find_all(&self) -> anyhow::Result<Vec<Event>> {
         Ok(read_sqlite(self.data_file.as_path()).await?)
     }
 
-    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
+    async fn save(&self, events: &Vec<Event>) -> anyhow::Result<()> {
         Ok(write_sqlite(self.data_file.as_path(), events).await?)
     }
 }
@@ -44,7 +44,7 @@ async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Sqlite>> {
     Ok(conn)
 }
 
-async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
+async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Event>> {
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -54,6 +54,7 @@ async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
         sqlx::query("SELECT id, key, value FROM events ORDER BY id ASC")
             .try_map(|row: SqliteRow| {
                 Set::new(row.get("key"), row.get("value"))
+                    .map(|s| Event::Set(s))
                     .map_err(|e| sqlx::Error::Decode(Box::new(e)))
             })
             .fetch_all(&mut conn)
@@ -61,7 +62,7 @@ async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
     )
 }
 
-async fn write_sqlite(path: &Path, events: &Vec<Set>) -> anyhow::Result<()> {
+async fn write_sqlite(path: &Path, events: &Vec<Event>) -> anyhow::Result<()> {
     let mut conn = connection(path).await?;
 
     sqlx::query(
@@ -76,11 +77,15 @@ CREATE TABLE IF NOT EXISTS events (
     .await?;
 
     for event in events {
-        sqlx::query("INSERT INTO events (key, value) VALUES (?, ?)")
-            .bind(event.key())
-            .bind(event.value())
-            .execute(&mut conn)
-            .await?;
+        match event {
+            Event::Set(set) => {
+                sqlx::query("INSERT INTO events (key, value) VALUES (?, ?)")
+                    .bind(set.key())
+                    .bind(set.value())
+                    .execute(&mut conn)
+                    .await?;
+            }
+        }
     }
     Ok(())
 }
@@ -113,8 +118,8 @@ mod tests {
 
         // OK
         let events = vec![
-            Set::new("2021-02-03".to_string(), 50.1).unwrap(),
-            Set::new("2021-03-04".to_string(), 51.2).unwrap(),
+            Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
+            Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
         ];
         write_sqlite(sqlite.as_path(), &events).await.unwrap();
         assert_eq!(read_sqlite(sqlite.as_path()).await.unwrap(), events);

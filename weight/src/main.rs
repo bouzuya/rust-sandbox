@@ -1,7 +1,9 @@
+mod event;
 mod repository;
 mod set;
 
 use crate::set::Set;
+use event::Event;
 use repository::{EventRepository, JsonlEventRepository, SqliteEventRepository};
 use std::{collections::BTreeMap, io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
@@ -65,8 +67,12 @@ async fn main() {
         }
         Subcommand::List => {
             let events = repository.find_all().await.unwrap();
-            let state = events.iter().fold(BTreeMap::new(), |mut map, e| {
-                map.insert(e.key(), e.value());
+            let state = events.iter().fold(BTreeMap::new(), |mut map, event| {
+                match event {
+                    Event::Set(set) => {
+                        map.insert(set.key(), set.value());
+                    }
+                }
                 map
             });
             for (k, v) in state {
@@ -75,7 +81,7 @@ async fn main() {
         }
         Subcommand::Set { key, value } => {
             let mut events = repository.find_all().await.unwrap();
-            events.push(Set::new(key, value).unwrap());
+            events.push(Event::Set(Set::new(key, value).unwrap()));
             repository.save(&events).await.unwrap();
         }
     }
