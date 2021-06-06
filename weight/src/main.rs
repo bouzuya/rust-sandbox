@@ -1,11 +1,8 @@
-mod jsonl;
+mod repository;
 mod set;
-mod sqlite;
 
-use crate::jsonl::{read_jsonl, write_jsonl};
 use crate::set::Set;
-use async_trait::async_trait;
-use sqlite::{read_sqlite, write_sqlite};
+use repository::{EventRepository, JsonlEventRepository, SqliteEventRepository};
 use std::{collections::BTreeMap, io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
 
@@ -49,54 +46,6 @@ enum Subcommand {
         key: String,
         value: f64,
     },
-}
-
-#[async_trait]
-trait EventRepository {
-    async fn find_all(&self) -> anyhow::Result<Vec<Set>>;
-    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()>;
-}
-
-struct JsonlEventRepository {
-    data_file: PathBuf,
-}
-
-impl JsonlEventRepository {
-    fn new(data_file: PathBuf) -> Self {
-        Self { data_file }
-    }
-}
-
-#[async_trait]
-impl EventRepository for JsonlEventRepository {
-    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
-        Ok(read_jsonl(self.data_file.as_path())?)
-    }
-
-    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
-        Ok(write_jsonl(self.data_file.as_path(), events)?)
-    }
-}
-
-struct SqliteEventRepository {
-    data_file: PathBuf,
-}
-
-impl SqliteEventRepository {
-    fn new(data_file: PathBuf) -> Self {
-        Self { data_file }
-    }
-}
-
-#[async_trait]
-impl EventRepository for SqliteEventRepository {
-    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
-        Ok(read_sqlite(self.data_file.as_path()).await?)
-    }
-
-    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
-        Ok(write_sqlite(self.data_file.as_path(), events).await?)
-    }
 }
 
 fn event_repository(data_file_type: DataFileType, data_file: PathBuf) -> Box<dyn EventRepository> {

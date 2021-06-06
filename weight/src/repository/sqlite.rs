@@ -1,11 +1,37 @@
+use super::EventRepository;
 use crate::set::Set;
 use anyhow::Context;
+use async_trait::async_trait;
 use sqlx::{
     pool::PoolConnection,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqliteRow},
     Row, Sqlite, SqlitePool,
 };
-use std::{path::Path, str::FromStr};
+use std::{
+    path::{Path, PathBuf},
+    str::FromStr,
+};
+
+pub struct SqliteEventRepository {
+    data_file: PathBuf,
+}
+
+impl SqliteEventRepository {
+    pub fn new(data_file: PathBuf) -> Self {
+        Self { data_file }
+    }
+}
+
+#[async_trait]
+impl EventRepository for SqliteEventRepository {
+    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
+        Ok(read_sqlite(self.data_file.as_path()).await?)
+    }
+
+    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
+        Ok(write_sqlite(self.data_file.as_path(), events).await?)
+    }
+}
 
 async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Sqlite>> {
     let options = SqliteConnectOptions::from_str(&format!(
@@ -18,7 +44,7 @@ async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Sqlite>> {
     Ok(conn)
 }
 
-pub async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
+async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -35,7 +61,7 @@ pub async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Set>> {
     )
 }
 
-pub async fn write_sqlite(path: &Path, events: &Vec<Set>) -> anyhow::Result<()> {
+async fn write_sqlite(path: &Path, events: &Vec<Set>) -> anyhow::Result<()> {
     let mut conn = connection(path).await?;
 
     sqlx::query(

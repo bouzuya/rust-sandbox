@@ -1,7 +1,33 @@
+use super::EventRepository;
 use crate::set::{ParseSetError, Set};
+use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use std::{fs, io, path::Path};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
+
+pub struct JsonlEventRepository {
+    data_file: PathBuf,
+}
+
+impl JsonlEventRepository {
+    pub fn new(data_file: PathBuf) -> Self {
+        Self { data_file }
+    }
+}
+
+#[async_trait]
+impl EventRepository for JsonlEventRepository {
+    async fn find_all(&self) -> anyhow::Result<Vec<Set>> {
+        Ok(read_jsonl(self.data_file.as_path())?)
+    }
+
+    async fn save(&self, events: &Vec<Set>) -> anyhow::Result<()> {
+        Ok(write_jsonl(self.data_file.as_path(), events)?)
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 struct Line {
@@ -19,7 +45,7 @@ pub enum ReadError {
     SetConvert(#[source] ParseSetError),
 }
 
-pub fn read_jsonl(path: &Path) -> Result<Vec<Set>, ReadError> {
+fn read_jsonl(path: &Path) -> Result<Vec<Set>, ReadError> {
     if !path.exists() {
         return Ok(vec![]);
     }
@@ -37,14 +63,14 @@ pub fn read_jsonl(path: &Path) -> Result<Vec<Set>, ReadError> {
 }
 
 #[derive(Debug, Error)]
-pub enum WriteError {
+enum WriteError {
     #[error("write error")]
     Write(#[source] io::Error),
     #[error("json convert error")]
     JsonConvert(#[source] serde_json::Error),
 }
 
-pub fn write_jsonl(path: &Path, events: &Vec<Set>) -> Result<(), WriteError> {
+fn write_jsonl(path: &Path, events: &Vec<Set>) -> Result<(), WriteError> {
     let mut output = String::new();
     for set in events {
         let set = Line {
