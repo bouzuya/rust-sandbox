@@ -1,6 +1,7 @@
 use super::EventRepository;
 use crate::{
     event::Event,
+    remove::Remove,
     set::{ParseSetError, Set},
 };
 use async_trait::async_trait;
@@ -33,9 +34,12 @@ impl EventRepository for JsonlEventRepository {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-struct Line {
-    key: String,
-    value: f64,
+#[serde(tag = "type")]
+enum Line {
+    #[serde(rename = "remove")]
+    Remove { key: String },
+    #[serde(rename = "set")]
+    Set { key: String, value: f64 },
 }
 
 #[derive(Debug, Error)]
@@ -58,9 +62,14 @@ fn read_jsonl(path: &Path) -> Result<Vec<Event>, ReadError> {
         if line.is_empty() {
             continue;
         }
-        let set: Line = serde_json::from_str(line).map_err(|e| ReadError::JsonParse(e))?;
-        let set = Event::Set(Set::new(set.key, set.value).map_err(|e| ReadError::SetConvert(e))?);
-        jsonl.push(set);
+        let line: Line = serde_json::from_str(line).map_err(|e| ReadError::JsonParse(e))?;
+        let event = match line {
+            Line::Remove { key } => Event::Remove(Remove::new(key)),
+            Line::Set { key, value } => Set::new(key, value)
+                .map(|set| Event::Set(set))
+                .map_err(|e| ReadError::SetConvert(e))?,
+        };
+        jsonl.push(event);
     }
     Ok(jsonl)
 }
@@ -76,18 +85,22 @@ enum WriteError {
 fn write_jsonl(path: &Path, events: &Vec<Event>) -> Result<(), WriteError> {
     let mut output = String::new();
     for event in events {
-        match event {
+        let line = match event {
+            Event::Remove(remove) => {
+                let set = Line::Remove { key: remove.key() };
+                serde_json::to_string(&set).map_err(|e| WriteError::JsonConvert(e))?
+            }
             Event::Set(set) => {
-                let set = Line {
+                let set = Line::Set {
                     key: set.key(),
                     value: set.value(),
                 };
-                let line = serde_json::to_string(&set).map_err(|e| WriteError::JsonConvert(e))?;
-
-                output.push_str(line.as_str());
-                output.push('\n');
+                serde_json::to_string(&set).map_err(|e| WriteError::JsonConvert(e))?
             }
-        }
+        };
+
+        output.push_str(line.as_str());
+        output.push('\n');
     }
     fs::write(path, output).map_err(|e| WriteError::Write(e))?;
     Ok(())
@@ -130,9 +143,11 @@ mod tests {
         fs::write(
             jsonl.as_path(),
             concat!(
-                r#"{"key":"2021-02-03","value":50.1}"#,
+                r#"{"type":"set","key":"2021-02-03","value":50.1}"#,
                 "\n",
-                r#"{"key":"2021-03-04","value":51.2}"#,
+                r#"{"type":"set","key":"2021-03-04","value":51.2}"#,
+                "\n",
+                r#"{"type":"remove","key":"2021-03-04"}"#,
                 "\n",
             ),
         )
@@ -142,6 +157,7 @@ mod tests {
             vec![
                 Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
                 Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
+                Event::Remove(Remove::new("2021-03-04".to_string())),
             ]
         );
     }
@@ -153,6 +169,7 @@ mod tests {
         let events = vec![
             Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
             Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
+            Event::Remove(Remove::new("2021-03-04".to_string())),
         ];
 
         // json convert error (can't test)
@@ -173,9 +190,11 @@ mod tests {
         assert_eq!(
             fs::read_to_string(jsonl.as_path()).unwrap(),
             concat!(
-                r#"{"key":"2021-02-03","value":50.1}"#,
+                r#"{"type":"set","key":"2021-02-03","value":50.1}"#,
                 "\n",
-                r#"{"key":"2021-03-04","value":51.2}"#,
+                r#"{"type":"set","key":"2021-03-04","value":51.2}"#,
+                "\n",
+                r#"{"type":"remove","key":"2021-03-04"}"#,
                 "\n",
             )
         );

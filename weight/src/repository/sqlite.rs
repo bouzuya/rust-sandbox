@@ -1,5 +1,5 @@
 use super::EventRepository;
-use crate::{event::Event, set::Set};
+use crate::{event::Event, remove::Remove, set::Set};
 use anyhow::Context;
 use async_trait::async_trait;
 use sqlx::{
@@ -50,16 +50,32 @@ async fn read_sqlite(path: &Path) -> anyhow::Result<Vec<Event>> {
     }
 
     let mut conn = connection(path).await?;
-    Ok(
-        sqlx::query("SELECT id, key, value FROM events ORDER BY id ASC")
-            .try_map(|row: SqliteRow| {
-                Set::new(row.get("key"), row.get("value"))
-                    .map(|s| Event::Set(s))
-                    .map_err(|e| sqlx::Error::Decode(Box::new(e)))
-            })
-            .fetch_all(&mut conn)
-            .await?,
+    Ok(sqlx::query(
+        r#"
+        SELECT
+          event.id AS event_id,
+          event.type AS event_type,
+          remove_event.key AS remove_key,
+          set_event.key AS set_key,
+          set_event.value AS set_value
+        FROM events AS event
+        LEFT OUTER JOIN remove_events AS remove_event ON event.id = remove_event.id
+        LEFT OUTER JOIN set_events AS set_event ON event.id = set_event.id
+        ORDER BY event.id ASC
+        "#,
     )
+    .try_map(|row: SqliteRow| {
+        let t: String = row.get("event_type");
+        match t.as_str() {
+            "remove" => Ok(Event::Remove(Remove::new(row.get("remove_key")))),
+            "set" => Set::new(row.get("set_key"), row.get("set_value"))
+                .map(|s| Event::Set(s))
+                .map_err(|e| sqlx::Error::Decode(Box::new(e))),
+            _ => unreachable!(),
+        }
+    })
+    .fetch_all(&mut conn)
+    .await?)
 }
 
 async fn write_sqlite(path: &Path, events: &Vec<Event>) -> anyhow::Result<()> {
@@ -69,8 +85,30 @@ async fn write_sqlite(path: &Path, events: &Vec<Event>) -> anyhow::Result<()> {
         r#"
 CREATE TABLE IF NOT EXISTS events (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    type TEXT NOT NULL
+)"#,
+    )
+    .execute(&mut conn)
+    .await?;
+
+    sqlx::query(
+        r#"
+CREATE TABLE IF NOT EXISTS remove_events (
+    id INTEGER PRIMARY KEY,
     key TEXT NOT NULL,
-    value REAL NOT NULL
+    FOREIGN KEY (id) REFERENCES events (id)
+)"#,
+    )
+    .execute(&mut conn)
+    .await?;
+
+    sqlx::query(
+        r#"
+CREATE TABLE IF NOT EXISTS set_events (
+    id INTEGER PRIMARY KEY,
+    key TEXT NOT NULL,
+    value REAL NOT NULL,
+    FOREIGN KEY (id) REFERENCES events (id)
 )"#,
     )
     .execute(&mut conn)
@@ -79,9 +117,27 @@ CREATE TABLE IF NOT EXISTS events (
     for event in events {
         match event {
             Event::Set(set) => {
-                sqlx::query("INSERT INTO events (key, value) VALUES (?, ?)")
+                let id = sqlx::query("INSERT INTO events (type) VALUES (?)")
+                    .bind("set")
+                    .execute(&mut conn)
+                    .await?
+                    .last_insert_rowid();
+                sqlx::query("INSERT INTO set_events (id, key, value) VALUES (?, ?, ?)")
+                    .bind(id)
                     .bind(set.key())
                     .bind(set.value())
+                    .execute(&mut conn)
+                    .await?;
+            }
+            Event::Remove(remove) => {
+                let id = sqlx::query("INSERT INTO events (type) VALUES (?)")
+                    .bind("remove")
+                    .execute(&mut conn)
+                    .await?
+                    .last_insert_rowid();
+                sqlx::query("INSERT INTO remove_events (id, key) VALUES (?, ?)")
+                    .bind(id)
+                    .bind(remove.key())
                     .execute(&mut conn)
                     .await?;
             }
@@ -120,6 +176,7 @@ mod tests {
         let events = vec![
             Event::Set(Set::new("2021-02-03".to_string(), 50.1).unwrap()),
             Event::Set(Set::new("2021-03-04".to_string(), 51.2).unwrap()),
+            Event::Remove(Remove::new("2021-03-04".to_string())),
         ];
         write_sqlite(sqlite.as_path(), &events).await.unwrap();
         assert_eq!(read_sqlite(sqlite.as_path()).await.unwrap(), events);

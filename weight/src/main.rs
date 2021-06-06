@@ -1,9 +1,11 @@
 mod event;
+mod remove;
 mod repository;
 mod set;
 
 use crate::set::Set;
 use event::Event;
+use remove::Remove;
 use repository::{EventRepository, JsonlEventRepository, SqliteEventRepository};
 use std::{collections::BTreeMap, io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
@@ -44,6 +46,9 @@ enum Subcommand {
         shell: Shell,
     },
     List,
+    Remove {
+        key: String,
+    },
     Set {
         key: String,
         value: f64,
@@ -69,6 +74,9 @@ async fn main() {
             let events = repository.find_all().await.unwrap();
             let state = events.iter().fold(BTreeMap::new(), |mut map, event| {
                 match event {
+                    Event::Remove(remove) => {
+                        map.remove(&remove.key());
+                    }
                     Event::Set(set) => {
                         map.insert(set.key(), set.value());
                     }
@@ -78,6 +86,11 @@ async fn main() {
             for (k, v) in state {
                 println!("{} {}", k, v);
             }
+        }
+        Subcommand::Remove { key } => {
+            let mut events = repository.find_all().await.unwrap();
+            events.push(Event::Remove(Remove::new(key)));
+            repository.save(&events).await.unwrap();
         }
         Subcommand::Set { key, value } => {
             let mut events = repository.find_all().await.unwrap();
