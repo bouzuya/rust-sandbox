@@ -1,4 +1,7 @@
+mod list;
+
 use b::{build_data, list_entries, TemplateEntry};
+use list::list;
 use std::{convert::TryFrom, env, fs, io, path::PathBuf};
 use structopt::StructOpt;
 
@@ -10,6 +13,12 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    #[structopt(name = "list", about = "Lists b files")]
+    List {
+        #[structopt(long = "data-dir")]
+        data_dir: PathBuf,
+        query: String,
+    },
     #[structopt(name = "new", about = "Creates a new file")]
     New {
         #[structopt(short = "d", long = "data-file", help = "The data file")]
@@ -26,6 +35,7 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
+        Subcommand::List { data_dir, query } => list(data_dir, query),
         Subcommand::New {
             data_file,
             template,

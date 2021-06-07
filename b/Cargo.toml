@@ -14,4 +14,5 @@ thiserror = "1.0.24"
 
 [dev-dependencies]
 assert_cmd = "1.0.4"
+predicates = "1.0.8"
 tempfile = "3.2.0"
