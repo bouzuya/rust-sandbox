@@ -35,7 +35,7 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
-        Subcommand::List { data_dir, query } => list(data_dir, query),
+        Subcommand::List { data_dir, query } => list(data_dir, query, &mut io::stdout()),
         Subcommand::New {
             data_file,
             template,
