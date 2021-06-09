@@ -1,6 +1,7 @@
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use std::{
-    io,
+    fs,
+    io::{self, BufReader, Read},
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -46,7 +47,32 @@ fn dirs(data_dir: &Path, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
-fn list_files(data_dir: PathBuf, query: String) -> Vec<PathBuf> {
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct BMeta {
+    title: String,
+}
+
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct B {
+    path_buf: PathBuf,
+    title: String,
+}
+
+impl B {
+    fn new(path_buf: PathBuf, title: String) -> Self {
+        Self { path_buf, title }
+    }
+
+    fn path(&self) -> &Path {
+        self.path_buf.as_path()
+    }
+
+    fn title(&self) -> &str {
+        self.title.as_str()
+    }
+}
+
+fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
     let mut files = vec![];
     let date_time_range = utc_date_time_range(query.as_str());
     let dirs = dirs(data_dir.as_path(), &date_time_range);
@@ -60,7 +86,19 @@ fn list_files(data_dir: PathBuf, query: String) -> Vec<PathBuf> {
                     path.file_stem().unwrap().to_str().unwrap(),
                 )
             {
-                files.push(dir.join(path));
+                let file = fs::File::open(path.as_path()).unwrap();
+                let mut buf_reader = BufReader::new(file);
+                let mut buf = [0; 512];
+                let n = buf_reader.read(&mut buf).unwrap();
+                let s = String::from_utf8_lossy(&buf[0..n]);
+                let s = s
+                    .trim_end_matches('\u{FFFD}')
+                    .chars()
+                    .map(|c| if c == '\n' { ' ' } else { c })
+                    .take(80 - 27)
+                    .collect::<String>();
+                let meta = BMeta { title: s };
+                files.push(B::new(dir.join(path), meta.title));
             }
         }
     }
@@ -69,9 +107,9 @@ fn list_files(data_dir: PathBuf, query: String) -> Vec<PathBuf> {
 }
 
 pub fn list(data_dir: PathBuf, query: String, writer: &mut impl io::Write) {
-    let files = list_files(data_dir, query);
-    for file in files {
-        writeln!(writer, "{}", file.as_path().to_str().unwrap()).unwrap();
+    let bs = list_bs(data_dir, query);
+    for b in bs {
+        writeln!(writer, "{} {}", b.path().to_str().unwrap(), b.title()).unwrap();
     }
 }
 
@@ -89,19 +127,29 @@ mod tests {
         fs::create_dir_all(dir20210202.as_path()).unwrap();
         fs::create_dir_all(dir20210203.as_path()).unwrap();
         let files = vec![
-            dir20210202.join("20210202T145959Z.md"),
-            dir20210202.join("20210202T150000Z.md"),
-            dir20210202.join("20210202T235959Z.md"),
-            dir20210203.join("20210203T000000Z.md"),
-            dir20210203.join("20210203T145959Z.md"),
-            dir20210203.join("20210203T150000Z.md"),
+            dir20210202.join("20210202T145959Z.json"),
+            dir20210202.join("20210202T150000Z.json"),
+            dir20210202.join("20210202T235959Z.json"),
+            dir20210203.join("20210203T000000Z.json"),
+            dir20210203.join("20210203T145959Z.json"),
+            dir20210203.join("20210203T150000Z.json"),
         ];
-        for f in files.iter() {
-            fs::write(f.as_path(), "").unwrap();
+        for (i, f) in files.iter().enumerate() {
+            fs::write(f.as_path(), format!(r#"{{"title":"{}"}}"#, i)).unwrap();
         }
         assert_eq!(
-            list_files(dir.path().to_path_buf(), "2021-02-03".to_string()),
+            list_bs(dir.path().to_path_buf(), "2021-02-03".to_string())
+                .into_iter()
+                .map(|p| p.path().to_path_buf())
+                .collect::<Vec<PathBuf>>(),
             files[1..1 + 4]
+        );
+        assert_eq!(
+            list_bs(dir.path().to_path_buf(), "2021-02-03".to_string())
+                .into_iter()
+                .map(|p| p.title().to_string())
+                .collect::<Vec<String>>(),
+            vec!["1", "2", "3", "4"]
         );
     }
 }
