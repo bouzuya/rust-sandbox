@@ -70,7 +70,7 @@ mod tests {
         ];
         let templates = entries
             .iter()
-            .map(|e| TemplateEntry::try_from(e))
+            .map(TemplateEntry::try_from)
             .collect::<Result<Vec<TemplateEntry>, _>>()
             .unwrap();
         let mut data = BTreeMap::new();

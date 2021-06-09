@@ -51,7 +51,7 @@ fn main() {
             let entries = list_entries(template.as_path()).unwrap();
             let templates = entries
                 .iter()
-                .map(|e| TemplateEntry::try_from(e))
+                .map(TemplateEntry::try_from)
                 .collect::<Result<Vec<TemplateEntry>, _>>()
                 .unwrap();
             let root_dir = env::current_dir().unwrap();

@@ -21,10 +21,7 @@ pub enum ListEntriesError {
 }
 
 fn list_entries_impl(first: bool, path: &Path) -> Result<Vec<Entry>, ListEntriesError> {
-    let name = path
-        .to_str()
-        .ok_or_else(|| ListEntriesError::FileName)?
-        .to_string();
+    let name = path.to_str().ok_or(ListEntriesError::FileName)?.to_string();
     let mut entries = vec![];
     if path.is_dir() {
         if !first {
@@ -45,13 +42,13 @@ fn list_entries_impl(first: bool, path: &Path) -> Result<Vec<Entry>, ListEntries
 pub fn list_entries(path: &Path) -> Result<Vec<Entry>, ListEntriesError> {
     let path = path
         .canonicalize()
-        .map_err(|e| ListEntriesError::Canonicalize(e))?;
+        .map_err(ListEntriesError::Canonicalize)?;
     let strip_prefix = |s: String| -> Result<String, ListEntriesError> {
         Ok(PathBuf::from(s)
             .strip_prefix(path.as_path())
             .expect("internal error")
             .to_str()
-            .ok_or_else(|| ListEntriesError::FileName)?
+            .ok_or(ListEntriesError::FileName)?
             .to_string())
     };
     list_entries_impl(true, path.as_path())?
