@@ -5,9 +5,9 @@ use std::{
     str::FromStr,
 };
 
-type DateRange = (DateTime<Utc>, DateTime<Utc>);
+type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
 
-fn utc_date_range(date: &str) -> DateRange {
+fn utc_date_time_range(date: &str) -> DateTimeRange {
     let date = NaiveDate::from_str(date).unwrap();
     let start = date.and_hms(0, 0, 0);
     let end = date.and_hms(23, 59, 59);
@@ -18,14 +18,14 @@ fn utc_date_range(date: &str) -> DateRange {
     (start, end)
 }
 
-fn in_date_range(date_range: &DateRange, date: &str) -> bool {
+fn in_date_time_range(date_time_range: &DateTimeRange, date: &str) -> bool {
     let dt = NaiveDateTime::parse_from_str(&date[0..date.len() - 1], "%Y%m%dT%H%M%S").unwrap();
     let dt = Utc.from_utc_datetime(&dt);
-    (date_range.0..=date_range.1).contains(&dt)
+    (date_time_range.0..=date_time_range.1).contains(&dt)
 }
 
-fn dirs(data_dir: &Path, date_range: &DateRange) -> Vec<PathBuf> {
-    let (start, end) = date_range;
+fn dirs(data_dir: &Path, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
+    let (start, end) = date_time_range;
     let dates = if start == end {
         vec![start]
     } else {
@@ -48,14 +48,17 @@ fn dirs(data_dir: &Path, date_range: &DateRange) -> Vec<PathBuf> {
 
 fn list_files(data_dir: PathBuf, query: String) -> Vec<PathBuf> {
     let mut files = vec![];
-    let date_range = utc_date_range(query.as_str());
-    let dirs = dirs(data_dir.as_path(), &date_range);
+    let date_time_range = utc_date_time_range(query.as_str());
+    let dirs = dirs(data_dir.as_path(), &date_time_range);
     for dir in dirs {
         for dir_entry in dir.read_dir().unwrap() {
             let dir_entry = dir_entry.unwrap();
             let path = dir_entry.path();
             if path.extension().unwrap().to_str().unwrap() == "md"
-                && in_date_range(&date_range, path.file_stem().unwrap().to_str().unwrap())
+                && in_date_time_range(
+                    &date_time_range,
+                    path.file_stem().unwrap().to_str().unwrap(),
+                )
             {
                 files.push(dir.join(path));
             }
