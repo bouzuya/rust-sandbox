@@ -1,3 +1,4 @@
+use crate::bid::BId;
 use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use std::{
     fs,
@@ -72,37 +73,48 @@ impl B {
     }
 }
 
-fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
-    let mut files = vec![];
+fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
+    let mut bids = vec![];
     let date_time_range = utc_date_time_range(query.as_str());
-    let dirs = dirs(data_dir.as_path(), &date_time_range);
+    let timestamp_range =
+        date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
+    let dirs = dirs(data_dir, &date_time_range);
     for dir in dirs {
         for dir_entry in dir.read_dir().unwrap() {
             let dir_entry = dir_entry.unwrap();
             let path = dir_entry.path();
-            if path.extension().unwrap().to_str().unwrap() == "md"
-                && in_date_time_range(
-                    &date_time_range,
-                    path.file_stem().unwrap().to_str().unwrap(),
-                )
-            {
-                let file = fs::File::open(path.as_path()).unwrap();
-                let mut buf_reader = BufReader::new(file);
-                let mut buf = [0; 512];
-                let n = buf_reader.read(&mut buf).unwrap();
-                let s = String::from_utf8_lossy(&buf[0..n]);
-                let s = s
-                    .trim_end_matches('\u{FFFD}')
-                    .chars()
-                    .map(|c| if c == '\n' { ' ' } else { c })
-                    .take(80 - 27)
-                    .collect::<String>();
-                let meta = BMeta { title: s };
-                files.push(B::new(dir.join(path), meta.title));
+            if let Ok(bid) = BId::from_meta_path(data_dir, path.as_path()) {
+                if timestamp_range.contains(&bid.to_timestamp()) {
+                    bids.push(bid);
+                }
             }
         }
     }
-    files.sort();
+    bids.sort();
+    bids
+}
+
+fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
+    let mut files = vec![];
+    let bids = list_bids(data_dir.as_path(), query);
+    for bid in bids {
+        let path = bid
+            .to_meta_path_buf(data_dir.as_path())
+            .with_extension("md");
+        let file = fs::File::open(path.as_path()).unwrap();
+        let mut buf_reader = BufReader::new(file);
+        let mut buf = [0; 512];
+        let n = buf_reader.read(&mut buf).unwrap();
+        let s = String::from_utf8_lossy(&buf[0..n]);
+        let s = s
+            .trim_end_matches('\u{FFFD}')
+            .chars()
+            .map(|c| if c == '\n' { ' ' } else { c })
+            .take(80 - 27)
+            .collect::<String>();
+        let meta = BMeta { title: s };
+        files.push(B::new(path, meta.title));
+    }
     files
 }
 
