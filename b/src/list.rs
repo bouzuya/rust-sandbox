@@ -53,19 +53,22 @@ struct BMeta {
     title: String,
 }
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize)]
 struct B {
-    path_buf: PathBuf,
+    md_path: PathBuf,
     title: String,
 }
 
 impl B {
     fn new(path_buf: PathBuf, title: String) -> Self {
-        Self { path_buf, title }
+        Self {
+            md_path: path_buf,
+            title,
+        }
     }
 
     fn path(&self) -> &Path {
-        self.path_buf.as_path()
+        self.md_path.as_path()
     }
 
     fn title(&self) -> &str {
@@ -80,6 +83,9 @@ fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
         date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
     let dirs = dirs(data_dir, &date_time_range);
     for dir in dirs {
+        if !dir.exists() {
+            continue;
+        }
         for dir_entry in dir.read_dir().unwrap() {
             let dir_entry = dir_entry.unwrap();
             let path = dir_entry.path();
@@ -118,10 +124,14 @@ fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
     files
 }
 
-pub fn list(data_dir: PathBuf, query: String, writer: &mut impl io::Write) {
+pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
     let bs = list_bs(data_dir, query);
-    for b in bs {
-        writeln!(writer, "{} {}", b.path().to_str().unwrap(), b.title()).unwrap();
+    if json {
+        serde_json::to_writer(writer, &bs).unwrap();
+    } else {
+        for b in bs {
+            writeln!(writer, "{} {}", b.path().to_str().unwrap(), b.title()).unwrap();
+        }
     }
 }
 
@@ -139,15 +149,16 @@ mod tests {
         fs::create_dir_all(dir20210202.as_path()).unwrap();
         fs::create_dir_all(dir20210203.as_path()).unwrap();
         let files = vec![
-            dir20210202.join("20210202T145959Z.json"),
-            dir20210202.join("20210202T150000Z.json"),
-            dir20210202.join("20210202T235959Z.json"),
-            dir20210203.join("20210203T000000Z.json"),
-            dir20210203.join("20210203T145959Z.json"),
-            dir20210203.join("20210203T150000Z.json"),
+            dir20210202.join("20210202T145959Z.md"),
+            dir20210202.join("20210202T150000Z.md"),
+            dir20210202.join("20210202T235959Z.md"),
+            dir20210203.join("20210203T000000Z.md"),
+            dir20210203.join("20210203T145959Z.md"),
+            dir20210203.join("20210203T150000Z.md"),
         ];
         for (i, f) in files.iter().enumerate() {
-            fs::write(f.as_path(), format!(r#"{{"title":"{}"}}"#, i)).unwrap();
+            fs::write(f.as_path(), format!("{}", i)).unwrap();
+            fs::write(f.as_path().with_extension("json"), "").unwrap();
         }
         assert_eq!(
             list_bs(dir.path().to_path_buf(), "2021-02-03".to_string())

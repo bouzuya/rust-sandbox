@@ -18,6 +18,8 @@ enum Subcommand {
     List {
         #[structopt(long = "data-dir")]
         data_dir: PathBuf,
+        #[structopt(long = "json")]
+        json: bool,
         query: String,
     },
     #[structopt(name = "new", about = "Creates a new file")]
@@ -36,7 +38,11 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
-        Subcommand::List { data_dir, query } => list(data_dir, query, &mut io::stdout()),
+        Subcommand::List {
+            data_dir,
+            json,
+            query,
+        } => list(data_dir, json, query, &mut io::stdout()),
         Subcommand::New {
             data_file,
             template,
