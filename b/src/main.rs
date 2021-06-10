@@ -1,3 +1,4 @@
+mod bid;
 mod list;
 
 use b::{build_data, list_entries, TemplateEntry};
