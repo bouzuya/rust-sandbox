@@ -36,6 +36,10 @@ impl BId {
         Self(utc.timestamp())
     }
 
+    pub fn from_content_path(data_dir: &Path, path: &Path) -> Result<Self, &'static str> {
+        Self::from_meta_path(data_dir, path.with_extension("json").as_path())
+    }
+
     pub fn from_meta_path(data_dir: &Path, path: &Path) -> Result<Self, &'static str> {
         let p = path.strip_prefix(data_dir).map_err(|_| "invalid path")?;
         if p.extension() != Some(OsStr::new("json")) {
@@ -73,6 +77,10 @@ impl BId {
         } else {
             None
         }
+    }
+
+    pub fn to_content_path_buf(&self, data_dir: &Path) -> PathBuf {
+        self.to_meta_path_buf(data_dir).with_extension("md")
     }
 
     pub fn to_timestamp(&self) -> i64 {
@@ -149,6 +157,15 @@ mod tests {
 
     #[test]
     fn path_buf_convert_test() {
+        let data_dir = PathBuf::from("/");
+        let content_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.md");
+        let bid = BId::from_content_path(data_dir.as_path(), content_path_buf.as_path()).unwrap();
+        assert_eq!(
+            bid.to_content_path_buf(data_dir.as_path()),
+            content_path_buf
+        );
+        assert_eq!(bid.to_string(), "20210203T000000Z");
+
         let data_dir = PathBuf::from("/");
         let meta_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.json");
         let bid = BId::from_meta_path(data_dir.as_path(), meta_path_buf.as_path()).unwrap();

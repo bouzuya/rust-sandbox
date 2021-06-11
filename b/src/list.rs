@@ -44,6 +44,7 @@ fn dirs(data_dir: &Path, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
 
 #[derive(Debug, Eq, PartialEq)]
 struct BMeta {
+    id: BId,
     tags: Vec<String>,
     title: String,
 }
@@ -54,42 +55,21 @@ struct BMetaJson {
     title: Option<String>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-struct B {
-    md_path: PathBuf,
-    meta: BMeta,
-}
-
-impl B {
-    fn new(path_buf: PathBuf, meta: BMeta) -> Self {
-        Self {
-            md_path: path_buf,
-            meta,
-        }
-    }
-
-    fn path(&self) -> &Path {
-        self.md_path.as_path()
-    }
-
-    fn title(&self) -> &str {
-        self.meta.title.as_str()
-    }
-
-    fn output(self) -> BOutput {
-        BOutput {
-            md_path: self.md_path,
-            tags: self.meta.tags,
-            title: self.meta.title,
-        }
-    }
-}
-
 #[derive(Debug, Eq, PartialEq, serde::Serialize)]
 struct BOutput {
     md_path: PathBuf,
     tags: Vec<String>,
     title: String,
+}
+
+impl BOutput {
+    fn from(bmeta: BMeta, data_dir: &Path) -> Self {
+        BOutput {
+            md_path: bmeta.id.to_meta_path_buf(data_dir).with_extension("md"),
+            tags: bmeta.tags,
+            title: bmeta.title,
+        }
+    }
 }
 
 fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
@@ -116,12 +96,12 @@ fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
     bids
 }
 
-fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
-    let mut files = vec![];
-    let bids = list_bids(data_dir.as_path(), query);
+fn list_bmetas(data_dir: &Path, query: String) -> Vec<BMeta> {
+    let mut bmetas = vec![];
+    let bids = list_bids(data_dir, query);
     for bid in bids {
-        let meta_path_buf = bid.to_meta_path_buf(data_dir.as_path());
-        let content_path_buf = meta_path_buf.with_extension("md");
+        let meta_path_buf = bid.to_meta_path_buf(data_dir);
+        let content_path_buf = bid.to_content_path_buf(data_dir);
 
         let json_string = fs::read_to_string(meta_path_buf.as_path()).unwrap();
         let json = serde_json::from_str::<BMetaJson>(json_string.as_str()).unwrap();
@@ -140,26 +120,35 @@ fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
                     .collect::<String>()
             }
         };
-        let meta = BMeta {
+        bmetas.push(BMeta {
+            id: bid,
             tags: json.tags.unwrap_or_default(),
             title,
-        };
-        files.push(B::new(content_path_buf, meta));
+        });
     }
-    files
+    bmetas
 }
 
 pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
-    let bs = list_bs(data_dir, query);
+    let bmetas = list_bmetas(data_dir.as_path(), query);
     if json {
         serde_json::to_writer(
             writer,
-            &bs.into_iter().map(|b| b.output()).collect::<Vec<BOutput>>(),
+            &bmetas
+                .into_iter()
+                .map(|bmeta| BOutput::from(bmeta, &data_dir))
+                .collect::<Vec<BOutput>>(),
         )
         .unwrap();
     } else {
-        for b in bs {
-            writeln!(writer, "{} {}", b.path().to_str().unwrap(), b.title()).unwrap();
+        for bmeta in bmetas {
+            writeln!(
+                writer,
+                "{} {}",
+                bmeta.id.to_content_path_buf(&data_dir).to_str().unwrap(),
+                bmeta.title
+            )
+            .unwrap();
         }
     }
 }
@@ -187,19 +176,19 @@ mod tests {
         ];
         for (i, f) in files.iter().enumerate() {
             fs::write(f.as_path(), format!("{}", i)).unwrap();
-            fs::write(f.as_path().with_extension("json"), "").unwrap();
+            fs::write(f.as_path().with_extension("json"), "{}").unwrap();
         }
         assert_eq!(
-            list_bs(dir.path().to_path_buf(), "2021-02-03".to_string())
+            list_bmetas(dir.path(), "2021-02-03".to_string())
                 .into_iter()
-                .map(|p| p.path().to_path_buf())
+                .map(|p| p.id.to_content_path_buf(dir.path()))
                 .collect::<Vec<PathBuf>>(),
             files[1..1 + 4]
         );
         assert_eq!(
-            list_bs(dir.path().to_path_buf(), "2021-02-03".to_string())
+            list_bmetas(dir.path(), "2021-02-03".to_string())
                 .into_iter()
-                .map(|p| p.title().to_string())
+                .map(|p| p.title)
                 .collect::<Vec<String>>(),
             vec!["1", "2", "3", "4"]
         );
