@@ -1,5 +1,6 @@
 mod bid;
 mod list;
+mod query;
 
 use b::{build_data, list_entries, TemplateEntry};
 use list::list;

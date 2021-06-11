@@ -1,4 +1,5 @@
 use crate::bid::BId;
+use crate::query::Query;
 use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use std::{
     fs,
@@ -65,16 +66,16 @@ struct BOutput {
 impl BOutput {
     fn from(bmeta: BMeta, data_dir: &Path) -> Self {
         BOutput {
-            md_path: bmeta.id.to_meta_path_buf(data_dir).with_extension("md"),
+            md_path: bmeta.id.to_content_path_buf(data_dir),
             tags: bmeta.tags,
             title: bmeta.title,
         }
     }
 }
 
-fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
+fn list_bids(data_dir: &Path, query: &Query) -> Vec<BId> {
     let mut bids = vec![];
-    let date_time_range = utc_date_time_range(query.as_str());
+    let date_time_range = utc_date_time_range(query.date.as_str());
     let timestamp_range =
         date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
     let dirs = dirs(data_dir, &date_time_range);
@@ -96,7 +97,7 @@ fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
     bids
 }
 
-fn list_bmetas(data_dir: &Path, query: String) -> Vec<BMeta> {
+fn list_bmetas(data_dir: &Path, query: &Query) -> Vec<BMeta> {
     let mut bmetas = vec![];
     let bids = list_bids(data_dir, query);
     for bid in bids {
@@ -120,17 +121,29 @@ fn list_bmetas(data_dir: &Path, query: String) -> Vec<BMeta> {
                     .collect::<String>()
             }
         };
-        bmetas.push(BMeta {
+        let bmeta = BMeta {
             id: bid,
             tags: json.tags.unwrap_or_default(),
             title,
-        });
+        };
+        match &query.tags {
+            Some(ref tags) => {
+                if tags
+                    .iter()
+                    .all(|tag| bmeta.tags.iter().any(|s| s.as_str() == tag))
+                {
+                    bmetas.push(bmeta);
+                }
+            }
+            None => bmetas.push(bmeta),
+        }
     }
     bmetas
 }
 
 pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
-    let bmetas = list_bmetas(data_dir.as_path(), query);
+    let query = Query::from_str(query.as_str()).unwrap();
+    let bmetas = list_bmetas(data_dir.as_path(), &query);
     if json {
         serde_json::to_writer(
             writer,
@@ -178,15 +191,16 @@ mod tests {
             fs::write(f.as_path(), format!("{}", i)).unwrap();
             fs::write(f.as_path().with_extension("json"), "{}").unwrap();
         }
+        let query = Query::from_str("2021-02-03").unwrap();
         assert_eq!(
-            list_bmetas(dir.path(), "2021-02-03".to_string())
+            list_bmetas(dir.path(), &query)
                 .into_iter()
                 .map(|p| p.id.to_content_path_buf(dir.path()))
                 .collect::<Vec<PathBuf>>(),
             files[1..1 + 4]
         );
         assert_eq!(
-            list_bmetas(dir.path(), "2021-02-03".to_string())
+            list_bmetas(dir.path(), &query)
                 .into_iter()
                 .map(|p| p.title)
                 .collect::<Vec<String>>(),
