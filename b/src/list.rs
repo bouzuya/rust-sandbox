@@ -61,6 +61,7 @@ struct BMetaJson {
 struct BOutput {
     content_path: PathBuf,
     created_at: String,
+    id: String,
     meta_path: PathBuf,
     tags: Vec<String>,
     title: String,
@@ -73,6 +74,7 @@ impl BOutput {
             created_at: Local
                 .from_utc_datetime(&NaiveDateTime::from_timestamp(bmeta.id.to_timestamp(), 0))
                 .to_rfc3339(),
+            id: bmeta.id.to_string(),
             meta_path: bmeta.id.to_meta_path_buf(data_dir),
             tags: bmeta.tags,
             title: bmeta.title,
