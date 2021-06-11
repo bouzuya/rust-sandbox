@@ -59,8 +59,8 @@ struct BMetaJson {
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize)]
 struct BOutput {
-    local_datetime: String,
-    md_path: PathBuf,
+    content_path: PathBuf,
+    created_at: String,
     meta_path: PathBuf,
     tags: Vec<String>,
     title: String,
@@ -69,10 +69,10 @@ struct BOutput {
 impl BOutput {
     fn from(bmeta: BMeta, data_dir: &Path) -> Self {
         BOutput {
-            local_datetime: Local
+            content_path: bmeta.id.to_content_path_buf(data_dir),
+            created_at: Local
                 .from_utc_datetime(&NaiveDateTime::from_timestamp(bmeta.id.to_timestamp(), 0))
                 .to_rfc3339(),
-            md_path: bmeta.id.to_content_path_buf(data_dir),
             meta_path: bmeta.id.to_meta_path_buf(data_dir),
             tags: bmeta.tags,
             title: bmeta.title,
