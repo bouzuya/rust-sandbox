@@ -1,5 +1,5 @@
 use crate::bid::BId;
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
 use std::{
     fs,
     io::{self, BufReader, Read},
@@ -18,12 +18,6 @@ fn utc_date_time_range(date: &str) -> DateTimeRange {
     let start = DateTime::<Utc>::from(start);
     let end = DateTime::<Utc>::from(end);
     (start, end)
-}
-
-fn in_date_time_range(date_time_range: &DateTimeRange, date: &str) -> bool {
-    let dt = NaiveDateTime::parse_from_str(&date[0..date.len() - 1], "%Y%m%dT%H%M%S").unwrap();
-    let dt = Utc.from_utc_datetime(&dt);
-    (date_time_range.0..=date_time_range.1).contains(&dt)
 }
 
 fn dirs(data_dir: &Path, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
@@ -48,22 +42,29 @@ fn dirs(data_dir: &Path, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
         .collect::<Vec<PathBuf>>()
 }
 
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Eq, PartialEq)]
 struct BMeta {
+    tags: Vec<String>,
     title: String,
 }
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd, serde::Serialize)]
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct BMetaJson {
+    tags: Option<Vec<String>>,
+    title: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
 struct B {
     md_path: PathBuf,
-    title: String,
+    meta: BMeta,
 }
 
 impl B {
-    fn new(path_buf: PathBuf, title: String) -> Self {
+    fn new(path_buf: PathBuf, meta: BMeta) -> Self {
         Self {
             md_path: path_buf,
-            title,
+            meta,
         }
     }
 
@@ -72,8 +73,23 @@ impl B {
     }
 
     fn title(&self) -> &str {
-        self.title.as_str()
+        self.meta.title.as_str()
     }
+
+    fn output(self) -> BOutput {
+        BOutput {
+            md_path: self.md_path,
+            tags: self.meta.tags,
+            title: self.meta.title,
+        }
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Serialize)]
+struct BOutput {
+    md_path: PathBuf,
+    tags: Vec<String>,
+    title: String,
 }
 
 fn list_bids(data_dir: &Path, query: String) -> Vec<BId> {
@@ -104,22 +120,31 @@ fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
     let mut files = vec![];
     let bids = list_bids(data_dir.as_path(), query);
     for bid in bids {
-        let path = bid
-            .to_meta_path_buf(data_dir.as_path())
-            .with_extension("md");
-        let file = fs::File::open(path.as_path()).unwrap();
-        let mut buf_reader = BufReader::new(file);
-        let mut buf = [0; 512];
-        let n = buf_reader.read(&mut buf).unwrap();
-        let s = String::from_utf8_lossy(&buf[0..n]);
-        let s = s
-            .trim_end_matches('\u{FFFD}')
-            .chars()
-            .map(|c| if c == '\n' { ' ' } else { c })
-            .take(80 - 27)
-            .collect::<String>();
-        let meta = BMeta { title: s };
-        files.push(B::new(path, meta.title));
+        let meta_path_buf = bid.to_meta_path_buf(data_dir.as_path());
+        let content_path_buf = meta_path_buf.with_extension("md");
+
+        let json_string = fs::read_to_string(meta_path_buf.as_path()).unwrap();
+        let json = serde_json::from_str::<BMetaJson>(json_string.as_str()).unwrap();
+        let title = match json.title {
+            Some(title) => title,
+            None => {
+                let file = fs::File::open(content_path_buf.as_path()).unwrap();
+                let mut buf_reader = BufReader::new(file);
+                let mut buf = [0; 512];
+                let n = buf_reader.read(&mut buf).unwrap();
+                let s = String::from_utf8_lossy(&buf[0..n]);
+                s.trim_end_matches('\u{FFFD}')
+                    .chars()
+                    .map(|c| if c == '\n' { ' ' } else { c })
+                    .take(80 - 27)
+                    .collect::<String>()
+            }
+        };
+        let meta = BMeta {
+            tags: json.tags.unwrap_or_default(),
+            title,
+        };
+        files.push(B::new(content_path_buf, meta));
     }
     files
 }
@@ -127,7 +152,11 @@ fn list_bs(data_dir: PathBuf, query: String) -> Vec<B> {
 pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
     let bs = list_bs(data_dir, query);
     if json {
-        serde_json::to_writer(writer, &bs).unwrap();
+        serde_json::to_writer(
+            writer,
+            &bs.into_iter().map(|b| b.output()).collect::<Vec<BOutput>>(),
+        )
+        .unwrap();
     } else {
         for b in bs {
             writeln!(writer, "{} {}", b.path().to_str().unwrap(), b.title()).unwrap();
