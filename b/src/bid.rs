@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BId(i64);
 
 impl std::fmt::Display for BId {
