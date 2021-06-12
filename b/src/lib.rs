@@ -10,6 +10,7 @@ mod template_entry;
 pub mod use_case;
 
 pub use bid::BId;
+pub use brepository::BRepository;
 pub use data::build_data;
 pub use entry::{list_entries, Entry};
 pub use template::{ParseTemplateError, Template};

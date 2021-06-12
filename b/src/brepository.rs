@@ -1,11 +1,12 @@
 use crate::bid::BId;
 use crate::bmeta::BMeta;
-use anyhow::Context;
-use chrono::{DateTime, Local, NaiveDate, TimeZone, Utc};
+use anyhow::{anyhow, bail, Context};
+use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use std::{
+    ffi::OsStr,
     fs,
     io::{BufReader, Read},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
@@ -38,9 +39,54 @@ fn utc_date_time_range(date: &str) -> anyhow::Result<DateTimeRange> {
     Ok((start, end))
 }
 
+fn to_dir_components(id: &BId) -> Vec<String> {
+    let ndt = NaiveDateTime::from_timestamp(id.to_timestamp(), 0);
+    let yyyy = ndt.format("%Y").to_string();
+    let mm = ndt.format("%m").to_string();
+    let dd = ndt.format("%d").to_string();
+    vec!["flow".to_string(), yyyy, mm, dd]
+}
+
 impl BRepository {
     pub fn new(data_dir: PathBuf) -> Self {
         Self { data_dir }
+    }
+
+    // TODO: hide path ?
+    pub fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId> {
+        // TODO: using fs
+        self.find_by_meta_path(path.with_extension("json").as_path())
+    }
+
+    // TODO: hide path ?
+    pub fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId> {
+        // TODO: using fs
+        let p = path
+            .strip_prefix(self.data_dir.as_path())
+            .with_context(|| "invalid path")?;
+        if p.extension() != Some(OsStr::new("json")) {
+            bail!("invalid extension");
+        }
+        let s = p
+            .file_stem()
+            .with_context(|| "invalid file_stem")?
+            .to_str()
+            .with_context(|| "invalid str (file_stem)")?;
+        let bid = BId::from_str(s).map_err(|_| anyhow!("invalid format"))?;
+        let components = p
+            .components()
+            .map(|c| c.as_os_str().to_str().with_context(|| "invalid component"))
+            .collect::<anyhow::Result<Vec<&str>>>()?;
+        if components
+            .iter()
+            .take(components.len().saturating_sub(1))
+            .zip(to_dir_components(&bid))
+            .all(|(&c1, c2)| c1 == c2.as_str())
+        {
+            Ok(bid)
+        } else {
+            bail!("invalid dir components")
+        }
     }
 
     pub fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
@@ -56,7 +102,7 @@ impl BRepository {
             for dir_entry in dir.read_dir()? {
                 let dir_entry = dir_entry?;
                 let path = dir_entry.path();
-                if let Ok(bid) = BId::from_meta_path(self.data_dir.as_path(), path.as_path()) {
+                if let Ok(bid) = self.find_by_meta_path(path.as_path()) {
                     if timestamp_range.contains(&bid.to_timestamp()) {
                         bids.push(bid);
                     }
@@ -68,8 +114,8 @@ impl BRepository {
     }
 
     pub fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>> {
-        let meta_path_buf = id.to_meta_path_buf(self.data_dir.as_path());
-        let content_path_buf = id.to_content_path_buf(self.data_dir.as_path());
+        let meta_path_buf = self.to_meta_path_buf(&id);
+        let content_path_buf = self.to_content_path_buf(&id);
 
         if !meta_path_buf.exists() {
             return Ok(None);
@@ -99,6 +145,19 @@ impl BRepository {
         }))
     }
 
+    pub fn to_content_path_buf(&self, id: &BId) -> PathBuf {
+        self.to_meta_path_buf(id).with_extension("md")
+    }
+
+    pub fn to_meta_path_buf(&self, id: &BId) -> PathBuf {
+        let components = to_dir_components(&id);
+        components
+            .into_iter()
+            .fold(self.data_dir.to_path_buf(), |acc, x| acc.join(x))
+            .join(id.to_string())
+            .with_extension("json")
+    }
+
     fn dirs(&self, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
         let (start, end) = date_time_range;
         let dates = if start == end {
@@ -119,5 +178,35 @@ impl BRepository {
                 self.data_dir.join("flow").join(y).join(m).join(d)
             })
             .collect::<Vec<PathBuf>>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn path_buf_convert_test() {
+        let data_dir = PathBuf::from("/");
+        let repository = BRepository::new(data_dir);
+        let content_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.md");
+        let bid = repository
+            .find_by_content_path(content_path_buf.as_path())
+            .unwrap();
+        assert_eq!(repository.to_content_path_buf(&bid), content_path_buf);
+
+        let meta_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.json");
+        let bid = repository
+            .find_by_meta_path(meta_path_buf.as_path())
+            .unwrap();
+        assert_eq!(repository.to_meta_path_buf(&bid), meta_path_buf);
+
+        let data_dir = PathBuf::from("/data_dir");
+        let repository = BRepository::new(data_dir);
+        let meta_path_buf = PathBuf::from("/data_dir/flow/2021/02/03/20210203T000000Z.json");
+        let bid = repository
+            .find_by_meta_path(meta_path_buf.as_path())
+            .unwrap();
+        assert_eq!(repository.to_meta_path_buf(&bid), meta_path_buf);
     }
 }

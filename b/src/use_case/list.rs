@@ -3,11 +3,7 @@ use crate::brepository::BRepository;
 use crate::query::Query;
 use chrono::NaiveDateTime;
 use chrono::{Local, TimeZone};
-use std::{
-    io::{self},
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::{io, path::PathBuf, str::FromStr};
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize)]
 struct BOutput {
@@ -20,14 +16,14 @@ struct BOutput {
 }
 
 impl BOutput {
-    fn from(bmeta: BMeta, data_dir: &Path) -> Self {
+    fn from(bmeta: BMeta, repository: &BRepository) -> Self {
         BOutput {
-            content_path: bmeta.id.to_content_path_buf(data_dir),
+            content_path: repository.to_content_path_buf(&bmeta.id),
             created_at: Local
                 .from_utc_datetime(&NaiveDateTime::from_timestamp(bmeta.id.to_timestamp(), 0))
                 .to_rfc3339(),
             id: bmeta.id.to_string(),
-            meta_path: bmeta.id.to_meta_path_buf(data_dir),
+            meta_path: repository.to_meta_path_buf(&bmeta.id),
             tags: bmeta.tags,
             title: bmeta.title,
         }
@@ -56,14 +52,14 @@ fn list_bmetas(repository: &BRepository, query: &Query) -> Vec<BMeta> {
 
 pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
     let query = Query::from_str(query.as_str()).unwrap();
-    let repository = BRepository::new(data_dir.clone());
+    let repository = BRepository::new(data_dir);
     let bmetas = list_bmetas(&repository, &query);
     if json {
         serde_json::to_writer(
             writer,
             &bmetas
                 .into_iter()
-                .map(|bmeta| BOutput::from(bmeta, &data_dir))
+                .map(|bmeta| BOutput::from(bmeta, &repository))
                 .collect::<Vec<BOutput>>(),
         )
         .unwrap();
@@ -72,7 +68,7 @@ pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::
             writeln!(
                 writer,
                 "{} {}",
-                bmeta.id.to_content_path_buf(&data_dir).to_str().unwrap(),
+                repository.to_content_path_buf(&bmeta.id).to_str().unwrap(),
                 bmeta.title
             )
             .unwrap();
@@ -108,9 +104,9 @@ mod tests {
         let query = Query::from_str("2021-02-03").unwrap();
         let repository = BRepository::new(dir.path().to_path_buf());
         assert_eq!(
-            list_bmetas(&&repository, &query)
+            list_bmetas(&repository, &query)
                 .into_iter()
-                .map(|p| p.id.to_content_path_buf(dir.path()))
+                .map(|p| repository.to_content_path_buf(&p.id))
                 .collect::<Vec<PathBuf>>(),
             files[1..1 + 4]
         );
