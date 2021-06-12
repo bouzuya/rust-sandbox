@@ -1,12 +1,5 @@
-mod bid;
-mod bmeta;
-mod brepository;
-mod list;
-mod query;
-
-use b::{build_data, list_entries, TemplateEntry};
-use list::list;
-use std::{convert::TryFrom, env, fs, io, path::PathBuf};
+use b::use_case;
+use std::{io, path::PathBuf};
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -45,29 +38,10 @@ fn main() {
             data_dir,
             json,
             query,
-        } => list(data_dir, json, query, &mut io::stdout()),
+        } => use_case::list(data_dir, json, query, &mut io::stdout()),
         Subcommand::New {
             data_file,
             template,
-        } => {
-            let data = if data_file == PathBuf::from("-").as_path() {
-                let stdin = io::stdin();
-                let mut handle = stdin.lock();
-                build_data(&mut handle)
-            } else {
-                build_data(&mut fs::File::open(&data_file).unwrap())
-            }
-            .unwrap();
-            let entries = list_entries(template.as_path()).unwrap();
-            let templates = entries
-                .iter()
-                .map(TemplateEntry::try_from)
-                .collect::<Result<Vec<TemplateEntry>, _>>()
-                .unwrap();
-            let root_dir = env::current_dir().unwrap();
-            for template in templates {
-                template.render(root_dir.as_path(), &data);
-            }
-        }
+        } => use_case::new(data_file, template),
     }
 }
