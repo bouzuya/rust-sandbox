@@ -1,7 +1,9 @@
 use crate::bid::BId;
 use crate::bmeta::BMeta;
+use crate::TimeZoneOffset;
 use anyhow::{anyhow, bail, Context};
-use chrono::{DateTime, Local, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::FixedOffset;
+use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use std::{
     ffi::OsStr,
     fs,
@@ -20,23 +22,7 @@ struct BMetaJson {
 
 pub struct BRepository {
     data_dir: PathBuf,
-}
-
-fn utc_date_time_range(date: &str) -> anyhow::Result<DateTimeRange> {
-    let date = NaiveDate::from_str(date)?;
-    let start = date.and_hms(0, 0, 0);
-    let end = date.and_hms(23, 59, 59);
-    let start = Local
-        .from_local_datetime(&start)
-        .single()
-        .with_context(|| "invalid local datetime")?;
-    let end = Local
-        .from_local_datetime(&end)
-        .single()
-        .with_context(|| "invalid local datetime")?;
-    let start = DateTime::<Utc>::from(start);
-    let end = DateTime::<Utc>::from(end);
-    Ok((start, end))
+    time_zone_offset: TimeZoneOffset,
 }
 
 fn to_dir_components(id: &BId) -> Vec<String> {
@@ -48,8 +34,11 @@ fn to_dir_components(id: &BId) -> Vec<String> {
 }
 
 impl BRepository {
-    pub fn new(data_dir: PathBuf) -> Self {
-        Self { data_dir }
+    pub fn new(data_dir: PathBuf, time_zone_offset: TimeZoneOffset) -> Self {
+        Self {
+            data_dir,
+            time_zone_offset,
+        }
     }
 
     // TODO: hide path ?
@@ -91,7 +80,7 @@ impl BRepository {
 
     pub fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
         let mut bids = vec![];
-        let date_time_range = utc_date_time_range(date)?;
+        let date_time_range = self.utc_date_time_range(date)?;
         let timestamp_range =
             date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
         let dirs = self.dirs(&date_time_range);
@@ -179,6 +168,23 @@ impl BRepository {
             })
             .collect::<Vec<PathBuf>>()
     }
+
+    fn utc_date_time_range(&self, date: &str) -> anyhow::Result<DateTimeRange> {
+        let date = NaiveDate::from_str(date)?;
+        let start = date.and_hms(0, 0, 0);
+        let end = date.and_hms(23, 59, 59);
+        let start = FixedOffset::from(self.time_zone_offset)
+            .from_local_datetime(&start)
+            .single()
+            .with_context(|| "invalid local datetime")?;
+        let end = FixedOffset::from(self.time_zone_offset)
+            .from_local_datetime(&end)
+            .single()
+            .with_context(|| "invalid local datetime")?;
+        let start = DateTime::<Utc>::from(start);
+        let end = DateTime::<Utc>::from(end);
+        Ok((start, end))
+    }
 }
 
 #[cfg(test)]
@@ -187,8 +193,9 @@ mod tests {
 
     #[test]
     fn path_buf_convert_test() {
+        let time_zone_offset = TimeZoneOffset::from_str("+09:00").unwrap();
         let data_dir = PathBuf::from("/");
-        let repository = BRepository::new(data_dir);
+        let repository = BRepository::new(data_dir, time_zone_offset);
         let content_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.md");
         let bid = repository
             .find_by_content_path(content_path_buf.as_path())
@@ -202,7 +209,7 @@ mod tests {
         assert_eq!(repository.to_meta_path_buf(&bid), meta_path_buf);
 
         let data_dir = PathBuf::from("/data_dir");
-        let repository = BRepository::new(data_dir);
+        let repository = BRepository::new(data_dir, time_zone_offset);
         let meta_path_buf = PathBuf::from("/data_dir/flow/2021/02/03/20210203T000000Z.json");
         let bid = repository
             .find_by_meta_path(meta_path_buf.as_path())

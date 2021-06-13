@@ -17,6 +17,8 @@ enum Subcommand {
         #[structopt(long = "json")]
         json: bool,
         query: String,
+        #[structopt(long = "time-zone-offset")]
+        time_zone_offset: Option<String>,
     },
     #[structopt(name = "new", about = "Creates a new file")]
     New {
@@ -38,7 +40,8 @@ fn main() {
             data_dir,
             json,
             query,
-        } => use_case::list(data_dir, json, query, &mut io::stdout()),
+            time_zone_offset,
+        } => use_case::list(data_dir, json, query, time_zone_offset, &mut io::stdout()),
         Subcommand::New {
             data_file,
             template,

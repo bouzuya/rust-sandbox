@@ -1,6 +1,7 @@
 use crate::bmeta::BMeta;
 use crate::brepository::BRepository;
 use crate::query::Query;
+use crate::TimeZoneOffset;
 use chrono::NaiveDateTime;
 use chrono::{Local, TimeZone};
 use std::{io, path::PathBuf, str::FromStr};
@@ -50,9 +51,19 @@ fn list_bmetas(repository: &BRepository, query: &Query) -> Vec<BMeta> {
     bmetas
 }
 
-pub fn list(data_dir: PathBuf, json: bool, query: String, writer: &mut impl io::Write) {
+pub fn list(
+    data_dir: PathBuf,
+    json: bool,
+    query: String,
+    time_zone_offset: Option<String>,
+    writer: &mut impl io::Write,
+) {
     let query = Query::from_str(query.as_str()).unwrap();
-    let repository = BRepository::new(data_dir);
+    let time_zone_offset = match time_zone_offset {
+        Some(s) => TimeZoneOffset::from_str(s.as_str()).unwrap(),
+        None => TimeZoneOffset::default(),
+    };
+    let repository = BRepository::new(data_dir, time_zone_offset);
     let bmetas = list_bmetas(&repository, &query);
     if json {
         serde_json::to_writer(
@@ -102,7 +113,10 @@ mod tests {
             fs::write(f.as_path().with_extension("json"), "{}").unwrap();
         }
         let query = Query::from_str("2021-02-03").unwrap();
-        let repository = BRepository::new(dir.path().to_path_buf());
+        let repository = BRepository::new(
+            dir.path().to_path_buf(),
+            TimeZoneOffset::from_str("+09:00").unwrap(),
+        );
         assert_eq!(
             list_bmetas(&repository, &query)
                 .into_iter()
