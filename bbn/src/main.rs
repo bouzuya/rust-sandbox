@@ -1,10 +1,12 @@
 mod bbn_date_range;
 mod post;
+mod post_to_hatena_blog;
 mod query;
 
 use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
 use post::list_posts;
+use post_to_hatena_blog::post_to_hatena_blog;
 use query::Query;
 use std::{convert::TryFrom, io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
@@ -37,6 +39,21 @@ enum Subcommand {
         json: bool,
         #[structopt(name = "query", help = "query")]
         query: String,
+    },
+    #[structopt(name = "post-to-hatena-blog", about = "Posts to the hatena blog")]
+    PostToHatenaBlog {
+        #[structopt(long = "data-dir", help = "the data dir")]
+        data_dir: PathBuf,
+        #[structopt(name = "DATE", help = "date")]
+        date: String,
+        #[structopt(long = "draft")]
+        draft: bool,
+        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
+        hatena_api_key: String,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
+        #[structopt(long = "hatena-id", env = "HATENA_ID")]
+        hatena_id: String,
     },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
@@ -85,6 +102,22 @@ fn main() {
             };
             println!("{}", output);
         }
+        Subcommand::PostToHatenaBlog {
+            data_dir,
+            date,
+            draft,
+            hatena_api_key,
+            hatena_blog_id,
+            hatena_id,
+        } => post_to_hatena_blog(
+            data_dir,
+            date,
+            draft,
+            hatena_api_key,
+            hatena_blog_id,
+            hatena_id,
+        )
+        .unwrap(),
         Subcommand::View { data_dir, date } => {
             let query_string = format!("date:{}", date);
             let query = Query::try_from(query_string.as_str()).unwrap();
