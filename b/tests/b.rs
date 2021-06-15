@@ -3,6 +3,17 @@ use predicates::str::contains;
 use std::fs;
 
 #[test]
+fn completion_test() {
+    Command::cargo_bin("b")
+        .unwrap()
+        .arg("completion")
+        .arg("fish")
+        .assert()
+        .stdout(contains("complete"))
+        .success();
+}
+
+#[test]
 fn new_test() {
     let dir = tempfile::tempdir().unwrap();
     let tmpl_dir = dir.path().join("tmpl");

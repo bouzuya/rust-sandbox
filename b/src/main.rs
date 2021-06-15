@@ -1,6 +1,6 @@
 use b::use_case;
 use std::{io, path::PathBuf};
-use structopt::StructOpt;
+use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -10,6 +10,11 @@ struct Opt {
 
 #[derive(Debug, StructOpt)]
 enum Subcommand {
+    #[structopt(name = "completion", about = "Prints the shell's completion script")]
+    Completion {
+        #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
+        shell: Shell,
+    },
     #[structopt(name = "list", about = "Lists b files")]
     List {
         #[structopt(long = "data-dir")]
@@ -36,6 +41,9 @@ enum Subcommand {
 fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
+        Subcommand::Completion { shell } => {
+            Opt::clap().gen_completions_to("b", shell, &mut io::stdout())
+        }
         Subcommand::List {
             data_dir,
             json,
