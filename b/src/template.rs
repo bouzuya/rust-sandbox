@@ -1,4 +1,5 @@
 use crate::parse::{parse, Token};
+use anyhow::Context;
 use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;
 
@@ -15,18 +16,18 @@ pub enum ParseTemplateError {
 }
 
 impl<'a> Template<'a> {
-    pub fn render(&self, data: &BTreeMap<String, String>) -> String {
+    pub fn render(&self, data: &BTreeMap<String, String>) -> anyhow::Result<String> {
         let mut t = String::new();
         for token in self.tokens.iter() {
             match token {
                 Token::Str(s) => t.push_str(s),
                 Token::Var(v) => {
-                    let v = data.get(&v.to_string()).unwrap();
+                    let v = data.get(&v.to_string()).context("no var error")?;
                     t.push_str(v.as_str());
                 }
             }
         }
-        t
+        Ok(t)
     }
 }
 
@@ -58,7 +59,7 @@ mod tests {
         let tmpl = Template::try_from("foo{{bar}}baz").unwrap();
         let mut map = BTreeMap::new();
         map.insert("bar".to_string(), ",".to_string());
-        assert_eq!(tmpl.render(&map), "foo,baz".to_string());
+        assert_eq!(tmpl.render(&map).unwrap(), "foo,baz".to_string());
     }
 
     #[test]

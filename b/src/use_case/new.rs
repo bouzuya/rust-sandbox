@@ -1,7 +1,7 @@
 use crate::{build_data, list_entries, TemplateEntry};
 use std::{convert::TryFrom, env, fs::File, io, path::PathBuf};
 
-pub fn new(data_file: PathBuf, template: PathBuf) {
+pub fn new(data_file: PathBuf, template: PathBuf) -> anyhow::Result<()> {
     let data = if data_file == PathBuf::from("-").as_path() {
         let stdin = io::stdin();
         let mut handle = stdin.lock();
@@ -18,6 +18,7 @@ pub fn new(data_file: PathBuf, template: PathBuf) {
         .unwrap();
     let root_dir = env::current_dir().unwrap();
     for template in templates {
-        template.render(root_dir.as_path(), &data);
+        template.render(root_dir.as_path(), &data)?;
     }
+    Ok(())
 }

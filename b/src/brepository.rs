@@ -4,6 +4,7 @@ use crate::TimeZoneOffset;
 use anyhow::{anyhow, bail, Context};
 use chrono::FixedOffset;
 use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use std::fs::File;
 use std::{
     ffi::OsStr,
     fs,
@@ -115,10 +116,10 @@ impl BRepository {
         let title = match json.title {
             Some(title) => title,
             None => {
-                let file = fs::File::open(content_path_buf.as_path()).unwrap();
+                let file = File::open(content_path_buf.as_path())?;
                 let mut buf_reader = BufReader::new(file);
                 let mut buf = [0; 512];
-                let n = buf_reader.read(&mut buf).unwrap();
+                let n = buf_reader.read(&mut buf)?;
                 let s = String::from_utf8_lossy(&buf[0..n]);
                 s.trim_end_matches('\u{FFFD}')
                     .chars()

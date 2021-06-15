@@ -2,6 +2,7 @@ use crate::bmeta::BMeta;
 use crate::brepository::BRepository;
 use crate::query::Query;
 use crate::TimeZoneOffset;
+use anyhow::{anyhow, Context};
 use chrono::NaiveDateTime;
 use chrono::{Local, TimeZone};
 use std::{io, path::PathBuf, str::FromStr};
@@ -31,11 +32,11 @@ impl BOutput {
     }
 }
 
-fn list_bmetas(repository: &BRepository, query: &Query) -> Vec<BMeta> {
+fn list_bmetas(repository: &BRepository, query: &Query) -> anyhow::Result<Vec<BMeta>> {
     let mut bmetas = vec![];
-    let bids = repository.find_ids(query.date.as_str()).unwrap();
+    let bids = repository.find_ids(query.date.as_str())?;
     for bid in bids {
-        let bmeta = repository.find_meta(bid).unwrap().unwrap();
+        let bmeta = repository.find_meta(bid)?.context("no meta error")?;
         match &query.tags {
             Some(ref tags) => {
                 if tags
@@ -48,7 +49,7 @@ fn list_bmetas(repository: &BRepository, query: &Query) -> Vec<BMeta> {
             None => bmetas.push(bmeta),
         }
     }
-    bmetas
+    Ok(bmetas)
 }
 
 pub fn list(
@@ -57,14 +58,16 @@ pub fn list(
     query: String,
     time_zone_offset: Option<String>,
     writer: &mut impl io::Write,
-) {
-    let query = Query::from_str(query.as_str()).unwrap();
+) -> anyhow::Result<()> {
+    let query = Query::from_str(query.as_str()).map_err(|_| anyhow!("invalid query"))?;
     let time_zone_offset = match time_zone_offset {
-        Some(s) => TimeZoneOffset::from_str(s.as_str()).unwrap(),
+        Some(s) => {
+            TimeZoneOffset::from_str(s.as_str()).map_err(|_| anyhow!("invalid time_zone_offset"))?
+        }
         None => TimeZoneOffset::default(),
     };
     let repository = BRepository::new(data_dir, time_zone_offset);
-    let bmetas = list_bmetas(&repository, &query);
+    let bmetas = list_bmetas(&repository, &query)?;
     if json {
         serde_json::to_writer(
             writer,
@@ -72,8 +75,8 @@ pub fn list(
                 .into_iter()
                 .map(|bmeta| BOutput::from(bmeta, &repository))
                 .collect::<Vec<BOutput>>(),
-        )
-        .unwrap();
+        )?;
+        Ok(())
     } else {
         for bmeta in bmetas {
             writeln!(
@@ -81,9 +84,9 @@ pub fn list(
                 "{} {}",
                 repository.to_content_path_buf(&bmeta.id).to_str().unwrap(),
                 bmeta.title
-            )
-            .unwrap();
+            )?;
         }
+        Ok(())
     }
 }
 
@@ -119,6 +122,7 @@ mod tests {
         );
         assert_eq!(
             list_bmetas(&repository, &query)
+                .unwrap()
                 .into_iter()
                 .map(|p| repository.to_content_path_buf(&p.id))
                 .collect::<Vec<PathBuf>>(),
@@ -126,6 +130,7 @@ mod tests {
         );
         assert_eq!(
             list_bmetas(&repository, &query)
+                .unwrap()
                 .into_iter()
                 .map(|p| p.title)
                 .collect::<Vec<String>>(),

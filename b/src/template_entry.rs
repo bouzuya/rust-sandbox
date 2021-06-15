@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 use crate::{entry::Entry, template::Template};
 use std::{collections::BTreeMap, convert::TryFrom, fs, path::Path};
 
@@ -13,37 +15,39 @@ pub enum TemplateEntry<'a> {
 }
 
 impl<'a> TemplateEntry<'a> {
-    pub fn render(&self, root_dir: &Path, data: &BTreeMap<String, String>) {
+    pub fn render(&self, root_dir: &Path, data: &BTreeMap<String, String>) -> anyhow::Result<()> {
         match self {
             TemplateEntry::TemplateDir { name } => {
-                let dest = root_dir.join(name.render(data));
+                let dest = root_dir.join(name.render(data)?);
                 if !dest.exists() {
-                    fs::create_dir(dest.as_path()).unwrap();
+                    fs::create_dir(dest.as_path())?;
                 }
-                println!("{}", dest.as_path().to_str().unwrap());
+                println!("{}", dest.as_path().to_str().context("to_str error")?);
+                Ok(())
             }
             TemplateEntry::TemplateFile { name, content } => {
-                let dest = root_dir.join(name.render(data));
-                let content = content.render(&data);
-                fs::write(dest.as_path(), content).unwrap();
-                println!("{}", dest.as_path().to_str().unwrap());
+                let dest = root_dir.join(name.render(data)?);
+                let content = content.render(&data)?;
+                fs::write(dest.as_path(), content)?;
+                println!("{}", dest.as_path().to_str().context("to_str error")?);
+                Ok(())
             }
         }
     }
 }
 
 impl<'a> TryFrom<&'a Entry> for TemplateEntry<'a> {
-    type Error = &'static str;
+    type Error = anyhow::Error;
 
     fn try_from(value: &'a Entry) -> Result<Self, Self::Error> {
         match value {
             Entry::Dir { name } => {
-                let name = Template::try_from(name.as_str()).unwrap();
+                let name = Template::try_from(name.as_str())?;
                 Ok(Self::TemplateDir { name })
             }
             Entry::File { content, name } => {
-                let name = Template::try_from(name.as_str()).unwrap();
-                let content = Template::try_from(content.as_str()).unwrap();
+                let name = Template::try_from(name.as_str())?;
+                let content = Template::try_from(content.as_str())?;
                 Ok(Self::TemplateFile { name, content })
             }
         }
@@ -78,7 +82,7 @@ mod tests {
         data.insert("bar".to_string(), "BAR".to_string());
         data.insert("baz".to_string(), "BAZ".to_string());
         for t in templates {
-            t.render(dir.path(), &data);
+            t.render(dir.path(), &data).unwrap();
         }
 
         assert_eq!(dir.path().join("FOO").is_dir(), true);

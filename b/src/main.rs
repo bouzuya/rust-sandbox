@@ -57,17 +57,11 @@ fn main() -> anyhow::Result<()> {
             json,
             query,
             time_zone_offset,
-        } => {
-            use_case::list(data_dir, json, query, time_zone_offset, &mut io::stdout());
-            Ok(())
-        }
+        } => use_case::list(data_dir, json, query, time_zone_offset, &mut io::stdout()),
         Subcommand::New {
             data_file,
             template,
-        } => {
-            use_case::new(data_file, template);
-            Ok(())
-        }
+        } => use_case::new(data_file, template),
         Subcommand::View { data_dir, id } => use_case::view(data_dir, id, &mut io::stdout()),
     }
 }
