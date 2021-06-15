@@ -1,4 +1,4 @@
-use b::use_case;
+use b::{use_case, BId};
 use std::{io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
 
@@ -36,23 +36,38 @@ enum Subcommand {
         )]
         template: PathBuf,
     },
+    #[structopt(name = "view", about = "Views the b file")]
+    View {
+        #[structopt(long = "data-dir")]
+        data_dir: PathBuf,
+        #[structopt(name = "BID")]
+        id: BId,
+    },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => {
-            Opt::clap().gen_completions_to("b", shell, &mut io::stdout())
+            Opt::clap().gen_completions_to("b", shell, &mut io::stdout());
+            Ok(())
         }
         Subcommand::List {
             data_dir,
             json,
             query,
             time_zone_offset,
-        } => use_case::list(data_dir, json, query, time_zone_offset, &mut io::stdout()),
+        } => {
+            use_case::list(data_dir, json, query, time_zone_offset, &mut io::stdout());
+            Ok(())
+        }
         Subcommand::New {
             data_file,
             template,
-        } => use_case::new(data_file, template),
+        } => {
+            use_case::new(data_file, template);
+            Ok(())
+        }
+        Subcommand::View { data_dir, id } => use_case::view(data_dir, id, &mut io::stdout()),
     }
 }
