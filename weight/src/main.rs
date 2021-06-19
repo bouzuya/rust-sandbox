@@ -7,6 +7,7 @@ use crate::set::Set;
 use event::Event;
 use remove::Remove;
 use repository::{EventRepository, JsonlEventRepository, SqliteEventRepository};
+use serde_json::{Map, Number, Value};
 use std::{collections::BTreeMap, io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
 
@@ -45,7 +46,10 @@ enum Subcommand {
         #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
         shell: Shell,
     },
-    List,
+    List {
+        #[structopt(long = "json")]
+        json: bool,
+    },
     Remove {
         key: String,
     },
@@ -70,7 +74,7 @@ async fn main() {
         Subcommand::Completion { shell } => {
             Opt::clap().gen_completions_to("weight", shell, &mut io::stdout())
         }
-        Subcommand::List => {
+        Subcommand::List { json } => {
             let events = repository.find_all().await.unwrap();
             let state = events.iter().fold(BTreeMap::new(), |mut map, event| {
                 match event {
@@ -83,8 +87,17 @@ async fn main() {
                 }
                 map
             });
-            for (k, v) in state {
-                println!("{} {}", k, v);
+            if json {
+                let mut map = Map::new();
+                for (k, v) in state {
+                    map.insert(k, Value::Number(Number::from_f64(v).unwrap()));
+                }
+                let value = Value::Object(map);
+                println!("{}", serde_json::to_string(&value).unwrap());
+            } else {
+                for (k, v) in state {
+                    println!("{} {}", k, v);
+                }
             }
         }
         Subcommand::Remove { key } => {
