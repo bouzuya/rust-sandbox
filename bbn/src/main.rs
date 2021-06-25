@@ -1,10 +1,12 @@
 mod bbn_date_range;
+mod download_from_hatena_blog;
 mod post;
 mod post_to_hatena_blog;
 mod query;
 
 use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
+use download_from_hatena_blog::download_from_hatena_blog;
 use post::list_posts;
 use post_to_hatena_blog::post_to_hatena_blog;
 use query::Query;
@@ -56,6 +58,17 @@ enum Subcommand {
 
 #[derive(Debug, StructOpt)]
 enum HatenaBlogSubcommand {
+    #[structopt(name = "download", about = "Download to the hatena blog")]
+    Download {
+        #[structopt(long = "data-file", name = "FILE", help = "the data file")]
+        data_file: PathBuf,
+        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
+        hatena_api_key: String,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
+        #[structopt(long = "hatena-id", env = "HATENA_ID")]
+        hatena_id: String,
+    },
     #[structopt(name = "upload", about = "Upload to the hatena blog")]
     Upload {
         #[structopt(long = "data-dir", help = "the data dir")]
@@ -73,7 +86,8 @@ enum HatenaBlogSubcommand {
     },
 }
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => {
@@ -112,6 +126,14 @@ fn main() {
             println!("{}", output);
         }
         Subcommand::HatenaBlog { subcommand } => match subcommand {
+            HatenaBlogSubcommand::Download {
+                data_file,
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            } => download_from_hatena_blog(data_file, hatena_api_key, hatena_blog_id, hatena_id)
+                .await
+                .unwrap(),
             HatenaBlogSubcommand::Upload {
                 data_dir,
                 date,
