@@ -1,4 +1,4 @@
-use std::{ffi::OsStr, fs, path::PathBuf, process::Command};
+use std::{fs, path::PathBuf, process::Command};
 
 use anyhow::bail;
 
@@ -31,9 +31,9 @@ pub fn post_to_hatena_blog(
     let status = Command::new("hatena-blog")
         .arg("create")
         .args(&["--title", meta.title.as_str()])
-        .args(&[OsStr::new("--content"), md.as_path().as_os_str()])
         .args(&["--updated", meta.pubdate.as_str()])
         .args(&(if draft { vec!["--draft"] } else { vec![] }))
+        .arg(md.as_path().as_os_str())
         .env("HATENA_API_KEY", hatena_api_key)
         .env("HATENA_BLOG_ID", hatena_blog_id)
         .env("HATENA_ID", hatena_id)
