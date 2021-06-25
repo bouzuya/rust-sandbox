@@ -40,8 +40,24 @@ enum Subcommand {
         #[structopt(name = "query", help = "query")]
         query: String,
     },
-    #[structopt(name = "post-to-hatena-blog", about = "Posts to the hatena blog")]
-    PostToHatenaBlog {
+    #[structopt(name = "hatena-blog", about = "hatena-blog")]
+    HatenaBlog {
+        #[structopt(subcommand)]
+        subcommand: HatenaBlogSubcommand,
+    },
+    #[structopt(name = "view", about = "Views the blog post")]
+    View {
+        #[structopt(long = "data-dir", help = "the data dir")]
+        data_dir: PathBuf,
+        #[structopt(name = "date", help = "the date")]
+        date: Date,
+    },
+}
+
+#[derive(Debug, StructOpt)]
+enum HatenaBlogSubcommand {
+    #[structopt(name = "upload", about = "Upload to the hatena blog")]
+    Upload {
         #[structopt(long = "data-dir", help = "the data dir")]
         data_dir: PathBuf,
         #[structopt(name = "DATE", help = "date")]
@@ -54,13 +70,6 @@ enum Subcommand {
         hatena_blog_id: String,
         #[structopt(long = "hatena-id", env = "HATENA_ID")]
         hatena_id: String,
-    },
-    #[structopt(name = "view", about = "Views the blog post")]
-    View {
-        #[structopt(long = "data-dir", help = "the data dir")]
-        data_dir: PathBuf,
-        #[structopt(name = "date", help = "the date")]
-        date: Date,
     },
 }
 
@@ -102,22 +111,24 @@ fn main() {
             };
             println!("{}", output);
         }
-        Subcommand::PostToHatenaBlog {
-            data_dir,
-            date,
-            draft,
-            hatena_api_key,
-            hatena_blog_id,
-            hatena_id,
-        } => post_to_hatena_blog(
-            data_dir,
-            date,
-            draft,
-            hatena_api_key,
-            hatena_blog_id,
-            hatena_id,
-        )
-        .unwrap(),
+        Subcommand::HatenaBlog { subcommand } => match subcommand {
+            HatenaBlogSubcommand::Upload {
+                data_dir,
+                date,
+                draft,
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            } => post_to_hatena_blog(
+                data_dir,
+                date,
+                draft,
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            )
+            .unwrap(),
+        },
         Subcommand::View { data_dir, date } => {
             let query_string = format!("date:{}", date);
             let query = Query::try_from(query_string.as_str()).unwrap();
