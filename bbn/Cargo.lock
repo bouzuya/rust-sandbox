@@ -674,8 +674,8 @@ dependencies = [
 
 [[package]]
 name = "hatena-blog"
-version = "0.10.0"
-source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.10.0#4ee8aa6ad4967f5ff19d2284a10a7d439acc99c0"
+version = "0.11.0"
+source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.11.0#80d5b770715cfb132ed57ffdc0497669c6d2e6cd"
 dependencies = [
  "anyhow",
  "atom_syndication",
