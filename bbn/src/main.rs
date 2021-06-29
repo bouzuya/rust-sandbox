@@ -1,4 +1,5 @@
 mod bbn_date_range;
+mod command;
 mod download_from_hatena_blog;
 mod post;
 mod post_to_hatena_blog;
@@ -6,11 +7,7 @@ mod query;
 
 use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
-use download_from_hatena_blog::download_from_hatena_blog;
-use post::list_posts;
-use post_to_hatena_blog::post_to_hatena_blog;
-use query::Query;
-use std::{convert::TryFrom, io, path::PathBuf};
+use std::{io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
@@ -45,7 +42,7 @@ enum Subcommand {
     #[structopt(name = "hatena-blog", about = "hatena-blog")]
     HatenaBlog {
         #[structopt(subcommand)]
-        subcommand: HatenaBlogSubcommand,
+        subcommand: command::HatenaBlogSubcommand,
     },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
@@ -56,112 +53,23 @@ enum Subcommand {
     },
 }
 
-#[derive(Debug, StructOpt)]
-enum HatenaBlogSubcommand {
-    #[structopt(name = "download", about = "Download to the hatena blog")]
-    Download {
-        #[structopt(long = "data-file", name = "FILE", help = "the data file")]
-        data_file: PathBuf,
-        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
-        hatena_api_key: String,
-        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
-        hatena_blog_id: String,
-        #[structopt(long = "hatena-id", env = "HATENA_ID")]
-        hatena_id: String,
-    },
-    #[structopt(name = "upload", about = "Upload to the hatena blog")]
-    Upload {
-        #[structopt(long = "data-dir", help = "the data dir")]
-        data_dir: PathBuf,
-        #[structopt(name = "DATE", help = "date")]
-        date: String,
-        #[structopt(long = "draft")]
-        draft: bool,
-        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
-        hatena_api_key: String,
-        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
-        hatena_blog_id: String,
-        #[structopt(long = "hatena-id", env = "HATENA_ID")]
-        hatena_id: String,
-    },
+fn completion(shell: Shell) -> anyhow::Result<()> {
+    Opt::clap().gen_completions_to("bbn", shell, &mut io::stdout());
+    Ok(())
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     match opt.subcommand {
-        Subcommand::Completion { shell } => {
-            Opt::clap().gen_completions_to("bbn", shell, &mut io::stdout())
-        }
-        Subcommand::DateRange { month, week_date } => bbn_date_range(month, week_date).unwrap(),
+        Subcommand::Completion { shell } => completion(shell),
+        Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
         Subcommand::List {
             data_dir,
             json,
             query,
-        } => {
-            let query = Query::try_from(query.as_str()).unwrap();
-            let mut posts = list_posts(data_dir.as_path(), &query).unwrap();
-            posts.sort();
-            posts.reverse();
-            let mut output = vec![];
-            for post in posts {
-                if json {
-                    output.push(format!(
-                        r#"{{"date":"{}","title":"{}"}}"#,
-                        post.date, post.title
-                    ));
-                } else {
-                    output.push(format!("{} {}", post.date, post.title));
-                }
-            }
-            let output = if json {
-                let mut s = String::new();
-                s.push('[');
-                s.push_str(&output.join(","));
-                s.push(']');
-                s
-            } else {
-                output.join("\n")
-            };
-            println!("{}", output);
-        }
-        Subcommand::HatenaBlog { subcommand } => match subcommand {
-            HatenaBlogSubcommand::Download {
-                data_file,
-                hatena_api_key,
-                hatena_blog_id,
-                hatena_id,
-            } => download_from_hatena_blog(data_file, hatena_api_key, hatena_blog_id, hatena_id)
-                .await
-                .unwrap(),
-            HatenaBlogSubcommand::Upload {
-                data_dir,
-                date,
-                draft,
-                hatena_api_key,
-                hatena_blog_id,
-                hatena_id,
-            } => post_to_hatena_blog(
-                data_dir,
-                date,
-                draft,
-                hatena_api_key,
-                hatena_blog_id,
-                hatena_id,
-            )
-            .unwrap(),
-        },
-        Subcommand::View { data_dir, date } => {
-            let query_string = format!("date:{}", date);
-            let query = Query::try_from(query_string.as_str()).unwrap();
-            let posts = list_posts(data_dir.as_path(), &query).unwrap();
-            let post = posts.first().unwrap();
-            println!(
-                "{} {} https://blog.bouzuya.net/{}/",
-                post.date,
-                post.title,
-                date.to_string().replace('-', "/")
-            );
-        }
+        } => command::list(data_dir, json, query),
+        Subcommand::HatenaBlog { subcommand } => command::hatena_blog(subcommand).await,
+        Subcommand::View { data_dir, date } => command::view(data_dir, date),
     }
 }
