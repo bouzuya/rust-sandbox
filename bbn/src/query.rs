@@ -33,7 +33,7 @@ impl<'a> Date<'a> {
     }
 
     fn match_date(&self, date: &str) -> bool {
-        let y = match date.get(0..0 + 4) {
+        let y = match date.get(0..4) {
             None => return false,
             Some(y) => OsStr::new(y),
         };
@@ -230,7 +230,7 @@ fn dd(s: &str) -> IResult<&str, Date> {
 fn parse(s: &str) -> IResult<&str, Query> {
     let (s, _) = tag("date:")(s)?;
     let (s, date) = all_consuming(alt((
-        map(date_range, |dr| Query::DateRange(dr)),
+        map(date_range, Query::DateRange),
         map(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)), |d| {
             Query::Date(d)
         }),

@@ -15,7 +15,7 @@ pub enum ListPostsError {
     ReadDir(#[from] io::Error),
 }
 
-fn get_date<'a>(path: &'a Path) -> Option<&'a str> {
+fn get_date(path: &Path) -> Option<&'_ str> {
     path.file_stem()
         .and_then(|os_str| os_str.to_str())
         .and_then(|s| s.get(0..10))
