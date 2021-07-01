@@ -1,3 +1,4 @@
+use chrono::DateTime;
 use std::{
     collections::BTreeSet,
     convert::TryInto,
@@ -7,7 +8,7 @@ use std::{
 };
 
 use anyhow::Context as _;
-use hatena_blog::{Client, Config, EntryId};
+use hatena_blog::{Client, Config, Entry, EntryId};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
     Pool, Sqlite,
@@ -83,6 +84,17 @@ impl Repository {
             .map(|_| ())?)
     }
 
+    async fn get_last_list_request_at(&self) -> anyhow::Result<Option<i64>> {
+        let row: (Option<i64>,) = sqlx::query_as(
+            r#"
+SELECT MAX(at) FROM list_requests
+            "#,
+        )
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(row.0)
+    }
+
     async fn create_list_request(&self, at: i64, page: &Option<String>) -> anyhow::Result<i64> {
         Ok(sqlx::query(
             r#"
@@ -122,6 +134,8 @@ pub async fn download_from_hatena_blog(
     let client = Client::new(&config);
     let repository = Repository::new(data_file).await?;
 
+    let last = repository.get_last_list_request_at().await?;
+
     let mut set = BTreeSet::new();
     let mut next_page = None;
     loop {
@@ -130,10 +144,20 @@ pub async fn download_from_hatena_blog(
         let response = client.list_entries_in_page(next_page.as_deref()).await?;
         let body = response.to_string();
         repository.create_list_response(request_id, body).await?;
-        let (next, entry_ids) = response.try_into()?;
-        for entry_id in entry_ids {
-            set.insert(entry_id.to_string());
-            repository.add(&entry_id).await?;
+        let (mut next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
+        for entry in entries {
+            set.insert(entry.id.to_string());
+            repository.add(&entry.id).await?;
+            match last {
+                None => {}
+                Some(last) => {
+                    let published = DateTime::parse_from_rfc3339(&entry.published)?;
+                    if last > published.timestamp() {
+                        next = None;
+                        break;
+                    }
+                }
+            }
         }
         match next {
             None => {

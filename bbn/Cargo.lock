@@ -106,6 +106,7 @@ version = "0.11.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
+ "chrono",
  "date-range",
  "hatena-blog",
  "nom",
@@ -674,8 +675,8 @@ dependencies = [
 
 [[package]]
 name = "hatena-blog"
-version = "0.11.0"
-source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.11.0#80d5b770715cfb132ed57ffdc0497669c6d2e6cd"
+version = "0.12.0"
+source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.12.0#8957b8bbd3d9358fe1779aceb50c69a35384b315"
 dependencies = [
  "anyhow",
  "atom_syndication",
