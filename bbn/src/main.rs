@@ -1,8 +1,6 @@
 mod bbn_date_range;
 mod command;
-mod download_from_hatena_blog;
 mod post;
-mod post_to_hatena_blog;
 mod query;
 
 use bbn_date_range::bbn_date_range;

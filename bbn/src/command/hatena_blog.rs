@@ -1,7 +1,10 @@
+mod download;
+mod upload;
+
 use std::path::PathBuf;
 
-use crate::download_from_hatena_blog::download_from_hatena_blog;
-use crate::post_to_hatena_blog::post_to_hatena_blog;
+use self::download::download_from_hatena_blog;
+use self::upload::post_to_hatena_blog;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
