@@ -1,11 +1,4 @@
-use chrono::{DateTime, Local, NaiveDateTime, TimeZone};
-use std::{
-    collections::BTreeSet,
-    convert::TryInto,
-    path::PathBuf,
-    str::FromStr,
-    time::{Duration, SystemTime},
-};
+use std::{collections::BTreeSet, convert::TryInto, path::PathBuf, str::FromStr, time::Duration};
 
 use anyhow::Context as _;
 use hatena_blog::{Client, Config, Entry, EntryId};
@@ -15,12 +8,7 @@ use sqlx::{
 };
 use tokio::time::sleep;
 
-fn now() -> anyhow::Result<i64> {
-    Ok(SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)?
-        .as_secs()
-        .try_into()?)
-}
+use crate::timestamp::Timestamp;
 
 #[derive(Debug)]
 struct Repository {
@@ -94,7 +82,7 @@ impl Repository {
             .map(|_| ())?)
     }
 
-    async fn get_last_list_request_at(&self) -> anyhow::Result<Option<i64>> {
+    async fn get_last_list_request_at(&self) -> anyhow::Result<Option<Timestamp>> {
         let row: Option<(i64,)> = sqlx::query_as(
             r#"
 SELECT at FROM last_list_request_at
@@ -102,16 +90,16 @@ SELECT at FROM last_list_request_at
         )
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|(at,)| at))
+        Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
-    async fn set_last_list_request_at(&self, at: i64) -> anyhow::Result<()> {
+    async fn set_last_list_request_at(&self, at: Timestamp) -> anyhow::Result<()> {
         let result = sqlx::query(
             r#"
 UPDATE last_list_request_at SET at=?
             "#,
         )
-        .bind(at)
+        .bind(i64::from(at))
         .execute(&self.pool)
         .await?;
         let count = result.rows_affected();
@@ -121,21 +109,25 @@ UPDATE last_list_request_at SET at=?
 INSERT INTO last_list_request_at(at) VALUES (?)
             "#,
             )
-            .bind(at)
+            .bind(i64::from(at))
             .execute(&self.pool)
             .await?;
         }
         Ok(())
     }
 
-    async fn create_list_request(&self, at: i64, page: &Option<String>) -> anyhow::Result<i64> {
+    async fn create_list_request(
+        &self,
+        at: Timestamp,
+        page: &Option<String>,
+    ) -> anyhow::Result<i64> {
         Ok(sqlx::query(
             r#"
             INSERT INTO list_requests(at, page)
             VALUES (?, ?)
             "#,
         )
-        .bind(at)
+        .bind(i64::from(at))
         .bind(page)
         .execute(&self.pool)
         .await?
@@ -157,10 +149,6 @@ INSERT INTO last_list_request_at(at) VALUES (?)
     }
 }
 
-fn datetime_from_timestamp(at: i64) -> DateTime<Local> {
-    Local.from_utc_datetime(&NaiveDateTime::from_timestamp(at, 0))
-}
-
 pub async fn download_from_hatena_blog(
     data_file: PathBuf,
     hatena_api_key: String,
@@ -172,33 +160,38 @@ pub async fn download_from_hatena_blog(
     let repository = Repository::new(data_file).await?;
 
     let last_download_at = repository.get_last_list_request_at().await?;
-    let curr_download_at = now()?;
+    let curr_download_at = Timestamp::now()?;
 
-    let mut set = BTreeSet::new();
+    let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
     loop {
-        let at = now()?;
-        let request_id = repository.create_list_request(at, &next_page).await?;
+        // send request
+        let request_id = repository
+            .create_list_request(Timestamp::now()?, &next_page)
+            .await?;
         let response = client.list_entries_in_page(next_page.as_deref()).await?;
         let body = response.to_string();
         repository.create_list_response(request_id, body).await?;
+
+        // parse response
         let (next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
         let filtered = entries
             .iter()
             .take_while(|entry| match last_download_at {
                 None => true,
-                Some(last) => match DateTime::parse_from_rfc3339(&entry.published) {
-                    Ok(published) => last <= published.timestamp(),
-                    Err(_) => false,
-                },
+                Some(last) => Timestamp::from_rfc3339(&entry.published)
+                    .map(|published| last <= published)
+                    .unwrap_or(false),
             })
             .collect::<Vec<&Entry>>();
         for entry in filtered.iter() {
-            if set.insert(entry.id.to_string()) {
+            if entry_ids.insert(entry.id.to_string()) {
                 println!("{} (published: {})", entry.id, entry.published);
                 repository.add(&entry.id).await?;
             }
         }
+
+        // next
         match (next, filtered.len() == entries.len()) {
             (None, _) | (Some(_), false) => {
                 break;
@@ -215,16 +208,8 @@ pub async fn download_from_hatena_blog(
         .await?;
     println!(
         "updated last download date: {}",
-        datetime_from_timestamp(curr_download_at)
+        curr_download_at.to_rfc3339()
     );
 
     Ok(())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test() {}
 }

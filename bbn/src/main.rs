@@ -2,6 +2,7 @@ mod bbn_date_range;
 mod command;
 mod post;
 mod query;
+mod timestamp;
 
 use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
