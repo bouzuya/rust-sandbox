@@ -161,6 +161,12 @@ pub async fn download_from_hatena_blog(
 
     let last_download_at = repository.get_last_list_request_at().await?;
     let curr_download_at = Timestamp::now()?;
+    println!(
+        "last download date: {}",
+        last_download_at
+            .map(|at| at.to_rfc3339())
+            .unwrap_or_default()
+    );
 
     let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
