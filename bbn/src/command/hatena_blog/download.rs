@@ -66,6 +66,16 @@ impl Repository {
         )
         .execute(&pool)
         .await?;
+
+        sqlx::query(
+            r#"
+        CREATE TABLE IF NOT EXISTS last_list_request_at (
+            at INTEGER
+        )"#,
+        )
+        .execute(&pool)
+        .await?;
+
         Ok(Self { data_file, pool })
     }
 
@@ -85,14 +95,37 @@ impl Repository {
     }
 
     async fn get_last_list_request_at(&self) -> anyhow::Result<Option<i64>> {
-        let row: (Option<i64>,) = sqlx::query_as(
+        let row: Option<(i64,)> = sqlx::query_as(
             r#"
-SELECT MAX(at) FROM list_requests
+SELECT at FROM list_requests
             "#,
         )
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await?;
-        Ok(row.0)
+        Ok(row.map(|(at,)| at))
+    }
+
+    async fn set_last_list_request_at(&self, at: i64) -> anyhow::Result<()> {
+        let result = sqlx::query(
+            r#"
+UPDATE last_list_request_at SET at=?
+            "#,
+        )
+        .bind(at)
+        .execute(&self.pool)
+        .await?;
+        let count = result.rows_affected();
+        if count == 0 {
+            sqlx::query(
+                r#"
+INSERT INTO last_list_request_at(at) VALUES (?)
+            "#,
+            )
+            .bind(at)
+            .execute(&self.pool)
+            .await?;
+        }
+        Ok(())
     }
 
     async fn create_list_request(&self, at: i64, page: &Option<String>) -> anyhow::Result<i64> {
@@ -135,6 +168,7 @@ pub async fn download_from_hatena_blog(
     let repository = Repository::new(data_file).await?;
 
     let last = repository.get_last_list_request_at().await?;
+    let at = now()?;
 
     let mut set = BTreeSet::new();
     let mut next_page = None;
@@ -169,6 +203,7 @@ pub async fn download_from_hatena_blog(
         }
         sleep(Duration::from_secs(1)).await;
     }
+    repository.set_last_list_request_at(at).await?;
 
     for entry_id in set {
         println!("{}", entry_id);
