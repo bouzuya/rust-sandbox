@@ -27,7 +27,10 @@ impl Repository {
         sqlx::query(
             r#"
         CREATE TABLE IF NOT EXISTS entry_ids (
-            entry_id TEXT PRIMARY KEY
+            entry_id TEXT PRIMARY KEY,
+            updated INTEGER NOT NULL,
+            published INTEGER NOT NULL,
+            edited INTEGER NOT NULL
         )"#,
         )
         .execute(&pool)
@@ -67,7 +70,13 @@ impl Repository {
         Ok(Self { data_file, pool })
     }
 
-    async fn add(&self, entry_id: &EntryId) -> anyhow::Result<()> {
+    async fn add(
+        &self,
+        entry_id: &EntryId,
+        updated: Timestamp,
+        published: Timestamp,
+        edited: Timestamp,
+    ) -> anyhow::Result<()> {
         let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM entry_ids WHERE entry_id = ?")
             .bind(entry_id.to_string())
             .fetch_one(&self.pool)
@@ -75,11 +84,19 @@ impl Repository {
         if count > 0 {
             return Ok(());
         }
-        Ok(sqlx::query("INSERT INTO entry_ids VALUES (?)")
-            .bind(entry_id.to_string())
-            .execute(&self.pool)
-            .await
-            .map(|_| ())?)
+        Ok(sqlx::query(
+            r#"
+INSERT INTO entry_ids(entry_id, updated, published, edited)
+VALUES (?, ?, ?, ?)
+"#,
+        )
+        .bind(entry_id.to_string())
+        .bind(i64::from(updated))
+        .bind(i64::from(published))
+        .bind(i64::from(edited))
+        .execute(&self.pool)
+        .await
+        .map(|_| ())?)
     }
 
     async fn get_last_list_request_at(&self) -> anyhow::Result<Option<Timestamp>> {
@@ -193,7 +210,12 @@ pub async fn download_from_hatena_blog(
         for entry in filtered.iter() {
             if entry_ids.insert(entry.id.to_string()) {
                 println!("{} (published: {})", entry.id, entry.published);
-                repository.add(&entry.id).await?;
+                let updated = Timestamp::from_rfc3339(&entry.updated)?;
+                let published = Timestamp::from_rfc3339(&entry.published)?;
+                let edited = Timestamp::from_rfc3339(&entry.edited)?;
+                repository
+                    .add(&entry.id, updated, published, edited)
+                    .await?;
             }
         }
 
