@@ -67,6 +67,18 @@ impl Repository {
         .execute(&pool)
         .await?;
 
+        sqlx::query(
+            r#"
+        CREATE TABLE IF NOT EXISTS member_responses (
+            entry_id TEXT PRIMARY KEY,
+            at TIMESTAMP NOT NULL,
+            body TEXT NOT NULL,
+            FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
+        )"#,
+        )
+        .execute(&pool)
+        .await?;
+
         Ok(Self { data_file, pool })
     }
 
@@ -164,6 +176,43 @@ INSERT INTO last_list_request_at(at) VALUES (?)
         .await?;
         Ok(())
     }
+
+    async fn create_member_response(
+        &self,
+        entry_id: &EntryId,
+        at: Timestamp,
+        body: String,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            INSERT INTO member_responses(entry_id, at, body)
+            VALUES (?, ?, ?)
+            "#,
+        )
+        .bind(entry_id.to_string())
+        .bind(i64::from(at))
+        .bind(body)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<EntryId>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            r#"
+SELECT entry_id
+  FROM entry_ids
+  LEFT OUTER JOIN member_responses USING(entry_id)
+ WHERE member_responses.entry_id IS NULL
+ ORDER BY published ASC
+            "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.iter()
+            .map(|(id,)| EntryId::from_str(id.as_str()).context("entry id from str"))
+            .collect::<anyhow::Result<Vec<EntryId>>>()
+    }
 }
 
 pub async fn download_from_hatena_blog(
@@ -238,6 +287,16 @@ pub async fn download_from_hatena_blog(
         "updated last download date: {}",
         curr_download_at.to_rfc3339()
     );
+
+    for entry_id in repository.find_incomplete_entry_ids().await? {
+        let response = client.get_entry(&entry_id).await?;
+        let body = response.to_string();
+        repository
+            .create_member_response(&entry_id, Timestamp::now()?, body)
+            .await?;
+        println!("downloaded member id: {}", entry_id);
+        sleep(Duration::from_secs(1)).await;
+    }
 
     Ok(())
 }
