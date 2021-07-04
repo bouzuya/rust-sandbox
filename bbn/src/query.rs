@@ -228,6 +228,9 @@ fn dd(s: &str) -> IResult<&str, Date> {
 }
 
 fn parse(s: &str) -> IResult<&str, Query> {
+    if s.is_empty() {
+        return Ok((s, Query::Date(Date(None, None, None))));
+    }
     let (s, _) = tag("date:")(s)?;
     let (s, date) = all_consuming(alt((
         map(date_range, Query::DateRange),

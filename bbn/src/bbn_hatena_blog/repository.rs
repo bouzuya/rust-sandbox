@@ -1,9 +1,9 @@
 use crate::timestamp::Timestamp;
 use anyhow::Context as _;
-use hatena_blog::EntryId;
+use hatena_blog::{Entry, EntryId};
 use sqlx::{
-    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
-    Pool, Sqlite,
+    sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
+    Pool, Row, Sqlite,
 };
 use std::{path::PathBuf, str::FromStr};
 
@@ -28,6 +28,23 @@ impl Repository {
             updated INTEGER NOT NULL,
             published INTEGER NOT NULL,
             edited INTEGER NOT NULL
+        )"#,
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+        CREATE TABLE IF NOT EXISTS entries (
+            entry_id TEXT PRIMARY KEY,
+            author_name TEXT NOT NULL,
+            content TEXT NOT NULL,
+            draft INTEGER NOT NULL,
+            edited INTEGER NOT NULL,
+            published INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            updated INTEGER NOT NULL,
+            FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
         )"#,
         )
         .execute(&pool)
@@ -142,6 +159,47 @@ INSERT INTO last_list_request_at(at) VALUES (?)
         Ok(())
     }
 
+    pub async fn create_entry(&self, entry: Entry) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            r#"
+INSERT INTO entries(
+  entry_id,
+  author_name,
+  content,
+  draft,
+  edited,
+  published,
+  title,
+  updated
+)
+VALUES (
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?,
+  ?
+)
+
+"#,
+        )
+        .bind(entry.id.to_string())
+        .bind(entry.author_name)
+        .bind(entry.content)
+        .bind(if entry.draft { 1_i64 } else { 0_i64 })
+        .bind(i64::from(Timestamp::from_rfc3339(&entry.edited).unwrap()))
+        .bind(i64::from(
+            Timestamp::from_rfc3339(&entry.published).unwrap(),
+        ))
+        .bind(entry.title)
+        .bind(i64::from(Timestamp::from_rfc3339(&entry.updated).unwrap()))
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid())
+    }
+
     pub async fn create_list_request(
         &self,
         at: Timestamp,
@@ -192,6 +250,63 @@ INSERT INTO last_list_request_at(at) VALUES (?)
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn find_entries_waiting_for_parsing(&self) -> anyhow::Result<Vec<(EntryId, String)>> {
+        let rows: Vec<(String, String)> = sqlx::query_as(
+            r#"
+        SELECT entry_ids.entry_id AS entry_id,
+               member_responses.body AS body
+          FROM entry_ids
+          INNER JOIN member_responses USING(entry_id)
+          LEFT OUTER JOIN entries USING(entry_id)
+         WHERE entries.entry_id IS NULL
+         ORDER BY entry_ids.published ASC
+                    "#,
+        )
+        .fetch_all(&self.pool)
+        .await?;
+        rows.into_iter()
+            .map(|(id, body)| {
+                EntryId::from_str(id.as_str())
+                    .map(|entry_id| (entry_id, body))
+                    .context("entry id from str")
+            })
+            .collect::<anyhow::Result<Vec<(EntryId, String)>>>()
+    }
+
+    pub async fn find_entry_by_updated(&self, updated: Timestamp) -> anyhow::Result<Option<Entry>> {
+        Ok(sqlx::query(
+            r#"
+SELECT
+  entry_id,
+  author_name,
+  content,
+  draft,
+  edited,
+  published,
+  title,
+  updated
+FROM entries
+WHERE updated = ?
+"#,
+        )
+        .bind(i64::from(updated))
+        .map(|row: SqliteRow| {
+            Entry::new(
+                EntryId::from_str(row.get(0)).unwrap(),
+                row.get(6),
+                row.get(1),
+                vec![],
+                row.get(2),
+                Timestamp::from(row.get::<'_, i64, _>(7)).to_rfc3339(),
+                Timestamp::from(row.get::<'_, i64, _>(5)).to_rfc3339(),
+                Timestamp::from(row.get::<'_, i64, _>(4)).to_rfc3339(),
+                row.get::<'_, i64, _>(3) == 1_i64,
+            )
+        })
+        .fetch_optional(&self.pool)
+        .await?)
     }
 
     pub async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<EntryId>> {
