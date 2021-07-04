@@ -1,4 +1,5 @@
 mod bbn_date_range;
+mod bbn_hatena_blog;
 mod command;
 mod post;
 mod query;
