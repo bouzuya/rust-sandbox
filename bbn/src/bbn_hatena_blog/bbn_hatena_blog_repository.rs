@@ -8,12 +8,12 @@ use sqlx::{
 use std::{path::PathBuf, str::FromStr};
 
 #[derive(Debug)]
-pub struct Repository {
+pub struct BbnHatenaBlogRepository {
     data_file: PathBuf,
     pool: Pool<Sqlite>,
 }
 
-impl Repository {
+impl BbnHatenaBlogRepository {
     pub async fn new(data_file: PathBuf) -> anyhow::Result<Self> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",

@@ -1,3 +1,3 @@
-mod repository;
+mod bbn_hatena_blog_repository;
 
-pub use self::repository::Repository;
+pub use self::bbn_hatena_blog_repository::BbnHatenaBlogRepository;

@@ -1,4 +1,4 @@
-use crate::{bbn_hatena_blog::Repository, timestamp::Timestamp};
+use crate::{bbn_hatena_blog::BbnHatenaBlogRepository, timestamp::Timestamp};
 use hatena_blog::{Client, Config, Entry};
 use std::{collections::BTreeSet, convert::TryInto, path::PathBuf, time::Duration};
 use tokio::time::sleep;
@@ -11,7 +11,7 @@ pub async fn download_from_hatena_blog(
 ) -> anyhow::Result<()> {
     let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
     let client = Client::new(&config);
-    let repository = Repository::new(data_file).await?;
+    let repository = BbnHatenaBlogRepository::new(data_file).await?;
 
     let last_download_at = repository.get_last_list_request_at().await?;
     let curr_download_at = Timestamp::now()?;

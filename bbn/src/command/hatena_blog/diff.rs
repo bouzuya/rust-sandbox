@@ -3,7 +3,9 @@ use date_range::date::Date;
 use hatena_blog::{Entry, GetEntryResponse};
 use serde_json::Value;
 
-use crate::{bbn_hatena_blog::Repository, post::list_posts, query::Query, timestamp::Timestamp};
+use crate::{
+    bbn_hatena_blog::BbnHatenaBlogRepository, post::list_posts, query::Query, timestamp::Timestamp,
+};
 use std::{
     convert::TryFrom,
     fs,
@@ -11,7 +13,7 @@ use std::{
     str::FromStr,
 };
 
-async fn parse_entry(repository: &Repository) -> anyhow::Result<()> {
+async fn parse_entry(repository: &BbnHatenaBlogRepository) -> anyhow::Result<()> {
     for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
         let entry = Entry::try_from(GetEntryResponse::from(body))?;
         repository.create_entry(entry).await?;
@@ -80,7 +82,7 @@ pub async fn diff(
     data_file: PathBuf,
     date: Option<String>,
 ) -> anyhow::Result<()> {
-    let repository = Repository::new(data_file).await?;
+    let repository = BbnHatenaBlogRepository::new(data_file).await?;
 
     parse_entry(&repository).await?;
 
