@@ -17,6 +17,8 @@ pub enum HatenaBlogSubcommand {
         data_dir: PathBuf,
         #[structopt(long = "data-file", name = "FILE", help = "the data file")]
         data_file: PathBuf,
+        #[structopt(name = "DATE", help = "the entry id")]
+        date: Option<String>,
     },
     #[structopt(name = "download", about = "Download to the hatena blog")]
     Download {
@@ -51,7 +53,8 @@ pub async fn hatena_blog(subcommand: HatenaBlogSubcommand) -> anyhow::Result<()>
         HatenaBlogSubcommand::Diff {
             data_dir,
             data_file,
-        } => diff(data_dir, data_file).await,
+            date,
+        } => diff(data_dir, data_file, date).await,
         HatenaBlogSubcommand::Download {
             data_file,
             hatena_api_key,

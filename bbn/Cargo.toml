@@ -9,7 +9,9 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.41"
 chrono = "0.4.19"
+console = "0.14.1"
 date-range = { path = "../date-range/" }
+diff = "0.1.12"
 hatena-blog = { git = "https://github.com/bouzuya/rust-hatena-blog", tag = "0.12.0" }
 nom = "6.1.2"
 serde = { version = "1.0.126", features = ["derive"] }
