@@ -2,6 +2,7 @@ use std::{
     convert::TryFrom,
     fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use anyhow::Context;
@@ -9,7 +10,11 @@ use date_range::date::Date;
 use serde_json::Value;
 
 use crate::{
-    entry::Entry, entry_id::EntryId, post::list_posts, query::Query, timestamp::Timestamp,
+    entry::Entry,
+    entry_id::EntryId,
+    post::{list_posts, Post},
+    query::Query,
+    timestamp::Timestamp,
 };
 
 #[derive(Debug)]
@@ -81,12 +86,14 @@ impl BbnRepository {
         let posts = list_posts(self.data_dir.as_path(), &query).unwrap();
         match posts.first() {
             None => Ok(None),
-            Some(post) => {
-                let date: date_range::date::Date = post.date.as_str().parse()?;
-                let entry_id = EntryId::new(date, post.id_title.clone());
-                get_bbn_entry(self.data_dir.as_path(), entry_id).map(Some)
-            }
+            Some(post) => self.post_to_entry(post),
         }
+    }
+
+    fn post_to_entry(&self, post: &Post) -> anyhow::Result<Option<Entry>> {
+        let date = Date::from_str(post.date.as_str())?;
+        let entry_id = EntryId::new(date, post.id_title.clone());
+        get_bbn_entry(self.data_dir.as_path(), entry_id).map(Some)
     }
 }
 
@@ -119,7 +126,51 @@ mod tests {
     }
 
     #[test]
-    fn find_by_date() {
-        // TODO
+    fn find_by_date() -> anyhow::Result<()> {
+        let temp = tempdir()?;
+        let data_dir = temp.path().join("data");
+        let entry_dir = data_dir.join("2021").join("07");
+        fs::create_dir_all(entry_dir.as_path())?;
+        let entry_meta_path = entry_dir.join("2021-07-06.json");
+        let entry_content_path = entry_dir.join("2021-07-06.md");
+        fs::write(
+            entry_meta_path.as_path(),
+            r#"{"minutes":5,"pubdate":"2021-07-06T23:59:59+09:00","title":"TITLE1"}"#,
+        )?;
+        fs::write(entry_content_path.as_path(), r#"CONTENT1"#)?;
+        let entry_meta_path = entry_dir.join("2021-07-07-id1.json");
+        let entry_content_path = entry_dir.join("2021-07-07-id1.md");
+        fs::write(
+            entry_meta_path.as_path(),
+            r#"{"minutes":6,"pubdate":"2021-07-07T23:59:59+09:00","title":"TITLE2"}"#,
+        )?;
+        fs::write(entry_content_path.as_path(), r#"CONTENT2"#)?;
+
+        let repository = BbnRepository::new(data_dir);
+        assert_eq!(
+            repository.find_by_date(Date::from_str("2021-07-06")?)?,
+            Some(Entry {
+                content: "CONTENT1".to_string(),
+                entry_id: EntryId::new(Date::from_str("2021-07-06")?, None),
+                minutes: 5,
+                pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                title: "TITLE1".to_string(),
+            })
+        );
+        assert_eq!(
+            repository.find_by_date(Date::from_str("2021-07-07")?)?,
+            Some(Entry {
+                content: "CONTENT2".to_string(),
+                entry_id: EntryId::new(Date::from_str("2021-07-07")?, Some("id1".to_string())),
+                minutes: 6,
+                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                title: "TITLE2".to_string(),
+            })
+        );
+        assert_eq!(
+            repository.find_by_date(Date::from_str("2021-07-08")?)?,
+            None
+        );
+        Ok(())
     }
 }
