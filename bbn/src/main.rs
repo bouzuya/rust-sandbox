@@ -1,6 +1,7 @@
 mod bbn_date_range;
 mod bbn_hatena_blog;
 mod command;
+mod entry_id;
 mod post;
 mod query;
 mod timestamp;
