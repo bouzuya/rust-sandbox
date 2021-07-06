@@ -8,8 +8,13 @@ pub fn view(data_dir: PathBuf, date: Date) -> anyhow::Result<()> {
     match repository.find_by_date(date)? {
         Some(entry) => {
             println!(
-                "{} {} https://blog.bouzuya.net/{}/",
+                "{}{} {} https://blog.bouzuya.net/{}/",
                 entry.entry_id.date(),
+                entry
+                    .entry_id
+                    .id_title()
+                    .map(|s| format!(" {}", s))
+                    .unwrap_or_default(),
                 entry.title,
                 date.to_string().replace('-', "/")
             );
