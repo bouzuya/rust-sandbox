@@ -48,6 +48,14 @@ impl EntryId {
     pub fn new(date: Date, id_title: Option<String>) -> Self {
         Self { date, id_title }
     }
+
+    pub fn date(&self) -> &Date {
+        &self.date
+    }
+
+    pub fn id_title(&self) -> Option<&str> {
+        self.id_title.as_deref()
+    }
 }
 
 #[cfg(test)]
@@ -64,6 +72,24 @@ mod tests {
         };
         f("2021-07-06")?;
         f("2021-07-06-id")?;
+        Ok(())
+    }
+
+    #[test]
+    fn date_test() -> anyhow::Result<()> {
+        let date = Date::from_str("2021-07-06")?;
+        assert_eq!(EntryId::new(date, None).date(), &date);
+        Ok(())
+    }
+
+    #[test]
+    fn id_title_test() -> anyhow::Result<()> {
+        let date = Date::from_str("2021-07-06")?;
+        let id_title = "id_title";
+        assert_eq!(
+            EntryId::new(date, Some(id_title.to_string())).id_title(),
+            Some(id_title)
+        );
         Ok(())
     }
 }
