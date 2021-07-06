@@ -4,7 +4,8 @@ use hatena_blog::{Entry, GetEntryResponse};
 use serde_json::Value;
 
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, post::list_posts, query::Query, timestamp::Timestamp,
+    bbn_hatena_blog::BbnHatenaBlogRepository, entry_id::EntryId, post::list_posts, query::Query,
+    timestamp::Timestamp,
 };
 use std::{
     convert::TryFrom,
@@ -22,22 +23,9 @@ async fn parse_entry(repository: &BbnHatenaBlogRepository) -> anyhow::Result<()>
     Ok(())
 }
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
-struct BbnEntry {
-    content: String,
-    date: Date,
-    id_title: Option<String>,
-    minutes: u64,
-    pubdate: Timestamp,
-    title: String,
-    // TODO: tags: Vec<String>
-}
-
-fn get_bbn_entry(
-    data_dir: &Path,
-    date: Date,
-    id_title: Option<String>,
-) -> anyhow::Result<BbnEntry> {
+fn get_bbn_entry(data_dir: &Path, entry_id: EntryId) -> anyhow::Result<crate::entry::Entry> {
+    let date = entry_id.date().clone();
+    let id_title = entry_id.id_title();
     let dir = data_dir
         .join(date.year().to_string())
         .join(date.month().to_string());
@@ -67,10 +55,9 @@ fn get_bbn_entry(
         .as_str()
         .context("parse title")?
         .to_string();
-    Ok(BbnEntry {
+    Ok(crate::entry::Entry {
         content,
-        date,
-        id_title,
+        entry_id,
         minutes,
         pubdate,
         title,
@@ -95,7 +82,10 @@ pub async fn diff(
     let mut diff_stats = (0, 0, 0);
     for post in posts {
         let entry_date = Date::from_str(post.date.as_str()).unwrap();
-        let bbn_entry = get_bbn_entry(data_dir.as_path(), entry_date, post.id_title.clone())?;
+        let bbn_entry = get_bbn_entry(
+            data_dir.as_path(),
+            EntryId::new(entry_date, post.id_title.clone()),
+        )?;
 
         let entry = repository.find_entry_by_updated(bbn_entry.pubdate).await?;
         let result = match entry {
