@@ -10,7 +10,11 @@ fn list_test() {
     let data202102 = data2021.join("02");
     fs::create_dir_all(data202102.as_path()).unwrap();
     let data20210203 = data202102.join("2021-02-03-TITLE.json");
-    fs::write(data20210203, r#"{"title":"TITLE1"}"#).unwrap();
+    fs::write(
+        data20210203,
+        r#"{"minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"}"#,
+    )
+    .unwrap();
 
     Command::cargo_bin("bbn")
         .unwrap()
@@ -29,8 +33,12 @@ fn view_test() {
     let data2021 = data.join("2021");
     let data202102 = data2021.join("02");
     fs::create_dir_all(data202102.as_path()).unwrap();
-    let data20210203 = data202102.join("2021-02-03-TITLE.json");
-    fs::write(data20210203, r#"{"title":"TITLE1"}"#).unwrap();
+    let data20210203 = data202102.join("2021-02-03-ID_TITLE.json");
+    fs::write(
+        data20210203,
+        r#"{"minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"}"#,
+    )
+    .unwrap();
 
     Command::cargo_bin("bbn")
         .unwrap()
@@ -40,5 +48,5 @@ fn view_test() {
         .arg("2021-02-03")
         .assert()
         .success()
-        .stdout("2021-02-03 TITLE1 https://blog.bouzuya.net/2021/02/03/\n");
+        .stdout("2021-02-03 ID_TITLE TITLE1 https://blog.bouzuya.net/2021/02/03/\n");
 }
