@@ -1,8 +1,12 @@
-use std::{fs, path::PathBuf, process::Command};
+use std::{path::PathBuf, str::FromStr};
 
-use anyhow::bail;
+use anyhow::Context;
+use date_range::date::Date;
+use hatena_blog::{Client, Config, EntryParams};
 
-pub fn post_to_hatena_blog(
+use crate::bbn_repository::BbnRepository;
+
+pub async fn post_to_hatena_blog(
     data_dir: PathBuf,
     date: String,
     draft: bool,
@@ -10,36 +14,30 @@ pub fn post_to_hatena_blog(
     hatena_blog_id: String,
     hatena_id: String,
 ) -> anyhow::Result<()> {
-    let split = date.split('-').collect::<Vec<&str>>();
-    if !(split.len() == 3 && split[0].len() == 4 && split[1].len() == 2 && split[2].len() == 2) {
-        bail!("invalid date");
-    }
-    let md = data_dir
-        .as_path()
-        .join(split[0])
-        .join(split[1])
-        .join(date.as_str())
-        .with_extension("md");
-    let json = md.with_extension("json");
-    #[derive(Debug, serde::Deserialize)]
-    struct MetaJson {
-        title: String,
-        pubdate: String,
-    }
-    let meta_string = fs::read_to_string(json)?;
-    let meta: MetaJson = serde_json::from_str(meta_string.as_str())?;
-    let status = Command::new("hatena-blog")
-        .arg("create")
-        .args(&["--title", meta.title.as_str()])
-        .args(&["--updated", meta.pubdate.as_str()])
-        .args(&(if draft { vec!["--draft"] } else { vec![] }))
-        .arg(md.as_path().as_os_str())
-        .env("HATENA_API_KEY", hatena_api_key)
-        .env("HATENA_BLOG_ID", hatena_blog_id)
-        .env("HATENA_ID", hatena_id)
-        .status()?;
-    if status.success() {
-        println!("{} {}", date, meta.title);
-    }
+    let bbn_repository = BbnRepository::new(data_dir);
+    let entry_id = bbn_repository.find_id_by_date(Date::from_str(date.as_str())?)?;
+    let entry_id = entry_id.context("id not found")?;
+    let entry_meta = bbn_repository.find_meta_by_id(&entry_id)?;
+    let entry_meta = entry_meta.context("meta not found")?;
+    let entry_content = bbn_repository.find_content_by_id(&entry_id)?;
+    let entry_content = entry_content.context("content not found")?;
+    let config = Config::new(
+        hatena_id.as_str(),
+        None,
+        hatena_blog_id.as_str(),
+        hatena_api_key.as_str(),
+    );
+    let client = Client::new(&config);
+    client
+        .create_entry(EntryParams::new(
+            hatena_id,
+            entry_meta.title.clone(),
+            entry_content,
+            entry_meta.pubdate.to_rfc3339(),
+            vec![],
+            draft,
+        ))
+        .await?;
+    println!("{} {}", date, entry_meta.title);
     Ok(())
 }

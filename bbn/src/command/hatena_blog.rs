@@ -68,13 +68,16 @@ pub async fn hatena_blog(subcommand: HatenaBlogSubcommand) -> anyhow::Result<()>
             hatena_api_key,
             hatena_blog_id,
             hatena_id,
-        } => post_to_hatena_blog(
-            data_dir,
-            date,
-            draft,
-            hatena_api_key,
-            hatena_blog_id,
-            hatena_id,
-        ),
+        } => {
+            post_to_hatena_blog(
+                data_dir,
+                date,
+                draft,
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            )
+            .await
+        }
     }
 }
