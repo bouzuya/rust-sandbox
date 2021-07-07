@@ -89,6 +89,18 @@ impl BbnRepository {
         Self { data_dir }
     }
 
+    pub fn find_content_by_id(&self, entry_id: &EntryId) -> anyhow::Result<Option<String>> {
+        let path = self
+            .data_dir
+            .join(entry_id.date().year().to_string())
+            .join(entry_id.date().month().to_string())
+            .join(format!("{}.md", entry_id));
+        if !path.is_file() {
+            return Ok(None);
+        }
+        Ok(Some(fs::read_to_string(path)?))
+    }
+
     pub fn find_id_by_date(&self, date: Date) -> anyhow::Result<Option<EntryId>> {
         let entry_ids = self.find_ids_by_year_month(date.year_month())?;
         Ok(entry_ids.into_iter().find(|id| id.date() == &date))
@@ -240,6 +252,26 @@ mod tests {
     }
 
     #[test]
+    fn find_content_by_id_test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let data_dir = create_test_dir(temp_dir.path())?;
+        let repository = BbnRepository::new(data_dir);
+        assert_eq!(
+            repository.find_content_by_id(&EntryId::from_str("2021-07-06")?)?,
+            Some("CONTENT1".to_string()),
+        );
+        assert_eq!(
+            repository.find_content_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
+            Some("CONTENT2".to_string()),
+        );
+        assert_eq!(
+            repository.find_content_by_id(&EntryId::from_str("2021-07-08")?)?,
+            None
+        );
+        Ok(())
+    }
+
+    #[test]
     fn find_id_by_date_test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
         let data_dir = create_test_dir(temp_dir.path())?;
@@ -286,7 +318,7 @@ mod tests {
             }),
         );
         assert_eq!(
-            repository.find_id_by_date(Date::from_str("2021-07-08")?)?,
+            repository.find_meta_by_id(&EntryId::from_str("2021-07-08")?)?,
             None
         );
         Ok(())
