@@ -3,7 +3,7 @@ use anyhow::bail;
 use date_range::date::Date;
 use std::path::PathBuf;
 
-pub fn view(data_dir: PathBuf, date: Date) -> anyhow::Result<()> {
+pub fn view(data_dir: PathBuf, date: Date, web: bool) -> anyhow::Result<()> {
     let repository = BbnRepository::new(data_dir);
     let entry_id = repository.find_id_by_date(date)?;
     let entry_meta = entry_id
@@ -12,16 +12,24 @@ pub fn view(data_dir: PathBuf, date: Date) -> anyhow::Result<()> {
         .transpose()?;
     match (entry_id, entry_meta) {
         (Some(entry_id), Some(entry_meta)) => {
-            println!(
-                "{}{} {} https://blog.bouzuya.net/{}/",
-                entry_id.date(),
-                entry_id
-                    .id_title()
-                    .map(|s| format!(" {}", s))
-                    .unwrap_or_default(),
-                entry_meta.title,
+            let url = format!(
+                "https://blog.bouzuya.net/{}/",
                 entry_id.date().to_string().replace('-', "/")
             );
+            if web {
+                open::that(url)?;
+            } else {
+                println!(
+                    "{}{} {} {}",
+                    entry_id.date(),
+                    entry_id
+                        .id_title()
+                        .map(|s| format!(" {}", s))
+                        .unwrap_or_default(),
+                    entry_meta.title,
+                    url
+                );
+            }
         }
         _ => bail!("not found"),
     }

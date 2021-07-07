@@ -54,6 +54,8 @@ enum Subcommand {
         data_dir: PathBuf,
         #[structopt(name = "date", help = "the date")]
         date: Date,
+        #[structopt(long = "web", help = "Open the entry in the browser")]
+        web: bool,
     },
 }
 
@@ -74,6 +76,10 @@ async fn main() -> anyhow::Result<()> {
             query,
         } => command::list(data_dir, json, query),
         Subcommand::HatenaBlog { subcommand } => command::hatena_blog(subcommand).await,
-        Subcommand::View { data_dir, date } => command::view(data_dir, date),
+        Subcommand::View {
+            data_dir,
+            date,
+            web,
+        } => command::view(data_dir, date, web),
     }
 }
