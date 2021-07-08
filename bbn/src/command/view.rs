@@ -6,12 +6,12 @@ use std::path::PathBuf;
 pub fn view(data_dir: PathBuf, date: Date, web: bool) -> anyhow::Result<()> {
     let repository = BbnRepository::new(data_dir);
     let entry_id = repository.find_id_by_date(date)?;
-    let entry_meta = entry_id
+    let entry = entry_id
         .as_ref()
-        .and_then(|entry_id| repository.find_meta_by_id(entry_id).transpose())
+        .and_then(|entry_id| repository.find_entry_by_id(entry_id).transpose())
         .transpose()?;
-    match (entry_id, entry_meta) {
-        (Some(entry_id), Some(entry_meta)) => {
+    match (entry_id, entry) {
+        (Some(entry_id), Some((entry_meta, entry_content))) => {
             let url = format!(
                 "https://blog.bouzuya.net/{}/",
                 entry_id.date().to_string().replace('-', "/")
@@ -29,6 +29,7 @@ pub fn view(data_dir: PathBuf, date: Date, web: bool) -> anyhow::Result<()> {
                     entry_meta.title,
                     url
                 );
+                println!("{}", entry_content);
             }
         }
         _ => bail!("not found"),
