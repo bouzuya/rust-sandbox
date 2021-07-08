@@ -106,6 +106,14 @@ impl BbnRepository {
         Ok(entry_ids.into_iter().find(|id| id.date() == &date))
     }
 
+    pub fn find_ids_by_query(&self, query: Query) -> anyhow::Result<Vec<EntryId>> {
+        let posts = list_posts(self.data_dir.as_path(), &query)?;
+        posts
+            .into_iter()
+            .map(|post| self.post_to_entry_id(post))
+            .collect::<anyhow::Result<Vec<EntryId>>>()
+    }
+
     pub fn find_meta_by_id(&self, entry_id: &EntryId) -> anyhow::Result<Option<EntryMeta>> {
         let path = self
             .data_dir
@@ -125,10 +133,7 @@ impl BbnRepository {
         let posts = list_posts(self.data_dir.as_path(), &query)?;
         posts
             .into_iter()
-            .map(|post| {
-                let date: date_range::date::Date = post.date.as_str().parse()?;
-                Ok(EntryId::new(date, post.id_title))
-            })
+            .map(|post| self.post_to_entry_id(post))
             .collect::<anyhow::Result<Vec<EntryId>>>()
     }
 
@@ -167,6 +172,11 @@ impl BbnRepository {
         let date = Date::from_str(post.date.as_str())?;
         let entry_id = EntryId::new(date, post.id_title.clone());
         get_bbn_entry(self.data_dir.as_path(), entry_id).map(Some)
+    }
+
+    fn post_to_entry_id(&self, post: Post) -> anyhow::Result<EntryId> {
+        let date = Date::from_str(post.date.as_str())?;
+        Ok(EntryId::new(date, post.id_title))
     }
 }
 
@@ -291,6 +301,12 @@ mod tests {
             repository.find_id_by_date(Date::from_str("2021-07-08")?)?,
             None
         );
+        Ok(())
+    }
+
+    #[test]
+    fn find_ids_by_query_test() -> anyhow::Result<()> {
+        // TODO
         Ok(())
     }
 
