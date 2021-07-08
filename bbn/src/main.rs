@@ -5,7 +5,6 @@ mod command;
 mod entry;
 mod entry_id;
 mod entry_meta;
-mod post;
 mod query;
 mod timestamp;
 
