@@ -1,20 +1,27 @@
-use crate::{post::list_posts, query::Query};
+use anyhow::Context;
+
+use crate::{bbn_repository::BbnRepository, query::Query};
 use std::{convert::TryFrom, path::PathBuf};
 
 pub fn list(data_dir: PathBuf, json: bool, query: String) -> anyhow::Result<()> {
+    let bbn_repository = BbnRepository::new(data_dir);
     let query = Query::try_from(query.as_str()).unwrap();
-    let mut posts = list_posts(data_dir.as_path(), &query).unwrap();
-    posts.sort();
-    posts.reverse();
+    let mut entry_ids = bbn_repository.find_ids_by_query(query)?;
+    entry_ids.sort();
+    entry_ids.reverse();
     let mut output = vec![];
-    for post in posts {
+    for entry_id in entry_ids {
+        let entry_meta = bbn_repository
+            .find_meta_by_id(&entry_id)?
+            .context("meta not found")?;
         if json {
             output.push(format!(
                 r#"{{"date":"{}","title":"{}"}}"#,
-                post.date, post.title
+                entry_id.date(),
+                entry_meta.title
             ));
         } else {
-            output.push(format!("{} {}", post.date, post.title));
+            output.push(format!("{} {}", entry_id.date(), entry_meta.title));
         }
     }
     let output = if json {

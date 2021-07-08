@@ -1,11 +1,9 @@
-use date_range::date::Date;
 use hatena_blog::{Entry, GetEntryResponse};
 
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository, post::list_posts,
-    query::Query,
+    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository, query::Query,
 };
-use std::{convert::TryFrom, path::PathBuf, str::FromStr};
+use std::{convert::TryFrom, path::PathBuf};
 
 async fn parse_entry(repository: &BbnHatenaBlogRepository) -> anyhow::Result<()> {
     for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
@@ -31,17 +29,19 @@ pub async fn diff(
         None => "".to_string(),
     };
     let query = Query::try_from(query_string.as_str())?;
-    let posts = list_posts(data_dir.as_path(), &query)?;
+    let entry_ids = bbn_repository.find_ids_by_query(query)?;
     let mut diff_stats = (0, 0, 0);
-    for post in posts {
-        let entry_date = Date::from_str(post.date.as_str()).unwrap();
-        let bbn_entry = bbn_repository.find_by_date(entry_date)?.unwrap();
+    for entry_id in entry_ids {
+        let bbn_entry_meta = bbn_repository.find_meta_by_id(&entry_id)?.unwrap();
+        let bbn_entry_content = bbn_repository.find_content_by_id(&entry_id)?.unwrap();
 
-        let entry = repository.find_entry_by_updated(bbn_entry.pubdate).await?;
+        let entry = repository
+            .find_entry_by_updated(bbn_entry_meta.pubdate)
+            .await?;
         let result = match entry {
             None => None,
             Some(ref entry) => {
-                if bbn_entry.content != entry.content {
+                if bbn_entry_content != entry.content {
                     Some(false)
                 } else {
                     Some(true)
@@ -58,10 +58,10 @@ pub async fn diff(
                 println!(
                     "{} {:?}",
                     result.map(|b| if b { "eq" } else { "ne" }).unwrap_or("no"),
-                    post
+                    entry_id
                 );
             } else if let Some(entry) = entry {
-                show_diff(entry.content.as_str(), bbn_entry.content.as_str());
+                show_diff(entry.content.as_str(), bbn_entry_content.as_str());
             }
         }
     }
