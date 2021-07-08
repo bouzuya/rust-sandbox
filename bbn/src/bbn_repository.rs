@@ -52,6 +52,15 @@ impl BbnRepository {
         Ok(Some(fs::read_to_string(path)?))
     }
 
+    pub fn find_entry_by_id(
+        &self,
+        entry_id: &EntryId,
+    ) -> anyhow::Result<Option<(EntryMeta, String)>> {
+        let meta = self.find_meta_by_id(entry_id)?;
+        let content = self.find_content_by_id(entry_id)?;
+        Ok(meta.zip(content))
+    }
+
     pub fn find_id_by_date(&self, date: Date) -> anyhow::Result<Option<EntryId>> {
         let entry_ids = self.find_ids_by_year_month(date.year_month())?;
         Ok(entry_ids.into_iter().find(|id| id.date() == &date))
@@ -269,6 +278,11 @@ mod tests {
             None
         );
         Ok(())
+    }
+
+    #[test]
+    fn find_entry_by_id_test() {
+        // TODO
     }
 
     #[test]

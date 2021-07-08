@@ -17,10 +17,9 @@ pub async fn post_to_hatena_blog(
     let bbn_repository = BbnRepository::new(data_dir);
     let entry_id = bbn_repository.find_id_by_date(Date::from_str(date.as_str())?)?;
     let entry_id = entry_id.context("id not found")?;
-    let entry_meta = bbn_repository.find_meta_by_id(&entry_id)?;
-    let entry_meta = entry_meta.context("meta not found")?;
-    let entry_content = bbn_repository.find_content_by_id(&entry_id)?;
-    let entry_content = entry_content.context("content not found")?;
+    let (entry_meta, entry_content) = bbn_repository
+        .find_entry_by_id(&entry_id)?
+        .context("not found")?;
     let config = Config::new(
         hatena_id.as_str(),
         None,

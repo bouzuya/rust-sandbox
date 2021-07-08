@@ -32,9 +32,8 @@ pub async fn diff(
     let entry_ids = bbn_repository.find_ids_by_query(query)?;
     let mut diff_stats = (0, 0, 0);
     for entry_id in entry_ids {
-        let bbn_entry_meta = bbn_repository.find_meta_by_id(&entry_id)?.unwrap();
-        let bbn_entry_content = bbn_repository.find_content_by_id(&entry_id)?.unwrap();
-
+        let (bbn_entry_meta, bbn_entry_content) =
+            bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
         let entry = repository
             .find_entry_by_updated(bbn_entry_meta.pubdate)
             .await?;
