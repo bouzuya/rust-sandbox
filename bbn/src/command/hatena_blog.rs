@@ -1,12 +1,15 @@
 mod diff;
 mod download;
 mod upload;
+mod view;
 
 use std::path::PathBuf;
 
 use self::diff::diff;
 use self::download::download_from_hatena_blog;
 use self::upload::post_to_hatena_blog;
+use self::view::view;
+use date_range::date::Date;
 use structopt::StructOpt;
 
 #[derive(Debug, StructOpt)]
@@ -46,6 +49,15 @@ pub enum HatenaBlogSubcommand {
         #[structopt(long = "hatena-id", env = "HATENA_ID")]
         hatena_id: String,
     },
+    #[structopt(name = "view", about = "view")]
+    View {
+        #[structopt(long = "data-dir", name = "DIR", help = "the data dir")]
+        data_dir: PathBuf,
+        #[structopt(long = "data-file", name = "FILE", help = "the data file")]
+        data_file: PathBuf,
+        #[structopt(name = "DATE", help = "the entry id")]
+        date: Date,
+    },
 }
 
 pub async fn hatena_blog(subcommand: HatenaBlogSubcommand) -> anyhow::Result<()> {
@@ -79,5 +91,10 @@ pub async fn hatena_blog(subcommand: HatenaBlogSubcommand) -> anyhow::Result<()>
             )
             .await
         }
+        HatenaBlogSubcommand::View {
+            data_dir,
+            data_file,
+            date,
+        } => view(data_dir, data_file, date).await,
     }
 }
