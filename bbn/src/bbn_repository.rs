@@ -6,7 +6,6 @@ use std::{
 };
 
 use date_range::date::{Date, YearMonth};
-use serde_json::Value;
 use thiserror::Error;
 
 use crate::{entry_id::EntryId, entry_meta::EntryMeta, query::Query, timestamp::Timestamp};
@@ -118,7 +117,6 @@ impl BbnRepository {
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct Post {
     pub date: String,
-    pub title: String,
     pub id_title: Option<String>,
 }
 
@@ -217,14 +215,7 @@ fn list_posts_day(path: &Path, query: &Query) -> Result<Vec<Post>, ListPostsErro
         let path_buf = path.join(day);
         let date = get_date(path_buf.as_path()).unwrap().to_string();
         let id_title = get_id_title(path_buf.as_path()).map(|s| s.to_string());
-        let content = fs::read_to_string(path_buf)?;
-        let json: Value = serde_json::from_str(&content).unwrap();
-        let title = json.get("title").unwrap().as_str().unwrap().to_string();
-        posts.push(Post {
-            date,
-            title,
-            id_title,
-        });
+        posts.push(Post { date, id_title });
     }
     Ok(posts)
 }
