@@ -33,6 +33,11 @@ enum Subcommand {
         #[structopt(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
     },
+    #[structopt(name = "config", about = "Updates the configuration file")]
+    Config {
+        #[structopt(long = "data-dir", help = "the data dir")]
+        data_dir: PathBuf,
+    },
     #[structopt(name = "list", about = "Lists the blog posts")]
     List {
         #[structopt(long = "data-dir", help = "the data dir")]
@@ -68,6 +73,7 @@ async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => completion(shell),
+        Subcommand::Config { data_dir } => command::config(data_dir),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
         Subcommand::List {
             data_dir,

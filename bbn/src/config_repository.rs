@@ -57,6 +57,11 @@ impl ConfigRepository {
         Ok(config)
     }
 
+    // NOTE: The repository exposes its dependency on fs.
+    pub fn path(&self) -> anyhow::Result<PathBuf> {
+        ConfigRepository::config_file()
+    }
+
     pub fn save(&self, config: Config) -> anyhow::Result<()> {
         let config_file = ConfigRepository::config_file()?;
         let parent = config_file.parent().context("no config_dir")?;
@@ -127,6 +132,8 @@ mod tests {
                 data_dir.to_str().context("data_dir.to_str()")?
             )
         );
+
+        assert_eq!(repository.path()?, config_file);
         Ok(())
     }
 }
