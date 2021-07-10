@@ -1,9 +1,15 @@
 use anyhow::Context;
 
-use crate::{bbn_repository::BbnRepository, query::Query};
-use std::{convert::TryFrom, path::PathBuf};
+use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository, query::Query};
+use std::convert::TryFrom;
 
-pub fn list(data_dir: PathBuf, json: bool, query: String) -> anyhow::Result<()> {
+pub fn list(json: bool, query: String) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_dir = config.data_dir().to_path_buf();
+
     let bbn_repository = BbnRepository::new(data_dir);
     let query = Query::try_from(query.as_str()).unwrap();
     let mut entry_ids = bbn_repository.find_ids_by_query(query)?;

@@ -40,8 +40,6 @@ enum Subcommand {
     },
     #[structopt(name = "list", about = "Lists the blog posts")]
     List {
-        #[structopt(long = "data-dir", help = "the data dir")]
-        data_dir: PathBuf,
         #[structopt(long = "json", help = "json")]
         json: bool,
         #[structopt(name = "query", help = "query")]
@@ -54,8 +52,6 @@ enum Subcommand {
     },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
-        #[structopt(long = "data-dir", help = "the data dir")]
-        data_dir: PathBuf,
         #[structopt(name = "date", help = "the date")]
         date: Date,
         #[structopt(long = "web", help = "Open the entry in the browser")]
@@ -75,16 +71,8 @@ async fn main() -> anyhow::Result<()> {
         Subcommand::Completion { shell } => completion(shell),
         Subcommand::Config { data_dir } => command::config(data_dir),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
-        Subcommand::List {
-            data_dir,
-            json,
-            query,
-        } => command::list(data_dir, json, query),
+        Subcommand::List { json, query } => command::list(json, query),
         Subcommand::HatenaBlog { subcommand } => command::hatena_blog(subcommand).await,
-        Subcommand::View {
-            data_dir,
-            date,
-            web,
-        } => command::view(data_dir, date, web),
+        Subcommand::View { date, web } => command::view(date, web),
     }
 }

@@ -1,19 +1,24 @@
-use std::{path::PathBuf, str::FromStr};
+use std::str::FromStr;
 
 use anyhow::Context;
 use date_range::date::Date;
 use hatena_blog::{Client, Config, EntryParams};
 
-use crate::bbn_repository::BbnRepository;
+use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository};
 
 pub async fn post_to_hatena_blog(
-    data_dir: PathBuf,
     date: String,
     draft: bool,
     hatena_api_key: String,
     hatena_blog_id: String,
     hatena_id: String,
 ) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_dir = config.data_dir().to_path_buf();
+
     let bbn_repository = BbnRepository::new(data_dir);
     let entry_id = bbn_repository.find_id_by_date(Date::from_str(date.as_str())?)?;
     let entry_id = entry_id.context("id not found")?;

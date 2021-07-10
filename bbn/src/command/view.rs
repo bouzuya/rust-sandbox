@@ -1,9 +1,14 @@
-use crate::bbn_repository::BbnRepository;
-use anyhow::bail;
+use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository};
+use anyhow::{bail, Context};
 use date_range::date::Date;
-use std::path::PathBuf;
 
-pub fn view(data_dir: PathBuf, date: Date, web: bool) -> anyhow::Result<()> {
+pub fn view(date: Date, web: bool) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_dir = config.data_dir().to_path_buf();
+
     let repository = BbnRepository::new(data_dir);
     let entry_id = repository.find_id_by_date(date)?;
     let entry = entry_id
