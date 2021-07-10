@@ -57,6 +57,10 @@ pub enum HatenaBlogSubcommand {
         data_file: PathBuf,
         #[structopt(name = "DATE", help = "the entry id")]
         date: Date,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
+        #[structopt(long = "web", help = "Open the entry in the browser")]
+        web: bool,
     },
 }
 
@@ -95,6 +99,8 @@ pub async fn hatena_blog(subcommand: HatenaBlogSubcommand) -> anyhow::Result<()>
             data_dir,
             data_file,
             date,
-        } => view(data_dir, data_file, date).await,
+            hatena_blog_id,
+            web,
+        } => view(data_dir, data_file, date, hatena_blog_id, web).await,
     }
 }
