@@ -10,26 +10,35 @@ use xdg::BaseDirectories;
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Config {
     data_dir: PathBuf,
+    hatena_blog_data_file: PathBuf,
 }
 
 impl Config {
-    pub fn new(data_dir: PathBuf) -> Self {
-        Self { data_dir }
+    pub fn new(data_dir: PathBuf, hatena_blog_data_file: PathBuf) -> Self {
+        Self {
+            data_dir,
+            hatena_blog_data_file,
+        }
     }
 
     pub fn data_dir(&self) -> &Path {
         self.data_dir.as_path()
+    }
+
+    pub fn hatena_blog_data_file(&self) -> &Path {
+        self.hatena_blog_data_file.as_path()
     }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigJson {
     data_dir: PathBuf,
+    hatena_blog_data_file: PathBuf,
 }
 
 impl From<ConfigJson> for Config {
     fn from(config_json: ConfigJson) -> Self {
-        Self::new(config_json.data_dir)
+        Self::new(config_json.data_dir, config_json.hatena_blog_data_file)
     }
 }
 
@@ -37,6 +46,7 @@ impl From<Config> for ConfigJson {
     fn from(config: Config) -> Self {
         Self {
             data_dir: config.data_dir,
+            hatena_blog_data_file: config.hatena_blog_data_file,
         }
     }
 }
@@ -97,8 +107,13 @@ mod tests {
         let temp_dir = tempdir()?;
         let data_dir = temp_dir.path().join("data");
         fs::create_dir_all(data_dir.as_path())?;
-        let config = Config::new(data_dir.clone());
+        let hatena_blog_data_file = temp_dir.path().join("hatena_blog.db");
+        let config = Config::new(data_dir.clone(), hatena_blog_data_file.clone());
         assert_eq!(config.data_dir(), data_dir.as_path());
+        assert_eq!(
+            config.hatena_blog_data_file(),
+            hatena_blog_data_file.as_path()
+        );
         assert_eq!(config.clone(), config);
         Ok(())
     }
@@ -109,6 +124,7 @@ mod tests {
         // config
         let data_dir = temp_dir.path().join("data");
         fs::create_dir_all(data_dir.as_path())?;
+        let hatena_blog_data_file = temp_dir.path().join("hatena_blog.db");
         // config_repository
         let config_dir = temp_dir.path().join("config");
         fs::create_dir_all(config_dir.as_path())?;
@@ -118,7 +134,7 @@ mod tests {
             config_dir.to_str().context("config dir is not UTF-8")?,
         );
 
-        let config = Config::new(data_dir.clone());
+        let config = Config::new(data_dir.clone(), hatena_blog_data_file.clone());
         let repository = ConfigRepository::new();
         repository.save(config.clone())?;
         let loaded = repository.load()?;
@@ -128,8 +144,11 @@ mod tests {
         assert_eq!(
             saved,
             format!(
-                r#"{{"data_dir":"{}"}}"#,
-                data_dir.to_str().context("data_dir.to_str()")?
+                r#"{{"data_dir":"{}","hatena_blog_data_file":"{}"}}"#,
+                data_dir.to_str().context("data_dir.to_str()")?,
+                hatena_blog_data_file
+                    .to_str()
+                    .context("hatena_blog_data_file.to_str()")?
             )
         );
 

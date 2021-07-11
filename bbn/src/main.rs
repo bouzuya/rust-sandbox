@@ -26,17 +26,23 @@ enum Subcommand {
         #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
         shell: Shell,
     },
+    #[structopt(name = "config", about = "Updates the configuration file")]
+    Config {
+        #[structopt(long = "data-dir", name = "DATA_DIR", help = "the data dir")]
+        data_dir: PathBuf,
+        #[structopt(
+            long = "hatena-blog-data-file",
+            name = "HATENA_BLOG_DATA_FILE",
+            help = "the hatena-blog data file"
+        )]
+        hatena_blog_data_file: PathBuf,
+    },
     #[structopt(name = "date-range", about = "Prints the date range")]
     DateRange {
         #[structopt(name = "input", help = "input")]
         month: String,
         #[structopt(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
-    },
-    #[structopt(name = "config", about = "Updates the configuration file")]
-    Config {
-        #[structopt(long = "data-dir", help = "the data dir")]
-        data_dir: PathBuf,
     },
     #[structopt(name = "list", about = "Lists the blog posts")]
     List {
@@ -69,7 +75,10 @@ async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => completion(shell),
-        Subcommand::Config { data_dir } => command::config(data_dir),
+        Subcommand::Config {
+            data_dir,
+            hatena_blog_data_file,
+        } => command::config(data_dir, hatena_blog_data_file),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
         Subcommand::List { json, query } => command::list(json, query),
         Subcommand::HatenaBlog { subcommand } => command::hatena_blog(subcommand).await,
