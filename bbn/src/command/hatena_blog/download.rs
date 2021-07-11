@@ -1,14 +1,23 @@
-use crate::{bbn_hatena_blog::BbnHatenaBlogRepository, timestamp::Timestamp};
+use crate::{
+    bbn_hatena_blog::BbnHatenaBlogRepository, config_repository::ConfigRepository,
+    timestamp::Timestamp,
+};
+use anyhow::Context;
 use hatena_blog::{Client, Config, Entry};
-use std::{collections::BTreeSet, convert::TryInto, path::PathBuf, time::Duration};
+use std::{collections::BTreeSet, convert::TryInto, time::Duration};
 use tokio::time::sleep;
 
 pub async fn download_from_hatena_blog(
-    data_file: PathBuf,
     hatena_api_key: String,
     hatena_blog_id: String,
     hatena_id: String,
 ) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_file = config.hatena_blog_data_file().to_path_buf();
+
     let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
     let client = Client::new(&config);
     let repository = BbnHatenaBlogRepository::new(data_file).await?;

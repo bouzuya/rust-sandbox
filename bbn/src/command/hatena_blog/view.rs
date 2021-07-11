@@ -6,19 +6,13 @@ use crate::{
     bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
 };
-use std::path::PathBuf;
-
-pub async fn view(
-    data_file: PathBuf,
-    date: Date,
-    hatena_blog_id: String,
-    web: bool,
-) -> anyhow::Result<()> {
+pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;
     let data_dir = config.data_dir().to_path_buf();
+    let data_file = config.hatena_blog_data_file().to_path_buf();
 
     let hatena_blog_repository = BbnHatenaBlogRepository::new(data_file).await?;
     let bbn_repository = BbnRepository::new(data_dir.clone());
