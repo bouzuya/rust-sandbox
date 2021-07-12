@@ -58,8 +58,14 @@ enum Subcommand {
     },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
+        #[structopt(long = "content", help = "Prints the contents of the entry")]
+        content: bool,
         #[structopt(name = "date", help = "the date")]
         date: Date,
+        #[structopt(long = "json", help = "Prints in the JSON format")]
+        json: bool,
+        #[structopt(long = "meta", help = "Prints the meta data of the entry")]
+        meta: bool,
         #[structopt(long = "web", help = "Open the entry in the browser")]
         web: bool,
     },
@@ -157,6 +163,12 @@ async fn main() -> anyhow::Result<()> {
                 web,
             } => command::hatena_blog::view(date, hatena_blog_id, web).await,
         },
-        Subcommand::View { date, web } => command::view(date, web),
+        Subcommand::View {
+            content,
+            date,
+            json,
+            meta,
+            web,
+        } => command::view(date, content, json, meta, web),
     }
 }

@@ -76,11 +76,13 @@ fn view_test() {
         .unwrap()
         .arg("view")
         .arg("2021-02-03")
+        .arg("--content")
+        .arg("--meta")
         .env(
             "BBN_TEST_CONFIG_DIR",
             config_dir.as_os_str().to_str().unwrap(),
         )
         .assert()
         .success()
-        .stdout("2021-02-03 ID_TITLE TITLE1 https://blog.bouzuya.net/2021/02/03/\nHello\n");
+        .stdout("2021-02-03 ID_TITLE TITLE1 <https://blog.bouzuya.net/2021/02/03/>\nHello\n");
 }
