@@ -54,12 +54,52 @@ enum Subcommand {
     #[structopt(name = "hatena-blog", about = "hatena-blog")]
     HatenaBlog {
         #[structopt(subcommand)]
-        subcommand: command::HatenaBlogSubcommand,
+        subcommand: HatenaBlogSubcommand,
     },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
         #[structopt(name = "date", help = "the date")]
         date: Date,
+        #[structopt(long = "web", help = "Open the entry in the browser")]
+        web: bool,
+    },
+}
+
+#[derive(Debug, StructOpt)]
+pub enum HatenaBlogSubcommand {
+    #[structopt(name = "diff", about = "diff")]
+    Diff {
+        #[structopt(name = "DATE", help = "the entry id")]
+        date: Option<String>,
+    },
+    #[structopt(name = "download", about = "Download to the hatena blog")]
+    Download {
+        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
+        hatena_api_key: String,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
+        #[structopt(long = "hatena-id", env = "HATENA_ID")]
+        hatena_id: String,
+    },
+    #[structopt(name = "upload", about = "Upload to the hatena blog")]
+    Upload {
+        #[structopt(name = "DATE", help = "date")]
+        date: String,
+        #[structopt(long = "draft")]
+        draft: bool,
+        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
+        hatena_api_key: String,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
+        #[structopt(long = "hatena-id", env = "HATENA_ID")]
+        hatena_id: String,
+    },
+    #[structopt(name = "view", about = "view")]
+    View {
+        #[structopt(name = "DATE", help = "the entry id")]
+        date: Date,
+        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        hatena_blog_id: String,
         #[structopt(long = "web", help = "Open the entry in the browser")]
         web: bool,
     },
@@ -81,7 +121,42 @@ async fn main() -> anyhow::Result<()> {
         } => command::config(data_dir, hatena_blog_data_file),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
         Subcommand::List { json, query } => command::list(json, query),
-        Subcommand::HatenaBlog { subcommand } => command::hatena_blog(subcommand).await,
+        Subcommand::HatenaBlog { subcommand } => match subcommand {
+            HatenaBlogSubcommand::Diff { date } => command::hatena_blog::diff(date).await,
+            HatenaBlogSubcommand::Download {
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            } => {
+                command::hatena_blog::download_from_hatena_blog(
+                    hatena_api_key,
+                    hatena_blog_id,
+                    hatena_id,
+                )
+                .await
+            }
+            HatenaBlogSubcommand::Upload {
+                date,
+                draft,
+                hatena_api_key,
+                hatena_blog_id,
+                hatena_id,
+            } => {
+                command::hatena_blog::post_to_hatena_blog(
+                    date,
+                    draft,
+                    hatena_api_key,
+                    hatena_blog_id,
+                    hatena_id,
+                )
+                .await
+            }
+            HatenaBlogSubcommand::View {
+                date,
+                hatena_blog_id,
+                web,
+            } => command::hatena_blog::view(date, hatena_blog_id, web).await,
+        },
         Subcommand::View { date, web } => command::view(date, web),
     }
 }
