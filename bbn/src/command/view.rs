@@ -1,4 +1,7 @@
-use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository};
+use crate::{
+    bbn_repository::BbnRepository, config_repository::ConfigRepository, entry_id::EntryId,
+    entry_meta::EntryMeta,
+};
 use anyhow::Context;
 use date_range::date::Date;
 use serde::Serialize;
@@ -25,6 +28,92 @@ struct MetaJson {
     title: String,
 }
 
+fn print_json_content(_: EntryId, _: EntryMeta, entry_content: String) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        serde_json::to_string(&ContentJson {
+            content: entry_content,
+        })?
+    );
+    Ok(())
+}
+
+fn print_json_meta(_: EntryId, entry_meta: EntryMeta, _: String) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        serde_json::to_string(&MetaJson {
+            minutes: entry_meta.minutes,
+            pubdate: entry_meta.pubdate.to_rfc3339(),
+            tags: entry_meta.tags,
+            title: entry_meta.title,
+        })?
+    );
+    Ok(())
+}
+
+fn print_json_content_meta(
+    _: EntryId,
+    entry_meta: EntryMeta,
+    entry_content: String,
+) -> anyhow::Result<()> {
+    println!(
+        "{}",
+        serde_json::to_string(&ContentWithMetaJson {
+            content: entry_content,
+            minutes: entry_meta.minutes,
+            pubdate: entry_meta.pubdate.to_rfc3339(),
+            tags: entry_meta.tags,
+            title: entry_meta.title,
+        })?
+    );
+    Ok(())
+}
+
+fn print_text_content(_: EntryId, _: EntryMeta, entry_content: String) -> anyhow::Result<()> {
+    println!("{}", entry_content);
+    Ok(())
+}
+
+fn print_text_content_meta(
+    entry_id: EntryId,
+    entry_meta: EntryMeta,
+    entry_content: String,
+) -> anyhow::Result<()> {
+    println!(
+        "{}{} {} <{}>\n{}",
+        entry_id.date(),
+        entry_id
+            .id_title()
+            .map(|s| format!(" {}", s))
+            .unwrap_or_default(),
+        entry_meta.title,
+        entry_url(&entry_id),
+        entry_content
+    );
+    Ok(())
+}
+
+fn print_text_meta(entry_id: EntryId, entry_meta: EntryMeta, _: String) -> anyhow::Result<()> {
+    println!(
+        "{}{} {} <{}>",
+        entry_id.date(),
+        entry_id
+            .id_title()
+            .map(|s| format!(" {}", s))
+            .unwrap_or_default(),
+        entry_meta.title,
+        entry_url(&entry_id)
+    );
+    Ok(())
+}
+
+fn entry_url(entry_id: &EntryId) -> String {
+    format!(
+        "https://blog.bouzuya.net/{}/",
+        entry_id.date().to_string().replace('-', "/")
+    )
+}
+
 pub fn view(date: Date, content: bool, json: bool, meta: bool, web: bool) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
@@ -43,58 +132,17 @@ pub fn view(date: Date, content: bool, json: bool, meta: bool, web: bool) -> any
             entry.map(|(entry_meta, entry_content)| (entry_id, entry_meta, entry_content))
         })
         .context("not found")?;
-    let url = format!(
-        "https://blog.bouzuya.net/{}/",
-        entry_id.date().to_string().replace('-', "/")
-    );
     if web {
-        open::that(url)?;
+        open::that(entry_url(&entry_id))?;
         return Ok(());
     }
-    if json {
-        println!(
-            "{}",
-            match (content, meta) {
-                (true, true) => {
-                    serde_json::to_string(&ContentWithMetaJson {
-                        content: entry_content,
-                        minutes: entry_meta.minutes,
-                        pubdate: entry_meta.pubdate.to_rfc3339(),
-                        tags: entry_meta.tags,
-                        title: entry_meta.title,
-                    })?
-                }
-                (true, false) | (false, false) => {
-                    serde_json::to_string(&ContentJson {
-                        content: entry_content,
-                    })?
-                }
-                (false, true) => {
-                    serde_json::to_string(&MetaJson {
-                        minutes: entry_meta.minutes,
-                        pubdate: entry_meta.pubdate.to_rfc3339(),
-                        tags: entry_meta.tags,
-                        title: entry_meta.title,
-                    })?
-                }
-            }
-        );
-    } else {
-        if meta {
-            println!(
-                "{}{} {} <{}>",
-                entry_id.date(),
-                entry_id
-                    .id_title()
-                    .map(|s| format!(" {}", s))
-                    .unwrap_or_default(),
-                entry_meta.title,
-                url
-            );
-        }
-        if content {
-            println!("{}", entry_content);
-        }
-    }
-    Ok(())
+    let print = match (content, meta, json) {
+        (false, true, false) => print_text_meta,
+        (false, false, false) | (true, false, false) => print_text_content,
+        (true, true, false) => print_text_content_meta,
+        (false, true, true) => print_json_meta,
+        (false, false, true) | (true, false, true) => print_json_content,
+        (true, true, true) => print_json_content_meta,
+    };
+    print(entry_id, entry_meta, entry_content)
 }
