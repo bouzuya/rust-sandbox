@@ -9,6 +9,7 @@ use serde::Serialize;
 #[derive(Debug, Serialize)]
 struct ContentJson {
     content: String,
+    url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -18,6 +19,7 @@ struct ContentWithMetaJson {
     pubdate: String,
     tags: Vec<String>,
     title: String,
+    url: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -26,19 +28,15 @@ struct MetaJson {
     pubdate: String,
     tags: Vec<String>,
     title: String,
+    url: String,
 }
 
 fn print_json_content(_: EntryId, _: EntryMeta, entry_content: String) -> anyhow::Result<()> {
-    println!(
-        "{}",
-        serde_json::to_string(&ContentJson {
-            content: entry_content,
-        })?
-    );
+    println!("{}", serde_json::to_string(&entry_content)?);
     Ok(())
 }
 
-fn print_json_meta(_: EntryId, entry_meta: EntryMeta, _: String) -> anyhow::Result<()> {
+fn print_json_meta(entry_id: EntryId, entry_meta: EntryMeta, _: String) -> anyhow::Result<()> {
     println!(
         "{}",
         serde_json::to_string(&MetaJson {
@@ -46,13 +44,14 @@ fn print_json_meta(_: EntryId, entry_meta: EntryMeta, _: String) -> anyhow::Resu
             pubdate: entry_meta.pubdate.to_rfc3339(),
             tags: entry_meta.tags,
             title: entry_meta.title,
+            url: entry_url(&entry_id)
         })?
     );
     Ok(())
 }
 
 fn print_json_content_meta(
-    _: EntryId,
+    entry_id: EntryId,
     entry_meta: EntryMeta,
     entry_content: String,
 ) -> anyhow::Result<()> {
@@ -64,6 +63,7 @@ fn print_json_content_meta(
             pubdate: entry_meta.pubdate.to_rfc3339(),
             tags: entry_meta.tags,
             title: entry_meta.title,
+            url: entry_url(&entry_id)
         })?
     );
     Ok(())
