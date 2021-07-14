@@ -1,8 +1,8 @@
-use std::{fs, path::Path, process};
+use std::process;
 
 use anyhow::{bail, Context};
-use chrono::{Local, TimeZone};
-use git2::{ObjectType, Repository};
+use chrono::{DateTime, Local, TimeZone};
+use git2::Repository;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Repo {
@@ -86,8 +86,7 @@ fn list_tags(repo: &Repo) -> Vec<Tag> {
     tags
 }
 
-fn git_tag_list<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
-    let repository = Repository::open(path.as_ref())?;
+fn git_tag_list(repository: &Repository) -> anyhow::Result<Vec<String>> {
     let mut tags = vec![];
     let tag_names = repository.tag_names(None)?;
     for i in 0..tag_names.len() {
@@ -97,14 +96,47 @@ fn git_tag_list<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
     Ok(tags)
 }
 
+fn time_to_string(timestamp: i64) -> String {
+    Local.timestamp(timestamp, 0).to_rfc3339()
+}
+
+fn git_log(repository: &Repository, tag_name: &str) -> anyhow::Result<String> {
+    let reference = repository.resolve_reference_from_short_name(tag_name)?;
+    let target_oid = reference.target().context("target not found")?;
+    let target_object = repository.find_object(target_oid, None)?;
+    let commit_object = if let Some(tag) = target_object.as_tag() {
+        tag.target()?
+    } else {
+        target_object
+    };
+    let res = if let Some(commit) = commit_object.as_commit() {
+        time_to_string(commit.time().seconds())
+    } else {
+        bail!("not commit {:?} {:?}", commit_object, commit_object.kind())
+    };
+    Ok(res)
+}
+
 fn list_tags3(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
-    let git_tag_list = git_tag_list(&repo.path)?;
+    let repository = Repository::open(&repo.path)?;
+    let git_tag_list = git_tag_list(&repository)?;
     let mut tags = vec![];
     for tag_name in git_tag_list {
-        let date = exec_git_log(tag_name.as_str(), &repo.path);
+        let date = git_log(&repository, tag_name.as_str())?;
+        if false {
+            let date_old = exec_git_log(tag_name.as_str(), &repo.path);
+            let d_old = DateTime::parse_from_rfc3339(&date_old.trim_end())?.timestamp();
+            let d_new = DateTime::parse_from_rfc3339(&date)?.timestamp();
+            assert_eq!(d_new, d_old);
+            if d_new != d_old {
+                eprintln!("{} {:?}", tag_name, date);
+                eprintln!("{} {:?}", tag_name, date_old);
+                panic!();
+            }
+        }
         tags.push(Tag {
             repo: repo.clone(),
-            date: date.trim_end().to_owned(),
+            date,
             name: tag_name,
         });
     }
