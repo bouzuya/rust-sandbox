@@ -1,6 +1,9 @@
 use anyhow::Context;
 
-use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository, query::Query};
+use crate::{
+    bbn_repository::BbnRepository, config_repository::ConfigRepository, entry_id::EntryId,
+    query::Query,
+};
 use std::convert::TryFrom;
 
 pub fn list(json: bool, query: String) -> anyhow::Result<()> {
@@ -22,12 +25,18 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
             .context("meta not found")?;
         if json {
             output.push(format!(
-                r#"{{"date":"{}","title":"{}"}}"#,
+                r#"{{"date":"{}","title":"{}","url":"{}"}}"#,
                 entry_id.date(),
-                entry_meta.title
+                entry_meta.title,
+                entry_url(&entry_id),
             ));
         } else {
-            output.push(format!("{} {}", entry_id.date(), entry_meta.title));
+            output.push(format!(
+                "{} {} <{}>",
+                entry_id.date(),
+                entry_meta.title,
+                entry_url(&entry_id),
+            ));
         }
     }
     let output = if json {
@@ -41,4 +50,11 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
     };
     println!("{}", output);
     Ok(())
+}
+
+fn entry_url(entry_id: &EntryId) -> String {
+    format!(
+        "https://blog.bouzuya.net/{}/",
+        entry_id.date().to_string().replace('-', "/")
+    )
 }
