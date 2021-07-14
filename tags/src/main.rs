@@ -1,12 +1,16 @@
-use std::process;
+use std::{fs, path::Path, process};
 
-#[derive(Clone, Debug)]
+use anyhow::{bail, Context};
+use chrono::{Local, TimeZone};
+use git2::{ObjectType, Repository};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 struct Repo {
     name: String,
     path: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 struct Tag {
     repo: Repo,
     date: String,
@@ -55,10 +59,10 @@ fn list_repositories(owner: &str) -> Vec<Repo> {
         .split('\n')
         .map(|item| {
             let mut path = ghq_root.trim_end().to_owned();
-            path.push_str("/");
+            path.push('/');
             path.push_str(item);
             Repo {
-                name: path[path.rfind("/").unwrap() + 1..].to_owned(),
+                name: path[path.rfind('/').unwrap() + 1..].to_owned(),
                 path,
             }
         })
@@ -82,11 +86,46 @@ fn list_tags(repo: &Repo) -> Vec<Tag> {
     tags
 }
 
+fn git_tag_list<P: AsRef<Path>>(path: P) -> anyhow::Result<Vec<String>> {
+    let repository = Repository::open(path.as_ref())?;
+    let mut tags = vec![];
+    let tag_names = repository.tag_names(None)?;
+    for i in 0..tag_names.len() {
+        let tag_name = tag_names.get(i).context("StringArray.get()")?;
+        tags.push(tag_name.to_string());
+    }
+    Ok(tags)
+}
+
+fn list_tags3(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
+    let git_tag_list = git_tag_list(&repo.path)?;
+    let mut tags = vec![];
+    for tag_name in git_tag_list {
+        let date = exec_git_log(tag_name.as_str(), &repo.path);
+        tags.push(Tag {
+            repo: repo.clone(),
+            date: date.trim_end().to_owned(),
+            name: tag_name,
+        });
+    }
+    Ok(tags)
+}
+
 fn main() {
     let repo_list = list_repositories("bouzuya");
     let mut tags = vec![];
     for repo in repo_list {
-        let mut tag_list = list_tags(&repo);
+        let mut tag_list = list_tags3(&repo).unwrap(); // TODO
+        if false {
+            let mut tag_list_old = list_tags(&repo);
+            tag_list_old.sort_by_key(|tag| tag.name.clone());
+            tag_list.sort_by_key(|tag| tag.name.clone());
+            assert_eq!(tag_list, tag_list_old);
+            if tag_list != tag_list_old {
+                eprintln!("{:?}", tag_list);
+                eprintln!("{:?}", tag_list_old);
+            }
+        }
         tags.append(&mut tag_list);
     }
     tags.sort_by_key(|tag| tag.date.clone());
