@@ -3,6 +3,7 @@ use std::process;
 use anyhow::{bail, Context};
 use chrono::{Local, TimeZone};
 use git2::Repository;
+use structopt::StructOpt;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct Repo {
@@ -94,8 +95,16 @@ fn list_tags(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
     Ok(tags)
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "tags", about = "Lists tags")]
+struct Opt {
+    #[structopt(name = "OWNER")]
+    owner: String,
+}
+
 fn main() -> anyhow::Result<()> {
-    let repo_list = list_repositories("bouzuya");
+    let opt = Opt::from_args();
+    let repo_list = list_repositories(opt.owner.as_str());
     let mut tags = vec![];
     for repo in repo_list.iter() {
         for tag in list_tags(&repo)? {
