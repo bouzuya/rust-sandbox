@@ -12,7 +12,6 @@ struct Repo {
 
 #[derive(Debug, Eq, PartialEq)]
 struct Tag {
-    repo: Repo,
     date: i64,
     name: String,
 }
@@ -81,14 +80,13 @@ fn git_log(repository: &Repository, tag_name: &str) -> anyhow::Result<i64> {
     }
 }
 
-fn list_tags3(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
+fn list_tags(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
     let repository = Repository::open(&repo.path)?;
     let git_tag_list = git_tag_list(&repository)?;
     let mut tags = vec![];
     for tag_name in git_tag_list {
         let commiter_date = git_log(&repository, tag_name.as_str())?;
         tags.push(Tag {
-            repo: repo.clone(),
             date: commiter_date,
             name: tag_name,
         });
@@ -99,18 +97,14 @@ fn list_tags3(repo: &Repo) -> anyhow::Result<Vec<Tag>> {
 fn main() -> anyhow::Result<()> {
     let repo_list = list_repositories("bouzuya");
     let mut tags = vec![];
-    for repo in repo_list {
-        let mut tag_list = list_tags3(&repo)?;
-        tags.append(&mut tag_list);
+    for repo in repo_list.iter() {
+        for tag in list_tags(&repo)? {
+            tags.push((repo, tag));
+        }
     }
-    tags.sort_by_key(|tag| tag.date);
-    for tag in tags {
-        println!(
-            "{} {} {}",
-            time_to_string(tag.date),
-            tag.repo.name,
-            tag.name
-        );
+    tags.sort_by_key(|(_, tag)| tag.date);
+    for (repo, tag) in tags {
+        println!("{} {} {}", time_to_string(tag.date), repo.name, tag.name);
     }
     Ok(())
 }
