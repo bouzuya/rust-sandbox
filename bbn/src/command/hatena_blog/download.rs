@@ -1,13 +1,15 @@
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, config_repository::ConfigRepository,
-    timestamp::Timestamp,
+    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
+    config_repository::ConfigRepository, timestamp::Timestamp,
 };
 use anyhow::Context;
+use date_range::date::Date;
 use hatena_blog::{Client, Config, Entry};
 use std::{collections::BTreeSet, convert::TryInto, time::Duration};
 use tokio::time::sleep;
 
 pub async fn download_from_hatena_blog(
+    date: Option<Date>,
     hatena_api_key: String,
     hatena_blog_id: String,
     hatena_id: String,
@@ -17,10 +19,35 @@ pub async fn download_from_hatena_blog(
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;
     let data_file = config.hatena_blog_data_file().to_path_buf();
+    let data_dir = config.data_dir().to_path_buf();
 
     let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
     let client = Client::new(&config);
     let repository = BbnHatenaBlogRepository::new(data_file).await?;
+
+    if let Some(d) = date {
+        let bbn_repository = BbnRepository::new(data_dir);
+        match bbn_repository.find_id_by_date(d)? {
+            None => println!("no entry_id"),
+            Some(entry_id) => match bbn_repository.find_meta_by_id(&entry_id)? {
+                None => println!("no entry_meta"),
+                Some(entry_meta) => {
+                    match repository.find_entry_by_updated(entry_meta.pubdate).await? {
+                        None => println!("no hatena-blog entry"),
+                        Some(entry) => {
+                            let response = client.get_entry(&entry.id).await?;
+                            let body = response.to_string();
+                            repository
+                                .update_member_response(&entry.id, Timestamp::now()?, body)
+                                .await?;
+                            println!("downloaded member id: {}", entry_id);
+                        }
+                    }
+                }
+            },
+        }
+        return Ok(());
+    }
 
     let last_download_at = repository.get_last_list_request_at().await?;
     let curr_download_at = Timestamp::now()?;

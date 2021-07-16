@@ -3,14 +3,15 @@ use hatena_blog::{Entry, GetEntryResponse};
 
 use crate::{
     bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
-    config_repository::ConfigRepository, query::Query,
+    config_repository::ConfigRepository, query::Query, timestamp::Timestamp,
 };
 use std::convert::TryFrom;
 
 async fn parse_entry(repository: &BbnHatenaBlogRepository) -> anyhow::Result<()> {
+    repository.delete_old_entries().await?;
     for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
         let entry = Entry::try_from(GetEntryResponse::from(body))?;
-        repository.create_entry(entry).await?;
+        repository.create_entry(entry, Timestamp::now()?).await?;
         eprintln!("{}", entry_id);
     }
     Ok(())

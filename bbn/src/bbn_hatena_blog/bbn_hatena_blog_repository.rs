@@ -44,6 +44,7 @@ impl BbnHatenaBlogRepository {
             published INTEGER NOT NULL,
             title TEXT NOT NULL,
             updated INTEGER NOT NULL,
+            parsed_at INTEGER NOT NULL,
             FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
         )"#,
         )
@@ -159,7 +160,7 @@ INSERT INTO last_list_request_at(at) VALUES (?)
         Ok(())
     }
 
-    pub async fn create_entry(&self, entry: Entry) -> anyhow::Result<i64> {
+    pub async fn create_entry(&self, entry: Entry, parsed_at: Timestamp) -> anyhow::Result<i64> {
         Ok(sqlx::query(
             r#"
 INSERT INTO entries(
@@ -170,9 +171,11 @@ INSERT INTO entries(
   edited,
   published,
   title,
-  updated
+  updated,
+  parsed_at
 )
 VALUES (
+  ?,
   ?,
   ?,
   ?,
@@ -195,6 +198,7 @@ VALUES (
         ))
         .bind(entry.title)
         .bind(i64::from(Timestamp::from_rfc3339(&entry.updated).unwrap()))
+        .bind(i64::from(parsed_at))
         .execute(&self.pool)
         .await?
         .last_insert_rowid())
@@ -252,6 +256,41 @@ VALUES (
         Ok(())
     }
 
+    pub async fn delete_old_entries(&self) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+        DELETE FROM entries
+         WHERE entries.entry_id IN (
+            SELECT entries.entry_id FROM entries INNER JOIN member_responses USING(entry_id)
+             WHERE entries.parsed_at < member_responses.at
+         )
+            "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn update_member_response(
+        &self,
+        entry_id: &EntryId,
+        at: Timestamp,
+        body: String,
+    ) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE member_responses SET at = ?, body = ?
+            WHERE entry_id = ?
+            "#,
+        )
+        .bind(i64::from(at))
+        .bind(body)
+        .bind(entry_id.to_string())
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
     pub async fn find_entries_waiting_for_parsing(&self) -> anyhow::Result<Vec<(EntryId, String)>> {
         let rows: Vec<(String, String)> = sqlx::query_as(
             r#"
@@ -260,7 +299,7 @@ VALUES (
           FROM entry_ids
           INNER JOIN member_responses USING(entry_id)
           LEFT OUTER JOIN entries USING(entry_id)
-         WHERE entries.entry_id IS NULL
+         WHERE entries.entry_id IS NULL OR member_responses.at > entries.parsed_at
          ORDER BY entry_ids.published ASC
                     "#,
         )

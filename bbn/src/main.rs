@@ -80,6 +80,8 @@ pub enum HatenaBlogSubcommand {
     },
     #[structopt(name = "download", about = "Download to the hatena blog")]
     Download {
+        #[structopt(name = "DATE")]
+        date: Option<Date>,
         #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
         hatena_api_key: String,
         #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
@@ -130,11 +132,13 @@ async fn main() -> anyhow::Result<()> {
         Subcommand::HatenaBlog { subcommand } => match subcommand {
             HatenaBlogSubcommand::Diff { date } => command::hatena_blog::diff(date).await,
             HatenaBlogSubcommand::Download {
+                date,
                 hatena_api_key,
                 hatena_blog_id,
                 hatena_id,
             } => {
                 command::hatena_blog::download_from_hatena_blog(
+                    date,
                     hatena_api_key,
                     hatena_blog_id,
                     hatena_id,
