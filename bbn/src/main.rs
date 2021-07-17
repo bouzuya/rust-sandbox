@@ -92,7 +92,7 @@ pub enum HatenaBlogSubcommand {
     #[structopt(name = "upload", about = "Upload to the hatena blog")]
     Upload {
         #[structopt(name = "DATE", help = "date")]
-        date: Date,
+        date: Option<Date>,
         #[structopt(long = "draft")]
         draft: bool,
         #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
@@ -101,6 +101,8 @@ pub enum HatenaBlogSubcommand {
         hatena_blog_id: String,
         #[structopt(long = "hatena-id", env = "HATENA_ID")]
         hatena_id: String,
+        #[structopt(long = "interactive")]
+        interactive: bool,
     },
     #[structopt(name = "view", about = "view")]
     View {
@@ -151,9 +153,17 @@ async fn main() -> anyhow::Result<()> {
                 hatena_api_key,
                 hatena_blog_id,
                 hatena_id,
+                interactive,
             } => {
-                command::hatena_blog::upload(date, draft, hatena_api_key, hatena_blog_id, hatena_id)
-                    .await
+                command::hatena_blog::upload(
+                    date,
+                    draft,
+                    hatena_api_key,
+                    hatena_blog_id,
+                    hatena_id,
+                    interactive,
+                )
+                .await
             }
             HatenaBlogSubcommand::View {
                 date,

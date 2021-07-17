@@ -15,10 +15,10 @@ pub enum UploadEntryError {
 pub async fn upload_entry(
     date: Date,
     draft: bool,
-    hatena_id: String,
-    bbn_repository: BbnRepository,
-    hatena_blog_repository: HatenaBlogRepository,
-    hatena_blog_client: Client,
+    hatena_id: &str,
+    bbn_repository: &BbnRepository,
+    hatena_blog_repository: &HatenaBlogRepository,
+    hatena_blog_client: &Client,
 ) -> anyhow::Result<(bool, EntryId)> {
     let entry_id = bbn_repository
         .find_id_by_date(date)?
@@ -28,7 +28,7 @@ pub async fn upload_entry(
         .context(UploadEntryError::NoEntry)?;
     let updated = entry_meta.pubdate;
     let params = EntryParams::new(
-        hatena_id,
+        hatena_id.to_string(),
         entry_meta.title.clone(),
         entry_content,
         updated.to_rfc3339(),

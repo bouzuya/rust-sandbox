@@ -1,4 +1,7 @@
-use anyhow::Context;
+use std::{collections::VecDeque, convert::TryFrom, str::FromStr};
+
+use anyhow::{bail, Context};
+use console::StyledObject;
 use date_range::date::Date;
 use hatena_blog::{Client, Config};
 
@@ -6,14 +9,16 @@ use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
     hatena_blog::{upload_entry, HatenaBlogRepository},
+    query::Query,
 };
 
 pub async fn upload(
-    date: Date,
+    date: Option<Date>,
     draft: bool,
     hatena_api_key: String,
     hatena_blog_id: String,
     hatena_id: String,
+    interactive: bool,
 ) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
@@ -30,19 +35,106 @@ pub async fn upload(
         hatena_api_key.as_str(),
     );
     let hatena_blog_client = Client::new(&config);
-    let (created, entry_id) = upload_entry(
-        date,
-        draft,
-        hatena_id,
-        bbn_repository,
-        hatena_blog_repository,
-        hatena_blog_client,
-    )
-    .await?;
-    println!(
-        "{} {}",
-        if created { "created" } else { "updated" },
-        entry_id
-    );
+    if let Some(date) = date {
+        let (created, entry_id) = upload_entry(
+            date,
+            draft,
+            &hatena_id,
+            &bbn_repository,
+            &hatena_blog_repository,
+            &hatena_blog_client,
+        )
+        .await?;
+        println!(
+            "{} {}",
+            if created { "created" } else { "updated" },
+            entry_id
+        );
+    } else {
+        if !interactive {
+            bail!("interfactive = false is not supported");
+        }
+
+        let query = Query::try_from("")?;
+        let entry_ids = bbn_repository.find_ids_by_query(query)?;
+        for entry_id in entry_ids {
+            let (bbn_entry_meta, bbn_entry_content) =
+                bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
+            let hatena_blog_entry = hatena_blog_repository
+                .find_entry_by_updated(bbn_entry_meta.pubdate)
+                .await?;
+            let result = match hatena_blog_entry {
+                None => None,
+                Some(ref entry) => {
+                    if bbn_entry_content != entry.content {
+                        Some(false)
+                    } else {
+                        Some(true)
+                    }
+                }
+            };
+            if result == Some(true) {
+                continue;
+            }
+            println!(
+                "{} {}",
+                result.map(|b| if b { "eq" } else { "ne" }).unwrap_or("no"),
+                entry_id
+            );
+            match hatena_blog_entry {
+                None => println!("no entry"),
+                Some(entry) => {
+                    show_2line_diff(entry.content.as_str(), bbn_entry_content.as_str());
+                }
+            }
+
+            let yes = dialoguer::Confirm::new()
+                .with_prompt("upload ?")
+                .interact()?;
+            if yes {
+                let date = Date::from_str(entry_id.to_string().get(0..10).unwrap())?;
+                let (created, entry_id) = upload_entry(
+                    date,
+                    draft,
+                    hatena_id.as_str(),
+                    &bbn_repository,
+                    &hatena_blog_repository,
+                    &hatena_blog_client,
+                )
+                .await?;
+                println!(
+                    "{} {}",
+                    if created { "created" } else { "updated" },
+                    entry_id
+                );
+            }
+        }
+    }
     Ok(())
+}
+
+fn show_2line_diff(left: &str, right: &str) {
+    let mut c = 0;
+    let mut q = VecDeque::<StyledObject<String>>::new();
+    for diff_result in diff::lines(left, right) {
+        let (d, output) = match diff_result {
+            diff::Result::Left(l) => (true, console::style(format!("-{}", l)).red()),
+            diff::Result::Right(r) => (true, console::style(format!("+{}", r)).green()),
+            diff::Result::Both(l, _) => (false, console::style(format!(" {}", l))),
+        };
+        q.push_back(output);
+        if d {
+            while let Some(o) = q.pop_front() {
+                println!("{}", o);
+            }
+            c = 2;
+        } else if c > 0 {
+            c -= 1;
+            while let Some(o) = q.pop_front() {
+                println!("{}", o);
+            }
+        } else if q.len() >= 2 {
+            q.pop_front();
+        }
+    }
 }
