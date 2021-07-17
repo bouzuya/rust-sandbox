@@ -1,6 +1,6 @@
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
-    config_repository::ConfigRepository, timestamp::Timestamp,
+    bbn_repository::BbnRepository, config_repository::ConfigRepository,
+    hatena_blog::BbnHatenaBlogRepository, timestamp::Timestamp,
 };
 use anyhow::Context;
 use date_range::date::Date;

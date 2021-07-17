@@ -1,10 +1,10 @@
 mod bbn_date_range;
-mod bbn_hatena_blog;
 mod bbn_repository;
 mod command;
 mod config_repository;
 mod entry_id;
 mod entry_meta;
+mod hatena_blog;
 mod query;
 mod timestamp;
 

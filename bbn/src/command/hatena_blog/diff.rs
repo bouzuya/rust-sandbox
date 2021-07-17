@@ -2,8 +2,8 @@ use anyhow::Context;
 use hatena_blog::{Entry, GetEntryResponse};
 
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
-    config_repository::ConfigRepository, query::Query, timestamp::Timestamp,
+    bbn_repository::BbnRepository, config_repository::ConfigRepository,
+    hatena_blog::BbnHatenaBlogRepository, query::Query, timestamp::Timestamp,
 };
 use std::convert::TryFrom;
 

@@ -3,8 +3,8 @@ use chrono::{DateTime, Local, TimeZone};
 use date_range::date::Date;
 
 use crate::{
-    bbn_hatena_blog::BbnHatenaBlogRepository, bbn_repository::BbnRepository,
-    config_repository::ConfigRepository,
+    bbn_repository::BbnRepository, config_repository::ConfigRepository,
+    hatena_blog::BbnHatenaBlogRepository,
 };
 pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
