@@ -43,20 +43,13 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
         let entry = hatena_blog_repository
             .find_entry_by_updated(bbn_entry_meta.pubdate)
             .await?;
-        let result = match entry {
-            None => None,
-            Some(ref entry) => {
-                if bbn_entry_content != entry.content {
-                    Some(false)
-                } else {
-                    Some(true)
-                }
-            }
-        };
+        let result = entry
+            .as_ref()
+            .map(|entry| bbn_entry_content == entry.content);
         match result {
             None => diff_stats.0 += 1,
-            Some(false) => diff_stats.1 += 1,
-            Some(true) => diff_stats.2 += 1,
+            Some(false) => diff_stats.2 += 1,
+            Some(true) => diff_stats.1 += 1,
         }
         if result != Some(true) {
             if date.is_none() {
