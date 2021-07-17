@@ -1,10 +1,11 @@
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::{Client, Config, EntryParams};
+use hatena_blog::{Client, Config};
 
 use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::HatenaBlogRepository,
+    bbn_repository::BbnRepository,
+    config_repository::ConfigRepository,
+    hatena_blog::{upload_entry, HatenaBlogRepository},
 };
 
 pub async fn upload(
@@ -29,7 +30,7 @@ pub async fn upload(
         hatena_api_key.as_str(),
     );
     let hatena_blog_client = Client::new(&config);
-    upload_impl(
+    let (created, entry_id) = upload_entry(
         date,
         draft,
         hatena_id,
@@ -37,44 +38,11 @@ pub async fn upload(
         hatena_blog_repository,
         hatena_blog_client,
     )
-    .await
-}
-
-async fn upload_impl(
-    date: Date,
-    draft: bool,
-    hatena_id: String,
-    bbn_repository: BbnRepository,
-    hatena_blog_repository: HatenaBlogRepository,
-    hatena_blog_client: Client,
-) -> anyhow::Result<()> {
-    let entry_id = bbn_repository
-        .find_id_by_date(date)?
-        .context("entry id not found")?;
-    let (entry_meta, entry_content) = bbn_repository
-        .find_entry_by_id(&entry_id)?
-        .context("entry not found")?;
-    let updated = entry_meta.pubdate;
-    let params = EntryParams::new(
-        hatena_id,
-        entry_meta.title.clone(),
-        entry_content,
-        updated.to_rfc3339(),
-        vec![],
-        draft,
+    .await?;
+    println!(
+        "{} {}",
+        if created { "created" } else { "updated" },
+        entry_id
     );
-    match hatena_blog_repository
-        .find_entry_by_updated(updated)
-        .await?
-    {
-        None => {
-            hatena_blog_client.create_entry(params).await?;
-            println!("create {} {}", date, entry_meta.title);
-        }
-        Some(entry) => {
-            hatena_blog_client.update_entry(&entry.id, params).await?;
-            println!("update {} {}", date, entry_meta.title);
-        }
-    }
     Ok(())
 }
