@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use anyhow::Context;
 use date_range::date::Date;
 use hatena_blog::{Client, Config, EntryParams};
@@ -10,7 +8,7 @@ use crate::{
 };
 
 pub async fn post_to_hatena_blog(
-    date: String,
+    date: Date,
     draft: bool,
     hatena_api_key: String,
     hatena_blog_id: String,
@@ -24,7 +22,7 @@ pub async fn post_to_hatena_blog(
     let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
 
     let bbn_repository = BbnRepository::new(data_dir);
-    let entry_id = bbn_repository.find_id_by_date(Date::from_str(date.as_str())?)?;
+    let entry_id = bbn_repository.find_id_by_date(date)?;
     let entry_id = entry_id.context("id not found")?;
     let (entry_meta, entry_content) = bbn_repository
         .find_entry_by_id(&entry_id)?

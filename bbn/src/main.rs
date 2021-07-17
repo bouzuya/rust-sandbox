@@ -92,7 +92,7 @@ pub enum HatenaBlogSubcommand {
     #[structopt(name = "upload", about = "Upload to the hatena blog")]
     Upload {
         #[structopt(name = "DATE", help = "date")]
-        date: String,
+        date: Date,
         #[structopt(long = "draft")]
         draft: bool,
         #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
