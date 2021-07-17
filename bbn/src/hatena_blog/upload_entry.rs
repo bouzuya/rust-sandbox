@@ -1,7 +1,12 @@
-use crate::{bbn_repository::BbnRepository, entry_id::EntryId, hatena_blog::HatenaBlogRepository};
+use std::convert::TryFrom;
+
+use crate::{
+    bbn_repository::BbnRepository, entry_id::EntryId, hatena_blog::HatenaBlogRepository,
+    timestamp::Timestamp,
+};
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::{Client, EntryParams};
+use hatena_blog::{Client, CreateEntryResponse, Entry, EntryParams, UpdateEntryResponse};
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -35,17 +40,28 @@ pub async fn upload_entry(
         vec![],
         draft,
     );
-    match hatena_blog_repository
+    let res = match hatena_blog_repository
         .find_entry_by_updated(updated)
         .await?
     {
         None => {
-            hatena_blog_client.create_entry(params).await?;
-            Ok((true, entry_id))
+            let response = hatena_blog_client.create_entry(params).await?;
+            let body = response.to_string();
+            let hatena_blog_entry = Entry::try_from(CreateEntryResponse::from(body.clone()))?;
+            hatena_blog_repository
+                .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
+                .await?;
+            (true, entry_id)
         }
         Some(entry) => {
-            hatena_blog_client.update_entry(&entry.id, params).await?;
-            Ok((false, entry_id))
+            let response = hatena_blog_client.update_entry(&entry.id, params).await?;
+            let body = response.to_string();
+            let hatena_blog_entry = Entry::try_from(UpdateEntryResponse::from(body.clone()))?;
+            hatena_blog_repository
+                .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
+                .await?;
+            (false, entry_id)
         }
-    }
+    };
+    Ok(res)
 }

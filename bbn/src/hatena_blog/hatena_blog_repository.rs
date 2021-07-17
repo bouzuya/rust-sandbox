@@ -292,22 +292,21 @@ SELECT
     entry_ids.entry_id AS entry_id
     , member_responses.body AS body
 FROM entry_ids
-INNER JOIN member_responses USING(entry_id)
+INNER JOIN (
+    SELECT
+        latest_responses.entry_id AS entry_id
+        , MAX(latest_responses.at) AS at
+    FROM member_responses AS latest_responses
+    GROUP BY
+        latest_responses.entry_id
+) AS latest_responses
+ON latest_responses.entry_id = entry_ids.entry_id
+INNER JOIN member_responses
+ON member_responses.entry_id = latest_responses.entry_id
+AND member_responses.at = latest_responses.at
 LEFT OUTER JOIN entries USING(entry_id)
 WHERE entries.entry_id IS NULL
-OR EXISTS (
-    SELECT
-        inner_entries.entry_id
-        , inner_entries.parsed_at
-        , MAX(inner_responses.at) AS max_downloaded_at
-    FROM entries AS inner_entries
-    INNER JOIN member_responses AS inner_responses USING(entry_id)
-    WHERE inner_entries.entry_id = entries.entry_id
-    GROUP BY
-        inner_entries.entry_id
-        , inner_entries.parsed_at
-    HAVING inner_entries.parsed_at < max_downloaded_at
-)
+OR entries.parsed_at < latest_responses.at
 ORDER BY entry_ids.published ASC
                     "#,
         )
