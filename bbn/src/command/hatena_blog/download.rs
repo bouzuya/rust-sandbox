@@ -1,6 +1,8 @@
 use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::HatenaBlogRepository, timestamp::Timestamp,
+    bbn_repository::BbnRepository,
+    config_repository::ConfigRepository,
+    hatena_blog::{download_entry, HatenaBlogRepository},
+    timestamp::Timestamp,
 };
 use anyhow::Context;
 use date_range::date::Date;
@@ -27,28 +29,8 @@ pub async fn download_from_hatena_blog(
 
     if let Some(d) = date {
         let bbn_repository = BbnRepository::new(data_dir);
-        match bbn_repository.find_id_by_date(d)? {
-            None => println!("no entry_id"),
-            Some(entry_id) => match bbn_repository.find_meta_by_id(&entry_id)? {
-                None => println!("no entry_meta"),
-                Some(entry_meta) => {
-                    match hatena_blog_repository
-                        .find_entry_by_updated(entry_meta.pubdate)
-                        .await?
-                    {
-                        None => println!("no hatena-blog entry"),
-                        Some(entry) => {
-                            let response = client.get_entry(&entry.id).await?;
-                            let body = response.to_string();
-                            hatena_blog_repository
-                                .update_member_response(&entry.id, Timestamp::now()?, body)
-                                .await?;
-                            println!("downloaded member id: {}", entry_id);
-                        }
-                    }
-                }
-            },
-        }
+        let entry_id = download_entry(d, bbn_repository, hatena_blog_repository, client).await?;
+        println!("downloaded member id: {}", entry_id);
         return Ok(());
     }
 
