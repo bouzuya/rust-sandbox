@@ -48,6 +48,12 @@ pub async fn upload_entry(
             let response = hatena_blog_client.create_entry(params).await?;
             let body = response.to_string();
             let hatena_blog_entry = Entry::try_from(CreateEntryResponse::from(body.clone()))?;
+            let updated = Timestamp::from_rfc3339(&hatena_blog_entry.updated)?;
+            let published = Timestamp::from_rfc3339(&hatena_blog_entry.published)?;
+            let edited = Timestamp::from_rfc3339(&hatena_blog_entry.edited)?;
+            hatena_blog_repository
+                .add(&hatena_blog_entry.id, updated, published, edited)
+                .await?;
             hatena_blog_repository
                 .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
                 .await?;
