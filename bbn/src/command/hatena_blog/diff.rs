@@ -61,7 +61,7 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
         if result != Some(true) {
             if date.is_none() {
                 println!(
-                    "{} {:?}",
+                    "{} {}",
                     result.map(|b| if b { "eq" } else { "ne" }).unwrap_or("no"),
                     entry_id
                 );
