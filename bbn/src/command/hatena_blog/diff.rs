@@ -12,7 +12,7 @@ async fn parse_entry(repository: &HatenaBlogRepository) -> anyhow::Result<()> {
     for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
         let entry = Entry::try_from(GetEntryResponse::from(body))?;
         repository.create_entry(entry, Timestamp::now()?).await?;
-        eprintln!("{}", entry_id);
+        eprintln!("parsed member id: {}", entry_id);
     }
     Ok(())
 }
