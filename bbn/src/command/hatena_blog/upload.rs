@@ -54,7 +54,7 @@ pub async fn post_to_hatena_blog(
                     draft,
                 ))
                 .await?;
-            println!("{} {}", date, entry_meta.title);
+            println!("create {} {}", date, entry_meta.title);
         }
         Some(entry) => {
             client
@@ -70,7 +70,7 @@ pub async fn post_to_hatena_blog(
                     ),
                 )
                 .await?;
-            println!("{} {}", date, entry_meta.title);
+            println!("update {} {}", date, entry_meta.title);
         }
     }
 
