@@ -85,9 +85,10 @@ impl HatenaBlogRepository {
         sqlx::query(
             r#"
         CREATE TABLE IF NOT EXISTS member_responses (
-            entry_id TEXT PRIMARY KEY,
+            entry_id TEXT NOT NULL,
             at TIMESTAMP NOT NULL,
             body TEXT NOT NULL,
+            PRIMARY KEY (entry_id, at),
             FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
         )"#,
         )
@@ -259,33 +260,26 @@ VALUES (
     pub async fn delete_old_entries(&self) -> anyhow::Result<()> {
         sqlx::query(
             r#"
-        DELETE FROM entries
-         WHERE entries.entry_id IN (
-            SELECT entries.entry_id FROM entries INNER JOIN member_responses USING(entry_id)
-             WHERE entries.parsed_at < member_responses.at
-         )
+DELETE FROM entries
+WHERE entries.entry_id IN (
+    SELECT
+        entry_id
+    FROM
+        (
+            SELECT
+                entry_id
+                , parsed_at
+                , MAX(at) AS max_downloaded_at
+            FROM entries
+            INNER JOIN member_responses USING(entry_id)
+            GROUP BY
+                entry_id
+                , parsed_at
+            HAVING parsed_at < max_downloaded_at
+        )
+)
             "#,
         )
-        .execute(&self.pool)
-        .await?;
-        Ok(())
-    }
-
-    pub async fn update_member_response(
-        &self,
-        entry_id: &EntryId,
-        at: Timestamp,
-        body: String,
-    ) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-            UPDATE member_responses SET at = ?, body = ?
-            WHERE entry_id = ?
-            "#,
-        )
-        .bind(i64::from(at))
-        .bind(body)
-        .bind(entry_id.to_string())
         .execute(&self.pool)
         .await?;
         Ok(())
@@ -294,13 +288,27 @@ VALUES (
     pub async fn find_entries_waiting_for_parsing(&self) -> anyhow::Result<Vec<(EntryId, String)>> {
         let rows: Vec<(String, String)> = sqlx::query_as(
             r#"
-        SELECT entry_ids.entry_id AS entry_id,
-               member_responses.body AS body
-          FROM entry_ids
-          INNER JOIN member_responses USING(entry_id)
-          LEFT OUTER JOIN entries USING(entry_id)
-         WHERE entries.entry_id IS NULL OR member_responses.at > entries.parsed_at
-         ORDER BY entry_ids.published ASC
+SELECT
+    entry_ids.entry_id AS entry_id
+    , member_responses.body AS body
+FROM entry_ids
+INNER JOIN member_responses USING(entry_id)
+LEFT OUTER JOIN entries USING(entry_id)
+WHERE entries.entry_id IS NULL
+OR EXISTS (
+    SELECT
+        inner_entries.entry_id
+        , inner_entries.parsed_at
+        , MAX(inner_responses.at) AS max_downloaded_at
+    FROM entries AS inner_entries
+    INNER JOIN member_responses AS inner_responses USING(entry_id)
+    WHERE inner_entries.entry_id = entries.entry_id
+    GROUP BY
+        inner_entries.entry_id
+        , inner_entries.parsed_at
+    HAVING inner_entries.parsed_at < max_downloaded_at
+)
+ORDER BY entry_ids.published ASC
                     "#,
         )
         .fetch_all(&self.pool)
