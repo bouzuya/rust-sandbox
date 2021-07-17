@@ -152,14 +152,8 @@ async fn main() -> anyhow::Result<()> {
                 hatena_blog_id,
                 hatena_id,
             } => {
-                command::hatena_blog::post_to_hatena_blog(
-                    date,
-                    draft,
-                    hatena_api_key,
-                    hatena_blog_id,
-                    hatena_id,
-                )
-                .await
+                command::hatena_blog::upload(date, draft, hatena_api_key, hatena_blog_id, hatena_id)
+                    .await
             }
             HatenaBlogSubcommand::View {
                 date,

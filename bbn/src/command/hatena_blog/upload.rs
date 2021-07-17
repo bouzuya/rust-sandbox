@@ -7,7 +7,7 @@ use crate::{
     config_repository::ConfigRepository,
 };
 
-pub async fn post_to_hatena_blog(
+pub async fn upload(
     date: Date,
     draft: bool,
     hatena_api_key: String,
@@ -19,58 +19,62 @@ pub async fn post_to_hatena_blog(
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;
     let data_dir = config.data_dir().to_path_buf();
-    let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
-
     let bbn_repository = BbnRepository::new(data_dir);
-    let entry_id = bbn_repository.find_id_by_date(date)?;
-    let entry_id = entry_id.context("id not found")?;
-    let (entry_meta, entry_content) = bbn_repository
-        .find_entry_by_id(&entry_id)?
-        .context("not found")?;
-
+    let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
+    let hatena_blog_repository = BbnHatenaBlogRepository::new(hatena_blog_data_file).await?;
     let config = Config::new(
         hatena_id.as_str(),
         None,
         hatena_blog_id.as_str(),
         hatena_api_key.as_str(),
     );
-    let client = Client::new(&config);
+    let hatena_blog_client = Client::new(&config);
+    upload_impl(
+        date,
+        draft,
+        hatena_id,
+        bbn_repository,
+        hatena_blog_repository,
+        hatena_blog_client,
+    )
+    .await
+}
 
-    let hatena_blog_repository = BbnHatenaBlogRepository::new(hatena_blog_data_file).await?;
+async fn upload_impl(
+    date: Date,
+    draft: bool,
+    hatena_id: String,
+    bbn_repository: BbnRepository,
+    hatena_blog_repository: BbnHatenaBlogRepository,
+    hatena_blog_client: Client,
+) -> anyhow::Result<()> {
+    let entry_id = bbn_repository
+        .find_id_by_date(date)?
+        .context("entry id not found")?;
+    let (entry_meta, entry_content) = bbn_repository
+        .find_entry_by_id(&entry_id)?
+        .context("entry not found")?;
+    let updated = entry_meta.pubdate;
+    let params = EntryParams::new(
+        hatena_id,
+        entry_meta.title.clone(),
+        entry_content,
+        updated.to_rfc3339(),
+        vec![],
+        draft,
+    );
     match hatena_blog_repository
-        .find_entry_by_updated(entry_meta.pubdate)
+        .find_entry_by_updated(updated)
         .await?
     {
         None => {
-            client
-                .create_entry(EntryParams::new(
-                    hatena_id,
-                    entry_meta.title.clone(),
-                    entry_content,
-                    entry_meta.pubdate.to_rfc3339(),
-                    vec![],
-                    draft,
-                ))
-                .await?;
+            hatena_blog_client.create_entry(params).await?;
             println!("create {} {}", date, entry_meta.title);
         }
         Some(entry) => {
-            client
-                .update_entry(
-                    &entry.id,
-                    EntryParams::new(
-                        hatena_id,
-                        entry_meta.title.clone(),
-                        entry_content,
-                        entry_meta.pubdate.to_rfc3339(),
-                        vec![],
-                        draft,
-                    ),
-                )
-                .await?;
+            hatena_blog_client.update_entry(&entry.id, params).await?;
             println!("update {} {}", date, entry_meta.title);
         }
     }
-
     Ok(())
 }
