@@ -1,6 +1,6 @@
 use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::BbnHatenaBlogRepository, timestamp::Timestamp,
+    hatena_blog::HatenaBlogRepository, timestamp::Timestamp,
 };
 use anyhow::Context;
 use date_range::date::Date;
@@ -23,7 +23,7 @@ pub async fn download_from_hatena_blog(
 
     let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
     let client = Client::new(&config);
-    let repository = BbnHatenaBlogRepository::new(data_file).await?;
+    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
 
     if let Some(d) = date {
         let bbn_repository = BbnRepository::new(data_dir);
@@ -32,12 +32,15 @@ pub async fn download_from_hatena_blog(
             Some(entry_id) => match bbn_repository.find_meta_by_id(&entry_id)? {
                 None => println!("no entry_meta"),
                 Some(entry_meta) => {
-                    match repository.find_entry_by_updated(entry_meta.pubdate).await? {
+                    match hatena_blog_repository
+                        .find_entry_by_updated(entry_meta.pubdate)
+                        .await?
+                    {
                         None => println!("no hatena-blog entry"),
                         Some(entry) => {
                             let response = client.get_entry(&entry.id).await?;
                             let body = response.to_string();
-                            repository
+                            hatena_blog_repository
                                 .update_member_response(&entry.id, Timestamp::now()?, body)
                                 .await?;
                             println!("downloaded member id: {}", entry_id);
@@ -49,7 +52,7 @@ pub async fn download_from_hatena_blog(
         return Ok(());
     }
 
-    let last_download_at = repository.get_last_list_request_at().await?;
+    let last_download_at = hatena_blog_repository.get_last_list_request_at().await?;
     let curr_download_at = Timestamp::now()?;
     println!(
         "last download date: {}",
@@ -62,12 +65,14 @@ pub async fn download_from_hatena_blog(
     let mut next_page = None;
     loop {
         // send request
-        let request_id = repository
+        let request_id = hatena_blog_repository
             .create_list_request(Timestamp::now()?, &next_page)
             .await?;
         let response = client.list_entries_in_page(next_page.as_deref()).await?;
         let body = response.to_string();
-        repository.create_list_response(request_id, body).await?;
+        hatena_blog_repository
+            .create_list_response(request_id, body)
+            .await?;
 
         // parse response
         let (next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
@@ -86,7 +91,7 @@ pub async fn download_from_hatena_blog(
                 let updated = Timestamp::from_rfc3339(&entry.updated)?;
                 let published = Timestamp::from_rfc3339(&entry.published)?;
                 let edited = Timestamp::from_rfc3339(&entry.edited)?;
-                repository
+                hatena_blog_repository
                     .add(&entry.id, updated, published, edited)
                     .await?;
             }
@@ -104,7 +109,7 @@ pub async fn download_from_hatena_blog(
         sleep(Duration::from_secs(1)).await;
     }
 
-    repository
+    hatena_blog_repository
         .set_last_list_request_at(curr_download_at)
         .await?;
     println!(
@@ -112,10 +117,10 @@ pub async fn download_from_hatena_blog(
         curr_download_at.to_rfc3339()
     );
 
-    for entry_id in repository.find_incomplete_entry_ids().await? {
+    for entry_id in hatena_blog_repository.find_incomplete_entry_ids().await? {
         let response = client.get_entry(&entry_id).await?;
         let body = response.to_string();
-        repository
+        hatena_blog_repository
             .create_member_response(&entry_id, Timestamp::now()?, body)
             .await?;
         println!("downloaded member id: {}", entry_id);

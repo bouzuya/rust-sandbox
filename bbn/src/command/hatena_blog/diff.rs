@@ -3,11 +3,11 @@ use hatena_blog::{Entry, GetEntryResponse};
 
 use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::BbnHatenaBlogRepository, query::Query, timestamp::Timestamp,
+    hatena_blog::HatenaBlogRepository, query::Query, timestamp::Timestamp,
 };
 use std::convert::TryFrom;
 
-async fn parse_entry(repository: &BbnHatenaBlogRepository) -> anyhow::Result<()> {
+async fn parse_entry(repository: &HatenaBlogRepository) -> anyhow::Result<()> {
     repository.delete_old_entries().await?;
     for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
         let entry = Entry::try_from(GetEntryResponse::from(body))?;
@@ -25,10 +25,10 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     let data_dir = config.data_dir().to_path_buf();
     let data_file = config.hatena_blog_data_file().to_path_buf();
 
-    let repository = BbnHatenaBlogRepository::new(data_file).await?;
+    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
     let bbn_repository = BbnRepository::new(data_dir.clone());
 
-    parse_entry(&repository).await?;
+    parse_entry(&hatena_blog_repository).await?;
 
     let query_string = match date {
         Some(ref s) => format!("date:{}", s),
@@ -40,7 +40,7 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     for entry_id in entry_ids {
         let (bbn_entry_meta, bbn_entry_content) =
             bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
-        let entry = repository
+        let entry = hatena_blog_repository
             .find_entry_by_updated(bbn_entry_meta.pubdate)
             .await?;
         let result = match entry {

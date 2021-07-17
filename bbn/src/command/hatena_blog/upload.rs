@@ -4,7 +4,7 @@ use hatena_blog::{Client, Config, EntryParams};
 
 use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::BbnHatenaBlogRepository,
+    hatena_blog::HatenaBlogRepository,
 };
 
 pub async fn upload(
@@ -21,7 +21,7 @@ pub async fn upload(
     let data_dir = config.data_dir().to_path_buf();
     let bbn_repository = BbnRepository::new(data_dir);
     let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
-    let hatena_blog_repository = BbnHatenaBlogRepository::new(hatena_blog_data_file).await?;
+    let hatena_blog_repository = HatenaBlogRepository::new(hatena_blog_data_file).await?;
     let config = Config::new(
         hatena_id.as_str(),
         None,
@@ -45,7 +45,7 @@ async fn upload_impl(
     draft: bool,
     hatena_id: String,
     bbn_repository: BbnRepository,
-    hatena_blog_repository: BbnHatenaBlogRepository,
+    hatena_blog_repository: HatenaBlogRepository,
     hatena_blog_client: Client,
 ) -> anyhow::Result<()> {
     let entry_id = bbn_repository

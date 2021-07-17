@@ -4,7 +4,7 @@ use date_range::date::Date;
 
 use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::BbnHatenaBlogRepository,
+    hatena_blog::HatenaBlogRepository,
 };
 pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
@@ -14,7 +14,7 @@ pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Resu
     let data_dir = config.data_dir().to_path_buf();
     let data_file = config.hatena_blog_data_file().to_path_buf();
 
-    let hatena_blog_repository = BbnHatenaBlogRepository::new(data_file).await?;
+    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
     let bbn_repository = BbnRepository::new(data_dir.clone());
 
     let bbn_entry_id = bbn_repository
