@@ -34,18 +34,24 @@ pub async fn download_from_hatena_blog(
         return Ok(());
     }
 
-    let last_download_at = hatena_blog_repository.get_last_list_request_at().await?;
-    let curr_download_at = Timestamp::now()?;
+    let last_indexing_started_at = hatena_blog_repository
+        .find_last_successful_indexing_started_at()
+        .await?;
     println!(
-        "last download date: {}",
-        last_download_at
+        "last indexing started at: {}",
+        last_indexing_started_at
             .map(|at| at.to_rfc3339())
-            .unwrap_or_default()
+            .unwrap_or_else(|| "(null)".to_string())
     );
 
+    let curr_indexing_started_at = Timestamp::now()?;
     let indexing_id = hatena_blog_repository
-        .create_indexing(Timestamp::now()?)
+        .create_indexing(curr_indexing_started_at)
         .await?;
+    println!(
+        "indexing started at: {}",
+        curr_indexing_started_at.to_rfc3339()
+    );
 
     let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
@@ -56,6 +62,10 @@ pub async fn download_from_hatena_blog(
         let collection_response_id = hatena_blog_repository
             .create_collection_response(Timestamp::now()?, body)
             .await?;
+        println!(
+            "downloaded collection page: {}",
+            next_page.unwrap_or_else(|| "(null)".to_string())
+        );
         hatena_blog_repository
             .create_indexing_collection_response(indexing_id, collection_response_id)
             .await?;
@@ -64,7 +74,7 @@ pub async fn download_from_hatena_blog(
         let (next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
         let filtered = entries
             .iter()
-            .take_while(|entry| match last_download_at {
+            .take_while(|entry| match last_indexing_started_at {
                 None => true,
                 Some(last) => Timestamp::from_rfc3339(&entry.published)
                     .map(|published| last <= published)
@@ -95,15 +105,13 @@ pub async fn download_from_hatena_blog(
         sleep(Duration::from_secs(1)).await;
     }
 
+    let indexing_succeeded_at = Timestamp::now()?;
     hatena_blog_repository
-        .create_successful_indexing(indexing_id, Timestamp::now()?)
-        .await?;
-    hatena_blog_repository
-        .set_last_list_request_at(curr_download_at)
+        .create_successful_indexing(indexing_id, indexing_succeeded_at)
         .await?;
     println!(
-        "updated last download date: {}",
-        curr_download_at.to_rfc3339()
+        "indexing succeeded at: {}",
+        indexing_succeeded_at.to_rfc3339()
     );
 
     for entry_id in hatena_blog_repository.find_incomplete_entry_ids().await? {

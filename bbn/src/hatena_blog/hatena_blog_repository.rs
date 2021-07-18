@@ -106,15 +106,6 @@ CREATE TABLE IF NOT EXISTS successful_indexings (
 
         sqlx::query(
             r#"
-        CREATE TABLE IF NOT EXISTS last_list_request_at (
-            at INTEGER
-        )"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
         CREATE TABLE IF NOT EXISTS member_responses (
             entry_id TEXT NOT NULL,
             at TIMESTAMP NOT NULL,
@@ -158,38 +149,20 @@ VALUES (?, ?, ?, ?)
         .map(|_| ())?)
     }
 
-    pub async fn get_last_list_request_at(&self) -> anyhow::Result<Option<Timestamp>> {
+    pub async fn find_last_successful_indexing_started_at(
+        &self,
+    ) -> anyhow::Result<Option<Timestamp>> {
         let row: Option<(i64,)> = sqlx::query_as(
             r#"
-SELECT at FROM last_list_request_at
+SELECT MAX(indexings.at)
+FROM indexings
+INNER JOIN successful_indexings
+ON successful_indexings.indexing_id = indexings.id
             "#,
         )
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|(at,)| Timestamp::from(at)))
-    }
-
-    pub async fn set_last_list_request_at(&self, at: Timestamp) -> anyhow::Result<()> {
-        let result = sqlx::query(
-            r#"
-UPDATE last_list_request_at SET at=?
-            "#,
-        )
-        .bind(i64::from(at))
-        .execute(&self.pool)
-        .await?;
-        let count = result.rows_affected();
-        if count == 0 {
-            sqlx::query(
-                r#"
-INSERT INTO last_list_request_at(at) VALUES (?)
-            "#,
-            )
-            .bind(i64::from(at))
-            .execute(&self.pool)
-            .await?;
-        }
-        Ok(())
     }
 
     pub async fn create_collection_response(
@@ -276,7 +249,7 @@ VALUES (?)
             r#"
 INSERT INTO indexing_collection_responses(
     indexing_id,
-    collection_response_id,
+    collection_response_id
 )
 VALUES (?, ?)
 "#,
