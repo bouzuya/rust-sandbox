@@ -1,7 +1,7 @@
 use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
-    hatena_blog::{download_entry, HatenaBlogRepository},
+    hatena_blog::{download_entry, HatenaBlogRepository, IndexingId},
     timestamp::Timestamp,
 };
 use anyhow::Context;
@@ -13,7 +13,7 @@ use tokio::time::sleep;
 async fn indexing(
     hatena_blog_repository: &HatenaBlogRepository,
     client: &Client,
-) -> anyhow::Result<i64> {
+) -> anyhow::Result<IndexingId> {
     let last_indexing_started_at = hatena_blog_repository
         .find_last_successful_indexing_started_at()
         .await?;
@@ -25,9 +25,11 @@ async fn indexing(
     );
 
     let curr_indexing_started_at = Timestamp::now()?;
-    let indexing_id = hatena_blog_repository
-        .create_indexing(curr_indexing_started_at)
-        .await?;
+    let indexing_id = IndexingId::from(
+        hatena_blog_repository
+            .create_indexing(curr_indexing_started_at)
+            .await?,
+    );
     println!(
         "indexing started at: {}",
         curr_indexing_started_at.to_rfc3339()

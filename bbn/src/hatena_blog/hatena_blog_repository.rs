@@ -7,6 +7,8 @@ use sqlx::{
 };
 use std::{path::PathBuf, str::FromStr};
 
+use crate::hatena_blog::IndexingId;
+
 #[derive(Debug)]
 pub struct HatenaBlogRepository {
     data_file: PathBuf,
@@ -253,7 +255,7 @@ VALUES (?)
 
     pub async fn create_indexing_collection_response(
         &self,
-        indexing_id: i64,
+        indexing_id: IndexingId,
         collection_response_id: i64,
     ) -> anyhow::Result<i64> {
         Ok(sqlx::query(
@@ -265,7 +267,7 @@ INSERT INTO indexing_collection_responses(
 VALUES (?, ?)
 "#,
         )
-        .bind(indexing_id)
+        .bind(i64::from(indexing_id))
         .bind(collection_response_id)
         .execute(&self.pool)
         .await?
@@ -306,7 +308,7 @@ VALUES (?, ?)
 
     pub async fn create_successful_indexing(
         &self,
-        indexing_id: i64,
+        indexing_id: IndexingId,
         at: Timestamp,
     ) -> anyhow::Result<i64> {
         Ok(sqlx::query(
@@ -315,7 +317,7 @@ INSERT INTO successful_indexings(indexing_id, at)
 VALUES (?, ?)
             "#,
         )
-        .bind(indexing_id)
+        .bind(i64::from(indexing_id))
         .bind(i64::from(at))
         .execute(&self.pool)
         .await?
@@ -337,7 +339,7 @@ WHERE entries.entry_id = ?
 
     pub async fn find_collection_responses_by_indexing_id(
         &self,
-        indexing_id: i64,
+        indexing_id: IndexingId,
     ) -> anyhow::Result<Vec<String>> {
         let rows: Vec<(String,)> = sqlx::query_as(
             r#"
@@ -352,7 +354,7 @@ ORDER BY
     collection_responses.id ASC
 "#,
         )
-        .bind(indexing_id)
+        .bind(i64::from(indexing_id))
         .fetch_all(&self.pool)
         .await?;
         Ok(rows
