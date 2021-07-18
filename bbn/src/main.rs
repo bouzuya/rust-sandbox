@@ -139,13 +139,8 @@ async fn main() -> anyhow::Result<()> {
                 hatena_blog_id,
                 hatena_id,
             } => {
-                command::hatena_blog::download_from_hatena_blog(
-                    date,
-                    hatena_api_key,
-                    hatena_blog_id,
-                    hatena_id,
-                )
-                .await
+                command::hatena_blog::download(date, hatena_api_key, hatena_blog_id, hatena_id)
+                    .await
             }
             HatenaBlogSubcommand::Upload {
                 date,

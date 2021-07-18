@@ -128,7 +128,7 @@ async fn indexing(
     Ok(indexing_id)
 }
 
-pub async fn download_from_hatena_blog(
+pub async fn download(
     date: Option<Date>,
     hatena_api_key: String,
     hatena_blog_id: String,
