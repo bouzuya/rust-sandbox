@@ -106,28 +106,6 @@ CREATE TABLE IF NOT EXISTS successful_indexings (
 
         sqlx::query(
             r#"
-        CREATE TABLE IF NOT EXISTS list_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            at INTEGER NOT NULL,
-            page TEXT
-        )"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-        CREATE TABLE IF NOT EXISTS list_responses (
-            request_id INTEGER PRIMARY KEY,
-            body TEXT NOT NULL,
-            FOREIGN KEY (request_id) REFERENCES list_requests(id)
-        )"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
         CREATE TABLE IF NOT EXISTS last_list_request_at (
             at INTEGER
         )"#,
@@ -276,24 +254,6 @@ VALUES (
         .last_insert_rowid())
     }
 
-    pub async fn create_list_request(
-        &self,
-        at: Timestamp,
-        page: &Option<String>,
-    ) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
-            INSERT INTO list_requests(at, page)
-            VALUES (?, ?)
-            "#,
-        )
-        .bind(i64::from(at))
-        .bind(page)
-        .execute(&self.pool)
-        .await?
-        .last_insert_rowid())
-    }
-
     pub async fn create_indexing(&self, at: Timestamp) -> anyhow::Result<i64> {
         Ok(sqlx::query(
             r#"
@@ -326,20 +286,6 @@ VALUES (?, ?)
         .execute(&self.pool)
         .await?
         .last_insert_rowid())
-    }
-
-    pub async fn create_list_response(&self, request_id: i64, body: String) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-            INSERT INTO list_responses(request_id, body)
-            VALUES (?, ?)
-            "#,
-        )
-        .bind(request_id)
-        .bind(body)
-        .execute(&self.pool)
-        .await?;
-        Ok(())
     }
 
     pub async fn create_member_response(

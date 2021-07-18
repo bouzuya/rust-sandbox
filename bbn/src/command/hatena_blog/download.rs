@@ -51,14 +51,8 @@ pub async fn download_from_hatena_blog(
     let mut next_page = None;
     loop {
         // send request
-        let request_id = hatena_blog_repository
-            .create_list_request(Timestamp::now()?, &next_page)
-            .await?;
         let response = client.list_entries_in_page(next_page.as_deref()).await?;
         let body = response.to_string();
-        hatena_blog_repository
-            .create_list_response(request_id, body.clone())
-            .await?;
         let collection_response_id = hatena_blog_repository
             .create_collection_response(Timestamp::now()?, body)
             .await?;
