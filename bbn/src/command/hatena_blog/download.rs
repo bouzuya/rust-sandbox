@@ -43,6 +43,10 @@ pub async fn download_from_hatena_blog(
             .unwrap_or_default()
     );
 
+    let indexing_id = hatena_blog_repository
+        .create_indexing(Timestamp::now()?)
+        .await?;
+
     let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
     loop {
@@ -53,7 +57,13 @@ pub async fn download_from_hatena_blog(
         let response = client.list_entries_in_page(next_page.as_deref()).await?;
         let body = response.to_string();
         hatena_blog_repository
-            .create_list_response(request_id, body)
+            .create_list_response(request_id, body.clone())
+            .await?;
+        let collection_response_id = hatena_blog_repository
+            .create_collection_response(Timestamp::now()?, body)
+            .await?;
+        hatena_blog_repository
+            .create_indexing_collection_response(indexing_id, collection_response_id)
             .await?;
 
         // parse response
@@ -91,6 +101,9 @@ pub async fn download_from_hatena_blog(
         sleep(Duration::from_secs(1)).await;
     }
 
+    hatena_blog_repository
+        .create_successful_indexing(indexing_id, Timestamp::now()?)
+        .await?;
     hatena_blog_repository
         .set_last_list_request_at(curr_download_at)
         .await?;

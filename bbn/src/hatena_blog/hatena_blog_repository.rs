@@ -51,6 +51,59 @@ impl HatenaBlogRepository {
         .execute(&pool)
         .await?;
 
+        // response
+
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS collection_responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    body TEXT NOT NULL
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
+        // indexing
+
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS indexings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS indexing_collection_responses (
+    indexing_id INTEGER NOT NULL,
+    collection_response_id INTEGER NOT NULL,
+    PRIMARY KEY (indexing_id, collection_response_id),
+    FOREIGN KEY (indexing_id) REFERENCES indexings (id) ON DELETE CASCADE,
+    FOREIGN KEY (collection_response_id) REFERENCES collection_responses (id) ON DELETE CASCADE
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS successful_indexings (
+    indexing_id INTEGER PRIMARY KEY,
+    at INTEGER NOT NULL,
+    FOREIGN KEY (indexing_id) REFERENCES indexings (id) ON DELETE CASCADE
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
         sqlx::query(
             r#"
         CREATE TABLE IF NOT EXISTS list_requests (
@@ -161,6 +214,24 @@ INSERT INTO last_list_request_at(at) VALUES (?)
         Ok(())
     }
 
+    pub async fn create_collection_response(
+        &self,
+        at: Timestamp,
+        body: String,
+    ) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            r#"
+INSERT INTO collection_responses(at, body)
+VALUES (?, ?)
+            "#,
+        )
+        .bind(i64::from(at))
+        .bind(body)
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid())
+    }
+
     pub async fn create_entry(&self, entry: Entry, parsed_at: Timestamp) -> anyhow::Result<i64> {
         Ok(sqlx::query(
             r#"
@@ -223,6 +294,40 @@ VALUES (
         .last_insert_rowid())
     }
 
+    pub async fn create_indexing(&self, at: Timestamp) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            r#"
+INSERT INTO indexings(at)
+VALUES (?)
+"#,
+        )
+        .bind(i64::from(at))
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid())
+    }
+
+    pub async fn create_indexing_collection_response(
+        &self,
+        indexing_id: i64,
+        collection_response_id: i64,
+    ) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            r#"
+INSERT INTO indexing_collection_responses(
+    indexing_id,
+    collection_response_id,
+)
+VALUES (?, ?)
+"#,
+        )
+        .bind(indexing_id)
+        .bind(collection_response_id)
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid())
+    }
+
     pub async fn create_list_response(&self, request_id: i64, body: String) -> anyhow::Result<()> {
         sqlx::query(
             r#"
@@ -255,6 +360,24 @@ VALUES (
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    pub async fn create_successful_indexing(
+        &self,
+        indexing_id: i64,
+        at: Timestamp,
+    ) -> anyhow::Result<i64> {
+        Ok(sqlx::query(
+            r#"
+INSERT INTO successful_indexings(indexing_id, at)
+VALUES (?, ?)
+            "#,
+        )
+        .bind(indexing_id)
+        .bind(i64::from(at))
+        .execute(&self.pool)
+        .await?
+        .last_insert_rowid())
     }
 
     pub async fn delete_old_entries(&self) -> anyhow::Result<()> {
