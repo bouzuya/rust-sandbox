@@ -24,16 +24,8 @@ async fn indexing(
             .unwrap_or_else(|| "(null)".to_string())
     );
 
-    let curr_indexing_started_at = Timestamp::now()?;
-    let indexing_id = IndexingId::from(
-        hatena_blog_repository
-            .create_indexing(curr_indexing_started_at)
-            .await?,
-    );
-    println!(
-        "indexing started at: {}",
-        curr_indexing_started_at.to_rfc3339()
-    );
+    let indexing = hatena_blog_repository.create_indexing().await?;
+    println!("indexing started at: {}", indexing.at().to_rfc3339());
 
     let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
@@ -49,7 +41,7 @@ async fn indexing(
             next_page.unwrap_or_else(|| "(null)".to_string())
         );
         hatena_blog_repository
-            .create_indexing_collection_response(indexing_id, collection_response_id)
+            .create_indexing_collection_response(indexing.id(), collection_response_id)
             .await?;
 
         // parse response
@@ -93,7 +85,7 @@ async fn indexing(
 
     let indexing_succeeded_at = Timestamp::now()?;
     hatena_blog_repository
-        .create_successful_indexing(indexing_id, indexing_succeeded_at)
+        .create_successful_indexing(indexing.id(), indexing_succeeded_at)
         .await?;
     println!(
         "indexing succeeded at: {}",
@@ -103,7 +95,7 @@ async fn indexing(
     // TODO: remove
     let mut entry_ids = BTreeSet::new();
     for body in hatena_blog_repository
-        .find_collection_responses_by_indexing_id(indexing_id)
+        .find_collection_responses_by_indexing_id(indexing.id())
         .await?
     {
         let response = ListEntriesResponse::from(body);
@@ -127,7 +119,7 @@ async fn indexing(
             .await?;
     }
 
-    Ok(indexing_id)
+    Ok(indexing.id())
 }
 
 pub async fn download(

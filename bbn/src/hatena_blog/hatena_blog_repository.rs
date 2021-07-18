@@ -7,6 +7,7 @@ use sqlx::{
 };
 use std::{path::PathBuf, str::FromStr};
 
+use crate::hatena_blog::Indexing;
 use crate::hatena_blog::IndexingId;
 
 #[derive(Debug)]
@@ -240,17 +241,21 @@ VALUES (
         .last_insert_rowid())
     }
 
-    pub async fn create_indexing(&self, at: Timestamp) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
+    pub async fn create_indexing(&self) -> anyhow::Result<Indexing> {
+        let at = Timestamp::now()?;
+        let id = IndexingId::from(
+            sqlx::query(
+                r#"
 INSERT INTO indexings(at)
 VALUES (?)
 "#,
-        )
-        .bind(i64::from(at))
-        .execute(&self.pool)
-        .await?
-        .last_insert_rowid())
+            )
+            .bind(i64::from(at))
+            .execute(&self.pool)
+            .await?
+            .last_insert_rowid(),
+        );
+        Ok(Indexing::new(id, at))
     }
 
     pub async fn create_indexing_collection_response(
@@ -456,6 +461,28 @@ ON successful_indexings.indexing_id = indexings.id
         Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
+    pub async fn find_indexing(&self, id: IndexingId) -> anyhow::Result<Option<Indexing>> {
+        let row: Option<(i64, i64)> = sqlx::query_as(
+            r#"
+SELECT
+    id
+    , at
+FROM
+    indexings
+WHERE
+    id = ?
+"#,
+        )
+        .bind(i64::from(id))
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|(id, at)| {
+            let id = IndexingId::from(id);
+            let at = Timestamp::from(at);
+            Indexing::new(id, at)
+        }))
+    }
+
     pub async fn find_last_parsed_at(&self) -> anyhow::Result<Option<Timestamp>> {
         let row: Option<(i64,)> = sqlx::query_as(
             r#"
@@ -466,5 +493,23 @@ FROM entries
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|(at,)| Timestamp::from(at)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn indexing_test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let data_file = temp_dir.path().join("db");
+        let repository = HatenaBlogRepository::new(data_file).await?;
+        let created = repository.create_indexing().await?;
+        let found = repository.find_indexing(created.id()).await?;
+        assert_eq!(found, Some(created));
+        Ok(())
     }
 }
