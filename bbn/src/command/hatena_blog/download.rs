@@ -10,30 +10,10 @@ use hatena_blog::{Client, Config, Entry};
 use std::{collections::BTreeSet, convert::TryInto, time::Duration};
 use tokio::time::sleep;
 
-pub async fn download_from_hatena_blog(
-    date: Option<Date>,
-    hatena_api_key: String,
-    hatena_blog_id: String,
-    hatena_id: String,
-) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
-    let config = config_repository
-        .load()
-        .context("The configuration file does not found. Use `bbn config` command.")?;
-    let data_file = config.hatena_blog_data_file().to_path_buf();
-    let data_dir = config.data_dir().to_path_buf();
-
-    let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
-    let client = Client::new(&config);
-    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
-
-    if let Some(d) = date {
-        let bbn_repository = BbnRepository::new(data_dir);
-        let entry_id = download_entry(d, bbn_repository, hatena_blog_repository, client).await?;
-        println!("downloaded member id: {}", entry_id);
-        return Ok(());
-    }
-
+async fn indexing(
+    hatena_blog_repository: &HatenaBlogRepository,
+    client: &Client,
+) -> anyhow::Result<i64> {
     let last_indexing_started_at = hatena_blog_repository
         .find_last_successful_indexing_started_at()
         .await?;
@@ -83,7 +63,11 @@ pub async fn download_from_hatena_blog(
             .collect::<Vec<&Entry>>();
         for entry in filtered.iter() {
             if entry_ids.insert(entry.id.to_string()) {
-                println!("{} (published: {})", entry.id, entry.published);
+                println!(
+                    "parsed hatena_blog entry_id: {} (published: {})",
+                    entry.id, entry.published
+                );
+                // TODO: remove
                 let updated = Timestamp::from_rfc3339(&entry.updated)?;
                 let published = Timestamp::from_rfc3339(&entry.published)?;
                 let edited = Timestamp::from_rfc3339(&entry.edited)?;
@@ -114,8 +98,43 @@ pub async fn download_from_hatena_blog(
         indexing_succeeded_at.to_rfc3339()
     );
 
+    Ok(indexing_id)
+}
+
+pub async fn download_from_hatena_blog(
+    date: Option<Date>,
+    hatena_api_key: String,
+    hatena_blog_id: String,
+    hatena_id: String,
+) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_file = config.hatena_blog_data_file().to_path_buf();
+    let data_dir = config.data_dir().to_path_buf();
+
+    let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
+    let hatena_blog_client = Client::new(&config);
+    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
+
+    if let Some(d) = date {
+        let bbn_repository = BbnRepository::new(data_dir);
+        let entry_id = download_entry(
+            d,
+            bbn_repository,
+            hatena_blog_repository,
+            hatena_blog_client,
+        )
+        .await?;
+        println!("downloaded member id: {}", entry_id);
+        return Ok(());
+    }
+
+    let _indexing_id = indexing(&hatena_blog_repository, &hatena_blog_client).await?;
+
     for entry_id in hatena_blog_repository.find_incomplete_entry_ids().await? {
-        let response = client.get_entry(&entry_id).await?;
+        let response = hatena_blog_client.get_entry(&entry_id).await?;
         let body = response.to_string();
         hatena_blog_repository
             .create_member_response(&entry_id, Timestamp::now()?, body)
