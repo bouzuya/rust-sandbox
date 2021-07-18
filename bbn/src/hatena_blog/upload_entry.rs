@@ -1,12 +1,10 @@
-use std::convert::TryFrom;
-
 use crate::{
     bbn_repository::BbnRepository, entry_id::EntryId, hatena_blog::HatenaBlogRepository,
     timestamp::Timestamp,
 };
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::{Client, CreateEntryResponse, Entry, EntryParams};
+use hatena_blog::{Client, EntryParams};
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -47,13 +45,6 @@ pub async fn upload_entry(
         None => {
             let response = hatena_blog_client.create_entry(params).await?;
             let body = response.to_string();
-            let hatena_blog_entry = Entry::try_from(CreateEntryResponse::from(body.clone()))?;
-            let updated = Timestamp::from_rfc3339(&hatena_blog_entry.updated)?;
-            let published = Timestamp::from_rfc3339(&hatena_blog_entry.published)?;
-            let edited = Timestamp::from_rfc3339(&hatena_blog_entry.edited)?;
-            hatena_blog_repository
-                .add(&hatena_blog_entry.id, updated, published, edited)
-                .await?;
             hatena_blog_repository
                 .create_member_response(Timestamp::now()?, body)
                 .await?;

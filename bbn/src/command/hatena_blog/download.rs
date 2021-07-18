@@ -61,13 +61,6 @@ async fn indexing(
                     "parsed hatena_blog entry_id: {} (published: {})",
                     entry.id, entry.published
                 );
-                // TODO: remove
-                let updated = Timestamp::from_rfc3339(&entry.updated)?;
-                let published = Timestamp::from_rfc3339(&entry.published)?;
-                let edited = Timestamp::from_rfc3339(&entry.edited)?;
-                hatena_blog_repository
-                    .add(&entry.id, updated, published, edited)
-                    .await?;
             }
         }
 

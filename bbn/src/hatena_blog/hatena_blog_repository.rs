@@ -24,32 +24,21 @@ impl HatenaBlogRepository {
         ))?
         .journal_mode(SqliteJournalMode::Delete);
         let pool = SqlitePoolOptions::new().connect_with(options).await?;
-        sqlx::query(
-            r#"
-        CREATE TABLE IF NOT EXISTS entry_ids (
-            entry_id TEXT PRIMARY KEY,
-            updated INTEGER NOT NULL,
-            published INTEGER NOT NULL,
-            edited INTEGER NOT NULL
-        )"#,
-        )
-        .execute(&pool)
-        .await?;
 
         sqlx::query(
             r#"
-        CREATE TABLE IF NOT EXISTS entries (
-            entry_id TEXT PRIMARY KEY,
-            author_name TEXT NOT NULL,
-            content TEXT NOT NULL,
-            draft INTEGER NOT NULL,
-            edited INTEGER NOT NULL,
-            published INTEGER NOT NULL,
-            title TEXT NOT NULL,
-            updated INTEGER NOT NULL,
-            parsed_at INTEGER NOT NULL,
-            FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
-        )"#,
+CREATE TABLE IF NOT EXISTS entries (
+    entry_id TEXT PRIMARY KEY,
+    author_name TEXT NOT NULL,
+    content TEXT NOT NULL,
+    draft INTEGER NOT NULL,
+    edited INTEGER NOT NULL,
+    published INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    updated INTEGER NOT NULL,
+    parsed_at INTEGER NOT NULL
+)
+        "#,
         )
         .execute(&pool)
         .await?;
@@ -148,35 +137,6 @@ CREATE TABLE IF NOT EXISTS member_request_results (
         .await?;
 
         Ok(Self { data_file, pool })
-    }
-
-    pub async fn add(
-        &self,
-        entry_id: &EntryId,
-        updated: Timestamp,
-        published: Timestamp,
-        edited: Timestamp,
-    ) -> anyhow::Result<()> {
-        let (count,): (i64,) = sqlx::query_as("SELECT COUNT(*) FROM entry_ids WHERE entry_id = ?")
-            .bind(entry_id.to_string())
-            .fetch_one(&self.pool)
-            .await?;
-        if count > 0 {
-            return Ok(());
-        }
-        Ok(sqlx::query(
-            r#"
-INSERT INTO entry_ids(entry_id, updated, published, edited)
-VALUES (?, ?, ?, ?)
-"#,
-        )
-        .bind(entry_id.to_string())
-        .bind(i64::from(updated))
-        .bind(i64::from(published))
-        .bind(i64::from(edited))
-        .execute(&self.pool)
-        .await
-        .map(|_| ())?)
     }
 
     pub async fn create_collection_response(
