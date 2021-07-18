@@ -7,11 +7,18 @@ use crate::{
 };
 use std::convert::TryFrom;
 
-async fn parse_entry(repository: &HatenaBlogRepository) -> anyhow::Result<()> {
-    repository.delete_old_entries().await?;
-    for (entry_id, body) in repository.find_entries_waiting_for_parsing().await? {
+async fn parse_entry(hatena_blog_repository: &HatenaBlogRepository) -> anyhow::Result<()> {
+    let last_parsed_at = hatena_blog_repository.find_last_parsed_at().await?;
+    for body in hatena_blog_repository
+        .find_entries_waiting_for_parsing(last_parsed_at)
+        .await?
+    {
         let entry = Entry::try_from(GetEntryResponse::from(body))?;
-        repository.create_entry(entry, Timestamp::now()?).await?;
+        let entry_id = entry.id.clone();
+        hatena_blog_repository.delete_entry(&entry_id).await?;
+        hatena_blog_repository
+            .create_entry(entry, Timestamp::now()?)
+            .await?;
         eprintln!("parsed member id: {}", entry_id);
     }
     Ok(())

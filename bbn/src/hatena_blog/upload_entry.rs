@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::{Client, CreateEntryResponse, Entry, EntryParams, UpdateEntryResponse};
+use hatena_blog::{Client, CreateEntryResponse, Entry, EntryParams};
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -55,16 +55,15 @@ pub async fn upload_entry(
                 .add(&hatena_blog_entry.id, updated, published, edited)
                 .await?;
             hatena_blog_repository
-                .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
+                .create_member_response(Timestamp::now()?, body)
                 .await?;
             (true, entry_id)
         }
         Some(entry) => {
             let response = hatena_blog_client.update_entry(&entry.id, params).await?;
             let body = response.to_string();
-            let hatena_blog_entry = Entry::try_from(UpdateEntryResponse::from(body.clone()))?;
             hatena_blog_repository
-                .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
+                .create_member_response(Timestamp::now()?, body)
                 .await?;
             (false, entry_id)
         }

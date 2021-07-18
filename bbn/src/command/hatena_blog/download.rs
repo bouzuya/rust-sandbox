@@ -6,7 +6,7 @@ use crate::{
 };
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::{Client, Config, Entry};
+use hatena_blog::{Client, Config, Entry, ListEntriesResponse};
 use std::{collections::BTreeSet, convert::TryInto, time::Duration};
 use tokio::time::sleep;
 
@@ -98,6 +98,33 @@ async fn indexing(
         indexing_succeeded_at.to_rfc3339()
     );
 
+    // TODO: remove
+    let mut entry_ids = BTreeSet::new();
+    for body in hatena_blog_repository
+        .find_collection_responses_by_indexing_id(indexing_id)
+        .await?
+    {
+        let response = ListEntriesResponse::from(body);
+        let (_, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
+        let filtered = entries
+            .iter()
+            .take_while(|entry| match last_indexing_started_at {
+                None => true,
+                Some(last) => Timestamp::from_rfc3339(&entry.published)
+                    .map(|published| last <= published)
+                    .unwrap_or(false),
+            })
+            .collect::<Vec<&Entry>>();
+        for entry in filtered.iter() {
+            entry_ids.insert(entry.id.to_string());
+        }
+    }
+    for entry_id in entry_ids {
+        hatena_blog_repository
+            .create_member_request(Timestamp::now()?, entry_id)
+            .await?;
+    }
+
     Ok(indexing_id)
 }
 
@@ -137,7 +164,7 @@ pub async fn download_from_hatena_blog(
         let response = hatena_blog_client.get_entry(&entry_id).await?;
         let body = response.to_string();
         hatena_blog_repository
-            .create_member_response(&entry_id, Timestamp::now()?, body)
+            .create_member_response(Timestamp::now()?, body)
             .await?;
         println!("downloaded member id: {}", entry_id);
         sleep(Duration::from_secs(1)).await;

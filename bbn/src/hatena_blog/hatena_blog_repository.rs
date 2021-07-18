@@ -65,6 +65,18 @@ CREATE TABLE IF NOT EXISTS collection_responses (
         .execute(&pool)
         .await?;
 
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS member_responses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TIMESTAMP NOT NULL,
+    body TEXT NOT NULL
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
         // indexing
 
         sqlx::query(
@@ -104,15 +116,30 @@ CREATE TABLE IF NOT EXISTS successful_indexings (
         .execute(&pool)
         .await?;
 
+        // member_requests
+
         sqlx::query(
             r#"
-        CREATE TABLE IF NOT EXISTS member_responses (
-            entry_id TEXT NOT NULL,
-            at TIMESTAMP NOT NULL,
-            body TEXT NOT NULL,
-            PRIMARY KEY (entry_id, at),
-            FOREIGN KEY (entry_id) REFERENCES entry_ids(entry_id)
-        )"#,
+CREATE TABLE IF NOT EXISTS member_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at INTEGER NOT NULL,
+    entry_id TEXT NOT NULL
+)
+"#,
+        )
+        .execute(&pool)
+        .await?;
+
+        sqlx::query(
+            r#"
+CREATE TABLE IF NOT EXISTS member_request_results (
+    member_request_id INTEGER PRIMARY KEY,
+    at INTEGER NOT NULL,
+    member_response_id INTEGER, -- nullable
+    FOREIGN KEY (member_request_id) REFERENCES member_requests (id) ON DELETE CASCADE,
+    FOREIGN KEY (member_response_id) REFERENCES member_responses (id)
+)
+"#,
         )
         .execute(&pool)
         .await?;
@@ -147,22 +174,6 @@ VALUES (?, ?, ?, ?)
         .execute(&self.pool)
         .await
         .map(|_| ())?)
-    }
-
-    pub async fn find_last_successful_indexing_started_at(
-        &self,
-    ) -> anyhow::Result<Option<Timestamp>> {
-        let row: Option<(i64,)> = sqlx::query_as(
-            r#"
-SELECT MAX(indexings.at)
-FROM indexings
-INNER JOIN successful_indexings
-ON successful_indexings.indexing_id = indexings.id
-            "#,
-        )
-        .fetch_optional(&self.pool)
-        .await?;
-        Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
     pub async fn create_collection_response(
@@ -261,19 +272,31 @@ VALUES (?, ?)
         .last_insert_rowid())
     }
 
-    pub async fn create_member_response(
+    pub async fn create_member_request(
         &self,
-        entry_id: &EntryId,
         at: Timestamp,
-        body: String,
+        entry_id: String,
     ) -> anyhow::Result<()> {
         sqlx::query(
             r#"
-            INSERT INTO member_responses(entry_id, at, body)
-            VALUES (?, ?, ?)
+INSERT INTO member_requests(at, entry_id)
+VALUES (?, ?)
             "#,
         )
-        .bind(entry_id.to_string())
+        .bind(i64::from(at))
+        .bind(entry_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn create_member_response(&self, at: Timestamp, body: String) -> anyhow::Result<()> {
+        sqlx::query(
+            r#"
+INSERT INTO member_responses(at, body)
+VALUES (?, ?)
+            "#,
+        )
         .bind(i64::from(at))
         .bind(body)
         .execute(&self.pool)
@@ -299,68 +322,68 @@ VALUES (?, ?)
         .last_insert_rowid())
     }
 
-    pub async fn delete_old_entries(&self) -> anyhow::Result<()> {
+    pub async fn delete_entry(&self, entry_id: &EntryId) -> anyhow::Result<()> {
         sqlx::query(
             r#"
 DELETE FROM entries
-WHERE entries.entry_id IN (
-    SELECT
-        entry_id
-    FROM
-        (
-            SELECT
-                entry_id
-                , parsed_at
-                , MAX(at) AS max_downloaded_at
-            FROM entries
-            INNER JOIN member_responses USING(entry_id)
-            GROUP BY
-                entry_id
-                , parsed_at
-            HAVING parsed_at < max_downloaded_at
-        )
-)
+WHERE entries.entry_id = ?
             "#,
         )
+        .bind(entry_id.to_string())
         .execute(&self.pool)
         .await?;
         Ok(())
     }
 
-    pub async fn find_entries_waiting_for_parsing(&self) -> anyhow::Result<Vec<(EntryId, String)>> {
-        let rows: Vec<(String, String)> = sqlx::query_as(
+    pub async fn find_collection_responses_by_indexing_id(
+        &self,
+        indexing_id: i64,
+    ) -> anyhow::Result<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
             r#"
 SELECT
-    entry_ids.entry_id AS entry_id
-    , member_responses.body AS body
-FROM entry_ids
-INNER JOIN (
-    SELECT
-        latest_responses.entry_id AS entry_id
-        , MAX(latest_responses.at) AS at
-    FROM member_responses AS latest_responses
-    GROUP BY
-        latest_responses.entry_id
-) AS latest_responses
-ON latest_responses.entry_id = entry_ids.entry_id
-INNER JOIN member_responses
-ON member_responses.entry_id = latest_responses.entry_id
-AND member_responses.at = latest_responses.at
-LEFT OUTER JOIN entries USING(entry_id)
-WHERE entries.entry_id IS NULL
-OR entries.parsed_at < latest_responses.at
-ORDER BY entry_ids.published ASC
-                    "#,
+    collection_responses.body
+FROM indexing_collection_responses
+INNER JOIN collection_responses
+ON collection_responses.id = indexing_collection_responses.collection_response_id
+WHERE
+    indexing_id = ?
+ORDER BY
+    collection_responses.id ASC
+"#,
         )
+        .bind(indexing_id)
         .fetch_all(&self.pool)
         .await?;
-        rows.into_iter()
-            .map(|(id, body)| {
-                EntryId::from_str(id.as_str())
-                    .map(|entry_id| (entry_id, body))
-                    .context("entry id from str")
-            })
-            .collect::<anyhow::Result<Vec<(EntryId, String)>>>()
+        Ok(rows
+            .into_iter()
+            .map(|(body,)| body)
+            .collect::<Vec<String>>())
+    }
+
+    pub async fn find_entries_waiting_for_parsing(
+        &self,
+        last_parsed_at: Option<Timestamp>,
+    ) -> anyhow::Result<Vec<String>> {
+        let rows: Vec<(String,)> = sqlx::query_as(
+            r#"
+SELECT
+    member_responses.body
+FROM
+    member_responses
+WHERE ? IS NULL
+OR member_responses.at > ?
+ORDER BY member_responses.at ASC
+                    "#,
+        )
+        .bind(last_parsed_at.map(i64::from))
+        .bind(last_parsed_at.map(i64::from))
+        .fetch_all(&self.pool)
+        .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(body,)| body)
+            .collect::<Vec<String>>())
     }
 
     pub async fn find_entry_by_updated(&self, updated: Timestamp) -> anyhow::Result<Option<Entry>> {
@@ -400,11 +423,12 @@ WHERE updated = ?
     pub async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<EntryId>> {
         let rows: Vec<(String,)> = sqlx::query_as(
             r#"
-SELECT entry_id
-  FROM entry_ids
-  LEFT OUTER JOIN member_responses USING(entry_id)
- WHERE member_responses.entry_id IS NULL
- ORDER BY published ASC
+SELECT member_requests.entry_id
+FROM member_requests
+LEFT OUTER JOIN member_request_results
+ON member_request_results.member_request_id = member_requests.id
+WHERE member_request_results.member_request_id IS NULL
+ORDER BY member_requests.at ASC
             "#,
         )
         .fetch_all(&self.pool)
@@ -412,5 +436,33 @@ SELECT entry_id
         rows.iter()
             .map(|(id,)| EntryId::from_str(id.as_str()).context("entry id from str"))
             .collect::<anyhow::Result<Vec<EntryId>>>()
+    }
+
+    pub async fn find_last_successful_indexing_started_at(
+        &self,
+    ) -> anyhow::Result<Option<Timestamp>> {
+        let row: Option<(i64,)> = sqlx::query_as(
+            r#"
+SELECT MAX(indexings.at)
+FROM indexings
+INNER JOIN successful_indexings
+ON successful_indexings.indexing_id = indexings.id
+            "#,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|(at,)| Timestamp::from(at)))
+    }
+
+    pub async fn find_last_parsed_at(&self) -> anyhow::Result<Option<Timestamp>> {
+        let row: Option<(i64,)> = sqlx::query_as(
+            r#"
+SELECT MAX(parsed_at)
+FROM entries
+            "#,
+        )
+        .fetch_optional(&self.pool)
+        .await?;
+        Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 }

@@ -36,7 +36,7 @@ pub async fn download_entry(
     let response = hatena_blog_client.get_entry(&hatena_blog_entry.id).await?;
     let body = response.to_string();
     hatena_blog_repository
-        .create_member_response(&hatena_blog_entry.id, Timestamp::now()?, body)
+        .create_member_response(Timestamp::now()?, body)
         .await?;
     Ok(entry_id)
 }
