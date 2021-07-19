@@ -166,6 +166,17 @@ impl HatenaBlogRepository {
             .collect::<Vec<String>>())
     }
 
+    pub async fn find_entries_updated_and_title(&self) -> anyhow::Result<Vec<(Timestamp, String)>> {
+        let rows: Vec<(i64, String)> =
+            sqlx::query_as(include_str!("../../sql/find_entries_updated_and_title.sql"))
+                .fetch_all(&self.pool)
+                .await?;
+        Ok(rows
+            .into_iter()
+            .map(|(updated, title)| (Timestamp::from(updated), title))
+            .collect::<Vec<(Timestamp, String)>>())
+    }
+
     pub async fn find_entries_waiting_for_parsing(
         &self,
         last_parsed_at: Option<Timestamp>,

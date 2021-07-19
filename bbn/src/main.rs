@@ -89,6 +89,8 @@ pub enum HatenaBlogSubcommand {
         #[structopt(long = "hatena-id", env = "HATENA_ID")]
         hatena_id: String,
     },
+    #[structopt(name = "list")]
+    List,
     #[structopt(name = "upload", about = "Upload to the hatena blog")]
     Upload {
         #[structopt(name = "DATE", help = "date")]
@@ -142,6 +144,7 @@ async fn main() -> anyhow::Result<()> {
                 command::hatena_blog::download(date, hatena_api_key, hatena_blog_id, hatena_id)
                     .await
             }
+            HatenaBlogSubcommand::List => command::hatena_blog::list().await,
             HatenaBlogSubcommand::Upload {
                 date,
                 draft,
