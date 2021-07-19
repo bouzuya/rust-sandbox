@@ -23,118 +23,24 @@ impl HatenaBlogRepository {
             data_file.to_str().context("invalid path")?
         ))?
         .journal_mode(SqliteJournalMode::Delete);
+
         let pool = SqlitePoolOptions::new().connect_with(options).await?;
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS entries (
-    entry_id TEXT PRIMARY KEY,
-    author_name TEXT NOT NULL,
-    content TEXT NOT NULL,
-    draft INTEGER NOT NULL,
-    edited INTEGER NOT NULL,
-    published INTEGER NOT NULL,
-    title TEXT NOT NULL,
-    updated INTEGER NOT NULL,
-    parsed_at INTEGER NOT NULL
-)
-        "#,
-        )
-        .execute(&pool)
-        .await?;
-
-        // response
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS collection_responses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    at INTEGER NOT NULL,
-    body TEXT NOT NULL
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS member_responses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    at TIMESTAMP NOT NULL,
-    body TEXT NOT NULL
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        // indexing
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS indexings (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    at INTEGER NOT NULL
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS indexing_collection_responses (
-    indexing_id INTEGER NOT NULL,
-    collection_response_id INTEGER NOT NULL,
-    PRIMARY KEY (indexing_id, collection_response_id),
-    FOREIGN KEY (indexing_id) REFERENCES indexings (id) ON DELETE CASCADE,
-    FOREIGN KEY (collection_response_id) REFERENCES collection_responses (id) ON DELETE CASCADE
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS successful_indexings (
-    indexing_id INTEGER PRIMARY KEY,
-    at INTEGER NOT NULL,
-    FOREIGN KEY (indexing_id) REFERENCES indexings (id) ON DELETE CASCADE
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        // member_requests
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS member_requests (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    at INTEGER NOT NULL,
-    entry_id TEXT NOT NULL
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
-
-        sqlx::query(
-            r#"
-CREATE TABLE IF NOT EXISTS member_request_results (
-    member_request_id INTEGER PRIMARY KEY,
-    at INTEGER NOT NULL,
-    member_response_id INTEGER, -- nullable
-    FOREIGN KEY (member_request_id) REFERENCES member_requests (id) ON DELETE CASCADE,
-    FOREIGN KEY (member_response_id) REFERENCES member_responses (id)
-)
-"#,
-        )
-        .execute(&pool)
-        .await?;
+        let migrations = [
+            include_str!("../../sql/create_table_entries.sql"),
+            // response
+            include_str!("../../sql/create_table_collection_responses.sql"),
+            include_str!("../../sql/create_table_member_responses.sql"),
+            // indexing
+            include_str!("../../sql/create_table_indexings.sql"),
+            include_str!("../../sql/create_table_indexing_collection_responses.sql"),
+            include_str!("../../sql/create_table_successful_indexings.sql"),
+            // member_requests
+            include_str!("../../sql/create_table_member_requests.sql"),
+            include_str!("../../sql/create_table_member_request_results.sql"),
+        ];
+        for migration in migrations.iter() {
+            sqlx::query(migration).execute(&pool).await?;
+        }
 
         Ok(Self { data_file, pool })
     }
@@ -144,76 +50,42 @@ CREATE TABLE IF NOT EXISTS member_request_results (
         at: Timestamp,
         body: String,
     ) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
-INSERT INTO collection_responses(at, body)
-VALUES (?, ?)
-            "#,
+        Ok(
+            sqlx::query(include_str!("../../sql/create_collection_response.sql"))
+                .bind(i64::from(at))
+                .bind(body)
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid(),
         )
-        .bind(i64::from(at))
-        .bind(body)
-        .execute(&self.pool)
-        .await?
-        .last_insert_rowid())
     }
 
     pub async fn create_entry(&self, entry: Entry, parsed_at: Timestamp) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
-INSERT INTO entries(
-  entry_id,
-  author_name,
-  content,
-  draft,
-  edited,
-  published,
-  title,
-  updated,
-  parsed_at
-)
-VALUES (
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?,
-  ?
-)
-
-"#,
-        )
-        .bind(entry.id.to_string())
-        .bind(entry.author_name)
-        .bind(entry.content)
-        .bind(if entry.draft { 1_i64 } else { 0_i64 })
-        .bind(i64::from(Timestamp::from_rfc3339(&entry.edited).unwrap()))
-        .bind(i64::from(
-            Timestamp::from_rfc3339(&entry.published).unwrap(),
-        ))
-        .bind(entry.title)
-        .bind(i64::from(Timestamp::from_rfc3339(&entry.updated).unwrap()))
-        .bind(i64::from(parsed_at))
-        .execute(&self.pool)
-        .await?
-        .last_insert_rowid())
+        Ok(sqlx::query(include_str!("../../sql/create_entry.sql"))
+            .bind(entry.id.to_string())
+            .bind(entry.author_name)
+            .bind(entry.content)
+            .bind(if entry.draft { 1_i64 } else { 0_i64 })
+            .bind(i64::from(Timestamp::from_rfc3339(&entry.edited).unwrap()))
+            .bind(i64::from(
+                Timestamp::from_rfc3339(&entry.published).unwrap(),
+            ))
+            .bind(entry.title)
+            .bind(i64::from(Timestamp::from_rfc3339(&entry.updated).unwrap()))
+            .bind(i64::from(parsed_at))
+            .execute(&self.pool)
+            .await?
+            .last_insert_rowid())
     }
 
     pub async fn create_indexing(&self) -> anyhow::Result<Indexing> {
         let at = Timestamp::now()?;
         let id = IndexingId::from(
-            sqlx::query(
-                r#"
-INSERT INTO indexings(at)
-VALUES (?)
-"#,
-            )
-            .bind(i64::from(at))
-            .execute(&self.pool)
-            .await?
-            .last_insert_rowid(),
+            sqlx::query(include_str!("../../sql/create_indexing.sql"))
+                .bind(i64::from(at))
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid(),
         );
         Ok(Indexing::new(id, at))
     }
@@ -223,15 +95,9 @@ VALUES (?)
         indexing_id: IndexingId,
         collection_response_id: i64,
     ) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
-INSERT INTO indexing_collection_responses(
-    indexing_id,
-    collection_response_id
-)
-VALUES (?, ?)
-"#,
-        )
+        Ok(sqlx::query(include_str!(
+            "../../sql/create_indexing_collection_response.sql"
+        ))
         .bind(i64::from(indexing_id))
         .bind(collection_response_id)
         .execute(&self.pool)
@@ -244,30 +110,20 @@ VALUES (?, ?)
         at: Timestamp,
         entry_id: String,
     ) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-INSERT INTO member_requests(at, entry_id)
-VALUES (?, ?)
-            "#,
-        )
-        .bind(i64::from(at))
-        .bind(entry_id)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query(include_str!("../../sql/create_member_request.sql"))
+            .bind(i64::from(at))
+            .bind(entry_id)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
     pub async fn create_member_response(&self, at: Timestamp, body: String) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-INSERT INTO member_responses(at, body)
-VALUES (?, ?)
-            "#,
-        )
-        .bind(i64::from(at))
-        .bind(body)
-        .execute(&self.pool)
-        .await?;
+        sqlx::query(include_str!("../../sql/create_member_response.sql"))
+            .bind(i64::from(at))
+            .bind(body)
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -276,29 +132,21 @@ VALUES (?, ?)
         indexing_id: IndexingId,
         at: Timestamp,
     ) -> anyhow::Result<i64> {
-        Ok(sqlx::query(
-            r#"
-INSERT INTO successful_indexings(indexing_id, at)
-VALUES (?, ?)
-            "#,
+        Ok(
+            sqlx::query(include_str!("../../sql/create_successful_indexing.sql"))
+                .bind(i64::from(indexing_id))
+                .bind(i64::from(at))
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid(),
         )
-        .bind(i64::from(indexing_id))
-        .bind(i64::from(at))
-        .execute(&self.pool)
-        .await?
-        .last_insert_rowid())
     }
 
     pub async fn delete_entry(&self, entry_id: &EntryId) -> anyhow::Result<()> {
-        sqlx::query(
-            r#"
-DELETE FROM entries
-WHERE entries.entry_id = ?
-            "#,
-        )
-        .bind(entry_id.to_string())
-        .execute(&self.pool)
-        .await?;
+        sqlx::query(include_str!("../../sql/delete_entry.sql"))
+            .bind(entry_id.to_string())
+            .execute(&self.pool)
+            .await?;
         Ok(())
     }
 
@@ -306,19 +154,9 @@ WHERE entries.entry_id = ?
         &self,
         indexing_id: IndexingId,
     ) -> anyhow::Result<Vec<String>> {
-        let rows: Vec<(String,)> = sqlx::query_as(
-            r#"
-SELECT
-    collection_responses.body
-FROM indexing_collection_responses
-INNER JOIN collection_responses
-ON collection_responses.id = indexing_collection_responses.collection_response_id
-WHERE
-    indexing_id = ?
-ORDER BY
-    collection_responses.id ASC
-"#,
-        )
+        let rows: Vec<(String,)> = sqlx::query_as(include_str!(
+            "../../sql/find_collection_responses_by_indexing_id.sql"
+        ))
         .bind(i64::from(indexing_id))
         .fetch_all(&self.pool)
         .await?;
@@ -332,17 +170,9 @@ ORDER BY
         &self,
         last_parsed_at: Option<Timestamp>,
     ) -> anyhow::Result<Vec<String>> {
-        let rows: Vec<(String,)> = sqlx::query_as(
-            r#"
-SELECT
-    member_responses.body
-FROM
-    member_responses
-WHERE ? IS NULL
-OR member_responses.at > ?
-ORDER BY member_responses.at ASC
-                    "#,
-        )
+        let rows: Vec<(String,)> = sqlx::query_as(include_str!(
+            "../../sql/find_entries_waiting_for_parsing.sql"
+        ))
         .bind(last_parsed_at.map(i64::from))
         .bind(last_parsed_at.map(i64::from))
         .fetch_all(&self.pool)
@@ -354,52 +184,32 @@ ORDER BY member_responses.at ASC
     }
 
     pub async fn find_entry_by_updated(&self, updated: Timestamp) -> anyhow::Result<Option<Entry>> {
-        Ok(sqlx::query(
-            r#"
-SELECT
-  entry_id,
-  author_name,
-  content,
-  draft,
-  edited,
-  published,
-  title,
-  updated
-FROM entries
-WHERE updated = ?
-"#,
+        Ok(
+            sqlx::query(include_str!("../../sql/find_entry_by_updated.sql"))
+                .bind(i64::from(updated))
+                .map(|row: SqliteRow| {
+                    Entry::new(
+                        EntryId::from_str(row.get(0)).unwrap(),
+                        row.get(6),
+                        row.get(1),
+                        vec![],
+                        row.get(2),
+                        Timestamp::from(row.get::<'_, i64, _>(7)).to_rfc3339(),
+                        Timestamp::from(row.get::<'_, i64, _>(5)).to_rfc3339(),
+                        Timestamp::from(row.get::<'_, i64, _>(4)).to_rfc3339(),
+                        row.get::<'_, i64, _>(3) == 1_i64,
+                    )
+                })
+                .fetch_optional(&self.pool)
+                .await?,
         )
-        .bind(i64::from(updated))
-        .map(|row: SqliteRow| {
-            Entry::new(
-                EntryId::from_str(row.get(0)).unwrap(),
-                row.get(6),
-                row.get(1),
-                vec![],
-                row.get(2),
-                Timestamp::from(row.get::<'_, i64, _>(7)).to_rfc3339(),
-                Timestamp::from(row.get::<'_, i64, _>(5)).to_rfc3339(),
-                Timestamp::from(row.get::<'_, i64, _>(4)).to_rfc3339(),
-                row.get::<'_, i64, _>(3) == 1_i64,
-            )
-        })
-        .fetch_optional(&self.pool)
-        .await?)
     }
 
     pub async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<EntryId>> {
-        let rows: Vec<(String,)> = sqlx::query_as(
-            r#"
-SELECT member_requests.entry_id
-FROM member_requests
-LEFT OUTER JOIN member_request_results
-ON member_request_results.member_request_id = member_requests.id
-WHERE member_request_results.member_request_id IS NULL
-ORDER BY member_requests.at ASC
-            "#,
-        )
-        .fetch_all(&self.pool)
-        .await?;
+        let rows: Vec<(String,)> =
+            sqlx::query_as(include_str!("../../sql/find_incomplete_entry_ids.sql"))
+                .fetch_all(&self.pool)
+                .await?;
         rows.iter()
             .map(|(id,)| EntryId::from_str(id.as_str()).context("entry id from str"))
             .collect::<anyhow::Result<Vec<EntryId>>>()
@@ -408,34 +218,19 @@ ORDER BY member_requests.at ASC
     pub async fn find_last_successful_indexing_started_at(
         &self,
     ) -> anyhow::Result<Option<Timestamp>> {
-        let row: Option<(i64,)> = sqlx::query_as(
-            r#"
-SELECT MAX(indexings.at)
-FROM indexings
-INNER JOIN successful_indexings
-ON successful_indexings.indexing_id = indexings.id
-            "#,
-        )
+        let row: Option<(i64,)> = sqlx::query_as(include_str!(
+            "../../sql/find_last_successful_indexing_started_at.sql"
+        ))
         .fetch_optional(&self.pool)
         .await?;
         Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
     pub async fn find_indexing(&self, id: IndexingId) -> anyhow::Result<Option<Indexing>> {
-        let row: Option<(i64, i64)> = sqlx::query_as(
-            r#"
-SELECT
-    id
-    , at
-FROM
-    indexings
-WHERE
-    id = ?
-"#,
-        )
-        .bind(i64::from(id))
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(i64, i64)> = sqlx::query_as(include_str!("../../sql/find_indexing.sql"))
+            .bind(i64::from(id))
+            .fetch_optional(&self.pool)
+            .await?;
         Ok(row.map(|(id, at)| {
             let id = IndexingId::from(id);
             let at = Timestamp::from(at);
@@ -444,14 +239,9 @@ WHERE
     }
 
     pub async fn find_last_parsed_at(&self) -> anyhow::Result<Option<Timestamp>> {
-        let row: Option<(i64,)> = sqlx::query_as(
-            r#"
-SELECT MAX(parsed_at)
-FROM entries
-            "#,
-        )
-        .fetch_optional(&self.pool)
-        .await?;
+        let row: Option<(i64,)> = sqlx::query_as(include_str!("../../sql/find_last_parsed_at.sql"))
+            .fetch_optional(&self.pool)
+            .await?;
         Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 }
