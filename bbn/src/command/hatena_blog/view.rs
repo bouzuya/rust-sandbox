@@ -38,6 +38,7 @@ pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Resu
         );
         open::that(url)?;
     } else {
+        println!("{}", bbn_entry_meta.pubdate.to_rfc3339());
         println!("{}", hatena_blog_entry.content);
     }
 
