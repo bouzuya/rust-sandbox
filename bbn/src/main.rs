@@ -108,10 +108,14 @@ pub enum HatenaBlogSubcommand {
     },
     #[structopt(name = "view", about = "view")]
     View {
+        #[structopt(long = "content")]
+        content: bool,
         #[structopt(name = "DATE", help = "the entry id")]
         date: Date,
         #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
         hatena_blog_id: String,
+        #[structopt(long = "meta")]
+        meta: bool,
         #[structopt(long = "web", help = "Open the entry in the browser")]
         web: bool,
     },
@@ -164,10 +168,12 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             HatenaBlogSubcommand::View {
+                content,
                 date,
                 hatena_blog_id,
+                meta,
                 web,
-            } => command::hatena_blog::view(date, hatena_blog_id, web).await,
+            } => command::hatena_blog::view(content, date, hatena_blog_id, meta, web).await,
         },
         Subcommand::View {
             content,

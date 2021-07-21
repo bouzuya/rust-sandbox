@@ -6,7 +6,14 @@ use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
     hatena_blog::HatenaBlogRepository,
 };
-pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Result<()> {
+
+pub async fn view(
+    content: bool,
+    date: Date,
+    hatena_blog_id: String,
+    meta: bool,
+    web: bool,
+) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
         .load()
@@ -27,19 +34,39 @@ pub async fn view(date: Date, hatena_blog_id: String, web: bool) -> anyhow::Resu
         .find_entry_by_updated(bbn_entry_meta.pubdate)
         .await?
         .context("no hatena-blog entry")?;
+    let updated = DateTime::parse_from_rfc3339(hatena_blog_entry.updated.as_str())?;
+    // TODO: get offset from options
+    let local = Local.from_utc_datetime(&updated.naive_utc());
+    let url = format!(
+        "https://{}/entry/{}",
+        hatena_blog_id,
+        local.format("%Y/%m/%d/%H%M%S")
+    );
     if web {
-        let updated = DateTime::parse_from_rfc3339(hatena_blog_entry.updated.as_str())?;
-        // TODO: get offset from options
-        let local = Local.from_utc_datetime(&updated.naive_utc());
-        let url = format!(
-            "https://{}/entry/{}",
-            hatena_blog_id,
-            local.format("%Y/%m/%d/%H%M%S")
-        );
         open::that(url)?;
     } else {
-        println!("{}", bbn_entry_meta.pubdate.to_rfc3339());
-        println!("{}", hatena_blog_entry.content);
+        match (content, meta) {
+            (false, false) | (true, false) => {
+                println!("{}", hatena_blog_entry.content);
+            }
+            (false, true) => {
+                println!(
+                    "{} {} <{}>",
+                    bbn_entry_meta.pubdate.to_rfc3339(),
+                    hatena_blog_entry.title,
+                    url,
+                );
+            }
+            (true, true) => {
+                println!(
+                    "{} {} <{}>\n{}",
+                    bbn_entry_meta.pubdate.to_rfc3339(),
+                    hatena_blog_entry.title,
+                    url,
+                    hatena_blog_entry.content
+                );
+            }
+        }
     }
 
     Ok(())
