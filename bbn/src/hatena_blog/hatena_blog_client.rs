@@ -1,3 +1,4 @@
+use crate::hatena_blog::HatenaBlogEntryId;
 use hatena_blog::{
     Client, Config, CreateEntryResponse, EntryId, EntryParams, GetEntryResponse,
     ListEntriesResponse, UpdateEntryResponse,
@@ -21,19 +22,21 @@ impl HatenaBlogClient {
 
     pub async fn update_entry(
         &self,
-        hatena_blog_entry_id: &EntryId,
+        hatena_blog_entry_id: &HatenaBlogEntryId,
         params: EntryParams,
     ) -> anyhow::Result<UpdateEntryResponse> {
         let client = Client::new(&self.config);
-        Ok(client.update_entry(&hatena_blog_entry_id, params).await?)
+        let entry_id = EntryId::from(hatena_blog_entry_id);
+        Ok(client.update_entry(&entry_id, params).await?)
     }
 
     pub async fn get_entry(
         &self,
-        hatena_blog_entry_id: &EntryId,
+        hatena_blog_entry_id: &HatenaBlogEntryId,
     ) -> anyhow::Result<GetEntryResponse> {
         let client = Client::new(&self.config);
-        Ok(client.get_entry(&hatena_blog_entry_id).await?)
+        let entry_id = EntryId::from(hatena_blog_entry_id);
+        Ok(client.get_entry(&entry_id).await?)
     }
 
     pub async fn list_entries_in_page(

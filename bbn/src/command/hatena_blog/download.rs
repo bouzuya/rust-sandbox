@@ -2,7 +2,9 @@ use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
     data::{DateTime, EntryId, EntryMeta, Timestamp},
-    hatena_blog::{download_entry, HatenaBlogClient, HatenaBlogRepository, IndexingId},
+    hatena_blog::{
+        download_entry, HatenaBlogClient, HatenaBlogEntryId, HatenaBlogRepository, IndexingId,
+    },
 };
 use anyhow::Context;
 use chrono::{Local, NaiveDateTime, TimeZone};
@@ -237,7 +239,9 @@ async fn download_impl(
     let _indexing_id = indexing(&hatena_blog_repository, &hatena_blog_client).await?;
 
     for entry_id in hatena_blog_repository.find_incomplete_entry_ids().await? {
-        let response = hatena_blog_client.get_entry(&entry_id).await?;
+        let response = hatena_blog_client
+            .get_entry(&HatenaBlogEntryId::from(entry_id.clone()))
+            .await?;
         let body = response.to_string();
         hatena_blog_repository
             .create_member_response(Timestamp::now()?, body)
