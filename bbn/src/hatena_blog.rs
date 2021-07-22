@@ -1,11 +1,13 @@
 mod download_entry;
+mod hatena_blog_client;
 mod hatena_blog_repository;
 mod indexing;
 mod indexing_id;
 mod upload_entry;
 
-pub use self::download_entry::download_entry;
-pub use self::hatena_blog_repository::HatenaBlogRepository;
+pub use self::download_entry::*;
+pub use self::hatena_blog_client::*;
+pub use self::hatena_blog_repository::*;
 pub use self::indexing::*;
 pub use self::indexing_id::*;
-pub use self::upload_entry::upload_entry;
+pub use self::upload_entry::*;

@@ -3,12 +3,11 @@ use std::{collections::VecDeque, convert::TryFrom, str::FromStr};
 use anyhow::{bail, Context};
 use console::StyledObject;
 use date_range::date::Date;
-use hatena_blog::{Client, Config};
 
 use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
-    hatena_blog::{upload_entry, HatenaBlogRepository},
+    hatena_blog::{upload_entry, HatenaBlogClient, HatenaBlogRepository},
     query::Query,
 };
 
@@ -28,13 +27,8 @@ pub async fn upload(
     let bbn_repository = BbnRepository::new(data_dir);
     let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
     let hatena_blog_repository = HatenaBlogRepository::new(hatena_blog_data_file).await?;
-    let config = Config::new(
-        hatena_id.as_str(),
-        None,
-        hatena_blog_id.as_str(),
-        hatena_api_key.as_str(),
-    );
-    let hatena_blog_client = Client::new(&config);
+    let hatena_blog_client =
+        HatenaBlogClient::new(hatena_id.clone(), hatena_blog_id, hatena_api_key);
     if let Some(date) = date {
         let (created, entry_id) = upload_entry(
             date,

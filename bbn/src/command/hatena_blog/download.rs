@@ -2,12 +2,12 @@ use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
     data::{DateTime, EntryId, EntryMeta, Timestamp},
-    hatena_blog::{download_entry, HatenaBlogRepository, IndexingId},
+    hatena_blog::{download_entry, HatenaBlogClient, HatenaBlogRepository, IndexingId},
 };
 use anyhow::Context;
 use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
-use hatena_blog::{Client, Config, Entry, GetEntryResponse, ListEntriesResponse};
+use hatena_blog::{Entry, GetEntryResponse, ListEntriesResponse};
 use std::{
     collections::BTreeSet,
     convert::{TryFrom, TryInto},
@@ -18,7 +18,7 @@ use tokio::time::sleep;
 
 async fn indexing(
     hatena_blog_repository: &HatenaBlogRepository,
-    client: &Client,
+    hatena_blog_client: &HatenaBlogClient,
 ) -> anyhow::Result<IndexingId> {
     let last_indexing_started_at = hatena_blog_repository
         .find_last_successful_indexing_started_at()
@@ -37,7 +37,9 @@ async fn indexing(
     let mut next_page = None;
     loop {
         // send request
-        let response = client.list_entries_in_page(next_page.as_deref()).await?;
+        let response = hatena_blog_client
+            .list_entries_in_page(next_page.as_deref())
+            .await?;
         let body = response.to_string();
         let collection_response_id = hatena_blog_repository
             .create_collection_response(Timestamp::now()?, body)
@@ -211,7 +213,7 @@ async fn download_impl(
     date: Option<Date>,
     bbn_repository: &BbnRepository,
     hatena_blog_repository: &HatenaBlogRepository,
-    hatena_blog_client: &Client,
+    hatena_blog_client: &HatenaBlogClient,
 ) -> anyhow::Result<()> {
     if let Some(d) = date {
         let entry_id = download_entry(
@@ -269,8 +271,7 @@ pub async fn download(
 
     let bbn_repository = BbnRepository::new(data_dir);
     let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
-    let hatena_blog_client_config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
-    let hatena_blog_client = Client::new(&hatena_blog_client_config);
+    let hatena_blog_client = HatenaBlogClient::new(hatena_id, hatena_blog_id, hatena_api_key);
     download_impl(
         data_file_only,
         date,

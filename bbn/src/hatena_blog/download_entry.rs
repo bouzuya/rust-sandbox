@@ -1,11 +1,10 @@
 use crate::{
     bbn_repository::BbnRepository,
     data::{EntryId, Timestamp},
-    hatena_blog::HatenaBlogRepository,
+    hatena_blog::{HatenaBlogClient, HatenaBlogRepository},
 };
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::Client;
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]
@@ -22,7 +21,7 @@ pub async fn download_entry(
     date: Date,
     bbn_repository: &BbnRepository,
     hatena_blog_repository: &HatenaBlogRepository,
-    hatena_blog_client: &Client,
+    hatena_blog_client: &HatenaBlogClient,
 ) -> anyhow::Result<EntryId> {
     let entry_id = bbn_repository
         .find_id_by_date(date)?
