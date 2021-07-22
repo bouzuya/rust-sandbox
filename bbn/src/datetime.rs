@@ -3,7 +3,7 @@ use thiserror::Error;
 
 use crate::timestamp::Timestamp;
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DateTime(chrono::DateTime<FixedOffset>);
 
 #[derive(Debug, Eq, Error, PartialEq)]
