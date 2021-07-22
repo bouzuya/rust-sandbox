@@ -58,7 +58,7 @@ fn print_json_content_meta(
     println!(
         "{}",
         serde_json::to_string(&ContentWithMetaJson {
-            content: entry_content,
+            content: entry_content.to_string(),
             minutes: entry_meta.minutes,
             pubdate: entry_meta.pubdate.to_rfc3339(),
             tags: entry_meta.tags,
@@ -129,7 +129,7 @@ pub fn view(date: Date, content: bool, json: bool, meta: bool, web: bool) -> any
         .transpose()?;
     let (entry_id, entry_meta, entry_content) = entry_id
         .and_then(|entry_id| {
-            entry.map(|(entry_meta, entry_content)| (entry_id, entry_meta, entry_content))
+            entry.map(|entry| (entry_id, entry.meta().clone(), entry.content().to_string()))
         })
         .context("not found")?;
     if web {

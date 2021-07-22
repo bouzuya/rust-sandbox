@@ -8,7 +8,9 @@ use std::{
 use date_range::date::{Date, YearMonth};
 use thiserror::Error;
 
-use crate::{entry_id::EntryId, entry_meta::EntryMeta, query::Query, timestamp::Timestamp};
+use crate::{
+    entry::Entry, entry_id::EntryId, entry_meta::EntryMeta, query::Query, timestamp::Timestamp,
+};
 
 #[derive(Debug, serde::Deserialize)]
 struct MetaJson {
@@ -51,13 +53,12 @@ impl BbnRepository {
         Ok(Some(fs::read_to_string(path)?))
     }
 
-    pub fn find_entry_by_id(
-        &self,
-        entry_id: &EntryId,
-    ) -> anyhow::Result<Option<(EntryMeta, String)>> {
+    pub fn find_entry_by_id(&self, entry_id: &EntryId) -> anyhow::Result<Option<Entry>> {
         let meta = self.find_meta_by_id(entry_id)?;
         let content = self.find_content_by_id(entry_id)?;
-        Ok(meta.zip(content))
+        Ok(meta
+            .zip(content)
+            .map(|(meta, content)| Entry::new(content, meta)))
     }
 
     pub fn find_id_by_date(&self, date: Date) -> anyhow::Result<Option<EntryId>> {
@@ -272,8 +273,39 @@ mod tests {
     }
 
     #[test]
-    fn find_entry_by_id_test() {
-        // TODO
+    fn find_entry_by_id_test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let data_dir = create_test_dir(temp_dir.path())?;
+        let repository = BbnRepository::new(data_dir);
+        assert_eq!(
+            repository.find_entry_by_id(&EntryId::from_str("2021-07-06")?)?,
+            Some(Entry::new(
+                "CONTENT1".to_string(),
+                EntryMeta {
+                    minutes: 5,
+                    pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                    tags: vec!["tag1".to_string()],
+                    title: "TITLE1".to_string()
+                }
+            )),
+        );
+        assert_eq!(
+            repository.find_entry_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
+            Some(Entry::new(
+                "CONTENT2".to_string(),
+                EntryMeta {
+                    minutes: 6,
+                    pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                    tags: vec![],
+                    title: "TITLE2".to_string()
+                }
+            )),
+        );
+        assert_eq!(
+            repository.find_entry_by_id(&EntryId::from_str("2021-07-08")?)?,
+            None
+        );
+        Ok(())
     }
 
     #[test]

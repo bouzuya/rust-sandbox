@@ -58,15 +58,14 @@ pub async fn upload(
         let query = Query::try_from("")?;
         let entry_ids = bbn_repository.find_ids_by_query(query)?;
         for entry_id in entry_ids {
-            let (bbn_entry_meta, bbn_entry_content) =
-                bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
+            let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
             let hatena_blog_entry = hatena_blog_repository
-                .find_entry_by_updated(bbn_entry_meta.pubdate)
+                .find_entry_by_updated(bbn_entry.meta().pubdate)
                 .await?;
             let result = match hatena_blog_entry {
                 None => None,
                 Some(ref entry) => {
-                    if bbn_entry_content != entry.content {
+                    if bbn_entry.content() != entry.content {
                         Some(false)
                     } else {
                         Some(true)
@@ -84,7 +83,7 @@ pub async fn upload(
             match hatena_blog_entry {
                 None => println!("no entry"),
                 Some(entry) => {
-                    show_2line_diff(entry.content.as_str(), bbn_entry_content.as_str());
+                    show_2line_diff(entry.content.as_str(), bbn_entry.content());
                 }
             }
 

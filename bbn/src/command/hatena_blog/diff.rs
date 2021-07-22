@@ -45,14 +45,13 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     let entry_ids = bbn_repository.find_ids_by_query(query)?;
     let mut diff_stats = (0, 0, 0);
     for entry_id in entry_ids {
-        let (bbn_entry_meta, bbn_entry_content) =
-            bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
+        let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
         let entry = hatena_blog_repository
-            .find_entry_by_updated(bbn_entry_meta.pubdate)
+            .find_entry_by_updated(bbn_entry.meta().pubdate)
             .await?;
         let result = entry
             .as_ref()
-            .map(|entry| bbn_entry_content == entry.content);
+            .map(|entry| bbn_entry.content() == entry.content);
         match result {
             None => diff_stats.0 += 1,
             Some(false) => diff_stats.2 += 1,
@@ -66,7 +65,7 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
                     entry_id
                 );
             } else if let Some(entry) = entry {
-                show_diff(entry.content.as_str(), bbn_entry_content.as_str());
+                show_diff(entry.content.as_str(), bbn_entry.content());
             }
         }
     }

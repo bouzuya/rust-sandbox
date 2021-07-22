@@ -26,14 +26,14 @@ pub async fn upload_entry(
     let entry_id = bbn_repository
         .find_id_by_date(date)?
         .context(UploadEntryError::NoEntryId)?;
-    let (entry_meta, entry_content) = bbn_repository
+    let entry = bbn_repository
         .find_entry_by_id(&entry_id)?
         .context(UploadEntryError::NoEntry)?;
-    let updated = entry_meta.pubdate;
+    let updated = entry.meta().pubdate;
     let params = EntryParams::new(
         hatena_id.to_string(),
-        entry_meta.title.clone(),
-        entry_content,
+        entry.meta().title.clone(),
+        entry.content().to_string(),
         updated.to_rfc3339(),
         vec![],
         draft,
