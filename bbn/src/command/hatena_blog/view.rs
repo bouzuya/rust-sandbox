@@ -34,7 +34,7 @@ pub async fn view(
         .find_entry_by_updated(bbn_entry_meta.pubdate.into())
         .await?
         .context("no hatena-blog entry")?;
-    let updated = DateTime::parse_from_rfc3339(hatena_blog_entry.updated.as_str())?;
+    let updated = DateTime::parse_from_rfc3339(&hatena_blog_entry.updated.to_string())?;
     // TODO: get offset from options
     let local = Local.from_utc_datetime(&updated.naive_utc());
     let url = format!(

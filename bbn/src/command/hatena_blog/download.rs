@@ -147,16 +147,12 @@ fn update_bbn_entry(
     hatena_blog_entry: HatenaBlogEntry,
     bbn_repository: &BbnRepository,
 ) -> anyhow::Result<()> {
-    let timestamp = Timestamp::from_rfc3339(hatena_blog_entry.updated.as_str())?;
-    let utc_naive_date_time = NaiveDateTime::from_timestamp(i64::from(timestamp), 0);
-    let fixed_datetime = Local.from_utc_datetime(&utc_naive_date_time);
-    let datetime = DateTime::from_str(&fixed_datetime.to_rfc3339())?;
     let entry = match bbn_repository.find_entry_by_id(&entry_id)? {
         None => crate::data::Entry::new(
             entry_id,
             EntryMeta {
                 minutes: 15,
-                pubdate: datetime,
+                pubdate: hatena_blog_entry.updated,
                 tags: vec![],
                 title: hatena_blog_entry.title,
             },
@@ -168,7 +164,7 @@ fn update_bbn_entry(
                 hatena_blog_entry.content,
                 EntryMeta {
                     minutes: meta.minutes,
-                    pubdate: datetime,
+                    pubdate: hatena_blog_entry.updated,
                     tags: meta.tags,
                     title: hatena_blog_entry.title,
                 },

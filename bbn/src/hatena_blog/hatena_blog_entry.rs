@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use hatena_blog::{Entry, EntryId};
 
-use crate::hatena_blog::HatenaBlogEntryId;
+use crate::{data::DateTime, hatena_blog::HatenaBlogEntryId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HatenaBlogEntry {
@@ -12,7 +14,7 @@ pub struct HatenaBlogEntry {
     pub id: HatenaBlogEntryId,
     pub published: String,
     pub title: String,
-    pub updated: String,
+    pub updated: DateTime,
 }
 
 impl From<Entry> for HatenaBlogEntry {
@@ -26,7 +28,7 @@ impl From<Entry> for HatenaBlogEntry {
             id: HatenaBlogEntryId::from(entry.id),
             published: entry.published,
             title: entry.title,
-            updated: entry.updated,
+            updated: DateTime::from_str(entry.updated.as_str()).expect("invalid entry.updated"),
         }
     }
 }
@@ -42,7 +44,7 @@ impl From<HatenaBlogEntry> for Entry {
             id: EntryId::from(&hatena_blog_entry.id),
             published: hatena_blog_entry.published,
             title: hatena_blog_entry.title,
-            updated: hatena_blog_entry.updated,
+            updated: hatena_blog_entry.updated.to_string(),
         }
     }
 }
