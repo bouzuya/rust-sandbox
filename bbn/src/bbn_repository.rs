@@ -1,18 +1,21 @@
 use std::{
+    convert::TryFrom,
     ffi::OsStr,
     fs, io,
     path::{Path, PathBuf},
     str::FromStr,
 };
 
+use anyhow::Context;
 use date_range::date::{Date, YearMonth};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
     entry::Entry, entry_id::EntryId, entry_meta::EntryMeta, query::Query, timestamp::Timestamp,
 };
 
-#[derive(Debug, serde::Deserialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct MetaJson {
     minutes: u64,
     pubdate: String,
@@ -20,14 +23,27 @@ struct MetaJson {
     title: String,
 }
 
-impl MetaJson {
-    fn into_meta(self) -> anyhow::Result<EntryMeta> {
-        Ok(EntryMeta {
-            minutes: self.minutes,
-            pubdate: Timestamp::from_rfc3339(self.pubdate.as_str())?,
-            tags: self.tags,
-            title: self.title,
+impl std::convert::TryFrom<MetaJson> for EntryMeta {
+    type Error = anyhow::Error;
+
+    fn try_from(json: MetaJson) -> Result<Self, Self::Error> {
+        Ok(Self {
+            minutes: json.minutes,
+            pubdate: Timestamp::from_rfc3339(json.pubdate.as_str())?,
+            tags: json.tags,
+            title: json.title,
         })
+    }
+}
+
+impl From<EntryMeta> for MetaJson {
+    fn from(meta: EntryMeta) -> Self {
+        Self {
+            minutes: meta.minutes,
+            pubdate: meta.pubdate.to_rfc3339(),
+            tags: meta.tags,
+            title: meta.title,
+        }
     }
 }
 
@@ -85,7 +101,28 @@ impl BbnRepository {
         }
         let json_content = fs::read_to_string(path)?;
         let meta_json = serde_json::from_str::<'_, MetaJson>(json_content.as_str())?;
-        Ok(Some(meta_json.into_meta()?))
+        Ok(Some(EntryMeta::try_from(meta_json)?))
+    }
+
+    pub fn save(&self, entry: Entry) -> anyhow::Result<()> {
+        // meta
+        let meta_path = self
+            .data_dir
+            .join(entry.id().date().year().to_string())
+            .join(entry.id().date().month().to_string())
+            .join(format!("{}.json", entry.id()));
+        fs::create_dir_all(meta_path.parent().context("no parent dir")?)?;
+        let meta_json = MetaJson::from(entry.meta().clone());
+        let meta_json_content = serde_json::to_string(&meta_json)?;
+        fs::write(meta_path.as_path(), meta_json_content)?;
+        // content
+        let content_path = self
+            .data_dir
+            .join(entry.id().date().year().to_string())
+            .join(entry.id().date().month().to_string())
+            .join(format!("{}.md", entry.id()));
+        fs::write(content_path.as_path(), entry.content())?;
+        Ok(())
     }
 
     fn find_ids_by_year_month(&self, year_month: YearMonth) -> anyhow::Result<Vec<EntryId>> {
@@ -379,6 +416,75 @@ mod tests {
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-08")?)?,
             None
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn save_test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let data_dir = temp_dir.path().join("data");
+        let repository = BbnRepository::new(data_dir.clone());
+
+        repository.save(Entry::new(
+            EntryId::from_str("2021-07-06")?,
+            EntryMeta {
+                minutes: 5,
+                pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                tags: vec!["tag1".to_string()],
+                title: "TITLE1".to_string(),
+            },
+            "CONTENT1".to_string(),
+        ))?;
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.json"))?,
+            // FIXME: 2021-07-06T23:59:59+09:00
+            r#"{"minutes":5,"pubdate":"2021-07-06T14:59:59Z","tags":["tag1"],"title":"TITLE1"}"#
+        );
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.md"))?,
+            "CONTENT1"
+        );
+
+        repository.save(Entry::new(
+            EntryId::from_str("2021-07-07-id1")?,
+            EntryMeta {
+                minutes: 6,
+                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                tags: vec![],
+                title: "TITLE2".to_string(),
+            },
+            "CONTENT2".to_string(),
+        ))?;
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-07-id1.json"))?,
+            // FIXME: 2021-07-07T23:59:59+09:00
+            r#"{"minutes":6,"pubdate":"2021-07-07T14:59:59Z","tags":[],"title":"TITLE2"}"#
+        );
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-07-id1.md"))?,
+            "CONTENT2"
+        );
+
+        // update
+        repository.save(Entry::new(
+            EntryId::from_str("2021-07-06")?,
+            EntryMeta {
+                minutes: 6,
+                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                tags: vec![],
+                title: "TITLE2".to_string(),
+            },
+            "CONTENT2".to_string(),
+        ))?;
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.json"))?,
+            // FIXME: 2021-07-07T23:59:59+09:00
+            r#"{"minutes":6,"pubdate":"2021-07-07T14:59:59Z","tags":[],"title":"TITLE2"}"#
+        );
+        assert_eq!(
+            fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.md"))?,
+            "CONTENT2"
         );
         Ok(())
     }
