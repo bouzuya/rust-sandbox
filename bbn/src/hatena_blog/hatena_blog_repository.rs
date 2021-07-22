@@ -1,4 +1,4 @@
-use crate::data::Timestamp;
+use crate::{data::Timestamp, hatena_blog::HatenaBlogEntryId};
 use anyhow::Context as _;
 use hatena_blog::{Entry, EntryId};
 use sqlx::{
@@ -216,14 +216,14 @@ impl HatenaBlogRepository {
         )
     }
 
-    pub async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<EntryId>> {
+    pub async fn find_incomplete_entry_ids(&self) -> anyhow::Result<Vec<HatenaBlogEntryId>> {
         let rows: Vec<(String,)> =
             sqlx::query_as(include_str!("../../sql/find_incomplete_entry_ids.sql"))
                 .fetch_all(&self.pool)
                 .await?;
         rows.iter()
-            .map(|(id,)| EntryId::from_str(id.as_str()).context("entry id from str"))
-            .collect::<anyhow::Result<Vec<EntryId>>>()
+            .map(|(id,)| HatenaBlogEntryId::from_str(id.as_str()).context("entry id from str"))
+            .collect::<anyhow::Result<Vec<HatenaBlogEntryId>>>()
     }
 
     pub async fn find_last_successful_indexing_started_at(
