@@ -6,6 +6,7 @@ mod hatena_blog_repository;
 mod indexing;
 mod indexing_id;
 mod member_request_id;
+mod member_response_id;
 mod upload_entry;
 
 pub use self::download_entry::*;
@@ -16,4 +17,5 @@ pub use self::hatena_blog_repository::*;
 pub use self::indexing::*;
 pub use self::indexing_id::*;
 pub use self::member_request_id::*;
+pub use self::member_response_id::*;
 pub use self::upload_entry::*;
