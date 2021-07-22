@@ -233,13 +233,21 @@ async fn download_impl(
 
     let _indexing_id = indexing(&hatena_blog_repository, &hatena_blog_client).await?;
 
-    for hatena_blog_entry_id in hatena_blog_repository.find_incomplete_entry_ids().await? {
-        let response = hatena_blog_client.get_entry(&hatena_blog_entry_id).await?;
+    for member_request in hatena_blog_repository
+        .find_incomplete_member_requests()
+        .await?
+    {
+        let response = hatena_blog_client
+            .get_entry(&member_request.hatena_blog_entry_id)
+            .await?;
         let body = response.to_string();
         hatena_blog_repository
             .create_member_response(Timestamp::now()?, body)
             .await?;
-        println!("downloaded member id: {}", hatena_blog_entry_id);
+        println!(
+            "downloaded member id: {}",
+            member_request.hatena_blog_entry_id
+        );
         sleep(Duration::from_secs(1)).await;
     }
 
