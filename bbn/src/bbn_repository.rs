@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    entry::Entry, entry_id::EntryId, entry_meta::EntryMeta, query::Query, timestamp::Timestamp,
+    datetime::DateTime, entry::Entry, entry_id::EntryId, entry_meta::EntryMeta, query::Query,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -29,7 +29,7 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
     fn try_from(json: MetaJson) -> Result<Self, Self::Error> {
         Ok(Self {
             minutes: json.minutes,
-            pubdate: Timestamp::from_rfc3339(json.pubdate.as_str())?,
+            pubdate: DateTime::from_str(json.pubdate.as_str())?,
             tags: json.tags,
             title: json.title,
         })
@@ -40,7 +40,7 @@ impl From<EntryMeta> for MetaJson {
     fn from(meta: EntryMeta) -> Self {
         Self {
             minutes: meta.minutes,
-            pubdate: meta.pubdate.to_rfc3339(),
+            pubdate: meta.pubdate.to_string(),
             tags: meta.tags,
             title: meta.title,
         }
@@ -264,7 +264,7 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use crate::entry_id::EntryId;
+    use crate::{datetime::DateTime, entry_id::EntryId};
 
     use super::*;
 
@@ -320,7 +320,7 @@ mod tests {
                 EntryId::from_str("2021-07-06")?,
                 EntryMeta {
                     minutes: 5,
-                    pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                    pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                     tags: vec!["tag1".to_string()],
                     title: "TITLE1".to_string()
                 },
@@ -333,7 +333,7 @@ mod tests {
                 EntryId::from_str("2021-07-07-id1")?,
                 EntryMeta {
                     minutes: 6,
-                    pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                    pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                     tags: vec![],
                     title: "TITLE2".to_string()
                 },
@@ -399,7 +399,7 @@ mod tests {
             repository.find_meta_by_id(&EntryId::from_str("2021-07-06")?)?,
             Some(EntryMeta {
                 minutes: 5,
-                pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                 tags: vec!["tag1".to_string()],
                 title: "TITLE1".to_string()
             }),
@@ -408,7 +408,7 @@ mod tests {
             repository.find_meta_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
             Some(EntryMeta {
                 minutes: 6,
-                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
                 title: "TITLE2".to_string()
             }),
@@ -430,7 +430,7 @@ mod tests {
             EntryId::from_str("2021-07-06")?,
             EntryMeta {
                 minutes: 5,
-                pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
+                pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                 tags: vec!["tag1".to_string()],
                 title: "TITLE1".to_string(),
             },
@@ -438,8 +438,7 @@ mod tests {
         ))?;
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.json"))?,
-            // FIXME: 2021-07-06T23:59:59+09:00
-            r#"{"minutes":5,"pubdate":"2021-07-06T14:59:59Z","tags":["tag1"],"title":"TITLE1"}"#
+            r#"{"minutes":5,"pubdate":"2021-07-06T23:59:59+09:00","tags":["tag1"],"title":"TITLE1"}"#
         );
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.md"))?,
@@ -450,7 +449,7 @@ mod tests {
             EntryId::from_str("2021-07-07-id1")?,
             EntryMeta {
                 minutes: 6,
-                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
                 title: "TITLE2".to_string(),
             },
@@ -458,8 +457,7 @@ mod tests {
         ))?;
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-07-id1.json"))?,
-            // FIXME: 2021-07-07T23:59:59+09:00
-            r#"{"minutes":6,"pubdate":"2021-07-07T14:59:59Z","tags":[],"title":"TITLE2"}"#
+            r#"{"minutes":6,"pubdate":"2021-07-07T23:59:59+09:00","tags":[],"title":"TITLE2"}"#
         );
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-07-id1.md"))?,
@@ -471,7 +469,7 @@ mod tests {
             EntryId::from_str("2021-07-06")?,
             EntryMeta {
                 minutes: 6,
-                pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
+                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
                 title: "TITLE2".to_string(),
             },
@@ -479,8 +477,7 @@ mod tests {
         ))?;
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.json"))?,
-            // FIXME: 2021-07-07T23:59:59+09:00
-            r#"{"minutes":6,"pubdate":"2021-07-07T14:59:59Z","tags":[],"title":"TITLE2"}"#
+            r#"{"minutes":6,"pubdate":"2021-07-07T23:59:59+09:00","tags":[],"title":"TITLE2"}"#
         );
         assert_eq!(
             fs::read_to_string(data_dir.join("2021").join("07").join("2021-07-06.md"))?,

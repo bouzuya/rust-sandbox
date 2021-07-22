@@ -34,12 +34,12 @@ pub async fn upload_entry(
         hatena_id.to_string(),
         entry.meta().title.clone(),
         entry.content().to_string(),
-        updated.to_rfc3339(),
+        updated.to_string(),
         vec![],
         draft,
     );
     let res = match hatena_blog_repository
-        .find_entry_by_updated(updated)
+        .find_entry_by_updated(updated.into())
         .await?
     {
         None => {

@@ -60,7 +60,7 @@ pub async fn upload(
         for entry_id in entry_ids {
             let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
             let hatena_blog_entry = hatena_blog_repository
-                .find_entry_by_updated(bbn_entry.meta().pubdate)
+                .find_entry_by_updated(bbn_entry.meta().pubdate.into())
                 .await?;
             let result = match hatena_blog_entry {
                 None => None,

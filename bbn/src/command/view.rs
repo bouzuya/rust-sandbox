@@ -41,7 +41,7 @@ fn print_json_meta(entry_id: EntryId, entry_meta: EntryMeta, _: String) -> anyho
         "{}",
         serde_json::to_string(&MetaJson {
             minutes: entry_meta.minutes,
-            pubdate: entry_meta.pubdate.to_rfc3339(),
+            pubdate: entry_meta.pubdate.to_string(),
             tags: entry_meta.tags,
             title: entry_meta.title,
             url: entry_url(&entry_id)
@@ -58,9 +58,9 @@ fn print_json_content_meta(
     println!(
         "{}",
         serde_json::to_string(&ContentWithMetaJson {
-            content: entry_content.to_string(),
+            content: entry_content,
             minutes: entry_meta.minutes,
-            pubdate: entry_meta.pubdate.to_rfc3339(),
+            pubdate: entry_meta.pubdate.to_string(),
             tags: entry_meta.tags,
             title: entry_meta.title,
             url: entry_url(&entry_id)

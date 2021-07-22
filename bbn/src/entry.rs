@@ -39,7 +39,7 @@ mod tests {
 
     use date_range::date::Date;
 
-    use crate::timestamp::Timestamp;
+    use crate::datetime::DateTime;
 
     use super::*;
 
@@ -49,7 +49,7 @@ mod tests {
         let content = "content".to_string();
         let meta = EntryMeta {
             minutes: 15,
-            pubdate: Timestamp::now()?,
+            pubdate: DateTime::from_str("2021-02-03T16:17:18+09:00")?,
             tags: vec![],
             title: "title".to_string(),
         };
@@ -61,7 +61,7 @@ mod tests {
         let content2 = "content2".to_string();
         let meta2 = EntryMeta {
             minutes: 16,
-            pubdate: Timestamp::now()?,
+            pubdate: DateTime::from_str("2021-02-04T16:17:18+09:00")?,
             tags: vec!["tag2".to_string()],
             title: "title2".to_string(),
         };

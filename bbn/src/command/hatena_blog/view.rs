@@ -31,7 +31,7 @@ pub async fn view(
         .find_meta_by_id(&bbn_entry_id)?
         .context("no entry_meta")?;
     let hatena_blog_entry = hatena_blog_repository
-        .find_entry_by_updated(bbn_entry_meta.pubdate)
+        .find_entry_by_updated(bbn_entry_meta.pubdate.into())
         .await?
         .context("no hatena-blog entry")?;
     let updated = DateTime::parse_from_rfc3339(hatena_blog_entry.updated.as_str())?;
@@ -52,18 +52,13 @@ pub async fn view(
             (false, true) => {
                 println!(
                     "{} {} <{}>",
-                    bbn_entry_meta.pubdate.to_rfc3339(),
-                    hatena_blog_entry.title,
-                    url,
+                    bbn_entry_meta.pubdate, hatena_blog_entry.title, url,
                 );
             }
             (true, true) => {
                 println!(
                     "{} {} <{}>\n{}",
-                    bbn_entry_meta.pubdate.to_rfc3339(),
-                    hatena_blog_entry.title,
-                    url,
-                    hatena_blog_entry.content
+                    bbn_entry_meta.pubdate, hatena_blog_entry.title, url, hatena_blog_entry.content
                 );
             }
         }

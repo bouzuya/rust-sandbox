@@ -47,7 +47,7 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     for entry_id in entry_ids {
         let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
         let entry = hatena_blog_repository
-            .find_entry_by_updated(bbn_entry.meta().pubdate)
+            .find_entry_by_updated(bbn_entry.meta().pubdate.into())
             .await?;
         let result = entry
             .as_ref()

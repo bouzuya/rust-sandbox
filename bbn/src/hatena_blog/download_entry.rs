@@ -30,7 +30,7 @@ pub async fn download_entry(
         .find_meta_by_id(&entry_id)?
         .with_context(|| DownloadEntryError::NoEntryMeta)?;
     let hatena_blog_entry = hatena_blog_repository
-        .find_entry_by_updated(entry_meta.pubdate)
+        .find_entry_by_updated(entry_meta.pubdate.into())
         .await?
         .with_context(|| DownloadEntryError::NoHatenaBlogEntry)?;
     let response = hatena_blog_client.get_entry(&hatena_blog_entry.id).await?;
