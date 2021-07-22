@@ -1,6 +1,8 @@
 use chrono::{FixedOffset, Timelike};
 use thiserror::Error;
 
+use crate::timestamp::Timestamp;
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DateTime(chrono::DateTime<FixedOffset>);
 
@@ -30,6 +32,12 @@ impl std::str::FromStr for DateTime {
     }
 }
 
+impl From<DateTime> for Timestamp {
+    fn from(dt: DateTime) -> Self {
+        Timestamp::from(dt.0.timestamp())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -49,5 +57,15 @@ mod tests {
         assert_eq!(f(s1).map(g), Ok(s1.to_string()));
         assert_eq!(f(s2).map(g), Ok(s1.to_string())); // +00:00 -> Z
         assert_eq!(f(s3).map(g), Ok(s3.to_string()));
+    }
+
+    #[test]
+    fn timestamp_conversion_test() {
+        let f = |s| DateTime::from_str(s).unwrap();
+        let g = Timestamp::from;
+        let s1 = "2021-02-03T16:17:18+00:00";
+        let s2 = "2021-02-04T01:17:18+09:00";
+        assert_eq!(g(f(s1)), Timestamp::from(1612369038));
+        assert_eq!(g(f(s1)), g(f(s2)));
     }
 }
