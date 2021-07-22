@@ -1,6 +1,8 @@
 use crate::{
     data::Timestamp,
-    hatena_blog::{HatenaBlogEntry, HatenaBlogEntryId},
+    hatena_blog::{
+        HatenaBlogEntry, HatenaBlogEntryId, Indexing, IndexingId, MemberRequestId, MemberResponseId,
+    },
 };
 use anyhow::Context as _;
 use hatena_blog::{Entry, EntryId};
@@ -9,9 +11,6 @@ use sqlx::{
     Pool, Row, Sqlite,
 };
 use std::{path::PathBuf, str::FromStr};
-
-use crate::hatena_blog::Indexing;
-use crate::hatena_blog::IndexingId;
 
 #[derive(Debug)]
 pub struct HatenaBlogRepository {
@@ -112,22 +111,30 @@ impl HatenaBlogRepository {
         &self,
         at: Timestamp,
         entry_id: String,
-    ) -> anyhow::Result<()> {
-        sqlx::query(include_str!("../../sql/create_member_request.sql"))
-            .bind(i64::from(at))
-            .bind(entry_id)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
+    ) -> anyhow::Result<MemberRequestId> {
+        Ok(MemberRequestId::from(
+            sqlx::query(include_str!("../../sql/create_member_request.sql"))
+                .bind(i64::from(at))
+                .bind(entry_id)
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid(),
+        ))
     }
 
-    pub async fn create_member_response(&self, at: Timestamp, body: String) -> anyhow::Result<()> {
-        sqlx::query(include_str!("../../sql/create_member_response.sql"))
-            .bind(i64::from(at))
-            .bind(body)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
+    pub async fn create_member_response(
+        &self,
+        at: Timestamp,
+        body: String,
+    ) -> anyhow::Result<MemberResponseId> {
+        Ok(MemberResponseId::from(
+            sqlx::query(include_str!("../../sql/create_member_response.sql"))
+                .bind(i64::from(at))
+                .bind(body)
+                .execute(&self.pool)
+                .await?
+                .last_insert_rowid(),
+        ))
     }
 
     pub async fn create_successful_indexing(
