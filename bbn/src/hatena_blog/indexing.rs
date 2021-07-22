@@ -1,5 +1,5 @@
+use crate::data::Timestamp;
 use crate::hatena_blog::IndexingId;
-use crate::timestamp::Timestamp;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Indexing {

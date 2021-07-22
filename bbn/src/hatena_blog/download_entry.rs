@@ -1,6 +1,7 @@
 use crate::{
-    bbn_repository::BbnRepository, entry_id::EntryId, hatena_blog::HatenaBlogRepository,
-    timestamp::Timestamp,
+    bbn_repository::BbnRepository,
+    data::{EntryId, Timestamp},
+    hatena_blog::HatenaBlogRepository,
 };
 use anyhow::Context;
 use date_range::date::Date;

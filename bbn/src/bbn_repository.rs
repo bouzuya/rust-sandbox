@@ -12,7 +12,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::{
-    datetime::DateTime, entry::Entry, entry_id::EntryId, entry_meta::EntryMeta, query::Query,
+    data::{DateTime, Entry, EntryId, EntryMeta},
+    query::Query,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -267,7 +268,7 @@ mod tests {
 
     use tempfile::tempdir;
 
-    use crate::{datetime::DateTime, entry_id::EntryId};
+    use crate::data::{DateTime, EntryId};
 
     use super::*;
 

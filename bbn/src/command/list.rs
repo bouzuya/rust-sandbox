@@ -1,8 +1,7 @@
 use anyhow::Context;
 
 use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository, entry_id::EntryId,
-    query::Query,
+    bbn_repository::BbnRepository, config_repository::ConfigRepository, data::EntryId, query::Query,
 };
 use std::convert::TryFrom;
 

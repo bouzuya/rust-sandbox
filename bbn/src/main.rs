@@ -2,15 +2,11 @@ mod bbn_date_range;
 mod bbn_repository;
 mod command;
 mod config_repository;
-mod datetime;
-mod entry;
-mod entry_id;
-mod entry_meta;
+mod data;
 mod hatena_blog;
 mod query;
-mod timestamp;
 
-use bbn_date_range::bbn_date_range;
+pub use bbn_date_range::bbn_date_range;
 use date_range::date::Date;
 use std::{io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};

@@ -1,7 +1,7 @@
 use chrono::{FixedOffset, Timelike};
 use thiserror::Error;
 
-use crate::timestamp::Timestamp;
+use crate::data::Timestamp;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DateTime(chrono::DateTime<FixedOffset>);

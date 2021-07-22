@@ -1,4 +1,4 @@
-use crate::{entry_id::EntryId, entry_meta::EntryMeta};
+use crate::data::{EntryId, EntryMeta};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Entry {
@@ -39,7 +39,7 @@ mod tests {
 
     use date_range::date::Date;
 
-    use crate::datetime::DateTime;
+    use crate::data::DateTime;
 
     use super::*;
 

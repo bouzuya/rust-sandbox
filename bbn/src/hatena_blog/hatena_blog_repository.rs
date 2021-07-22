@@ -1,4 +1,4 @@
-use crate::timestamp::Timestamp;
+use crate::data::Timestamp;
 use anyhow::Context as _;
 use hatena_blog::{Entry, EntryId};
 use sqlx::{

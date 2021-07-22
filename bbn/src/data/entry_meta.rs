@@ -1,4 +1,4 @@
-use crate::datetime::DateTime;
+use crate::data::DateTime;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EntryMeta {

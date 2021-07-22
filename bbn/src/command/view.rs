@@ -1,6 +1,6 @@
 use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository, entry_id::EntryId,
-    entry_meta::EntryMeta,
+    bbn_repository::BbnRepository, config_repository::ConfigRepository, data::EntryId,
+    data::EntryMeta,
 };
 use anyhow::Context;
 use date_range::date::Date;
