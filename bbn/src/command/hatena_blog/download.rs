@@ -1,13 +1,23 @@
 use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
+    datetime::DateTime,
+    entry_id::EntryId,
+    entry_meta::EntryMeta,
     hatena_blog::{download_entry, HatenaBlogRepository, IndexingId},
+    query::Query,
     timestamp::Timestamp,
 };
-use anyhow::Context;
+use anyhow::{anyhow, Context};
+use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
-use hatena_blog::{Client, Config, Entry, ListEntriesResponse};
-use std::{collections::BTreeSet, convert::TryInto, time::Duration};
+use hatena_blog::{Client, Config, Entry, GetEntryResponse, ListEntriesResponse};
+use std::{
+    collections::BTreeSet,
+    convert::{TryFrom, TryInto},
+    str::FromStr,
+    time::Duration,
+};
 use tokio::time::sleep;
 
 async fn indexing(
@@ -115,34 +125,115 @@ async fn indexing(
     Ok(indexing.id())
 }
 
-pub async fn download(
-    date: Option<Date>,
-    hatena_api_key: String,
-    hatena_blog_id: String,
-    hatena_id: String,
+async fn parse_entry(hatena_blog_repository: &HatenaBlogRepository) -> anyhow::Result<()> {
+    let last_parsed_at = hatena_blog_repository.find_last_parsed_at().await?;
+    for body in hatena_blog_repository
+        .find_entries_waiting_for_parsing(last_parsed_at)
+        .await?
+    {
+        let entry = Entry::try_from(GetEntryResponse::from(body))?;
+        let entry_id = entry.id.clone();
+        hatena_blog_repository.delete_entry(&entry_id).await?;
+        hatena_blog_repository
+            .create_entry(entry, Timestamp::now()?)
+            .await?;
+        eprintln!("parsed member id: {}", entry_id);
+    }
+    Ok(())
+}
+
+fn update_bbn_entry(
+    entry_id: EntryId,
+    hatena_blog_entry: Entry,
+    bbn_repository: &BbnRepository,
 ) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
-    let config = config_repository
-        .load()
-        .context("The configuration file does not found. Use `bbn config` command.")?;
-    let data_file = config.hatena_blog_data_file().to_path_buf();
-    let data_dir = config.data_dir().to_path_buf();
+    let timestamp = Timestamp::from_rfc3339(hatena_blog_entry.updated.as_str())?;
+    let utc_naive_date_time = NaiveDateTime::from_timestamp(i64::from(timestamp), 0);
+    let fixed_datetime = Local.from_utc_datetime(&utc_naive_date_time);
+    let datetime = DateTime::from_str(&fixed_datetime.to_rfc3339())?;
+    let entry = match bbn_repository.find_entry_by_id(&entry_id)? {
+        None => crate::entry::Entry::new(
+            entry_id,
+            EntryMeta {
+                minutes: 15,
+                pubdate: datetime,
+                tags: vec![],
+                title: hatena_blog_entry.title,
+            },
+            hatena_blog_entry.content,
+        ),
+        Some(bbn_entry) => {
+            let meta = bbn_entry.meta().clone();
+            bbn_entry.update(
+                hatena_blog_entry.content,
+                EntryMeta {
+                    minutes: meta.minutes,
+                    pubdate: datetime,
+                    tags: meta.tags,
+                    title: hatena_blog_entry.title,
+                },
+            )
+        }
+    };
+    bbn_repository.save(entry)
+}
 
-    let config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
-    let hatena_blog_client = Client::new(&config);
-    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
+async fn update_bbn_entries(
+    target_entry_id: Option<EntryId>,
+    bbn_repository: &BbnRepository,
+    hatena_blog_repository: &HatenaBlogRepository,
+) -> anyhow::Result<()> {
+    for (updated, _) in hatena_blog_repository
+        .find_entries_updated_and_title()
+        .await?
+    {
+        let utc_naive_date_time = NaiveDateTime::from_timestamp(i64::from(updated), 0);
+        let fixed_datetime = Local.from_utc_datetime(&utc_naive_date_time);
+        let datetime = DateTime::from_str(&fixed_datetime.to_rfc3339())?;
+        let date = Date::from_str(datetime.to_string().get(0..10).unwrap())?;
+        println!("{:?} {:?}", updated, date);
+        let entry_id = match bbn_repository.find_id_by_date(date)? {
+            None => EntryId::new(date, None),
+            Some(entry_id) => entry_id,
+        };
+        if let Some(ref target) = target_entry_id {
+            if target != &entry_id {
+                continue;
+            }
+        }
+        let hatena_blog_entry = hatena_blog_repository
+            .find_entry_by_updated(updated)
+            .await?
+            .unwrap();
+        update_bbn_entry(entry_id, hatena_blog_entry, bbn_repository)?;
+    }
+    Ok(())
+}
 
+async fn download_impl(
+    data_file_only: bool,
+    date: Option<Date>,
+    bbn_repository: &BbnRepository,
+    hatena_blog_repository: &HatenaBlogRepository,
+    hatena_blog_client: &Client,
+) -> anyhow::Result<()> {
     if let Some(d) = date {
-        let bbn_repository = BbnRepository::new(data_dir);
         let entry_id = download_entry(
             d,
-            bbn_repository,
-            hatena_blog_repository,
-            hatena_blog_client,
+            &bbn_repository,
+            &hatena_blog_repository,
+            &hatena_blog_client,
         )
         .await?;
         println!("downloaded member id: {}", entry_id);
-        return Ok(());
+
+        parse_entry(&hatena_blog_repository).await?;
+
+        return if data_file_only {
+            Ok(())
+        } else {
+            update_bbn_entries(Some(entry_id), &bbn_repository, &hatena_blog_repository).await
+        };
     }
 
     let _indexing_id = indexing(&hatena_blog_repository, &hatena_blog_client).await?;
@@ -157,5 +248,39 @@ pub async fn download(
         sleep(Duration::from_secs(1)).await;
     }
 
-    Ok(())
+    parse_entry(&hatena_blog_repository).await?;
+
+    if data_file_only {
+        Ok(())
+    } else {
+        update_bbn_entries(None, &bbn_repository, &hatena_blog_repository).await
+    }
+}
+
+pub async fn download(
+    data_file_only: bool,
+    date: Option<Date>,
+    hatena_api_key: String,
+    hatena_blog_id: String,
+    hatena_id: String,
+) -> anyhow::Result<()> {
+    let config_repository = ConfigRepository::new();
+    let config = config_repository
+        .load()
+        .context("The configuration file does not found. Use `bbn config` command.")?;
+    let data_file = config.hatena_blog_data_file().to_path_buf();
+    let data_dir = config.data_dir().to_path_buf();
+
+    let bbn_repository = BbnRepository::new(data_dir);
+    let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
+    let hatena_blog_client_config = Config::new(&hatena_id, None, &hatena_blog_id, &hatena_api_key);
+    let hatena_blog_client = Client::new(&hatena_blog_client_config);
+    download_impl(
+        data_file_only,
+        date,
+        &bbn_repository,
+        &hatena_blog_repository,
+        &hatena_blog_client,
+    )
+    .await
 }

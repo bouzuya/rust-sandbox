@@ -19,9 +19,9 @@ pub enum DownloadEntryError {
 
 pub async fn download_entry(
     date: Date,
-    bbn_repository: BbnRepository,
-    hatena_blog_repository: HatenaBlogRepository,
-    hatena_blog_client: Client,
+    bbn_repository: &BbnRepository,
+    hatena_blog_repository: &HatenaBlogRepository,
+    hatena_blog_client: &Client,
 ) -> anyhow::Result<EntryId> {
     let entry_id = bbn_repository
         .find_id_by_date(date)?

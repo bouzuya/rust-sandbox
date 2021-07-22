@@ -82,6 +82,8 @@ pub enum HatenaBlogSubcommand {
     },
     #[structopt(name = "download", about = "Download to the hatena blog")]
     Download {
+        #[structopt(long = "data-file-only")]
+        data_file_only: bool,
         #[structopt(name = "DATE")]
         date: Option<Date>,
         #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
@@ -143,12 +145,19 @@ async fn main() -> anyhow::Result<()> {
             HatenaBlogSubcommand::Diff { date } => command::hatena_blog::diff(date).await,
             HatenaBlogSubcommand::Download {
                 date,
+                data_file_only,
                 hatena_api_key,
                 hatena_blog_id,
                 hatena_id,
             } => {
-                command::hatena_blog::download(date, hatena_api_key, hatena_blog_id, hatena_id)
-                    .await
+                command::hatena_blog::download(
+                    data_file_only,
+                    date,
+                    hatena_api_key,
+                    hatena_blog_id,
+                    hatena_id,
+                )
+                .await
             }
             HatenaBlogSubcommand::List => command::hatena_blog::list().await,
             HatenaBlogSubcommand::Upload {
