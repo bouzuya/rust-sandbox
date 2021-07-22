@@ -130,6 +130,9 @@ impl BbnRepository {
             .data_dir
             .join(year_month.year().to_string())
             .join(year_month.month().to_string());
+        if !entry_dir.is_dir() {
+            return Ok(vec![]);
+        }
         let mut entry_ids = vec![];
         for dir_entry in entry_dir.read_dir()? {
             let dir_entry_path = dir_entry?.path();
@@ -365,6 +368,11 @@ mod tests {
         );
         assert_eq!(
             repository.find_id_by_date(Date::from_str("2021-07-08")?)?,
+            None
+        );
+        // entry_dir does not exist
+        assert_eq!(
+            repository.find_id_by_date(Date::from_str("1970-01-01")?)?,
             None
         );
         Ok(())
