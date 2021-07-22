@@ -1,7 +1,7 @@
 use date_range::date::Date;
 use thiserror::Error;
 
-#[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EntryId {
     date: Date,
     id_title: Option<String>,

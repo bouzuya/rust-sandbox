@@ -58,7 +58,7 @@ impl BbnRepository {
         let content = self.find_content_by_id(entry_id)?;
         Ok(meta
             .zip(content)
-            .map(|(meta, content)| Entry::new(content, meta)))
+            .map(|(meta, content)| Entry::new(entry_id.clone(), meta, content)))
     }
 
     pub fn find_id_by_date(&self, date: Date) -> anyhow::Result<Option<EntryId>> {
@@ -280,25 +280,27 @@ mod tests {
         assert_eq!(
             repository.find_entry_by_id(&EntryId::from_str("2021-07-06")?)?,
             Some(Entry::new(
-                "CONTENT1".to_string(),
+                EntryId::from_str("2021-07-06")?,
                 EntryMeta {
                     minutes: 5,
                     pubdate: Timestamp::from_rfc3339("2021-07-06T23:59:59+09:00")?,
                     tags: vec!["tag1".to_string()],
                     title: "TITLE1".to_string()
-                }
+                },
+                "CONTENT1".to_string()
             )),
         );
         assert_eq!(
             repository.find_entry_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
             Some(Entry::new(
-                "CONTENT2".to_string(),
+                EntryId::from_str("2021-07-07-id1")?,
                 EntryMeta {
                     minutes: 6,
                     pubdate: Timestamp::from_rfc3339("2021-07-07T23:59:59+09:00")?,
                     tags: vec![],
                     title: "TITLE2".to_string()
-                }
+                },
+                "CONTENT2".to_string()
             )),
         );
         assert_eq!(

@@ -1,18 +1,23 @@
-use crate::entry_meta::EntryMeta;
+use crate::{entry_id::EntryId, entry_meta::EntryMeta};
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct Entry {
-    content: String,
+    id: EntryId,
     meta: EntryMeta,
+    content: String,
 }
 
 impl Entry {
-    pub fn new(content: String, meta: EntryMeta) -> Self {
-        Self { content, meta }
+    pub fn new(id: EntryId, meta: EntryMeta, content: String) -> Self {
+        Self { id, meta, content }
     }
 
     pub fn content(&self) -> &str {
         &self.content
+    }
+
+    pub fn id(&self) -> &EntryId {
+        &self.id
     }
 
     pub fn meta(&self) -> &EntryMeta {
@@ -20,18 +25,27 @@ impl Entry {
     }
 
     pub fn update(self, content: String, meta: EntryMeta) -> Self {
-        Self { content, meta }
+        Self {
+            id: self.id,
+            meta,
+            content,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use date_range::date::Date;
+
     use crate::timestamp::Timestamp;
 
     use super::*;
 
     #[test]
     fn test() -> anyhow::Result<()> {
+        let id = EntryId::new(Date::from_str("2021-02-03")?, None);
         let content = "content".to_string();
         let meta = EntryMeta {
             minutes: 15,
@@ -39,8 +53,9 @@ mod tests {
             tags: vec![],
             title: "title".to_string(),
         };
-        let entry = Entry::new(content.clone(), meta.clone());
+        let entry = Entry::new(id.clone(), meta.clone(), content.clone());
         assert_eq!(entry.content(), content.as_str());
+        assert_eq!(entry.id(), &id);
         assert_eq!(entry.meta(), &meta);
 
         let content2 = "content2".to_string();
@@ -52,6 +67,7 @@ mod tests {
         };
         let updated = entry.update(content2.clone(), meta2.clone());
         assert_eq!(updated.content(), content2.as_str());
+        assert_eq!(updated.id(), &id);
         assert_eq!(updated.meta(), &meta2);
         Ok(())
     }
