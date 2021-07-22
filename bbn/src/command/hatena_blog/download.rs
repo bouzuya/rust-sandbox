@@ -2,7 +2,9 @@ use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
     data::{DateTime, EntryId, EntryMeta, Timestamp},
-    hatena_blog::{download_entry, HatenaBlogClient, HatenaBlogRepository, IndexingId},
+    hatena_blog::{
+        download_entry, HatenaBlogClient, HatenaBlogEntry, HatenaBlogRepository, IndexingId,
+    },
 };
 use anyhow::Context;
 use chrono::{Local, NaiveDateTime, TimeZone};
@@ -142,7 +144,7 @@ async fn parse_entry(hatena_blog_repository: &HatenaBlogRepository) -> anyhow::R
 
 fn update_bbn_entry(
     entry_id: EntryId,
-    hatena_blog_entry: Entry,
+    hatena_blog_entry: HatenaBlogEntry,
     bbn_repository: &BbnRepository,
 ) -> anyhow::Result<()> {
     let timestamp = Timestamp::from_rfc3339(hatena_blog_entry.updated.as_str())?;
@@ -189,7 +191,6 @@ async fn update_bbn_entries(
         let fixed_datetime = Local.from_utc_datetime(&utc_naive_date_time);
         let datetime = DateTime::from_str(&fixed_datetime.to_rfc3339())?;
         let date = Date::from_str(datetime.to_string().get(0..10).unwrap())?;
-        println!("{:?} {:?}", updated, date);
         let entry_id = match bbn_repository.find_id_by_date(date)? {
             None => EntryId::new(date, None),
             Some(entry_id) => entry_id,

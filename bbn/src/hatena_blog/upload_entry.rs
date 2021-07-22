@@ -1,7 +1,7 @@
 use crate::{
     bbn_repository::BbnRepository,
     data::{EntryId, Timestamp},
-    hatena_blog::{HatenaBlogClient, HatenaBlogEntryId, HatenaBlogRepository},
+    hatena_blog::{HatenaBlogClient, HatenaBlogRepository},
 };
 use anyhow::Context;
 use date_range::date::Date;
@@ -52,9 +52,7 @@ pub async fn upload_entry(
             (true, entry_id)
         }
         Some(entry) => {
-            let response = hatena_blog_client
-                .update_entry(&HatenaBlogEntryId::from(entry.id), params)
-                .await?;
+            let response = hatena_blog_client.update_entry(&entry.id, params).await?;
             let body = response.to_string();
             hatena_blog_repository
                 .create_member_response(Timestamp::now()?, body)

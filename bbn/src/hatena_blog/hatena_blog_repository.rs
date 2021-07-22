@@ -1,4 +1,7 @@
-use crate::{data::Timestamp, hatena_blog::HatenaBlogEntryId};
+use crate::{
+    data::Timestamp,
+    hatena_blog::{HatenaBlogEntry, HatenaBlogEntryId},
+};
 use anyhow::Context as _;
 use hatena_blog::{Entry, EntryId};
 use sqlx::{
@@ -194,12 +197,15 @@ impl HatenaBlogRepository {
             .collect::<Vec<String>>())
     }
 
-    pub async fn find_entry_by_updated(&self, updated: Timestamp) -> anyhow::Result<Option<Entry>> {
+    pub async fn find_entry_by_updated(
+        &self,
+        updated: Timestamp,
+    ) -> anyhow::Result<Option<HatenaBlogEntry>> {
         Ok(
             sqlx::query(include_str!("../../sql/find_entry_by_updated.sql"))
                 .bind(i64::from(updated))
                 .map(|row: SqliteRow| {
-                    Entry::new(
+                    HatenaBlogEntry::from(Entry::new(
                         EntryId::from_str(row.get(0)).unwrap(),
                         row.get(6),
                         row.get(1),
@@ -209,7 +215,7 @@ impl HatenaBlogRepository {
                         Timestamp::from(row.get::<'_, i64, _>(5)).to_rfc3339(),
                         Timestamp::from(row.get::<'_, i64, _>(4)).to_rfc3339(),
                         row.get::<'_, i64, _>(3) == 1_i64,
-                    )
+                    ))
                 })
                 .fetch_optional(&self.pool)
                 .await?,
