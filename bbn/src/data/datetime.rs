@@ -1,4 +1,4 @@
-use chrono::{FixedOffset, Timelike};
+use chrono::{FixedOffset, Local, NaiveDateTime, TimeZone, Timelike};
 use thiserror::Error;
 
 use crate::data::Timestamp;
@@ -9,6 +9,16 @@ pub struct DateTime(chrono::DateTime<FixedOffset>);
 #[derive(Debug, Eq, Error, PartialEq)]
 #[error("parse date time error")]
 pub struct ParseDateTimeError;
+
+impl DateTime {
+    pub fn local_from_timestamp(timestamp: Timestamp) -> Self {
+        let utc_naive_datetime = NaiveDateTime::from_timestamp(i64::from(timestamp), 0);
+        let local_datetime = Local.from_utc_datetime(&utc_naive_datetime);
+        let fixed_offset = FixedOffset::from_offset(local_datetime.offset());
+        let fixed_datetime = fixed_offset.from_utc_datetime(&utc_naive_datetime);
+        Self(fixed_datetime)
+    }
+}
 
 impl std::fmt::Display for DateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

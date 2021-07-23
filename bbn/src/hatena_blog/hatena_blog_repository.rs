@@ -1,5 +1,5 @@
 use crate::{
-    data::Timestamp,
+    data::{DateTime, Timestamp},
     hatena_blog::{
         HatenaBlogEntry, HatenaBlogEntryId, HatenaBlogListEntriesResponse, Indexing, IndexingId,
         MemberRequest, MemberRequestId, MemberResponseId,
@@ -224,6 +224,7 @@ impl HatenaBlogRepository {
         &self,
         updated: Timestamp,
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
+        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
         Ok(
             sqlx::query(include_str!("../../sql/find_entry_by_updated.sql"))
                 .bind(i64::from(updated))
@@ -234,9 +235,9 @@ impl HatenaBlogRepository {
                         row.get(1),
                         vec![],
                         row.get(2),
-                        Timestamp::from(row.get::<'_, i64, _>(7)).to_rfc3339(),
-                        Timestamp::from(row.get::<'_, i64, _>(5)).to_rfc3339(),
-                        Timestamp::from(row.get::<'_, i64, _>(4)).to_rfc3339(),
+                        f(row.get::<'_, i64, _>(7)),
+                        f(row.get::<'_, i64, _>(5)),
+                        f(row.get::<'_, i64, _>(4)),
                         row.get::<'_, i64, _>(3) == 1_i64,
                     ))
                 })
