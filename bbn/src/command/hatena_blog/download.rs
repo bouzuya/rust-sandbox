@@ -106,6 +106,7 @@ fn update_bbn_entry(
         None => crate::data::Entry::new(
             entry_id,
             EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 15,
                 pubdate: hatena_blog_entry.updated,
                 tags: vec![],
@@ -118,6 +119,7 @@ fn update_bbn_entry(
             bbn_entry.update(
                 hatena_blog_entry.content,
                 EntryMeta {
+                    hatena_blog_ignore: None,
                     minutes: meta.minutes,
                     pubdate: hatena_blog_entry.updated,
                     tags: meta.tags,

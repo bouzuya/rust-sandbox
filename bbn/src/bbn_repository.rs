@@ -18,6 +18,8 @@ use crate::{
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct MetaJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hatena_blog_ignore: Option<bool>,
     minutes: u64,
     pubdate: String,
     tags: Vec<String>,
@@ -29,6 +31,7 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 
     fn try_from(json: MetaJson) -> Result<Self, Self::Error> {
         Ok(Self {
+            hatena_blog_ignore: json.hatena_blog_ignore,
             minutes: json.minutes,
             pubdate: DateTime::from_str(json.pubdate.as_str())?,
             tags: json.tags,
@@ -40,6 +43,7 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 impl From<EntryMeta> for MetaJson {
     fn from(meta: EntryMeta) -> Self {
         Self {
+            hatena_blog_ignore: meta.hatena_blog_ignore,
             minutes: meta.minutes,
             pubdate: meta.pubdate.to_string(),
             tags: meta.tags,
@@ -323,6 +327,7 @@ mod tests {
             Some(Entry::new(
                 EntryId::from_str("2021-07-06")?,
                 EntryMeta {
+                    hatena_blog_ignore: None,
                     minutes: 5,
                     pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                     tags: vec!["tag1".to_string()],
@@ -336,6 +341,7 @@ mod tests {
             Some(Entry::new(
                 EntryId::from_str("2021-07-07-id1")?,
                 EntryMeta {
+                    hatena_blog_ignore: None,
                     minutes: 6,
                     pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                     tags: vec![],
@@ -407,6 +413,7 @@ mod tests {
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-06")?)?,
             Some(EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 5,
                 pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                 tags: vec!["tag1".to_string()],
@@ -416,6 +423,7 @@ mod tests {
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
             Some(EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 6,
                 pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
@@ -438,6 +446,7 @@ mod tests {
         repository.save(Entry::new(
             EntryId::from_str("2021-07-06")?,
             EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 5,
                 pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
                 tags: vec!["tag1".to_string()],
@@ -457,6 +466,7 @@ mod tests {
         repository.save(Entry::new(
             EntryId::from_str("2021-07-07-id1")?,
             EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 6,
                 pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
@@ -477,6 +487,7 @@ mod tests {
         repository.save(Entry::new(
             EntryId::from_str("2021-07-06")?,
             EntryMeta {
+                hatena_blog_ignore: None,
                 minutes: 6,
                 pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
                 tags: vec![],
