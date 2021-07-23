@@ -1,8 +1,10 @@
 use crate::hatena_blog::HatenaBlogEntryId;
 use hatena_blog::{
     Client, Config, CreateEntryResponse, EntryId, EntryParams, GetEntryResponse,
-    ListEntriesResponse, UpdateEntryResponse,
+    UpdateEntryResponse,
 };
+
+use crate::hatena_blog::HatenaBlogListEntriesResponse;
 
 #[derive(Clone, Debug)]
 pub struct HatenaBlogClient {
@@ -42,8 +44,10 @@ impl HatenaBlogClient {
     pub async fn list_entries_in_page(
         &self,
         page: Option<&str>,
-    ) -> anyhow::Result<ListEntriesResponse> {
+    ) -> anyhow::Result<HatenaBlogListEntriesResponse> {
         let client = Client::new(&self.config);
-        Ok(client.list_entries_in_page(page).await?)
+        Ok(HatenaBlogListEntriesResponse::from(
+            client.list_entries_in_page(page).await?,
+        ))
     }
 }

@@ -1,8 +1,8 @@
 use crate::{
     data::Timestamp,
     hatena_blog::{
-        HatenaBlogEntry, HatenaBlogEntryId, Indexing, IndexingId, MemberRequest, MemberRequestId,
-        MemberResponseId,
+        HatenaBlogEntry, HatenaBlogEntryId, HatenaBlogListEntriesResponse, Indexing, IndexingId,
+        MemberRequest, MemberRequestId, MemberResponseId,
     },
 };
 use anyhow::Context as _;
@@ -51,12 +51,12 @@ impl HatenaBlogRepository {
     pub async fn create_collection_response(
         &self,
         at: Timestamp,
-        body: String,
+        response: HatenaBlogListEntriesResponse,
     ) -> anyhow::Result<i64> {
         Ok(
             sqlx::query(include_str!("../../sql/create_collection_response.sql"))
                 .bind(i64::from(at))
-                .bind(body)
+                .bind(response.body())
                 .execute(&self.pool)
                 .await?
                 .last_insert_rowid(),
@@ -179,7 +179,7 @@ impl HatenaBlogRepository {
     pub async fn find_collection_responses_by_indexing_id(
         &self,
         indexing_id: IndexingId,
-    ) -> anyhow::Result<Vec<String>> {
+    ) -> anyhow::Result<Vec<HatenaBlogListEntriesResponse>> {
         let rows: Vec<(String,)> = sqlx::query_as(include_str!(
             "../../sql/find_collection_responses_by_indexing_id.sql"
         ))
@@ -188,8 +188,8 @@ impl HatenaBlogRepository {
         .await?;
         Ok(rows
             .into_iter()
-            .map(|(body,)| body)
-            .collect::<Vec<String>>())
+            .map(|(body,)| HatenaBlogListEntriesResponse::from(body))
+            .collect::<Vec<HatenaBlogListEntriesResponse>>())
     }
 
     pub async fn find_entries_updated_and_title(&self) -> anyhow::Result<Vec<(Timestamp, String)>> {

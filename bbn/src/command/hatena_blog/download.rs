@@ -9,13 +9,8 @@ use crate::{
 use anyhow::Context;
 use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
-use hatena_blog::{Entry, GetEntryResponse, ListEntriesResponse};
-use std::{
-    collections::BTreeSet,
-    convert::{TryFrom, TryInto},
-    str::FromStr,
-    time::Duration,
-};
+use hatena_blog::{Entry, GetEntryResponse};
+use std::{collections::BTreeSet, convert::TryFrom, str::FromStr, time::Duration};
 use tokio::time::sleep;
 
 async fn indexing(
@@ -35,16 +30,13 @@ async fn indexing(
     let indexing = hatena_blog_repository.create_indexing().await?;
     println!("indexing started at: {}", indexing.at().to_rfc3339());
 
-    let mut entry_ids = BTreeSet::new();
     let mut next_page = None;
     loop {
-        // send request
         let response = hatena_blog_client
             .list_entries_in_page(next_page.as_deref())
             .await?;
-        let body = response.to_string();
         let collection_response_id = hatena_blog_repository
-            .create_collection_response(Timestamp::now()?, body)
+            .create_collection_response(Timestamp::now()?, response.clone())
             .await?;
         println!(
             "downloaded collection page: {}",
@@ -53,35 +45,9 @@ async fn indexing(
         hatena_blog_repository
             .create_indexing_collection_response(indexing.id(), collection_response_id)
             .await?;
-
-        // parse response
-        let (next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
-        let filtered = entries
-            .iter()
-            .take_while(|entry| match last_indexing_started_at {
-                None => true,
-                Some(last) => Timestamp::from_rfc3339(&entry.published)
-                    .map(|published| last <= published)
-                    .unwrap_or(false),
-            })
-            .collect::<Vec<&Entry>>();
-        for entry in filtered.iter() {
-            if entry_ids.insert(entry.id.to_string()) {
-                println!(
-                    "parsed hatena_blog entry_id: {} (published: {})",
-                    entry.id, entry.published
-                );
-            }
-        }
-
-        // next
-        match (next, filtered.len() == entries.len()) {
-            (None, _) | (Some(_), false) => {
-                break;
-            }
-            (Some(page), true) => {
-                next_page = Some(page);
-            }
+        match response.next_page(last_indexing_started_at)? {
+            None => break,
+            Some(page) => next_page = Some(page),
         }
         sleep(Duration::from_secs(1)).await;
     }
@@ -96,29 +62,18 @@ async fn indexing(
     );
 
     // TODO: remove
-    let mut entry_ids = BTreeSet::new();
-    for body in hatena_blog_repository
+    let mut hatena_blog_entry_ids = BTreeSet::new();
+    for response in hatena_blog_repository
         .find_collection_responses_by_indexing_id(indexing.id())
         .await?
     {
-        let response = ListEntriesResponse::from(body);
-        let (_, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
-        let filtered = entries
-            .iter()
-            .take_while(|entry| match last_indexing_started_at {
-                None => true,
-                Some(last) => Timestamp::from_rfc3339(&entry.published)
-                    .map(|published| last <= published)
-                    .unwrap_or(false),
-            })
-            .collect::<Vec<&Entry>>();
-        for entry in filtered.iter() {
-            entry_ids.insert(entry.id.to_string());
+        for hatena_blog_entry_id in response.hatena_blog_entry_ids(last_indexing_started_at)? {
+            hatena_blog_entry_ids.insert(hatena_blog_entry_id.to_string());
         }
     }
-    for entry_id in entry_ids {
+    for hatena_blog_entry_id in hatena_blog_entry_ids {
         hatena_blog_repository
-            .create_member_request(Timestamp::now()?, entry_id)
+            .create_member_request(Timestamp::now()?, hatena_blog_entry_id)
             .await?;
     }
 

@@ -26,7 +26,7 @@ impl HatenaBlogListEntriesResponse {
                     .map(|published| since <= published)
                     .unwrap_or(false),
             })
-            .map(|entry| HatenaBlogEntryId::from(entry.id))
+            .map(|entry| HatenaBlogEntryId::from(entry.id.clone()))
             .collect::<Vec<HatenaBlogEntryId>>();
         Ok(filtered)
     }
