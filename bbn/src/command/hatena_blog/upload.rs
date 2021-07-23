@@ -53,6 +53,9 @@ pub async fn upload(
         let entry_ids = bbn_repository.find_ids_by_query(query)?;
         for entry_id in entry_ids {
             let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
+            if bbn_entry.meta().hatena_blog_ignore == Some(true) {
+                continue;
+            }
             let hatena_blog_entry = hatena_blog_repository
                 .find_entry_by_updated(bbn_entry.meta().pubdate.into())
                 .await?;

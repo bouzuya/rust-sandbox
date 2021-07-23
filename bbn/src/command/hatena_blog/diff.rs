@@ -23,9 +23,13 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     };
     let query = Query::try_from(query_string.as_str())?;
     let entry_ids = bbn_repository.find_ids_by_query(query)?;
-    let mut diff_stats = (0, 0, 0);
+    let mut diff_stats = (0, 0, 0, 0);
     for entry_id in entry_ids {
         let bbn_entry = bbn_repository.find_entry_by_id(&entry_id)?.unwrap();
+        if bbn_entry.meta().hatena_blog_ignore == Some(true) {
+            diff_stats.3 += 1;
+            continue;
+        }
         let hatena_blog_entries = hatena_blog_repository
             .find_entries_by_entry_id(entry_id.clone())
             .await?;
@@ -74,12 +78,13 @@ fn show_diff(left: &str, right: &str) {
     }
 }
 
-fn show_stats(diff_stats: (i32, i32, i32)) {
+fn show_stats(diff_stats: (i32, i32, i32, i32)) {
     println!(
-        "different count: eq = {} ne = {} no = {} (ne + no = {})",
+        "different count: eq = {} ne = {} no = {} ig = {} (ne + no = {})",
         diff_stats.1,
         diff_stats.2,
         diff_stats.0,
+        diff_stats.3,
         diff_stats.2 + diff_stats.0,
     );
 }
