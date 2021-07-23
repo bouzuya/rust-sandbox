@@ -1,5 +1,5 @@
 use crate::{
-    data::{DateTime, Timestamp},
+    data::{DateTime, EntryMeta, Timestamp},
     hatena_blog::{
         HatenaBlogEntry, HatenaBlogEntryId, HatenaBlogListEntriesResponse, Indexing, IndexingId,
         MemberRequest, MemberRequestId, MemberResponseId,
@@ -221,7 +221,7 @@ impl HatenaBlogRepository {
             .collect::<Vec<String>>())
     }
 
-    pub async fn find_entries_by_entry_id(
+    async fn find_entries_by_entry_id(
         &self,
         entry_id: crate::data::EntryId,
     ) -> anyhow::Result<Vec<HatenaBlogEntry>> {
@@ -258,6 +258,40 @@ impl HatenaBlogRepository {
                 .fetch_all(&self.pool)
                 .await?,
         )
+    }
+
+    pub async fn find_entry_by_entry_meta(
+        &self,
+        entry_meta: &EntryMeta,
+    ) -> anyhow::Result<Option<HatenaBlogEntry>> {
+        match entry_meta.hatena_blog_entry_id.clone() {
+            None => self.find_entry_by_updated(entry_meta.pubdate.into()).await,
+            Some(entry_id) => self.find_entry_by_id(entry_id).await,
+        }
+    }
+
+    async fn find_entry_by_id(
+        &self,
+        hatena_blog_entry_id: HatenaBlogEntryId,
+    ) -> anyhow::Result<Option<HatenaBlogEntry>> {
+        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
+        Ok(sqlx::query(include_str!("../../sql/find_entry_by_id.sql"))
+            .bind(hatena_blog_entry_id.to_string())
+            .map(|row: SqliteRow| {
+                HatenaBlogEntry::from(Entry::new(
+                    EntryId::from_str(row.get(0)).unwrap(),
+                    row.get(6),
+                    row.get(1),
+                    vec![],
+                    row.get(2),
+                    f(row.get::<'_, i64, _>(7)),
+                    f(row.get::<'_, i64, _>(5)),
+                    f(row.get::<'_, i64, _>(4)),
+                    row.get::<'_, i64, _>(3) == 1_i64,
+                ))
+            })
+            .fetch_optional(&self.pool)
+            .await?)
     }
 
     pub async fn find_entry_by_updated(
@@ -314,7 +348,7 @@ impl HatenaBlogRepository {
         Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
-    pub async fn find_indexing(&self, id: IndexingId) -> anyhow::Result<Option<Indexing>> {
+    async fn find_indexing(&self, id: IndexingId) -> anyhow::Result<Option<Indexing>> {
         let row: Option<(i64, i64)> = sqlx::query_as(include_str!("../../sql/find_indexing.sql"))
             .bind(i64::from(id))
             .fetch_optional(&self.pool)

@@ -57,7 +57,7 @@ pub async fn upload(
                 continue;
             }
             let hatena_blog_entry = hatena_blog_repository
-                .find_entry_by_updated(bbn_entry.meta().pubdate.into())
+                .find_entry_by_entry_meta(bbn_entry.meta())
                 .await?;
             let result = match hatena_blog_entry {
                 None => None,

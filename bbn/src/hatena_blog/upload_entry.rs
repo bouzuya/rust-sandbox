@@ -39,10 +39,10 @@ pub async fn upload_entry(
         vec![],
         draft,
     );
-    let res = match hatena_blog_repository
-        .find_entry_by_updated(updated.into())
-        .await?
-    {
+    let hatena_blog_entry = hatena_blog_repository
+        .find_entry_by_entry_meta(entry.meta())
+        .await?;
+    let res = match hatena_blog_entry {
         None => {
             let response = hatena_blog_client.create_entry(params).await?;
             let body = response.to_string();

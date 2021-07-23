@@ -13,11 +13,16 @@ use thiserror::Error;
 
 use crate::{
     data::{DateTime, Entry, EntryId, EntryMeta},
+    hatena_blog::HatenaBlogEntryId,
     query::Query,
 };
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 struct MetaJson {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hatena_blog_entry_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    hatena_blog_entry_url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     hatena_blog_ignore: Option<bool>,
     minutes: u64,
@@ -31,6 +36,11 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 
     fn try_from(json: MetaJson) -> Result<Self, Self::Error> {
         Ok(Self {
+            hatena_blog_entry_id: json
+                .hatena_blog_entry_id
+                .map(|s| HatenaBlogEntryId::from_str(s.as_str()))
+                .transpose()?,
+            hatena_blog_entry_url: json.hatena_blog_entry_url,
             hatena_blog_ignore: json.hatena_blog_ignore,
             minutes: json.minutes,
             pubdate: DateTime::from_str(json.pubdate.as_str())?,
@@ -43,6 +53,8 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 impl From<EntryMeta> for MetaJson {
     fn from(meta: EntryMeta) -> Self {
         Self {
+            hatena_blog_entry_id: meta.hatena_blog_entry_id.map(|i| i.to_string()),
+            hatena_blog_entry_url: meta.hatena_blog_entry_url,
             hatena_blog_ignore: meta.hatena_blog_ignore,
             minutes: meta.minutes,
             pubdate: meta.pubdate.to_string(),
@@ -326,13 +338,12 @@ mod tests {
             repository.find_entry_by_id(&EntryId::from_str("2021-07-06")?)?,
             Some(Entry::new(
                 EntryId::from_str("2021-07-06")?,
-                EntryMeta {
-                    hatena_blog_ignore: None,
-                    minutes: 5,
-                    pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
-                    tags: vec!["tag1".to_string()],
-                    title: "TITLE1".to_string()
-                },
+                EntryMeta::new(
+                    5,
+                    DateTime::from_str("2021-07-06T23:59:59+09:00")?,
+                    vec!["tag1".to_string()],
+                    "TITLE1".to_string()
+                ),
                 "CONTENT1".to_string()
             )),
         );
@@ -340,13 +351,12 @@ mod tests {
             repository.find_entry_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
             Some(Entry::new(
                 EntryId::from_str("2021-07-07-id1")?,
-                EntryMeta {
-                    hatena_blog_ignore: None,
-                    minutes: 6,
-                    pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
-                    tags: vec![],
-                    title: "TITLE2".to_string()
-                },
+                EntryMeta::new(
+                    6,
+                    DateTime::from_str("2021-07-07T23:59:59+09:00")?,
+                    vec![],
+                    "TITLE2".to_string()
+                ),
                 "CONTENT2".to_string()
             )),
         );
@@ -412,23 +422,21 @@ mod tests {
         let repository = BbnRepository::new(data_dir);
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-06")?)?,
-            Some(EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 5,
-                pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
-                tags: vec!["tag1".to_string()],
-                title: "TITLE1".to_string()
-            }),
+            Some(EntryMeta::new(
+                5,
+                DateTime::from_str("2021-07-06T23:59:59+09:00")?,
+                vec!["tag1".to_string()],
+                "TITLE1".to_string()
+            )),
         );
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-07-id1")?)?,
-            Some(EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 6,
-                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
-                tags: vec![],
-                title: "TITLE2".to_string()
-            }),
+            Some(EntryMeta::new(
+                6,
+                DateTime::from_str("2021-07-07T23:59:59+09:00")?,
+                vec![],
+                "TITLE2".to_string()
+            )),
         );
         assert_eq!(
             repository.find_meta_by_id(&EntryId::from_str("2021-07-08")?)?,
@@ -445,13 +453,12 @@ mod tests {
 
         repository.save(Entry::new(
             EntryId::from_str("2021-07-06")?,
-            EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 5,
-                pubdate: DateTime::from_str("2021-07-06T23:59:59+09:00")?,
-                tags: vec!["tag1".to_string()],
-                title: "TITLE1".to_string(),
-            },
+            EntryMeta::new(
+                5,
+                DateTime::from_str("2021-07-06T23:59:59+09:00")?,
+                vec!["tag1".to_string()],
+                "TITLE1".to_string(),
+            ),
             "CONTENT1".to_string(),
         ))?;
         assert_eq!(
@@ -465,13 +472,12 @@ mod tests {
 
         repository.save(Entry::new(
             EntryId::from_str("2021-07-07-id1")?,
-            EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 6,
-                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
-                tags: vec![],
-                title: "TITLE2".to_string(),
-            },
+            EntryMeta::new(
+                6,
+                DateTime::from_str("2021-07-07T23:59:59+09:00")?,
+                vec![],
+                "TITLE2".to_string(),
+            ),
             "CONTENT2".to_string(),
         ))?;
         assert_eq!(
@@ -486,13 +492,12 @@ mod tests {
         // update
         repository.save(Entry::new(
             EntryId::from_str("2021-07-06")?,
-            EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 6,
-                pubdate: DateTime::from_str("2021-07-07T23:59:59+09:00")?,
-                tags: vec![],
-                title: "TITLE2".to_string(),
-            },
+            EntryMeta::new(
+                6,
+                DateTime::from_str("2021-07-07T23:59:59+09:00")?,
+                vec![],
+                "TITLE2".to_string(),
+            ),
             "CONTENT2".to_string(),
         ))?;
         assert_eq!(

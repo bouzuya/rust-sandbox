@@ -1,4 +1,4 @@
-use anyhow::{bail, Context};
+use anyhow::Context;
 
 use crate::{
     bbn_repository::BbnRepository, config_repository::ConfigRepository,
@@ -30,32 +30,27 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
             diff_stats.3 += 1;
             continue;
         }
-        let hatena_blog_entries = hatena_blog_repository
-            .find_entries_by_entry_id(entry_id.clone())
+        let hatena_blog_entry = hatena_blog_repository
+            .find_entry_by_entry_meta(bbn_entry.meta())
             .await?;
-        if hatena_blog_entries.is_empty() || hatena_blog_entries.len() == 1 {
-            let entry = hatena_blog_entries.get(0);
-            let result = entry
-                .as_ref()
-                .map(|entry| bbn_entry.content() == entry.content);
-            match result {
-                None => diff_stats.0 += 1,
-                Some(false) => diff_stats.2 += 1,
-                Some(true) => diff_stats.1 += 1,
+        let result = hatena_blog_entry
+            .as_ref()
+            .map(|entry| bbn_entry.content() == entry.content);
+        match result {
+            None => diff_stats.0 += 1,
+            Some(false) => diff_stats.2 += 1,
+            Some(true) => diff_stats.1 += 1,
+        }
+        if result != Some(true) {
+            if date.is_none() {
+                println!(
+                    "{} {}",
+                    result.map(|b| if b { "eq" } else { "ne" }).unwrap_or("no"),
+                    entry_id
+                );
+            } else if let Some(entry) = hatena_blog_entry {
+                show_diff(entry.content.as_str(), bbn_entry.content());
             }
-            if result != Some(true) {
-                if date.is_none() {
-                    println!(
-                        "{} {}",
-                        result.map(|b| if b { "eq" } else { "ne" }).unwrap_or("no"),
-                        entry_id
-                    );
-                } else if let Some(entry) = entry {
-                    show_diff(entry.content.as_str(), bbn_entry.content());
-                }
-            }
-        } else {
-            bail!("duplicated entry: {}", entry_id);
         }
     }
     if date.is_none() {

@@ -105,26 +105,24 @@ fn update_bbn_entry(
     let entry = match bbn_repository.find_entry_by_id(&entry_id)? {
         None => crate::data::Entry::new(
             entry_id,
-            EntryMeta {
-                hatena_blog_ignore: None,
-                minutes: 15,
-                pubdate: hatena_blog_entry.updated,
-                tags: vec![],
-                title: hatena_blog_entry.title,
-            },
+            EntryMeta::new(
+                15,
+                hatena_blog_entry.updated,
+                vec![],
+                hatena_blog_entry.title,
+            ),
             hatena_blog_entry.content,
         ),
         Some(bbn_entry) => {
             let meta = bbn_entry.meta().clone();
             bbn_entry.update(
                 hatena_blog_entry.content,
-                EntryMeta {
-                    hatena_blog_ignore: None,
-                    minutes: meta.minutes,
-                    pubdate: hatena_blog_entry.updated,
-                    tags: meta.tags,
-                    title: hatena_blog_entry.title,
-                },
+                EntryMeta::new(
+                    meta.minutes,
+                    hatena_blog_entry.updated,
+                    meta.tags,
+                    hatena_blog_entry.title,
+                ),
             )
         }
     };
