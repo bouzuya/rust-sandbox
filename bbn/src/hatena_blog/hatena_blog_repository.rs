@@ -6,6 +6,7 @@ use crate::{
     },
 };
 use anyhow::Context as _;
+use chrono::{Local, NaiveDate, NaiveTime, TimeZone};
 use hatena_blog::{Entry, EntryId};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
@@ -218,6 +219,45 @@ impl HatenaBlogRepository {
             .into_iter()
             .map(|(body,)| body)
             .collect::<Vec<String>>())
+    }
+
+    pub async fn find_entries_by_entry_id(
+        &self,
+        entry_id: crate::data::EntryId,
+    ) -> anyhow::Result<Vec<HatenaBlogEntry>> {
+        let local_naive_date =
+            NaiveDate::parse_from_str(entry_id.date().to_string().as_str(), "%Y-%m-%d")?;
+        let start = Local
+            .from_local_datetime(&local_naive_date.and_time(NaiveTime::from_hms(0, 0, 0)))
+            .single()
+            .unwrap()
+            .timestamp();
+        let end = Local
+            .from_local_datetime(&local_naive_date.and_time(NaiveTime::from_hms(23, 59, 59)))
+            .single()
+            .unwrap()
+            .timestamp();
+        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
+        Ok(
+            sqlx::query(include_str!("../../sql/find_entries_by_updated_range.sql"))
+                .bind(start)
+                .bind(end)
+                .map(|row: SqliteRow| {
+                    HatenaBlogEntry::from(Entry::new(
+                        EntryId::from_str(row.get(0)).unwrap(),
+                        row.get(6),
+                        row.get(1),
+                        vec![],
+                        row.get(2),
+                        f(row.get::<'_, i64, _>(7)),
+                        f(row.get::<'_, i64, _>(5)),
+                        f(row.get::<'_, i64, _>(4)),
+                        row.get::<'_, i64, _>(3) == 1_i64,
+                    ))
+                })
+                .fetch_all(&self.pool)
+                .await?,
+        )
     }
 
     pub async fn find_entry_by_updated(
