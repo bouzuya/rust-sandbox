@@ -123,6 +123,21 @@ impl HatenaBlogRepository {
         ))
     }
 
+    pub async fn create_member_request_result(
+        &self,
+        member_request_id: MemberRequestId,
+        at: Timestamp,
+        member_response_id: Option<MemberResponseId>,
+    ) -> anyhow::Result<()> {
+        sqlx::query(include_str!("../../sql/create_member_request_result.sql"))
+            .bind(i64::from(member_request_id))
+            .bind(i64::from(at))
+            .bind(member_response_id.map(i64::from))
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
     pub async fn create_member_response(
         &self,
         at: Timestamp,
