@@ -3,8 +3,10 @@ SELECT entry_id,
   content,
   draft,
   edited,
+  edit_url,
   published,
   title,
-  updated
+  updated,
+  url
 FROM entries
 WHERE entry_id = ?
