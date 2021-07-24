@@ -192,35 +192,49 @@ async fn download_impl(
         .find_incomplete_member_requests()
         .await?
     {
-        let response = hatena_blog_client
+        match hatena_blog_client
             .get_entry(&member_request.hatena_blog_entry_id)
-            .await?;
-        let body = response.to_string();
-        match hatena_blog_repository
-            .create_member_response(Timestamp::now()?, body)
-            .await
+            .await?
         {
-            Ok(member_response_id) => {
-                hatena_blog_repository
-                    .create_member_request_result(
-                        member_request.id,
-                        Timestamp::now()?,
-                        Some(member_response_id),
-                    )
-                    .await?;
-            }
-            Err(err) => {
+            None => {
+                // get_entry returns None. ... The entry has been deleted.
                 hatena_blog_repository
                     .create_member_request_result(member_request.id, Timestamp::now()?, None)
                     .await?;
-                return Err(err);
+            }
+            Some(response) => {
+                let body = response.to_string();
+                match hatena_blog_repository
+                    .create_member_response(Timestamp::now()?, body)
+                    .await
+                {
+                    Ok(member_response_id) => {
+                        hatena_blog_repository
+                            .create_member_request_result(
+                                member_request.id,
+                                Timestamp::now()?,
+                                Some(member_response_id),
+                            )
+                            .await?;
+                    }
+                    Err(err) => {
+                        hatena_blog_repository
+                            .create_member_request_result(
+                                member_request.id,
+                                Timestamp::now()?,
+                                None,
+                            )
+                            .await?;
+                        return Err(err);
+                    }
+                }
+                println!(
+                    "downloaded member id: {}",
+                    member_request.hatena_blog_entry_id
+                );
+                sleep(Duration::from_secs(1)).await;
             }
         }
-        println!(
-            "downloaded member id: {}",
-            member_request.hatena_blog_entry_id
-        );
-        sleep(Duration::from_secs(1)).await;
     }
 
     parse_entry(&hatena_blog_repository).await?;

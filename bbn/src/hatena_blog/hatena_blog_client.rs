@@ -35,10 +35,21 @@ impl HatenaBlogClient {
     pub async fn get_entry(
         &self,
         hatena_blog_entry_id: &HatenaBlogEntryId,
-    ) -> anyhow::Result<GetEntryResponse> {
+    ) -> anyhow::Result<Option<GetEntryResponse>> {
         let client = Client::new(&self.config);
         let entry_id = EntryId::from(hatena_blog_entry_id);
-        Ok(client.get_entry(&entry_id).await?)
+        Ok(match client.get_entry(&entry_id).await {
+            Ok(response) => Ok(Some(response)),
+            Err(err) => match err {
+                hatena_blog::ClientError::NotFound => Ok(None),
+                hatena_blog::ClientError::RequestError(_)
+                | hatena_blog::ClientError::BadRequest
+                | hatena_blog::ClientError::Unauthorized
+                | hatena_blog::ClientError::MethodNotAllowed
+                | hatena_blog::ClientError::InternalServerError
+                | hatena_blog::ClientError::UnknownStatusCode => Err(err),
+            },
+        }?)
     }
 
     pub async fn list_entries_in_page(
