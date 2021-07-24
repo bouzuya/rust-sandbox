@@ -35,14 +35,14 @@ impl HatenaBlogListEntriesResponse {
     pub fn next_page(self, since: Option<Timestamp>) -> anyhow::Result<Option<String>> {
         let response = ListEntriesResponse::from(self.0);
         let (next, entries): (Option<String>, Vec<Entry>) = response.try_into()?;
-        let filtered = entries
+        let filtered_len = entries
             .iter()
             .take_while(|entry| match since {
                 None => true,
                 Some(since) => since <= Timestamp::from(DateTime::from(entry.published)),
             })
-            .collect::<Vec<&Entry>>();
-        Ok(match (next, filtered.len() == entries.len()) {
+            .count();
+        Ok(match (next, filtered_len == entries.len()) {
             (None, _) | (Some(_), false) => None,
             (Some(page), true) => Some(page),
         })
