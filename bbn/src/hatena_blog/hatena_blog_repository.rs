@@ -6,8 +6,7 @@ use crate::{
     },
 };
 use anyhow::Context as _;
-use chrono::{Local, NaiveDate, NaiveTime, TimeZone};
-use hatena_blog::{Entry, EntryId};
+use hatena_blog::{Entry, EntryId, FixedDateTime};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
     Pool, Row, Sqlite,
@@ -70,12 +69,12 @@ impl HatenaBlogRepository {
             .bind(entry.author_name)
             .bind(entry.content)
             .bind(if entry.draft { 1_i64 } else { 0_i64 })
-            .bind(i64::from(Timestamp::from_rfc3339(&entry.edited).unwrap()))
-            .bind(i64::from(
-                Timestamp::from_rfc3339(&entry.published).unwrap(),
-            ))
+            .bind(i64::from(Timestamp::from(DateTime::from(entry.edited))))
+            .bind(entry.edit_url)
+            .bind(i64::from(Timestamp::from(DateTime::from(entry.published))))
             .bind(entry.title)
-            .bind(i64::from(Timestamp::from_rfc3339(&entry.updated).unwrap()))
+            .bind(i64::from(Timestamp::from(DateTime::from(entry.updated))))
+            .bind(entry.url)
             .bind(i64::from(parsed_at))
             .execute(&self.pool)
             .await?
@@ -221,45 +220,6 @@ impl HatenaBlogRepository {
             .collect::<Vec<String>>())
     }
 
-    async fn find_entries_by_entry_id(
-        &self,
-        entry_id: crate::data::EntryId,
-    ) -> anyhow::Result<Vec<HatenaBlogEntry>> {
-        let local_naive_date =
-            NaiveDate::parse_from_str(entry_id.date().to_string().as_str(), "%Y-%m-%d")?;
-        let start = Local
-            .from_local_datetime(&local_naive_date.and_time(NaiveTime::from_hms(0, 0, 0)))
-            .single()
-            .unwrap()
-            .timestamp();
-        let end = Local
-            .from_local_datetime(&local_naive_date.and_time(NaiveTime::from_hms(23, 59, 59)))
-            .single()
-            .unwrap()
-            .timestamp();
-        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
-        Ok(
-            sqlx::query(include_str!("../../sql/find_entries_by_updated_range.sql"))
-                .bind(start)
-                .bind(end)
-                .map(|row: SqliteRow| {
-                    HatenaBlogEntry::from(Entry::new(
-                        EntryId::from_str(row.get(0)).unwrap(),
-                        row.get(6),
-                        row.get(1),
-                        vec![],
-                        row.get(2),
-                        f(row.get::<'_, i64, _>(7)),
-                        f(row.get::<'_, i64, _>(5)),
-                        f(row.get::<'_, i64, _>(4)),
-                        row.get::<'_, i64, _>(3) == 1_i64,
-                    ))
-                })
-                .fetch_all(&self.pool)
-                .await?,
-        )
-    }
-
     pub async fn find_entry_by_entry_meta(
         &self,
         entry_meta: &EntryMeta,
@@ -274,21 +234,23 @@ impl HatenaBlogRepository {
         &self,
         hatena_blog_entry_id: HatenaBlogEntryId,
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
-        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
+        let f = |i: i64| FixedDateTime::from(DateTime::local_from_timestamp(Timestamp::from(i)));
         Ok(sqlx::query(include_str!("../../sql/find_entry_by_id.sql"))
             .bind(hatena_blog_entry_id.to_string())
             .map(|row: SqliteRow| {
-                HatenaBlogEntry::from(Entry::new(
-                    EntryId::from_str(row.get(0)).unwrap(),
-                    row.get(6),
-                    row.get(1),
-                    vec![],
-                    row.get(2),
-                    f(row.get::<'_, i64, _>(7)),
-                    f(row.get::<'_, i64, _>(5)),
-                    f(row.get::<'_, i64, _>(4)),
-                    row.get::<'_, i64, _>(3) == 1_i64,
-                ))
+                HatenaBlogEntry::from(Entry {
+                    author_name: row.get("author_name"),
+                    categories: vec![],
+                    content: row.get("content"),
+                    draft: row.get::<'_, i64, _>("draft") == 1_i64,
+                    edit_url: row.get("edit_url"),
+                    edited: f(row.get::<'_, i64, _>("edited")),
+                    id: EntryId::from_str(row.get("entry_id")).unwrap(),
+                    published: f(row.get::<'_, i64, _>("published")),
+                    title: row.get("title"),
+                    updated: f(row.get::<'_, i64, _>("updated")),
+                    url: row.get("url"),
+                })
             })
             .fetch_optional(&self.pool)
             .await?)
@@ -298,22 +260,24 @@ impl HatenaBlogRepository {
         &self,
         updated: Timestamp,
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
-        let f = |i: i64| DateTime::local_from_timestamp(Timestamp::from(i)).to_string();
+        let f = |i: i64| FixedDateTime::from(DateTime::local_from_timestamp(Timestamp::from(i)));
         Ok(
             sqlx::query(include_str!("../../sql/find_entry_by_updated.sql"))
                 .bind(i64::from(updated))
                 .map(|row: SqliteRow| {
-                    HatenaBlogEntry::from(Entry::new(
-                        EntryId::from_str(row.get(0)).unwrap(),
-                        row.get(6),
-                        row.get(1),
-                        vec![],
-                        row.get(2),
-                        f(row.get::<'_, i64, _>(7)),
-                        f(row.get::<'_, i64, _>(5)),
-                        f(row.get::<'_, i64, _>(4)),
-                        row.get::<'_, i64, _>(3) == 1_i64,
-                    ))
+                    HatenaBlogEntry::from(Entry {
+                        author_name: row.get("author_name"),
+                        categories: vec![],
+                        content: row.get("content"),
+                        draft: row.get::<'_, i64, _>("draft") == 1_i64,
+                        edit_url: row.get("edit_url"),
+                        edited: f(row.get::<'_, i64, _>("edited")),
+                        id: EntryId::from_str(row.get("entry_id")).unwrap(),
+                        published: f(row.get::<'_, i64, _>("published")),
+                        title: row.get("title"),
+                        updated: f(row.get::<'_, i64, _>("updated")),
+                        url: row.get("url"),
+                    })
                 })
                 .fetch_optional(&self.pool)
                 .await?,

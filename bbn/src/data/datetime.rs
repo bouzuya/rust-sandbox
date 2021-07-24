@@ -1,4 +1,5 @@
 use chrono::{FixedOffset, Local, NaiveDateTime, TimeZone, Timelike};
+use hatena_blog::FixedDateTime;
 use thiserror::Error;
 
 use crate::data::Timestamp;
@@ -39,6 +40,18 @@ impl std::str::FromStr for DateTime {
             return Err(ParseDateTimeError);
         }
         Ok(Self(dt))
+    }
+}
+
+impl From<FixedDateTime> for DateTime {
+    fn from(dt: FixedDateTime) -> Self {
+        Self(chrono::DateTime::<FixedOffset>::from(dt))
+    }
+}
+
+impl From<DateTime> for FixedDateTime {
+    fn from(dt: DateTime) -> Self {
+        Self::from(dt.0)
     }
 }
 

@@ -4,9 +4,11 @@ INSERT INTO entries(
     content,
     draft,
     edited,
+    edit_url,
     published,
     title,
     updated,
+    url,
     parsed_at
   )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

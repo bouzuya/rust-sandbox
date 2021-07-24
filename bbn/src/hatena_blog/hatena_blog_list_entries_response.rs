@@ -2,7 +2,10 @@ use std::convert::TryInto;
 
 use hatena_blog::{Entry, ListEntriesResponse};
 
-use crate::{data::Timestamp, hatena_blog::HatenaBlogEntryId};
+use crate::{
+    data::{DateTime, Timestamp},
+    hatena_blog::HatenaBlogEntryId,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HatenaBlogListEntriesResponse(String);
@@ -22,9 +25,7 @@ impl HatenaBlogListEntriesResponse {
             .iter()
             .take_while(|entry| match since {
                 None => true,
-                Some(since) => Timestamp::from_rfc3339(&entry.published)
-                    .map(|published| since <= published)
-                    .unwrap_or(false),
+                Some(since) => since <= Timestamp::from(DateTime::from(entry.published)),
             })
             .map(|entry| HatenaBlogEntryId::from(entry.id.clone()))
             .collect::<Vec<HatenaBlogEntryId>>();
@@ -38,9 +39,7 @@ impl HatenaBlogListEntriesResponse {
             .iter()
             .take_while(|entry| match since {
                 None => true,
-                Some(since) => Timestamp::from_rfc3339(&entry.published)
-                    .map(|published| since <= published)
-                    .unwrap_or(false),
+                Some(since) => since <= Timestamp::from(DateTime::from(entry.published)),
             })
             .collect::<Vec<&Entry>>();
         Ok(match (next, filtered.len() == entries.len()) {

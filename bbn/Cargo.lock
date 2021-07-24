@@ -719,11 +719,12 @@ dependencies = [
 
 [[package]]
 name = "hatena-blog"
-version = "0.12.0"
-source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.12.0#8957b8bbd3d9358fe1779aceb50c69a35384b315"
+version = "0.13.0"
+source = "git+https://github.com/bouzuya/rust-hatena-blog?tag=0.13.0#eb78007991ee1fa4ff3f9f347c8b2d26bca4aec9"
 dependencies = [
  "anyhow",
  "atom_syndication",
+ "chrono",
  "handlebars",
  "quick-xml",
  "reqwest",
