@@ -12,7 +12,8 @@ use termion::{
 use tui::{
     backend::TermionBackend,
     layout::{Constraint, Direction, Layout},
-    widgets::{Block, BorderType, Borders, ListState},
+    style::{Color, Modifier, Style},
+    widgets::{Block, BorderType, Borders, List, ListItem, ListState},
     Terminal,
 };
 
@@ -20,7 +21,7 @@ fn main() -> anyhow::Result<()> {
     let mut args = env::args();
     let initial_node_label = args.nth(1).unwrap();
 
-    let state = {
+    let mut state = {
         let nodes = vec!["a", "b", "c"];
         let edges = vec![(0, 1), (0, 2), (1, 2)];
         let initial_node_id = nodes.iter().position(|n| n == &initial_node_label).unwrap();
@@ -36,8 +37,11 @@ fn main() -> anyhow::Result<()> {
     let backend = TermionBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let mut list_state = ListState::default();
-    list_state.select(None);
+    let mut list_state_left = ListState::default();
+    list_state_left.select(None);
+    let mut list_state_right = ListState::default();
+    list_state_right.select(None);
+    let mut pos = None;
     loop {
         terminal.draw(|f| {
             let size = f.size();
@@ -58,19 +62,133 @@ fn main() -> anyhow::Result<()> {
                 )
                 .split(f.size());
 
-            let block = Block::default().title("With borders").borders(Borders::ALL);
-            f.render_widget(block, chunks[0]);
+            let highlight_style = Style::default()
+                .bg(Color::LightMagenta)
+                .add_modifier(Modifier::BOLD);
+            let items = state
+                .from()
+                .into_iter()
+                .map(|node| ListItem::new(node.to_string()))
+                .collect::<Vec<ListItem>>();
+            let items = List::new(items)
+                .block(Block::default().borders(Borders::ALL).title("From"))
+                .highlight_style(highlight_style);
+            f.render_stateful_widget(items, chunks[0], &mut list_state_left);
             let block = Block::default()
                 .title(state.selected().to_string())
                 .borders(Borders::ALL);
             f.render_widget(block, chunks[1]);
-            let block = Block::default().title("With borders").borders(Borders::ALL);
-            f.render_widget(block, chunks[2]);
+            let items = state
+                .to()
+                .into_iter()
+                .map(|node| ListItem::new(node.to_string()))
+                .collect::<Vec<ListItem>>();
+            let items = List::new(items)
+                .block(Block::default().borders(Borders::ALL).title("To"))
+                .highlight_style(highlight_style);
+            f.render_stateful_widget(items, chunks[2], &mut list_state_right);
         })?;
 
         let key = keys.next().unwrap().unwrap();
-        if key == Key::Char('q') {
-            break;
+        match key {
+            Key::Char('q') => {
+                break;
+            }
+            Key::Char('h') | Key::Left => match pos {
+                Some(false) => {
+                    if let Some(i) = list_state_left.selected() {
+                        let id = state.from().get(i).unwrap().id();
+                        state.select(id).unwrap();
+                        pos = None;
+                        list_state_left.select(None);
+                        list_state_right.select(None);
+                    } else if !state.from().is_empty() {
+                        list_state_left.select(Some(0));
+                    }
+                }
+                None | Some(true) => {
+                    pos = Some(false);
+                    list_state_right.select(None);
+                    if !state.from().is_empty() {
+                        list_state_left.select(Some(0));
+                    }
+                }
+            },
+            Key::Char('l') | Key::Right => match pos {
+                Some(true) => {
+                    if let Some(i) = list_state_right.selected() {
+                        let id = state.to().get(i).unwrap().id();
+                        state.select(id).unwrap();
+                        pos = None;
+                        list_state_left.select(None);
+                        list_state_right.select(None);
+                    } else if !state.to().is_empty() {
+                        list_state_right.select(Some(0));
+                    }
+                }
+                None | Some(false) => {
+                    pos = Some(true);
+                    list_state_left.select(None);
+                    if !state.to().is_empty() {
+                        list_state_right.select(Some(0));
+                    }
+                }
+            },
+            Key::Char('j') | Key::Down => match pos {
+                None => {}
+                Some(false) => match list_state_left.selected() {
+                    Some(i) => {
+                        if i + 1 < state.from().len() {
+                            list_state_left.select(Some(i + 1));
+                        }
+                    }
+                    None => {
+                        if !state.from().is_empty() {
+                            list_state_left.select(Some(0));
+                        }
+                    }
+                },
+                Some(true) => match list_state_right.selected() {
+                    Some(i) => {
+                        if i + 1 < state.to().len() {
+                            list_state_right.select(Some(i + 1));
+                        }
+                    }
+                    None => {
+                        if !state.to().is_empty() {
+                            list_state_right.select(Some(0));
+                        }
+                    }
+                },
+            },
+            Key::Char('k') | Key::Up => match pos {
+                None => {}
+                Some(false) => match list_state_left.selected() {
+                    Some(i) => {
+                        if i > 0 {
+                            list_state_left.select(Some(i - 1));
+                        }
+                    }
+                    None => {
+                        if !state.from().is_empty() {
+                            list_state_left.select(Some(state.from().len() - 1));
+                        }
+                    }
+                },
+                Some(true) => match list_state_right.selected() {
+                    Some(i) => {
+                        if i > 0 {
+                            list_state_right.select(Some(i - 1));
+                        }
+                    }
+                    None => {
+                        if !state.to().is_empty() {
+                            list_state_right.select(Some(state.to().len() - 1));
+                        }
+                    }
+                },
+            },
+            _ => {}
         }
     }
 
