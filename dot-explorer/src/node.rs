@@ -8,6 +8,10 @@ impl Node {
     pub fn new(id: usize, label: &'static str) -> Self {
         Node { id, label }
     }
+
+    pub fn id(&self) -> usize {
+        self.id
+    }
 }
 
 impl std::fmt::Display for Node {
@@ -24,6 +28,7 @@ mod tests {
     fn test() {
         let node = Node::new(1, "Hello");
         assert_eq!(node, Node::new(1, "Hello"));
+        assert_eq!(node.id(), 1);
         assert_eq!(node.to_string(), "[1] Hello");
     }
 }
