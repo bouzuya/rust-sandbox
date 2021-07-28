@@ -1,8 +1,9 @@
+mod dot;
 mod node;
 mod state;
 
-use crate::state::State;
-use std::{env, io};
+use crate::{dot::parse, state::State};
+use std::{env, fs, io};
 use termion::{
     event::Key,
     input::{MouseTerminal, TermRead},
@@ -19,9 +20,12 @@ use tui::{
 
 fn main() -> anyhow::Result<()> {
     let mut args = env::args();
-    let initial_node_label = args.nth(1).unwrap();
+    let content = fs::read_to_string(args.nth(1).unwrap())?;
+    let initial_node_label = args.nth(2).unwrap();
 
     let mut state = {
+        let graph = parse(&content)?;
+        println!("{:?}", graph);
         let nodes = vec!["a", "b", "c"];
         let edges = vec![(0, 1), (0, 2), (1, 2)];
         let initial_node_id = nodes.iter().position(|n| n == &initial_node_label).unwrap();
