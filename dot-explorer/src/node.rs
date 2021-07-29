@@ -1,11 +1,11 @@
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-pub struct Node {
+pub struct Node<'a> {
     id: usize,
-    label: &'static str,
+    label: &'a str,
 }
 
-impl Node {
-    pub fn new(id: usize, label: &'static str) -> Self {
+impl<'a> Node<'a> {
+    pub fn new(id: usize, label: &'a str) -> Self {
         Node { id, label }
     }
 
@@ -14,7 +14,7 @@ impl Node {
     }
 }
 
-impl std::fmt::Display for Node {
+impl<'a> std::fmt::Display for Node<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "[{}] {}", self.id, self.label)
     }

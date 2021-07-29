@@ -2,20 +2,16 @@ use crate::node::Node;
 use anyhow::bail;
 
 #[derive(Debug)]
-pub struct State {
+pub struct State<'a> {
     selected_node_id: usize,
     edges: Vec<(usize, usize)>,
-    nodes: Vec<&'static str>,
+    nodes: Vec<&'a str>,
     to: Vec<Vec<usize>>,
     from: Vec<Vec<usize>>,
 }
 
-impl State {
-    pub fn new(
-        edges: Vec<(usize, usize)>,
-        nodes: Vec<&'static str>,
-        selected_node_id: usize,
-    ) -> Self {
+impl<'a> State<'a> {
+    pub fn new(edges: Vec<(usize, usize)>, nodes: Vec<&'a str>, selected_node_id: usize) -> Self {
         let to = {
             let mut e = vec![vec![]; nodes.len()];
             for (u, v) in edges.iter().copied() {
