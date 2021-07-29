@@ -2,17 +2,23 @@ use anyhow::anyhow;
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, char, multispace0, multispace1, satisfy},
+    character::complete::{alpha1, alphanumeric1, char, multispace0, multispace1},
     combinator::{all_consuming, map, recognize},
-    multi::many0,
+    multi::{fold_many0, many0},
     sequence::{pair, tuple},
     IResult,
 };
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct Graph {
-    pub nodes: Vec<String>,
-    pub edges: Vec<(usize, usize)>,
+pub struct Graph<'a> {
+    pub nodes: Vec<&'a str>,
+    pub edges: Vec<(&'a str, &'a str)>,
+}
+
+#[derive(Debug, Eq, PartialEq)]
+enum Statement<'a> {
+    Node(&'a str),
+    Edge((&'a str, &'a str)),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -23,26 +29,57 @@ pub fn parse(s: &str) -> anyhow::Result<Graph> {
 
 fn graph(s: &str) -> IResult<&str, Graph> {
     map(
-        tuple((tag("digraph"), multispace1, char('{'), stmt_list, char('}'))),
-        |(_, _, _, g, _)| g,
+        tuple((
+            multispace0,
+            tag("digraph"),
+            multispace1,
+            char('{'),
+            stmt_list,
+            char('}'),
+            multispace0,
+        )),
+        |(_, _, _, _, g, _, _)| g,
     )(s)
 }
 
 fn stmt_list(s: &str) -> IResult<&str, Graph> {
+    fold_many0(stmt, Graph::default(), |mut g, x| {
+        match x {
+            Statement::Node(node) => {
+                g.nodes.push(node);
+            }
+            Statement::Edge((l, r)) => {
+                g.edges.push((l, r));
+            }
+        };
+        g
+    })(s)
+}
+
+fn stmt(s: &str) -> IResult<&str, Statement> {
     alt((
-        map(node_stmt, |node: &str| Graph {
-            nodes: vec![node.to_string()],
-            edges: vec![],
-        }),
-        map(multispace0, |_| Graph {
-            nodes: vec![],
-            edges: vec![],
-        }),
+        map(edge_stmt, |(l, r): (&str, &str)| Statement::Edge((l, r))),
+        map(node_stmt, |node: &str| Statement::Node(node)),
     ))(s)
 }
 
 fn node_stmt(s: &str) -> IResult<&str, &str> {
-    node_id(s)
+    map(tuple((multispace0, node_id, multispace0)), |(_, x, _)| x)(s)
+}
+
+fn edge_stmt(s: &str) -> IResult<&str, (&str, &str)> {
+    map(
+        tuple((multispace0, node_id, multispace1, edge_rhs, multispace0)),
+        |(_, l, _, r, _)| (l, r),
+    )(s)
+}
+
+fn edge_rhs(s: &str) -> IResult<&str, &str> {
+    map(tuple((edgeop, multispace1, node_id)), |(_, _, r)| r)(s)
+}
+
+fn edgeop(s: &str) -> IResult<&str, &str> {
+    alt((tag("->"), tag("--")))(s)
 }
 
 fn node_id(s: &str) -> IResult<&str, &str> {
@@ -69,21 +106,100 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec!["node".to_string()],
+                    nodes: vec!["node"],
                     edges: vec![]
+                }
+            ))
+        );
+        assert_eq!(
+            graph("digraph {n1 n2 n3 -> n4}"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec!["n1", "n2"],
+                    edges: vec![("n3", "n4")]
                 }
             ))
         );
     }
 
     #[test]
+    fn stmt_list_test() {
+        assert_eq!(
+            stmt_list("N1"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec!["N1"],
+                    edges: vec![]
+                }
+            ))
+        );
+        assert_eq!(
+            stmt_list("N1 -> N2"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec![],
+                    edges: vec![("N1", "N2")]
+                }
+            ))
+        );
+        assert_eq!(
+            stmt_list("N1 -- N2"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec![],
+                    edges: vec![("N1", "N2")]
+                }
+            ))
+        );
+        assert_eq!(
+            stmt_list("N1 N2"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec!["N1", "N2"],
+                    edges: vec![]
+                }
+            ))
+        );
+        assert_eq!(
+            stmt_list("N1 N2 -> N3 N4"),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec!["N1", "N4"],
+                    edges: vec![("N2", "N3")]
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn stmt_test() {
+        assert_eq!(stmt("N1"), Ok(("", Statement::Node("N1"))));
+        assert_eq!(stmt("N1 -> N2"), Ok(("", Statement::Edge(("N1", "N2")))));
+        assert_eq!(stmt("N1 -- N2"), Ok(("", Statement::Edge(("N1", "N2")))));
+    }
+
+    #[test]
     fn node_stmt_test() {
-        assert_eq!(id("N1"), Ok(("", "N1")));
+        assert_eq!(node_stmt("N1"), Ok(("", "N1")));
+        assert_eq!(node_stmt(" N1 "), Ok(("", "N1")));
+    }
+
+    #[test]
+    fn edge_stmt_test() {
+        assert_eq!(edge_stmt("N1 -> N2"), Ok(("", ("N1", "N2"))));
+        assert_eq!(edge_stmt("N1 -- N2"), Ok(("", ("N1", "N2"))));
+        assert_eq!(edge_stmt(" N1 -> N2 "), Ok(("", ("N1", "N2"))));
     }
 
     #[test]
     fn node_id_test() {
-        assert_eq!(id("N1"), Ok(("", "N1")));
+        assert_eq!(node_id("N1"), Ok(("", "N1")));
     }
 
     #[test]
