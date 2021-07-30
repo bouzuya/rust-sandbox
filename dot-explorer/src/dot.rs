@@ -3,7 +3,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, char, multispace0, multispace1},
-    combinator::{all_consuming, map, recognize},
+    combinator::{all_consuming, map, opt, recognize},
     multi::{many0, separated_list0},
     sequence::{pair, tuple},
     IResult,
@@ -31,14 +31,15 @@ fn graph(s: &str) -> IResult<&str, Graph> {
     map(
         tuple((
             multispace0,
-            tag("digraph"),
-            multispace1,
+            alt((tag("graph"), tag("digraph"))),
+            opt(map(tuple((multispace1, id)), |(_, x)| x)),
+            multispace0,
             char('{'),
             stmt_list,
             char('}'),
             multispace0,
         )),
-        |(_, _, _, _, s, _, _)| {
+        |(_, _graph, _id, _, _, s, _, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s) => g.nodes.push(s),
@@ -100,7 +101,7 @@ mod tests {
 
     #[test]
     fn graph_test() {
-        assert_eq!(graph("digraph{}").is_err(), true);
+        assert_eq!(graph("digraph{}"), Ok(("", Graph::default())));
         assert_eq!(graph("digraph {}"), Ok(("", Graph::default())));
         assert_eq!(
             graph("digraph {node}"),
@@ -122,6 +123,8 @@ mod tests {
                 }
             ))
         );
+        assert_eq!(graph("graph {}"), Ok(("", Graph::default())));
+        assert_eq!(graph("digraph example {}"), Ok(("", Graph::default())));
     }
 
     #[test]
