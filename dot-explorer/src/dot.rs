@@ -4,6 +4,7 @@ use nom::{
     bytes::complete::{is_not, tag},
     character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1},
     combinator::{all_consuming, map, opt, recognize},
+    error::ParseError,
     multi::{fold_many0, many0},
     sequence::{delimited, pair, tuple},
     IResult,
@@ -30,18 +31,13 @@ pub fn parse(s: &str) -> anyhow::Result<Graph> {
 fn graph(s: &str) -> IResult<&str, Graph> {
     map(
         tuple((
-            multispace0,
-            alt((tag("graph"), tag("digraph"))),
-            opt(map(tuple((multispace1, id)), |(_, x)| x)),
-            multispace0,
-            char('{'),
-            multispace0,
+            alt((ws(tag("graph")), ws(tag("digraph")))),
+            opt(ws(id)),
+            ws(char('{')),
             stmt_list,
-            multispace0,
-            char('}'),
-            multispace0,
+            ws(char('}')),
         )),
-        |(_, _graph, _id, _, _, _, s, _, _, _)| {
+        |(_graph, _id, _, s, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s) => g.nodes.push(s),
@@ -55,16 +51,10 @@ fn graph(s: &str) -> IResult<&str, Graph> {
 
 fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
     map(
-        opt(tuple((
-            multispace0,
-            stmt,
-            multispace0,
-            opt(tuple((tag(";"), multispace0))),
-            stmt_list,
-        ))),
+        opt(tuple((ws(stmt), opt(ws(char(';'))), stmt_list))),
         |r| match r {
             None => vec![],
-            Some((_, x, _, _, mut xs)) => {
+            Some((x, _, mut xs)) => {
                 let mut ys = vec![x];
                 ys.append(&mut xs);
                 ys
@@ -146,6 +136,16 @@ fn id_double_quoted_string(s: &str) -> IResult<&str, String> {
         ),
         char('"'),
     )(s)
+}
+
+// <https://docs.rs/nom/6.2.1/nom/recipes/index.html#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser>
+fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
+    inner: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O, E>,
+{
+    delimited(multispace0, inner, multispace0)
 }
 
 #[cfg(test)]
