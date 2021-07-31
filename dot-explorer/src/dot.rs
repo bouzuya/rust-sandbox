@@ -4,7 +4,7 @@ use nom::{
     bytes::complete::{is_not, tag},
     character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1},
     combinator::{all_consuming, map, opt, recognize},
-    multi::{fold_many0, many0, separated_list0},
+    multi::{fold_many0, many0},
     sequence::{delimited, pair, tuple},
     IResult,
 };
@@ -35,11 +35,13 @@ fn graph(s: &str) -> IResult<&str, Graph> {
             opt(map(tuple((multispace1, id)), |(_, x)| x)),
             multispace0,
             char('{'),
+            multispace0,
             stmt_list,
+            multispace0,
             char('}'),
             multispace0,
         )),
-        |(_, _graph, _id, _, _, s, _, _)| {
+        |(_, _graph, _id, _, _, _, s, _, _, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s) => g.nodes.push(s),
@@ -52,12 +54,22 @@ fn graph(s: &str) -> IResult<&str, Graph> {
 }
 
 fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
-    separated_list0(
-        alt((
-            map(tuple((multispace0, tag(";"), multispace0)), |(_, x, _)| x),
-            multispace1,
-        )),
-        stmt,
+    map(
+        opt(tuple((
+            multispace0,
+            stmt,
+            multispace0,
+            opt(tuple((tag(";"), multispace0))),
+            stmt_list,
+        ))),
+        |r| match r {
+            None => vec![],
+            Some((_, x, _, _, mut xs)) => {
+                let mut ys = vec![x];
+                ys.append(&mut xs);
+                ys
+            }
+        },
     )(s)
 }
 
@@ -182,20 +194,22 @@ mod tests {
 
     #[test]
     fn stmt_list_test() {
-        assert_eq!(stmt_list(""), Ok(("", vec![])));
-        assert_eq!(stmt_list("N1"), Ok(("", vec![node("N1")])));
-        assert_eq!(stmt_list("N1 -> N2"), Ok(("", vec![edge("N1", "N2")])));
-        assert_eq!(stmt_list("N1 -- N2"), Ok(("", vec![edge("N1", "N2")])));
-        assert_eq!(stmt_list("N1 N2"), Ok(("", vec![node("N1"), node("N2")],)));
+        // [ stmt [';'] stmt_list ]
+        let f = |s| all_consuming(stmt_list)(s);
+        assert_eq!(f(""), Ok(("", vec![])));
+        assert_eq!(f("N1"), Ok(("", vec![node("N1")])));
+        assert_eq!(f("N1 -> N2"), Ok(("", vec![edge("N1", "N2")])));
+        assert_eq!(f("N1 -- N2"), Ok(("", vec![edge("N1", "N2")])));
+        assert_eq!(f("N1 N2"), Ok(("", vec![node("N1"), node("N2")],)));
+        assert_eq!(f("N1;N2"), Ok(("", vec![node("N1"), node("N2")],)));
+        assert_eq!(f("N1 ; N2"), Ok(("", vec![node("N1"), node("N2")],)));
+        assert_eq!(f("N1;N2;"), Ok(("", vec![node("N1"), node("N2")],)));
+        assert_eq!(f("N1 ; N2 ; "), Ok(("", vec![node("N1"), node("N2")],)));
         assert_eq!(
-            stmt_list("N1 N2 -> N3 N4"),
+            f("N1 N2 -> N3 N4"),
             Ok(("", vec![node("N1"), edge("N2", "N3"), node("N4"),]))
         );
-        assert_eq!(stmt_list("N1;N2"), Ok(("", vec![node("N1"), node("N2")],)));
-        assert_eq!(
-            stmt_list("N1 ; N2"),
-            Ok(("", vec![node("N1"), node("N2")],))
-        );
+        assert_eq!(f(";").is_err(), true);
     }
 
     #[test]
