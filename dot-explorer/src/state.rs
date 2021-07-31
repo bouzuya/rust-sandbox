@@ -2,16 +2,16 @@ use crate::node::Node;
 use anyhow::bail;
 
 #[derive(Debug)]
-pub struct State<'a> {
+pub struct State {
     selected_node_id: usize,
     edges: Vec<(usize, usize)>,
-    nodes: Vec<&'a str>,
+    nodes: Vec<String>,
     to: Vec<Vec<usize>>,
     from: Vec<Vec<usize>>,
 }
 
-impl<'a> State<'a> {
-    pub fn new(edges: Vec<(usize, usize)>, nodes: Vec<&'a str>, selected_node_id: usize) -> Self {
+impl State {
+    pub fn new(edges: Vec<(usize, usize)>, nodes: Vec<String>, selected_node_id: usize) -> Self {
         let to = {
             let mut e = vec![vec![]; nodes.len()];
             for (u, v) in edges.iter().copied() {
@@ -44,14 +44,17 @@ impl<'a> State<'a> {
     }
 
     pub fn selected(&self) -> Node {
-        Node::new(self.selected_node_id, self.nodes[self.selected_node_id])
+        Node::new(
+            self.selected_node_id,
+            self.nodes[self.selected_node_id].as_str(),
+        )
     }
 
     pub fn from(&self) -> Vec<Node> {
         self.from[self.selected_node_id]
             .iter()
             .copied()
-            .map(|id| Node::new(id, self.nodes[id]))
+            .map(|id| Node::new(id, self.nodes[id].as_str()))
             .collect()
     }
 
@@ -59,7 +62,7 @@ impl<'a> State<'a> {
         self.to[self.selected_node_id]
             .iter()
             .copied()
-            .map(|id| Node::new(id, self.nodes[id]))
+            .map(|id| Node::new(id, self.nodes[id].as_str()))
             .collect()
     }
 }
@@ -70,7 +73,11 @@ mod tests {
 
     #[test]
     fn test() {
-        let mut state = State::new(vec![(0, 1), (0, 2), (1, 2)], vec!["N0", "N1", "N2"], 1);
+        let mut state = State::new(
+            vec![(0, 1), (0, 2), (1, 2)],
+            ["N0", "N1", "N2"].iter().map(|s| s.to_string()).collect(),
+            1,
+        );
 
         assert_eq!(state.selected(), Node::new(1, "N1"));
         assert_eq!(state.from(), vec![Node::new(0, "N0")]);

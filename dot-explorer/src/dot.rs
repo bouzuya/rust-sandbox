@@ -1,24 +1,24 @@
 use anyhow::anyhow;
 use nom::{
     branch::alt,
-    bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, char, multispace0, multispace1},
+    bytes::complete::{is_not, tag},
+    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1},
     combinator::{all_consuming, map, opt, recognize},
-    multi::{many0, separated_list0},
-    sequence::{pair, tuple},
+    multi::{fold_many0, many0, separated_list0},
+    sequence::{delimited, pair, tuple},
     IResult,
 };
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct Graph<'a> {
-    pub nodes: Vec<&'a str>,
-    pub edges: Vec<(&'a str, &'a str)>,
+pub struct Graph {
+    pub nodes: Vec<String>,
+    pub edges: Vec<(String, String)>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
-enum Statement<'a> {
-    Node(&'a str),
-    Edge((&'a str, &'a str)),
+enum Statement {
+    Node(String),
+    Edge((String, String)),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -62,21 +62,20 @@ fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
 }
 
 fn stmt(s: &str) -> IResult<&str, Statement> {
-    alt((
-        map(edge_stmt, |(l, r): (&str, &str)| Statement::Edge((l, r))),
-        map(node_stmt, |node: &str| Statement::Node(node)),
-    ))(s)
+    alt((edge_stmt, node_stmt))(s)
 }
 
-fn node_stmt(s: &str) -> IResult<&str, &str> {
-    node_id(s)
+fn node_stmt(s: &str) -> IResult<&str, Statement> {
+    map(node_id, Statement::Node)(s)
 }
 
-fn edge_stmt(s: &str) -> IResult<&str, (&str, &str)> {
-    map(tuple((node_id, multispace1, edge_rhs)), |(l, _, r)| (l, r))(s)
+fn edge_stmt(s: &str) -> IResult<&str, Statement> {
+    map(tuple((node_id, multispace1, edge_rhs)), |(l, _, r)| {
+        Statement::Edge((l, r))
+    })(s)
 }
 
-fn edge_rhs(s: &str) -> IResult<&str, &str> {
+fn edge_rhs(s: &str) -> IResult<&str, String> {
     map(tuple((edgeop, multispace1, node_id)), |(_, _, r)| r)(s)
 }
 
@@ -84,20 +83,70 @@ fn edgeop(s: &str) -> IResult<&str, &str> {
     alt((tag("->"), tag("--")))(s)
 }
 
-fn node_id(s: &str) -> IResult<&str, &str> {
+fn node_id(s: &str) -> IResult<&str, String> {
     id(s)
 }
 
-fn id(s: &str) -> IResult<&str, &str> {
+fn id(s: &str) -> IResult<&str, String> {
+    alt((map(id_string, |s| s.to_string()), id_double_quoted_string))(s)
+}
+
+fn id_string(s: &str) -> IResult<&str, &str> {
+    // TODO: \x80-\xFF
     recognize(pair(
-        alt((alpha1, tag("_"))),
-        many0(alt((alphanumeric1, tag("_")))),
+        alt((alpha1, underscore)),
+        many0(alt((alphanumeric1, underscore))),
     ))(s)
+}
+
+fn underscore(s: &str) -> IResult<&str, &str> {
+    tag("_")(s)
+}
+
+enum StringFragment<'a> {
+    Literal(&'a str),
+    EscapedChar(char),
+}
+
+fn id_double_quoted_string(s: &str) -> IResult<&str, String> {
+    delimited(
+        char('"'),
+        fold_many0(
+            alt((
+                map(is_not(r#""\"#), StringFragment::Literal),
+                map(tuple((char('\\'), anychar)), |(_, c)| {
+                    StringFragment::EscapedChar(c)
+                }),
+            )),
+            String::new(),
+            |mut s, f| {
+                match f {
+                    StringFragment::Literal(t) => s.push_str(t),
+                    StringFragment::EscapedChar(c) => {
+                        if c != '"' {
+                            s.push('\\');
+                        }
+                        s.push(c);
+                    }
+                }
+                s
+            },
+        ),
+        char('"'),
+    )(s)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn node(name: &str) -> Statement {
+        Statement::Node(name.to_string())
+    }
+
+    fn edge(l: &str, r: &str) -> Statement {
+        Statement::Edge((l.to_string(), r.to_string()))
+    }
 
     #[test]
     fn graph_test() {
@@ -108,7 +157,7 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec!["node"],
+                    nodes: vec!["node".to_string()],
                     edges: vec![]
                 }
             ))
@@ -118,81 +167,78 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec!["n1", "n2"],
-                    edges: vec![("n3", "n4")]
+                    nodes: vec!["n1".to_string(), "n2".to_string()],
+                    edges: vec![("n3".to_string(), "n4".to_string())]
                 }
             ))
         );
         assert_eq!(graph("graph {}"), Ok(("", Graph::default())));
         assert_eq!(graph("digraph example {}"), Ok(("", Graph::default())));
+        assert_eq!(
+            graph(r#"digraph "example graph" {}"#),
+            Ok(("", Graph::default()))
+        );
     }
 
     #[test]
     fn stmt_list_test() {
         assert_eq!(stmt_list(""), Ok(("", vec![])));
-        assert_eq!(stmt_list("N1"), Ok(("", vec![Statement::Node("N1")])));
-        assert_eq!(
-            stmt_list("N1 -> N2"),
-            Ok(("", vec![Statement::Edge(("N1", "N2"))]))
-        );
-        assert_eq!(
-            stmt_list("N1 -- N2"),
-            Ok(("", vec![Statement::Edge(("N1", "N2"))]))
-        );
-        assert_eq!(
-            stmt_list("N1 N2"),
-            Ok(("", vec![Statement::Node("N1"), Statement::Node("N2")],))
-        );
+        assert_eq!(stmt_list("N1"), Ok(("", vec![node("N1")])));
+        assert_eq!(stmt_list("N1 -> N2"), Ok(("", vec![edge("N1", "N2")])));
+        assert_eq!(stmt_list("N1 -- N2"), Ok(("", vec![edge("N1", "N2")])));
+        assert_eq!(stmt_list("N1 N2"), Ok(("", vec![node("N1"), node("N2")],)));
         assert_eq!(
             stmt_list("N1 N2 -> N3 N4"),
-            Ok((
-                "",
-                vec![
-                    Statement::Node("N1"),
-                    Statement::Edge(("N2", "N3")),
-                    Statement::Node("N4"),
-                ]
-            ))
+            Ok(("", vec![node("N1"), edge("N2", "N3"), node("N4"),]))
         );
-        assert_eq!(
-            stmt_list("N1;N2"),
-            Ok(("", vec![Statement::Node("N1"), Statement::Node("N2")],))
-        );
+        assert_eq!(stmt_list("N1;N2"), Ok(("", vec![node("N1"), node("N2")],)));
         assert_eq!(
             stmt_list("N1 ; N2"),
-            Ok(("", vec![Statement::Node("N1"), Statement::Node("N2")],))
+            Ok(("", vec![node("N1"), node("N2")],))
         );
     }
 
     #[test]
     fn stmt_test() {
-        assert_eq!(stmt("N1"), Ok(("", Statement::Node("N1"))));
-        assert_eq!(stmt("N1 -> N2"), Ok(("", Statement::Edge(("N1", "N2")))));
-        assert_eq!(stmt("N1 -- N2"), Ok(("", Statement::Edge(("N1", "N2")))));
+        assert_eq!(stmt("N1"), Ok(("", node("N1"))));
+        assert_eq!(stmt("N1 -> N2"), Ok(("", edge("N1", "N2"))));
+        assert_eq!(stmt("N1 -- N2"), Ok(("", edge("N1", "N2"))));
     }
 
     #[test]
     fn node_stmt_test() {
-        assert_eq!(node_stmt("N1"), Ok(("", "N1")));
+        assert_eq!(node_stmt("N1"), Ok(("", node("N1"))));
     }
 
     #[test]
     fn edge_stmt_test() {
-        assert_eq!(edge_stmt("N1 -> N2"), Ok(("", ("N1", "N2"))));
-        assert_eq!(edge_stmt("N1 -- N2"), Ok(("", ("N1", "N2"))));
+        assert_eq!(edge_stmt("N1 -> N2"), Ok(("", edge("N1", "N2"))));
+        assert_eq!(edge_stmt("N1 -- N2"), Ok(("", edge("N1", "N2"))));
     }
 
     #[test]
     fn node_id_test() {
-        assert_eq!(node_id("N1"), Ok(("", "N1")));
+        assert_eq!(node_id("N1"), Ok(("", "N1".to_string())));
     }
 
     #[test]
     fn id_test() {
-        assert_eq!(id("node"), Ok(("", "node")));
-        assert_eq!(id("NODE"), Ok(("", "NODE")));
-        assert_eq!(id("_"), Ok(("", "_")));
-        assert_eq!(id("N0123456789"), Ok(("", "N0123456789")));
+        let ok = |s: &str| Ok(("", s.to_string()));
+        assert_eq!(id("node"), ok("node"));
+        assert_eq!(id("NODE"), ok("NODE"));
+        assert_eq!(id("_"), ok("_"));
+        assert_eq!(id("N0123456789"), ok("N0123456789"));
         assert_eq!(id("0123456789").is_err(), true);
+    }
+
+    #[test]
+    fn id_double_quoted_string_test() {
+        let f = id_double_quoted_string;
+        assert_eq!(f(r#""""#), Ok(("", r#""#.to_string())));
+        assert_eq!(f(r#""abc""#), Ok(("", r#"abc"#.to_string())));
+        assert_eq!(f(r#""abc def""#), Ok(("", r#"abc def"#.to_string())));
+        assert_eq!(f(r#""abc\"def""#), Ok(("", r#"abc"def"#.to_string())));
+        assert_eq!(f(r#""abc\\def""#), Ok(("", r#"abc\\def"#.to_string())));
+        assert_eq!(f(r#""abc"def""#), Ok(("def\"", r#"abc"#.to_string())));
     }
 }
