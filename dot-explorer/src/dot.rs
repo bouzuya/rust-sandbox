@@ -1,8 +1,8 @@
 use anyhow::anyhow;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag},
-    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1},
+    bytes::complete::{is_not, tag, tag_no_case},
+    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1, one_of},
     combinator::{all_consuming, map, opt, recognize},
     error::ParseError,
     multi::{fold_many0, many0},
@@ -20,6 +20,7 @@ pub struct Graph {
 enum Statement {
     Node(String),
     Edge((String, String)),
+    Attr(String, Vec<(String, String)>),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -42,6 +43,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
                 match x {
                     Statement::Node(s) => g.nodes.push(s),
                     Statement::Edge((l, r)) => g.edges.push((l, r)),
+                    Statement::Attr(_, _) => {}
                 }
                 g
             })
@@ -64,7 +66,58 @@ fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
 }
 
 fn stmt(s: &str) -> IResult<&str, Statement> {
-    alt((edge_stmt, node_stmt))(s)
+    alt((attr_stmt, edge_stmt, node_stmt))(s)
+}
+
+fn attr_stmt(s: &str) -> IResult<&str, Statement> {
+    // attr_stmt : (graph | node | edge) attr_list
+    map(
+        tuple((
+            alt((
+                tag_no_case("graph"),
+                tag_no_case("node"),
+                tag_no_case("edge"),
+            )),
+            attr_list,
+        )),
+        |(target, attr_list)| Statement::Attr(target.to_string(), attr_list),
+    )(s)
+}
+
+fn attr_list(s: &str) -> IResult<&str, Vec<(String, String)>> {
+    // attr_list : '[' [ a_list ] ']' [ attr_list ]
+    map(
+        tuple((ws(char('[')), opt(a_list), ws(char(']')), opt(attr_list))),
+        |(_, a1, _, a2)| {
+            let mut a1 = a1.unwrap_or_default();
+            let mut a2 = a2.unwrap_or_default();
+            a1.append(&mut a2);
+            a1
+        },
+    )(s)
+}
+
+fn a_list(s: &str) -> IResult<&str, Vec<(String, String)>> {
+    // a_list : ID '=' ID [ (';' | ',') ] [ a_list ]
+    map(
+        tuple((
+            ws(id),
+            ws(char('=')),
+            ws(id),
+            opt(ws(one_of(";,"))),
+            opt(a_list),
+        )),
+        |(n, _, v, _, xs)| {
+            let mut ys = vec![(n, v)];
+            match xs {
+                None => ys,
+                Some(mut xs) => {
+                    ys.append(&mut xs);
+                    ys
+                }
+            }
+        },
+    )(s)
 }
 
 fn node_stmt(s: &str) -> IResult<&str, Statement> {
@@ -190,6 +243,7 @@ mod tests {
             graph(r#"digraph "example graph" {}"#),
             Ok(("", Graph::default()))
         );
+        assert_eq!(graph(r#"digraph{node[N1=V1]}"#), Ok(("", Graph::default())));
     }
 
     #[test]
@@ -217,6 +271,68 @@ mod tests {
         assert_eq!(stmt("N1"), Ok(("", node("N1"))));
         assert_eq!(stmt("N1 -> N2"), Ok(("", edge("N1", "N2"))));
         assert_eq!(stmt("N1 -- N2"), Ok(("", edge("N1", "N2"))));
+        assert_eq!(
+            stmt("node [N1=V1]"),
+            Ok((
+                "",
+                Statement::Attr(
+                    "node".to_string(),
+                    vec![("N1".to_string(), "V1".to_string())]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn attr_list_test() {
+        let attr = |n: &str, v: &str| (n.to_string(), v.to_string());
+        assert_eq!(attr_list("[]"), Ok(("", vec![])));
+        assert_eq!(attr_list("[][]"), Ok(("", vec![])));
+        assert_eq!(attr_list("[N1=V1]"), Ok(("", vec![attr("N1", "V1")])));
+        assert_eq!(
+            attr_list("[N1=V1 N2=V2]"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
+        assert_eq!(
+            attr_list("[N1=V1 N2=V2][N3=V3]"),
+            Ok((
+                "",
+                vec![attr("N1", "V1"), attr("N2", "V2"), attr("N3", "V3")]
+            ))
+        );
+    }
+
+    #[test]
+    fn a_list_test() {
+        let attr = |n: &str, v: &str| (n.to_string(), v.to_string());
+        assert_eq!(a_list("N1=V1"), Ok(("", vec![attr("N1", "V1")])));
+        assert_eq!(a_list(" N1 = V1 "), Ok(("", vec![attr("N1", "V1")])));
+        assert_eq!(
+            a_list(" \"= \" = \"d e f\" "),
+            Ok(("", vec![attr("= ", "d e f")]))
+        );
+        assert_eq!(
+            a_list("N1=V1 N2=V2"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
+
+        assert_eq!(
+            a_list("N1=V1;N2=V2"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
+        assert_eq!(
+            a_list("N1=V1 ; N2=V2"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
+
+        assert_eq!(
+            a_list("N1=V1,N2=V2"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
+        assert_eq!(
+            a_list("N1=V1 , N2=V2"),
+            Ok(("", vec![attr("N1", "V1"), attr("N2", "V2")]))
+        );
     }
 
     #[test]
