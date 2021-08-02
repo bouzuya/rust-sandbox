@@ -34,7 +34,7 @@ pub fn parse(s: &str) -> anyhow::Result<Graph> {
 fn graph(s: &str) -> IResult<&str, Graph> {
     map(
         tuple((
-            alt((ws(tag("graph")), ws(tag("digraph")))),
+            alt((ws(tag_no_case("graph")), ws(tag_no_case("digraph")))),
             opt(ws(id)),
             ws(char('{')),
             stmt_list,
