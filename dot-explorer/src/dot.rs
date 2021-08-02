@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, tag_no_case},
-    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, multispace1, one_of},
+    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, one_of},
     combinator::{all_consuming, map, opt, recognize},
     error::ParseError,
     multi::{fold_many0, many0},
@@ -15,13 +15,13 @@ type AttrList = Vec<(String, String)>;
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
     pub nodes: Vec<(String, AttrList)>,
-    pub edges: Vec<(String, String)>,
+    pub edges: Vec<(String, String, AttrList)>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 enum Statement {
     Node(String, AttrList),
-    Edge((String, String)),
+    Edge(String, String, AttrList),
     Attr(String, AttrList),
 }
 
@@ -44,7 +44,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s, a) => g.nodes.push((s, a)),
-                    Statement::Edge((l, r)) => g.edges.push((l, r)),
+                    Statement::Edge(l, r, a) => g.edges.push((l, r, a)),
                     Statement::Attr(_, _) => {}
                 }
                 g
@@ -130,13 +130,14 @@ fn node_stmt(s: &str) -> IResult<&str, Statement> {
 }
 
 fn edge_stmt(s: &str) -> IResult<&str, Statement> {
-    map(tuple((node_id, multispace1, edge_rhs)), |(l, _, r)| {
-        Statement::Edge((l, r))
-    })(s)
+    map(
+        tuple((ws(node_id), ws(edge_rhs), opt(attr_list))),
+        |(l, r, a)| Statement::Edge(l, r, a.unwrap_or_default()),
+    )(s)
 }
 
 fn edge_rhs(s: &str) -> IResult<&str, String> {
-    map(tuple((edgeop, multispace1, node_id)), |(_, _, r)| r)(s)
+    map(tuple((ws(edgeop), ws(node_id))), |(_, r)| r)(s)
 }
 
 fn edgeop(s: &str) -> IResult<&str, &str> {
@@ -218,6 +219,10 @@ mod tests {
         (name.to_string(), attr_list)
     }
 
+    fn ewa(l: &str, r: &str, attr_list: AttrList) -> (String, String, AttrList) {
+        (l.to_string(), r.to_string(), attr_list)
+    }
+
     fn ns(name: &str) -> Statement {
         Statement::Node(name.to_string(), vec![])
     }
@@ -227,7 +232,11 @@ mod tests {
     }
 
     fn es(l: &str, r: &str) -> Statement {
-        Statement::Edge((l.to_string(), r.to_string()))
+        Statement::Edge(l.to_string(), r.to_string(), vec![])
+    }
+
+    fn eswa(l: &str, r: &str, attr_list: AttrList) -> Statement {
+        Statement::Edge(l.to_string(), r.to_string(), attr_list)
     }
 
     fn al(a: &[(&str, &str)]) -> AttrList {
@@ -256,7 +265,7 @@ mod tests {
                 "",
                 Graph {
                     nodes: vec![n("n1"), n("n2")],
-                    edges: vec![("n3".to_string(), "n4".to_string())]
+                    edges: vec![("n3".to_string(), "n4".to_string(), vec![])]
                 }
             ))
         );
@@ -268,12 +277,12 @@ mod tests {
         );
         assert_eq!(graph(r#"digraph{node[N1=V1]}"#), Ok(("", Graph::default())));
         assert_eq!(
-            graph(r#"digraph{K1[N1=V1]}"#),
+            graph(r#"digraph{N1[K1=V1] N1 -> N2[K2=V2] }"#),
             Ok((
                 "",
                 Graph {
-                    nodes: vec![nwa("K1", al(&[("N1", "V1")]))],
-                    edges: vec![]
+                    nodes: vec![nwa("N1", al(&[("K1", "V1")]))],
+                    edges: vec![ewa("N1", "N2", al(&[("K2", "V2")]))],
                 }
             ))
         );
@@ -381,6 +390,10 @@ mod tests {
     fn edge_stmt_test() {
         assert_eq!(edge_stmt("N1 -> N2"), Ok(("", es("N1", "N2"))));
         assert_eq!(edge_stmt("N1 -- N2"), Ok(("", es("N1", "N2"))));
+        assert_eq!(
+            edge_stmt("N1 -- N2 [K1=V1]"),
+            Ok(("", eswa("N1", "N2", al(&[("K1", "V1")]))))
+        );
     }
 
     #[test]

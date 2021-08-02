@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
         let edges = graph
             .edges
             .into_iter()
-            .map(|(l, r)| {
+            .map(|(l, r, _)| {
                 (
                     nodes.iter().position(|(x, _)| x == &l).unwrap(),
                     nodes.iter().position(|(x, _)| x == &r).unwrap(),
