@@ -10,17 +10,19 @@ use nom::{
     IResult,
 };
 
+type AttrList = Vec<(String, String)>;
+
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
-    pub nodes: Vec<String>,
+    pub nodes: Vec<(String, AttrList)>,
     pub edges: Vec<(String, String)>,
 }
 
 #[derive(Debug, Eq, PartialEq)]
 enum Statement {
-    Node(String),
+    Node(String, AttrList),
     Edge((String, String)),
-    Attr(String, Vec<(String, String)>),
+    Attr(String, AttrList),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -41,7 +43,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
         |(_graph, _id, _, s, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
-                    Statement::Node(s) => g.nodes.push(s),
+                    Statement::Node(s, a) => g.nodes.push((s, a)),
                     Statement::Edge((l, r)) => g.edges.push((l, r)),
                     Statement::Attr(_, _) => {}
                 }
@@ -121,7 +123,10 @@ fn a_list(s: &str) -> IResult<&str, Vec<(String, String)>> {
 }
 
 fn node_stmt(s: &str) -> IResult<&str, Statement> {
-    map(node_id, Statement::Node)(s)
+    // node_stmt : node_id [ attr_list ]
+    map(tuple((node_id, opt(attr_list))), |(n, a)| {
+        Statement::Node(n, a.unwrap_or_default())
+    })(s)
 }
 
 fn edge_stmt(s: &str) -> IResult<&str, Statement> {
@@ -205,12 +210,30 @@ where
 mod tests {
     use super::*;
 
-    fn node(name: &str) -> Statement {
-        Statement::Node(name.to_string())
+    fn n(name: &str) -> (String, AttrList) {
+        (name.to_string(), vec![])
     }
 
-    fn edge(l: &str, r: &str) -> Statement {
+    fn nwa(name: &str, attr_list: AttrList) -> (String, AttrList) {
+        (name.to_string(), attr_list)
+    }
+
+    fn ns(name: &str) -> Statement {
+        Statement::Node(name.to_string(), vec![])
+    }
+
+    fn nswa(name: &str, attr_list: AttrList) -> Statement {
+        Statement::Node(name.to_string(), attr_list)
+    }
+
+    fn es(l: &str, r: &str) -> Statement {
         Statement::Edge((l.to_string(), r.to_string()))
+    }
+
+    fn al(a: &[(&str, &str)]) -> AttrList {
+        a.iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
     }
 
     #[test]
@@ -222,7 +245,7 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec!["node".to_string()],
+                    nodes: vec![n("node")],
                     edges: vec![]
                 }
             ))
@@ -232,7 +255,7 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec!["n1".to_string(), "n2".to_string()],
+                    nodes: vec![n("n1"), n("n2")],
                     edges: vec![("n3".to_string(), "n4".to_string())]
                 }
             ))
@@ -244,6 +267,16 @@ mod tests {
             Ok(("", Graph::default()))
         );
         assert_eq!(graph(r#"digraph{node[N1=V1]}"#), Ok(("", Graph::default())));
+        assert_eq!(
+            graph(r#"digraph{K1[N1=V1]}"#),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec![nwa("K1", al(&[("N1", "V1")]))],
+                    edges: vec![]
+                }
+            ))
+        );
     }
 
     #[test]
@@ -251,26 +284,26 @@ mod tests {
         // [ stmt [';'] stmt_list ]
         let f = |s| all_consuming(stmt_list)(s);
         assert_eq!(f(""), Ok(("", vec![])));
-        assert_eq!(f("N1"), Ok(("", vec![node("N1")])));
-        assert_eq!(f("N1 -> N2"), Ok(("", vec![edge("N1", "N2")])));
-        assert_eq!(f("N1 -- N2"), Ok(("", vec![edge("N1", "N2")])));
-        assert_eq!(f("N1 N2"), Ok(("", vec![node("N1"), node("N2")],)));
-        assert_eq!(f("N1;N2"), Ok(("", vec![node("N1"), node("N2")],)));
-        assert_eq!(f("N1 ; N2"), Ok(("", vec![node("N1"), node("N2")],)));
-        assert_eq!(f("N1;N2;"), Ok(("", vec![node("N1"), node("N2")],)));
-        assert_eq!(f("N1 ; N2 ; "), Ok(("", vec![node("N1"), node("N2")],)));
+        assert_eq!(f("N1"), Ok(("", vec![ns("N1")])));
+        assert_eq!(f("N1 -> N2"), Ok(("", vec![es("N1", "N2")])));
+        assert_eq!(f("N1 -- N2"), Ok(("", vec![es("N1", "N2")])));
+        assert_eq!(f("N1 N2"), Ok(("", vec![ns("N1"), ns("N2")],)));
+        assert_eq!(f("N1;N2"), Ok(("", vec![ns("N1"), ns("N2")],)));
+        assert_eq!(f("N1 ; N2"), Ok(("", vec![ns("N1"), ns("N2")],)));
+        assert_eq!(f("N1;N2;"), Ok(("", vec![ns("N1"), ns("N2")],)));
+        assert_eq!(f("N1 ; N2 ; "), Ok(("", vec![ns("N1"), ns("N2")],)));
         assert_eq!(
             f("N1 N2 -> N3 N4"),
-            Ok(("", vec![node("N1"), edge("N2", "N3"), node("N4"),]))
+            Ok(("", vec![ns("N1"), es("N2", "N3"), ns("N4"),]))
         );
         assert_eq!(f(";").is_err(), true);
     }
 
     #[test]
     fn stmt_test() {
-        assert_eq!(stmt("N1"), Ok(("", node("N1"))));
-        assert_eq!(stmt("N1 -> N2"), Ok(("", edge("N1", "N2"))));
-        assert_eq!(stmt("N1 -- N2"), Ok(("", edge("N1", "N2"))));
+        assert_eq!(stmt("N1"), Ok(("", ns("N1"))));
+        assert_eq!(stmt("N1 -> N2"), Ok(("", es("N1", "N2"))));
+        assert_eq!(stmt("N1 -- N2"), Ok(("", es("N1", "N2"))));
         assert_eq!(
             stmt("node [N1=V1]"),
             Ok((
@@ -337,13 +370,17 @@ mod tests {
 
     #[test]
     fn node_stmt_test() {
-        assert_eq!(node_stmt("N1"), Ok(("", node("N1"))));
+        assert_eq!(node_stmt("N1"), Ok(("", ns("N1"))));
+        assert_eq!(
+            node_stmt("N1[K1=V1]"),
+            Ok(("", nswa("N1", al(&[("K1", "V1")]))))
+        );
     }
 
     #[test]
     fn edge_stmt_test() {
-        assert_eq!(edge_stmt("N1 -> N2"), Ok(("", edge("N1", "N2"))));
-        assert_eq!(edge_stmt("N1 -- N2"), Ok(("", edge("N1", "N2"))));
+        assert_eq!(edge_stmt("N1 -> N2"), Ok(("", es("N1", "N2"))));
+        assert_eq!(edge_stmt("N1 -- N2"), Ok(("", es("N1", "N2"))));
     }
 
     #[test]

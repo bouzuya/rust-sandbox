@@ -31,13 +31,20 @@ fn main() -> anyhow::Result<()> {
             .into_iter()
             .map(|(l, r)| {
                 (
-                    nodes.iter().position(|x| x == &l).unwrap(),
-                    nodes.iter().position(|x| x == &r).unwrap(),
+                    nodes.iter().position(|(x, _)| x == &l).unwrap(),
+                    nodes.iter().position(|(x, _)| x == &r).unwrap(),
                 )
             })
             .collect();
-        let initial_node_id = nodes.iter().position(|n| n == initial_node_label).unwrap();
-        State::new(edges, nodes, initial_node_id)
+        let initial_node_id = nodes
+            .iter()
+            .position(|(n, _)| n == initial_node_label)
+            .unwrap();
+        State::new(
+            edges,
+            nodes.into_iter().map(|(n, _)| n).collect(),
+            initial_node_id,
+        )
     };
 
     let stdin = io::stdin();
