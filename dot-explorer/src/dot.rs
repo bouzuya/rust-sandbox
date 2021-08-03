@@ -18,13 +18,21 @@ pub struct Graph {
     pub edges: Vec<(String, String, AttrList)>,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum Statement {
     Node(String, AttrList),
-    Edge(String, String, AttrList),
+    Edge(Either<String, Subgraph>, Either<String, Subgraph>, AttrList),
     Attr(String, AttrList),
     IDeqID(String, String),
-    Subgraph(Option<String>, Vec<Statement>),
+    Subgraph(Subgraph),
+}
+
+type Subgraph = (Option<String>, Vec<Statement>);
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum Either<L, R> {
+    Left(L),
+    Right(R),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -47,12 +55,37 @@ fn graph(s: &str) -> IResult<&str, Graph> {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s, a) => g.nodes.push((s, a)),
-                    Statement::Edge(l, r, a) => g.edges.push((l, r, a)),
+                    Statement::Edge(l, r, a) => match (l, r) {
+                        (Either::Left(l), Either::Left(r)) => g.edges.push((l, r, a)),
+                        (Either::Left(l), Either::Right((_, rs))) => {
+                            for r in rs {
+                                if let Statement::Node(r, _) = r {
+                                    g.edges.push((l.clone(), r, a.clone()));
+                                }
+                            }
+                        }
+                        (Either::Right((_, ls)), Either::Left(r)) => {
+                            for l in ls {
+                                if let Statement::Node(l, _) = l {
+                                    g.edges.push((l, r.clone(), a.clone()));
+                                }
+                            }
+                        }
+                        (Either::Right((_, ls)), Either::Right((_, rs))) => {
+                            for l in ls {
+                                if let Statement::Node(l, _) = l {
+                                    for r in rs.iter().cloned() {
+                                        if let Statement::Node(r, _) = r {
+                                            g.edges.push((l.clone(), r.clone(), a.clone()));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
                     Statement::Attr(_, _) => {}
                     Statement::IDeqID(_, _) => {}
-                    Statement::Subgraph(_, _) => {
-                        // TODO
-                    }
+                    Statement::Subgraph(_) => {}
                 }
                 g
             })
@@ -79,7 +112,7 @@ fn stmt(s: &str) -> IResult<&str, Statement> {
         map(tuple((ws(id), ws(char('=')), ws(id))), |(id1, _, id2)| {
             Statement::IDeqID(id1, id2)
         }),
-        subgraph,
+        map(subgraph, Statement::Subgraph),
         attr_stmt,
         edge_stmt,
         node_stmt,
@@ -146,13 +179,29 @@ fn node_stmt(s: &str) -> IResult<&str, Statement> {
 
 fn edge_stmt(s: &str) -> IResult<&str, Statement> {
     map(
-        tuple((ws(node_id), ws(edge_rhs), opt(attr_list))),
+        tuple((
+            alt((
+                map(ws(node_id), Either::Left),
+                map(ws(subgraph), Either::Right),
+            )),
+            ws(edge_rhs),
+            opt(attr_list),
+        )),
         |(l, r, a)| Statement::Edge(l, r, a.unwrap_or_default()),
     )(s)
 }
 
-fn edge_rhs(s: &str) -> IResult<&str, String> {
-    map(tuple((ws(edgeop), ws(node_id))), |(_, r)| r)(s)
+fn edge_rhs(s: &str) -> IResult<&str, Either<String, Subgraph>> {
+    map(
+        tuple((
+            ws(edgeop),
+            alt((
+                map(ws(node_id), Either::Left),
+                map(ws(subgraph), Either::Right),
+            )),
+        )),
+        |(_, r)| r,
+    )(s)
 }
 
 fn edgeop(s: &str) -> IResult<&str, &str> {
@@ -163,7 +212,7 @@ fn node_id(s: &str) -> IResult<&str, String> {
     id(s)
 }
 
-fn subgraph(s: &str) -> IResult<&str, Statement> {
+fn subgraph(s: &str) -> IResult<&str, Subgraph> {
     // subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
     map(
         tuple((
@@ -177,7 +226,7 @@ fn subgraph(s: &str) -> IResult<&str, Statement> {
                 None | Some((_, None)) => None,
                 Some((_, Some(id))) => Some(id),
             };
-            Statement::Subgraph(id, stmt_list)
+            (id, stmt_list)
         },
     )(s)
 }
@@ -266,11 +315,19 @@ mod tests {
     }
 
     fn es(l: &str, r: &str) -> Statement {
-        Statement::Edge(l.to_string(), r.to_string(), vec![])
+        Statement::Edge(
+            Either::Left(l.to_string()),
+            Either::Left(r.to_string()),
+            vec![],
+        )
     }
 
     fn eswa(l: &str, r: &str, attr_list: AttrList) -> Statement {
-        Statement::Edge(l.to_string(), r.to_string(), attr_list)
+        Statement::Edge(
+            Either::Left(l.to_string()),
+            Either::Left(r.to_string()),
+            attr_list,
+        )
     }
 
     fn al(a: &[(&str, &str)]) -> AttrList {
@@ -325,6 +382,19 @@ mod tests {
             graph(r#"graph { layout="patchwork" }"#),
             Ok(("", Graph::default()))
         );
+        assert_eq!(
+            graph(r#"digraph { A -> {B C} }"#),
+            Ok((
+                "",
+                Graph {
+                    nodes: vec![], // FIXME
+                    edges: vec![
+                        ("A".to_string(), "B".to_string(), vec![]),
+                        ("A".to_string(), "C".to_string(), vec![])
+                    ]
+                }
+            ))
+        );
     }
 
     #[test]
@@ -370,10 +440,10 @@ mod tests {
             stmt("subgraph subgraph1 { subgraph subgraph2 {} }"),
             Ok((
                 "",
-                Statement::Subgraph(
+                Statement::Subgraph((
                     Some("subgraph1".to_string()),
-                    vec![Statement::Subgraph(Some("subgraph2".to_string()), vec![])]
-                )
+                    vec![Statement::Subgraph((Some("subgraph2".to_string()), vec![]))]
+                ))
             ))
         );
     }
@@ -460,7 +530,7 @@ mod tests {
             subgraph("subgraph id1 { node_id1 }"),
             Ok((
                 "",
-                Statement::Subgraph(
+                (
                     Some("id1".to_string()),
                     vec![Statement::Node("node_id1".to_string(), vec![])]
                 )
@@ -470,17 +540,17 @@ mod tests {
             subgraph("subgraph { node_id1 }"),
             Ok((
                 "",
-                Statement::Subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                (None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
         assert_eq!(
             subgraph("{ node_id1 }"),
             Ok((
                 "",
-                Statement::Subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                (None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
-        assert_eq!(subgraph("{}"), Ok(("", Statement::Subgraph(None, vec![]))));
+        assert_eq!(subgraph("{}"), Ok(("", (None, vec![]))));
     }
 
     #[test]
