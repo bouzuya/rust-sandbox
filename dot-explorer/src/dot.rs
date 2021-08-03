@@ -24,6 +24,7 @@ enum Statement {
     Edge(String, String, AttrList),
     Attr(String, AttrList),
     IDeqID(String, String),
+    Subgraph(Option<String>, Vec<Statement>),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -49,6 +50,9 @@ fn graph(s: &str) -> IResult<&str, Graph> {
                     Statement::Edge(l, r, a) => g.edges.push((l, r, a)),
                     Statement::Attr(_, _) => {}
                     Statement::IDeqID(_, _) => {}
+                    Statement::Subgraph(_, _) => {
+                        // TODO
+                    }
                 }
                 g
             })
@@ -75,6 +79,7 @@ fn stmt(s: &str) -> IResult<&str, Statement> {
         map(tuple((ws(id), ws(char('=')), ws(id))), |(id1, _, id2)| {
             Statement::IDeqID(id1, id2)
         }),
+        subgraph,
         attr_stmt,
         edge_stmt,
         node_stmt,
@@ -156,6 +161,25 @@ fn edgeop(s: &str) -> IResult<&str, &str> {
 
 fn node_id(s: &str) -> IResult<&str, String> {
     id(s)
+}
+
+fn subgraph(s: &str) -> IResult<&str, Statement> {
+    // subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
+    map(
+        tuple((
+            opt(tuple((tag_no_case("subgraph"), opt(ws(id))))),
+            ws(char('{')),
+            ws(stmt_list),
+            ws(char('}')),
+        )),
+        |(subgraph, _, stmt_list, _)| {
+            let id = match subgraph {
+                None | Some((_, None)) => None,
+                Some((_, Some(id))) => Some(id),
+            };
+            Statement::Subgraph(id, stmt_list)
+        },
+    )(s)
 }
 
 fn id(s: &str) -> IResult<&str, String> {
@@ -342,6 +366,16 @@ mod tests {
             stmt("ID1 = ID2"),
             Ok(("", Statement::IDeqID("ID1".to_string(), "ID2".to_string())))
         );
+        assert_eq!(
+            stmt("subgraph subgraph1 { subgraph subgraph2 {} }"),
+            Ok((
+                "",
+                Statement::Subgraph(
+                    Some("subgraph1".to_string()),
+                    vec![Statement::Subgraph(Some("subgraph2".to_string()), vec![])]
+                )
+            ))
+        );
     }
 
     #[test]
@@ -418,6 +452,35 @@ mod tests {
     #[test]
     fn node_id_test() {
         assert_eq!(node_id("N1"), Ok(("", "N1".to_string())));
+    }
+
+    #[test]
+    fn subgraph_test() {
+        assert_eq!(
+            subgraph("subgraph id1 { node_id1 }"),
+            Ok((
+                "",
+                Statement::Subgraph(
+                    Some("id1".to_string()),
+                    vec![Statement::Node("node_id1".to_string(), vec![])]
+                )
+            ))
+        );
+        assert_eq!(
+            subgraph("subgraph { node_id1 }"),
+            Ok((
+                "",
+                Statement::Subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+            ))
+        );
+        assert_eq!(
+            subgraph("{ node_id1 }"),
+            Ok((
+                "",
+                Statement::Subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+            ))
+        );
+        assert_eq!(subgraph("{}"), Ok(("", Statement::Subgraph(None, vec![]))));
     }
 
     #[test]
