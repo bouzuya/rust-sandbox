@@ -35,13 +35,14 @@ pub fn parse(s: &str) -> anyhow::Result<Graph> {
 fn graph(s: &str) -> IResult<&str, Graph> {
     map(
         tuple((
+            opt(tag_no_case("strict")),
             alt((ws(tag_no_case("graph")), ws(tag_no_case("digraph")))),
             opt(ws(id)),
             ws(char('{')),
             stmt_list,
             ws(char('}')),
         )),
-        |(_graph, _id, _, s, _)| {
+        |(_strict, _graph, _id, _, s, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
                     Statement::Node(s, a) => g.nodes.push((s, a)),
@@ -256,6 +257,7 @@ mod tests {
 
     #[test]
     fn graph_test() {
+        assert_eq!(graph("strict digraph {}"), Ok(("", Graph::default())));
         assert_eq!(graph("digraph{}"), Ok(("", Graph::default())));
         assert_eq!(graph("digraph {}"), Ok(("", Graph::default())));
         assert_eq!(
