@@ -23,6 +23,7 @@ enum Statement {
     Node(String, AttrList),
     Edge(String, String, AttrList),
     Attr(String, AttrList),
+    IDeqID(String, String),
 }
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
@@ -46,6 +47,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
                     Statement::Node(s, a) => g.nodes.push((s, a)),
                     Statement::Edge(l, r, a) => g.edges.push((l, r, a)),
                     Statement::Attr(_, _) => {}
+                    Statement::IDeqID(_, _) => {}
                 }
                 g
             })
@@ -68,7 +70,14 @@ fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
 }
 
 fn stmt(s: &str) -> IResult<&str, Statement> {
-    alt((attr_stmt, edge_stmt, node_stmt))(s)
+    alt((
+        map(tuple((ws(id), ws(char('=')), ws(id))), |(id1, _, id2)| {
+            Statement::IDeqID(id1, id2)
+        }),
+        attr_stmt,
+        edge_stmt,
+        node_stmt,
+    ))(s)
 }
 
 fn attr_stmt(s: &str) -> IResult<&str, Statement> {
@@ -286,6 +295,10 @@ mod tests {
                 }
             ))
         );
+        assert_eq!(
+            graph(r#"graph { layout="patchwork" }"#),
+            Ok(("", Graph::default()))
+        );
     }
 
     #[test]
@@ -322,6 +335,10 @@ mod tests {
                     vec![("N1".to_string(), "V1".to_string())]
                 )
             ))
+        );
+        assert_eq!(
+            stmt("ID1 = ID2"),
+            Ok(("", Statement::IDeqID("ID1".to_string(), "ID2".to_string())))
         );
     }
 
