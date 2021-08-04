@@ -2,7 +2,7 @@ use anyhow::anyhow;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, tag_no_case},
-    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0, one_of},
+    character::complete::{alpha1, alphanumeric1, anychar, char, multispace0},
     combinator::{all_consuming, map, opt, recognize},
     error::ParseError,
     multi::{fold_many0, many0},
@@ -42,13 +42,14 @@ pub fn parse(s: &str) -> anyhow::Result<Graph> {
 }
 
 fn graph(s: &str) -> IResult<&str, Graph> {
+    // graph : [ strict ] (graph | digraph) [ ID ] '{' stmt_list '}'
     map(
         tuple((
-            opt(tag_no_case("strict")),
+            opt(ws(tag_no_case("strict"))),
             alt((ws(tag_no_case("graph")), ws(tag_no_case("digraph")))),
             opt(ws(id)),
             ws(char('{')),
-            stmt_list,
+            ws(stmt_list),
             ws(char('}')),
         )),
         |(_strict, _graph, _id, _, s, _)| {
@@ -94,6 +95,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
 }
 
 fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
+    // stmt_list : [ stmt [ ';' ] stmt_list ]
     map(
         opt(tuple((ws(stmt), opt(ws(char(';'))), stmt_list))),
         |r| match r {
@@ -108,11 +110,12 @@ fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
 }
 
 fn stmt(s: &str) -> IResult<&str, Statement> {
+    // stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     alt((
+        map(subgraph, Statement::Subgraph),
         map(tuple((ws(id), ws(char('=')), ws(id))), |(id1, _, id2)| {
             Statement::IDeqID(id1, id2)
         }),
-        map(subgraph, Statement::Subgraph),
         attr_stmt,
         edge_stmt,
         node_stmt,
@@ -124,11 +127,11 @@ fn attr_stmt(s: &str) -> IResult<&str, Statement> {
     map(
         tuple((
             alt((
-                tag_no_case("graph"),
-                tag_no_case("node"),
-                tag_no_case("edge"),
+                ws(tag_no_case("graph")),
+                ws(tag_no_case("node")),
+                ws(tag_no_case("edge")),
             )),
-            attr_list,
+            ws(attr_list),
         )),
         |(target, attr_list)| Statement::Attr(target.to_string(), attr_list),
     )(s)
@@ -154,30 +157,24 @@ fn a_list(s: &str) -> IResult<&str, Vec<(String, String)>> {
             ws(id),
             ws(char('=')),
             ws(id),
-            opt(ws(one_of(";,"))),
+            opt(alt((ws(char(';')), ws(char(','))))),
             opt(a_list),
         )),
-        |(n, _, v, _, xs)| {
-            let mut ys = vec![(n, v)];
+        |(name, _, value, _, xs)| {
+            let mut attrs = vec![(name, value)];
             match xs {
-                None => ys,
+                None => attrs,
                 Some(mut xs) => {
-                    ys.append(&mut xs);
-                    ys
+                    attrs.append(&mut xs);
+                    attrs
                 }
             }
         },
     )(s)
 }
 
-fn node_stmt(s: &str) -> IResult<&str, Statement> {
-    // node_stmt : node_id [ attr_list ]
-    map(tuple((node_id, opt(attr_list))), |(n, a)| {
-        Statement::Node(n, a.unwrap_or_default())
-    })(s)
-}
-
 fn edge_stmt(s: &str) -> IResult<&str, Statement> {
+    // edge_stmt : (node_id | subgraph) edge_rhs [ attr_list ]
     map(
         tuple((
             alt((
@@ -192,9 +189,10 @@ fn edge_stmt(s: &str) -> IResult<&str, Statement> {
 }
 
 fn edge_rhs(s: &str) -> IResult<&str, Either<String, Subgraph>> {
+    // edge_rhs : edgeop (node_id | subgraph) [ edge_rhs ]
     map(
         tuple((
-            ws(edgeop),
+            alt((ws(tag("->")), ws(tag("--")))),
             alt((
                 map(ws(node_id), Either::Left),
                 map(ws(subgraph), Either::Right),
@@ -204,11 +202,16 @@ fn edge_rhs(s: &str) -> IResult<&str, Either<String, Subgraph>> {
     )(s)
 }
 
-fn edgeop(s: &str) -> IResult<&str, &str> {
-    alt((tag("->"), tag("--")))(s)
+fn node_stmt(s: &str) -> IResult<&str, Statement> {
+    // node_stmt : node_id [ attr_list ]
+    map(tuple((ws(node_id), opt(attr_list))), |(n, a)| {
+        Statement::Node(n, a.unwrap_or_default())
+    })(s)
 }
 
 fn node_id(s: &str) -> IResult<&str, String> {
+    // node_id : ID [ port ]
+    // NOTE: port is not supported
     id(s)
 }
 
