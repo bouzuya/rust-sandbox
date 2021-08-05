@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use anyhow::anyhow;
 use nom::{
     branch::alt,
@@ -14,7 +16,7 @@ type AttrList = Vec<(String, String)>;
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
-    pub nodes: Vec<(String, AttrList)>,
+    pub nodes: BTreeSet<String>,
     pub edges: Vec<(String, String, AttrList)>,
 }
 
@@ -55,12 +57,20 @@ fn graph(s: &str) -> IResult<&str, Graph> {
         |(_strict, _graph, _id, _, s, _)| {
             s.into_iter().fold(Graph::default(), |mut g, x| {
                 match x {
-                    Statement::Node(s, a) => g.nodes.push((s, a)),
+                    Statement::Node(s, a) => {
+                        g.nodes.insert(s);
+                    }
                     Statement::Edge(l, r, a) => match (l, r) {
-                        (Either::Left(l), Either::Left(r)) => g.edges.push((l, r, a)),
+                        (Either::Left(l), Either::Left(r)) => {
+                            g.nodes.insert(l.clone());
+                            g.nodes.insert(r.clone());
+                            g.edges.push((l, r, a));
+                        }
                         (Either::Left(l), Either::Right((_, rs))) => {
                             for r in rs {
                                 if let Statement::Node(r, _) = r {
+                                    g.nodes.insert(l.clone());
+                                    g.nodes.insert(r.clone());
                                     g.edges.push((l.clone(), r, a.clone()));
                                 }
                             }
@@ -68,6 +78,8 @@ fn graph(s: &str) -> IResult<&str, Graph> {
                         (Either::Right((_, ls)), Either::Left(r)) => {
                             for l in ls {
                                 if let Statement::Node(l, _) = l {
+                                    g.nodes.insert(l.clone());
+                                    g.nodes.insert(r.clone());
                                     g.edges.push((l, r.clone(), a.clone()));
                                 }
                             }
@@ -77,6 +89,8 @@ fn graph(s: &str) -> IResult<&str, Graph> {
                                 if let Statement::Node(l, _) = l {
                                     for r in rs.iter().cloned() {
                                         if let Statement::Node(r, _) = r {
+                                            g.nodes.insert(l.clone());
+                                            g.nodes.insert(r.clone());
                                             g.edges.push((l.clone(), r.clone(), a.clone()));
                                         }
                                     }
@@ -349,7 +363,11 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec![n("node")],
+                    nodes: {
+                        let mut set = BTreeSet::new();
+                        set.insert("node".to_string());
+                        set
+                    },
                     edges: vec![]
                 }
             ))
@@ -359,7 +377,12 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec![n("n1"), n("n2")],
+                    nodes: {
+                        let mut set = BTreeSet::new();
+                        set.insert("n1".to_string());
+                        set.insert("n2".to_string());
+                        set
+                    },
                     edges: vec![("n3".to_string(), "n4".to_string(), vec![])]
                 }
             ))
@@ -376,7 +399,11 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec![nwa("N1", al(&[("K1", "V1")]))],
+                    nodes: {
+                        let mut set = BTreeSet::new();
+                        set.insert("N1".to_string());
+                        set
+                    },
                     edges: vec![ewa("N1", "N2", al(&[("K2", "V2")]))],
                 }
             ))
@@ -390,7 +417,13 @@ mod tests {
             Ok((
                 "",
                 Graph {
-                    nodes: vec![], // FIXME
+                    nodes: {
+                        let mut set = BTreeSet::new();
+                        set.insert("A".to_string());
+                        set.insert("B".to_string());
+                        set.insert("C".to_string());
+                        set
+                    },
                     edges: vec![
                         ("A".to_string(), "B".to_string(), vec![]),
                         ("A".to_string(), "C".to_string(), vec![])
