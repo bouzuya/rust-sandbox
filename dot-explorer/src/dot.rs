@@ -203,8 +203,8 @@ fn edge_stmt(s: &str) -> IResult<&str, Statement> {
     map(
         tuple((
             alt((
-                map(ws(node_id), Either::Left),
                 map(ws(subgraph), Either::Right),
+                map(ws(node_id), Either::Left),
             )),
             ws(edge_rhs),
             opt(attr_list),
@@ -219,8 +219,8 @@ fn edge_rhs(s: &str) -> IResult<&str, Either<String, Subgraph>> {
         tuple((
             alt((ws(tag("->")), ws(tag("--")))),
             alt((
-                map(ws(node_id), Either::Left),
                 map(ws(subgraph), Either::Right),
+                map(ws(node_id), Either::Left),
             )),
         )),
         |(_, r)| r,
@@ -434,6 +434,26 @@ mod tests {
         );
         assert_eq!(
             graph(r#"digraph { A -> {B C} }"#),
+            Ok((
+                "",
+                Graph {
+                    name: None,
+                    nodes: {
+                        let mut set = BTreeSet::new();
+                        set.insert("A".to_string());
+                        set.insert("B".to_string());
+                        set.insert("C".to_string());
+                        set
+                    },
+                    edges: vec![
+                        ("A".to_string(), "B".to_string(), vec![]),
+                        ("A".to_string(), "C".to_string(), vec![])
+                    ]
+                }
+            ))
+        );
+        assert_eq!(
+            graph(r#"digraph { A -> subgraph {B C} }"#),
             Ok((
                 "",
                 Graph {
