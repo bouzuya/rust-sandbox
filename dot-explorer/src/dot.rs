@@ -16,8 +16,19 @@ type AttrList = Vec<(String, String)>;
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
+    pub name: Option<String>,
     pub nodes: BTreeSet<String>,
     pub edges: Vec<(String, String, AttrList)>,
+}
+
+impl Graph {
+    fn new(name: Option<String>) -> Self {
+        Self {
+            name,
+            nodes: BTreeSet::new(),
+            edges: vec![],
+        }
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -54,8 +65,8 @@ fn graph(s: &str) -> IResult<&str, Graph> {
             ws(stmt_list),
             ws(char('}')),
         )),
-        |(_strict, _graph, _id, _, s, _)| {
-            s.into_iter().fold(Graph::default(), |mut g, x| {
+        |(_strict, _graph, name, _, s, _)| {
+            s.into_iter().fold(Graph::new(name), |mut g, x| {
                 match x {
                     Statement::Node(s, a) => {
                         g.nodes.insert(s);
@@ -363,6 +374,7 @@ mod tests {
             Ok((
                 "",
                 Graph {
+                    name: None,
                     nodes: {
                         let mut set = BTreeSet::new();
                         set.insert("node".to_string());
@@ -377,10 +389,13 @@ mod tests {
             Ok((
                 "",
                 Graph {
+                    name: None,
                     nodes: {
                         let mut set = BTreeSet::new();
                         set.insert("n1".to_string());
                         set.insert("n2".to_string());
+                        set.insert("n3".to_string());
+                        set.insert("n4".to_string());
                         set
                     },
                     edges: vec![("n3".to_string(), "n4".to_string(), vec![])]
@@ -388,10 +403,13 @@ mod tests {
             ))
         );
         assert_eq!(graph("graph {}"), Ok(("", Graph::default())));
-        assert_eq!(graph("digraph example {}"), Ok(("", Graph::default())));
+        assert_eq!(
+            graph("digraph example {}"),
+            Ok(("", Graph::new(Some("example".to_string()))))
+        );
         assert_eq!(
             graph(r#"digraph "example graph" {}"#),
-            Ok(("", Graph::default()))
+            Ok(("", Graph::new(Some("example graph".to_string()))))
         );
         assert_eq!(graph(r#"digraph{node[N1=V1]}"#), Ok(("", Graph::default())));
         assert_eq!(
@@ -399,9 +417,11 @@ mod tests {
             Ok((
                 "",
                 Graph {
+                    name: None,
                     nodes: {
                         let mut set = BTreeSet::new();
                         set.insert("N1".to_string());
+                        set.insert("N2".to_string());
                         set
                     },
                     edges: vec![ewa("N1", "N2", al(&[("K2", "V2")]))],
@@ -417,6 +437,7 @@ mod tests {
             Ok((
                 "",
                 Graph {
+                    name: None,
                     nodes: {
                         let mut set = BTreeSet::new();
                         set.insert("A".to_string());
