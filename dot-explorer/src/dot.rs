@@ -16,18 +16,78 @@ type AttrList = Vec<(String, String)>;
 
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
-    pub name: Option<String>,
-    pub nodes: BTreeSet<String>,
-    pub edges: Vec<(String, String, AttrList)>,
+    name: Option<String>,
+    statements: Vec<Statement>,
+    nodes: BTreeSet<String>,
+    edges: Vec<(String, String, AttrList)>,
 }
 
 impl Graph {
-    fn new(name: Option<String>) -> Self {
+    fn new(name: Option<String>, statements: Vec<Statement>) -> Self {
+        let mut nodes = BTreeSet::new();
+        let mut edges = vec![];
+        for x in statements.clone() {
+            match x {
+                Statement::Node(s, _) => {
+                    nodes.insert(s);
+                }
+                Statement::Edge(l, r, a) => match (l, r) {
+                    (Either::Left(l), Either::Left(r)) => {
+                        nodes.insert(l.clone());
+                        nodes.insert(r.clone());
+                        edges.push((l, r, a));
+                    }
+                    (Either::Left(l), Either::Right((_, rs))) => {
+                        for r in rs {
+                            if let Statement::Node(r, _) = r {
+                                nodes.insert(l.clone());
+                                nodes.insert(r.clone());
+                                edges.push((l.clone(), r, a.clone()));
+                            }
+                        }
+                    }
+                    (Either::Right((_, ls)), Either::Left(r)) => {
+                        for l in ls {
+                            if let Statement::Node(l, _) = l {
+                                nodes.insert(l.clone());
+                                nodes.insert(r.clone());
+                                edges.push((l, r.clone(), a.clone()));
+                            }
+                        }
+                    }
+                    (Either::Right((_, ls)), Either::Right((_, rs))) => {
+                        for l in ls {
+                            if let Statement::Node(l, _) = l {
+                                for r in rs.iter().cloned() {
+                                    if let Statement::Node(r, _) = r {
+                                        nodes.insert(l.clone());
+                                        nodes.insert(r.clone());
+                                        edges.push((l.clone(), r.clone(), a.clone()));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                Statement::Attr(_, _) => {}
+                Statement::IDeqID(_, _) => {}
+                Statement::Subgraph(_) => {}
+            }
+        }
         Self {
             name,
-            nodes: BTreeSet::new(),
-            edges: vec![],
+            statements,
+            nodes,
+            edges,
         }
+    }
+
+    pub fn nodes(&self) -> BTreeSet<String> {
+        self.nodes.clone()
+    }
+
+    pub fn edges(&self) -> Vec<(String, String, AttrList)> {
+        self.edges.clone()
     }
 }
 
@@ -65,57 +125,7 @@ fn graph(s: &str) -> IResult<&str, Graph> {
             ws(stmt_list),
             ws(char('}')),
         )),
-        |(_strict, _graph, name, _, s, _)| {
-            s.into_iter().fold(Graph::new(name), |mut g, x| {
-                match x {
-                    Statement::Node(s, a) => {
-                        g.nodes.insert(s);
-                    }
-                    Statement::Edge(l, r, a) => match (l, r) {
-                        (Either::Left(l), Either::Left(r)) => {
-                            g.nodes.insert(l.clone());
-                            g.nodes.insert(r.clone());
-                            g.edges.push((l, r, a));
-                        }
-                        (Either::Left(l), Either::Right((_, rs))) => {
-                            for r in rs {
-                                if let Statement::Node(r, _) = r {
-                                    g.nodes.insert(l.clone());
-                                    g.nodes.insert(r.clone());
-                                    g.edges.push((l.clone(), r, a.clone()));
-                                }
-                            }
-                        }
-                        (Either::Right((_, ls)), Either::Left(r)) => {
-                            for l in ls {
-                                if let Statement::Node(l, _) = l {
-                                    g.nodes.insert(l.clone());
-                                    g.nodes.insert(r.clone());
-                                    g.edges.push((l, r.clone(), a.clone()));
-                                }
-                            }
-                        }
-                        (Either::Right((_, ls)), Either::Right((_, rs))) => {
-                            for l in ls {
-                                if let Statement::Node(l, _) = l {
-                                    for r in rs.iter().cloned() {
-                                        if let Statement::Node(r, _) = r {
-                                            g.nodes.insert(l.clone());
-                                            g.nodes.insert(r.clone());
-                                            g.edges.push((l.clone(), r.clone(), a.clone()));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    },
-                    Statement::Attr(_, _) => {}
-                    Statement::IDeqID(_, _) => {}
-                    Statement::Subgraph(_) => {}
-                }
-                g
-            })
-        },
+        |(_strict, _graph, name, _, statements, _)| Graph::new(name, statements),
     )(s)
 }
 
@@ -322,18 +332,6 @@ where
 mod tests {
     use super::*;
 
-    fn n(name: &str) -> (String, AttrList) {
-        (name.to_string(), vec![])
-    }
-
-    fn nwa(name: &str, attr_list: AttrList) -> (String, AttrList) {
-        (name.to_string(), attr_list)
-    }
-
-    fn ewa(l: &str, r: &str, attr_list: AttrList) -> (String, String, AttrList) {
-        (l.to_string(), r.to_string(), attr_list)
-    }
-
     fn ns(name: &str) -> Statement {
         Statement::Node(name.to_string(), vec![])
     }
@@ -366,110 +364,152 @@ mod tests {
 
     #[test]
     fn graph_test() {
-        assert_eq!(graph("strict digraph {}"), Ok(("", Graph::default())));
-        assert_eq!(graph("digraph{}"), Ok(("", Graph::default())));
-        assert_eq!(graph("digraph {}"), Ok(("", Graph::default())));
+        assert_eq!(graph("strict graph {}"), Ok(("", Graph::new(None, vec![]))));
+        assert_eq!(graph("graph {}"), Ok(("", Graph::new(None, vec![]))));
+        assert_eq!(graph("graph{}"), Ok(("", Graph::new(None, vec![]))));
         assert_eq!(
-            graph("digraph {node}"),
+            graph("graph {n}"),
             Ok((
                 "",
-                Graph {
-                    name: None,
-                    nodes: {
-                        let mut set = BTreeSet::new();
-                        set.insert("node".to_string());
-                        set
-                    },
-                    edges: vec![]
-                }
+                Graph::new(None, vec![Statement::Node("n".to_string(), vec![])])
             ))
         );
         assert_eq!(
             graph("digraph {n1 n2 n3 -> n4}"),
             Ok((
                 "",
-                Graph {
-                    name: None,
-                    nodes: {
-                        let mut set = BTreeSet::new();
-                        set.insert("n1".to_string());
-                        set.insert("n2".to_string());
-                        set.insert("n3".to_string());
-                        set.insert("n4".to_string());
-                        set
-                    },
-                    edges: vec![("n3".to_string(), "n4".to_string(), vec![])]
-                }
+                Graph::new(
+                    None,
+                    vec![
+                        Statement::Node("n1".to_string(), vec![]),
+                        Statement::Node("n2".to_string(), vec![]),
+                        Statement::Edge(
+                            Either::Left("n3".to_string()),
+                            Either::Left("n4".to_string()),
+                            vec![]
+                        ),
+                    ]
+                )
             ))
         );
-        assert_eq!(graph("graph {}"), Ok(("", Graph::default())));
         assert_eq!(
             graph("digraph example {}"),
-            Ok(("", Graph::new(Some("example".to_string()))))
+            Ok(("", Graph::new(Some("example".to_string()), vec![])))
         );
         assert_eq!(
             graph(r#"digraph "example graph" {}"#),
-            Ok(("", Graph::new(Some("example graph".to_string()))))
+            Ok(("", Graph::new(Some("example graph".to_string()), vec![])))
         );
-        assert_eq!(graph(r#"digraph{node[N1=V1]}"#), Ok(("", Graph::default())));
+        assert_eq!(
+            graph(r#"digraph{node[N1=V1]}"#),
+            Ok((
+                "",
+                Graph::new(
+                    None,
+                    vec![Statement::Attr(
+                        "node".to_string(),
+                        vec![("N1".to_string(), "V1".to_string())]
+                    )]
+                )
+            ))
+        );
+        assert_eq!(
+            graph(r#"digraph{graph[N1=V1]}"#),
+            Ok((
+                "",
+                Graph::new(
+                    None,
+                    vec![Statement::Attr(
+                        "graph".to_string(),
+                        vec![("N1".to_string(), "V1".to_string())]
+                    )]
+                )
+            ))
+        );
+        assert_eq!(
+            graph(r#"digraph{edge[N1=V1]}"#),
+            Ok((
+                "",
+                Graph::new(
+                    None,
+                    vec![Statement::Attr(
+                        "edge".to_string(),
+                        vec![("N1".to_string(), "V1".to_string())]
+                    )]
+                )
+            ))
+        );
         assert_eq!(
             graph(r#"digraph{N1[K1=V1] N1 -> N2[K2=V2] }"#),
             Ok((
                 "",
-                Graph {
-                    name: None,
-                    nodes: {
-                        let mut set = BTreeSet::new();
-                        set.insert("N1".to_string());
-                        set.insert("N2".to_string());
-                        set
-                    },
-                    edges: vec![ewa("N1", "N2", al(&[("K2", "V2")]))],
-                }
+                Graph::new(
+                    None,
+                    vec![
+                        Statement::Node(
+                            "N1".to_string(),
+                            vec![("K1".to_string(), "V1".to_string())]
+                        ),
+                        Statement::Edge(
+                            Either::Left("N1".to_string()),
+                            Either::Left("N2".to_string()),
+                            vec![("K2".to_string(), "V2".to_string())]
+                        )
+                    ]
+                )
             ))
         );
         assert_eq!(
             graph(r#"graph { layout="patchwork" }"#),
-            Ok(("", Graph::default()))
+            Ok((
+                "",
+                Graph::new(
+                    None,
+                    vec![Statement::IDeqID(
+                        "layout".to_string(),
+                        "patchwork".to_string()
+                    )]
+                )
+            ))
         );
         assert_eq!(
             graph(r#"digraph { A -> {B C} }"#),
             Ok((
                 "",
-                Graph {
-                    name: None,
-                    nodes: {
-                        let mut set = BTreeSet::new();
-                        set.insert("A".to_string());
-                        set.insert("B".to_string());
-                        set.insert("C".to_string());
-                        set
-                    },
-                    edges: vec![
-                        ("A".to_string(), "B".to_string(), vec![]),
-                        ("A".to_string(), "C".to_string(), vec![])
-                    ]
-                }
+                Graph::new(
+                    None,
+                    vec![Statement::Edge(
+                        Either::Left("A".to_string()),
+                        Either::Right((
+                            None,
+                            vec![
+                                Statement::Node("B".to_string(), vec![]),
+                                Statement::Node("C".to_string(), vec![])
+                            ]
+                        )),
+                        vec![]
+                    ),]
+                )
             ))
         );
         assert_eq!(
             graph(r#"digraph { A -> subgraph {B C} }"#),
             Ok((
                 "",
-                Graph {
-                    name: None,
-                    nodes: {
-                        let mut set = BTreeSet::new();
-                        set.insert("A".to_string());
-                        set.insert("B".to_string());
-                        set.insert("C".to_string());
-                        set
-                    },
-                    edges: vec![
-                        ("A".to_string(), "B".to_string(), vec![]),
-                        ("A".to_string(), "C".to_string(), vec![])
-                    ]
-                }
+                Graph::new(
+                    None,
+                    vec![Statement::Edge(
+                        Either::Left("A".to_string()),
+                        Either::Right((
+                            None,
+                            vec![
+                                Statement::Node("B".to_string(), vec![]),
+                                Statement::Node("C".to_string(), vec![]),
+                            ]
+                        )),
+                        vec![]
+                    )]
+                )
             ))
         );
     }

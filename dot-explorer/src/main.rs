@@ -25,9 +25,9 @@ fn main() -> anyhow::Result<()> {
 
     let mut state = {
         let graph = parse(&content)?;
-        let nodes = graph.nodes;
+        let nodes = graph.nodes();
         let edges = graph
-            .edges
+            .edges()
             .into_iter()
             .map(|(l, r, _)| {
                 (
