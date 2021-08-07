@@ -1,4 +1,5 @@
 mod dot;
+mod graph;
 mod node;
 mod state;
 

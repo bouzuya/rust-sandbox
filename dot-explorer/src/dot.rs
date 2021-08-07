@@ -1,5 +1,3 @@
-use std::collections::BTreeSet;
-
 use anyhow::anyhow;
 use nom::{
     branch::alt,
@@ -12,101 +10,7 @@ use nom::{
     IResult,
 };
 
-type AttrList = Vec<(String, String)>;
-
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct Graph {
-    name: Option<String>,
-    statements: Vec<Statement>,
-    nodes: BTreeSet<String>,
-    edges: Vec<(String, String, AttrList)>,
-}
-
-impl Graph {
-    fn new(name: Option<String>, statements: Vec<Statement>) -> Self {
-        let mut nodes = BTreeSet::new();
-        let mut edges = vec![];
-        for x in statements.clone() {
-            match x {
-                Statement::Node(s, _) => {
-                    nodes.insert(s);
-                }
-                Statement::Edge(l, r, a) => match (l, r) {
-                    (Either::Left(l), Either::Left(r)) => {
-                        nodes.insert(l.clone());
-                        nodes.insert(r.clone());
-                        edges.push((l, r, a));
-                    }
-                    (Either::Left(l), Either::Right((_, rs))) => {
-                        for r in rs {
-                            if let Statement::Node(r, _) = r {
-                                nodes.insert(l.clone());
-                                nodes.insert(r.clone());
-                                edges.push((l.clone(), r, a.clone()));
-                            }
-                        }
-                    }
-                    (Either::Right((_, ls)), Either::Left(r)) => {
-                        for l in ls {
-                            if let Statement::Node(l, _) = l {
-                                nodes.insert(l.clone());
-                                nodes.insert(r.clone());
-                                edges.push((l, r.clone(), a.clone()));
-                            }
-                        }
-                    }
-                    (Either::Right((_, ls)), Either::Right((_, rs))) => {
-                        for l in ls {
-                            if let Statement::Node(l, _) = l {
-                                for r in rs.iter().cloned() {
-                                    if let Statement::Node(r, _) = r {
-                                        nodes.insert(l.clone());
-                                        nodes.insert(r.clone());
-                                        edges.push((l.clone(), r.clone(), a.clone()));
-                                    }
-                                }
-                            }
-                        }
-                    }
-                },
-                Statement::Attr(_, _) => {}
-                Statement::IDeqID(_, _) => {}
-                Statement::Subgraph(_) => {}
-            }
-        }
-        Self {
-            name,
-            statements,
-            nodes,
-            edges,
-        }
-    }
-
-    pub fn nodes(&self) -> BTreeSet<String> {
-        self.nodes.clone()
-    }
-
-    pub fn edges(&self) -> Vec<(String, String, AttrList)> {
-        self.edges.clone()
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Statement {
-    Node(String, AttrList),
-    Edge(Either<String, Subgraph>, Either<String, Subgraph>, AttrList),
-    Attr(String, AttrList),
-    IDeqID(String, String),
-    Subgraph(Subgraph),
-}
-
-type Subgraph = (Option<String>, Vec<Statement>);
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Either<L, R> {
-    Left(L),
-    Right(R),
-}
+use crate::graph::{Either, Graph, Statement};
 
 pub fn parse(s: &str) -> anyhow::Result<Graph> {
     all_consuming(graph)(s)
@@ -223,7 +127,7 @@ fn edge_stmt(s: &str) -> IResult<&str, Statement> {
     )(s)
 }
 
-fn edge_rhs(s: &str) -> IResult<&str, Either<String, Subgraph>> {
+fn edge_rhs(s: &str) -> IResult<&str, Either<String, Graph>> {
     // edge_rhs : edgeop (node_id | subgraph) [ edge_rhs ]
     map(
         tuple((
@@ -250,7 +154,7 @@ fn node_id(s: &str) -> IResult<&str, String> {
     id(s)
 }
 
-fn subgraph(s: &str) -> IResult<&str, Subgraph> {
+fn subgraph(s: &str) -> IResult<&str, Graph> {
     // subgraph : [ subgraph [ ID ] ] '{' stmt_list '}'
     map(
         tuple((
@@ -260,11 +164,11 @@ fn subgraph(s: &str) -> IResult<&str, Subgraph> {
             ws(char('}')),
         )),
         |(subgraph, _, stmt_list, _)| {
-            let id = match subgraph {
+            let name = match subgraph {
                 None | Some((_, None)) => None,
                 Some((_, Some(id))) => Some(id),
             };
-            (id, stmt_list)
+            Graph::new(name, stmt_list)
         },
     )(s)
 }
@@ -330,6 +234,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use crate::graph::AttrList;
+
     use super::*;
 
     fn ns(name: &str) -> Statement {
@@ -480,7 +386,7 @@ mod tests {
                     None,
                     vec![Statement::Edge(
                         Either::Left("A".to_string()),
-                        Either::Right((
+                        Either::Right(Graph::new(
                             None,
                             vec![
                                 Statement::Node("B".to_string(), vec![]),
@@ -500,7 +406,7 @@ mod tests {
                     None,
                     vec![Statement::Edge(
                         Either::Left("A".to_string()),
-                        Either::Right((
+                        Either::Right(Graph::new(
                             None,
                             vec![
                                 Statement::Node("B".to_string(), vec![]),
@@ -557,9 +463,12 @@ mod tests {
             stmt("subgraph subgraph1 { subgraph subgraph2 {} }"),
             Ok((
                 "",
-                Statement::Subgraph((
+                Statement::Subgraph(Graph::new(
                     Some("subgraph1".to_string()),
-                    vec![Statement::Subgraph((Some("subgraph2".to_string()), vec![]))]
+                    vec![Statement::Subgraph(Graph::new(
+                        Some("subgraph2".to_string()),
+                        vec![]
+                    ))]
                 ))
             ))
         );
@@ -647,7 +556,7 @@ mod tests {
             subgraph("subgraph id1 { node_id1 }"),
             Ok((
                 "",
-                (
+                Graph::new(
                     Some("id1".to_string()),
                     vec![Statement::Node("node_id1".to_string(), vec![])]
                 )
@@ -657,17 +566,17 @@ mod tests {
             subgraph("subgraph { node_id1 }"),
             Ok((
                 "",
-                (None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                Graph::new(None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
         assert_eq!(
             subgraph("{ node_id1 }"),
             Ok((
                 "",
-                (None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                Graph::new(None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
-        assert_eq!(subgraph("{}"), Ok(("", (None, vec![]))));
+        assert_eq!(subgraph("{}"), Ok(("", Graph::new(None, vec![]))));
     }
 
     #[test]
