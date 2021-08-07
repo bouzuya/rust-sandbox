@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use nom::{
     branch::alt,
-    bytes::complete::{is_not, tag, tag_no_case},
+    bytes::complete::{is_not, tag, tag_no_case, take_until},
     character::complete::{alpha1, alphanumeric1, anychar, char, multispace0},
     combinator::{all_consuming, map, opt, recognize},
     error::ParseError,
@@ -51,12 +51,12 @@ fn stmt_list(s: &str) -> IResult<&str, Vec<Statement>> {
 fn stmt(s: &str) -> IResult<&str, Statement> {
     // stmt : node_stmt | edge_stmt | attr_stmt | ID '=' ID | subgraph
     alt((
+        edge_stmt,
         map(subgraph, Statement::Subgraph),
         map(tuple((ws(id), ws(char('=')), ws(id))), |(id1, _, id2)| {
             Statement::IDeqID(id1, id2)
         }),
         attr_stmt,
-        edge_stmt,
         node_stmt,
     ))(s)
 }
@@ -222,8 +222,45 @@ fn id_double_quoted_string(s: &str) -> IResult<&str, String> {
     )(s)
 }
 
+fn comment(s: &str) -> IResult<&str, ()> {
+    alt((map(block_comment, |_| ()), line_comment))(s)
+}
+
+fn block_comment(s: &str) -> IResult<&str, &str> {
+    delimited(tag("/*"), take_until("*/"), tag("*/"))(s)
+}
+
+fn line_comment(s: &str) -> IResult<&str, ()> {
+    map(
+        tuple((
+            tag("//"),
+            many0(is_not("\r\n")),
+            opt(char('\r')),
+            opt(char('\n')),
+        )),
+        |_| (),
+    )(s)
+}
+
+fn ws<'a, F: 'a, O>(inner: F) -> impl FnMut(&'a str) -> IResult<&'a str, O>
+where
+    F: Fn(&'a str) -> IResult<&'a str, O>,
+{
+    map(
+        tuple((
+            multispace0,
+            many0(ws1(comment)), // tuple((multispace0, opt(comment), multispace0))),
+            multispace0,
+            inner,
+            multispace0,
+            many0(ws1(comment)), // tuple((multispace0, opt(comment), multispace0))),
+            multispace0,
+        )),
+        |(_, _, _, x, _, _, _)| x, // many0(tuple((multispace0, opt(comment), multispace0))),
+    )
+}
 // <https://docs.rs/nom/6.2.1/nom/recipes/index.html#wrapper-combinators-that-eat-whitespace-before-and-after-a-parser>
-fn ws<'a, F: 'a, O, E: ParseError<&'a str>>(
+fn ws1<'a, F: 'a, O, E: ParseError<&'a str>>(
     inner: F,
 ) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
@@ -270,6 +307,14 @@ mod tests {
 
     #[test]
     fn graph_test() {
+        assert_eq!(
+            graph("// comment\ngraph {}"),
+            Ok(("", Graph::new(None, vec![])))
+        );
+        assert_eq!(
+            graph("/* comment */graph {}"),
+            Ok(("", Graph::new(None, vec![])))
+        );
         assert_eq!(graph("strict graph {}"), Ok(("", Graph::new(None, vec![]))));
         assert_eq!(graph("graph {}"), Ok(("", Graph::new(None, vec![]))));
         assert_eq!(graph("graph{}"), Ok(("", Graph::new(None, vec![]))));
@@ -412,6 +457,34 @@ mod tests {
                                 Statement::Node("B".to_string(), vec![]),
                                 Statement::Node("C".to_string(), vec![]),
                             ]
+                        )),
+                        vec![]
+                    )]
+                )
+            ))
+        );
+        assert_eq!(
+            graph(r#"digraph { { N1 -> N2 } -> { N3 -> N4 } }"#),
+            Ok((
+                "",
+                Graph::new(
+                    None,
+                    vec![Statement::Edge(
+                        Either::Right(Graph::new(
+                            None,
+                            vec![Statement::Edge(
+                                Either::Left("N1".to_string()),
+                                Either::Left("N2".to_string()),
+                                vec![]
+                            )]
+                        )),
+                        Either::Right(Graph::new(
+                            None,
+                            vec![Statement::Edge(
+                                Either::Left("N3".to_string()),
+                                Either::Left("N4".to_string()),
+                                vec![]
+                            )]
                         )),
                         vec![]
                     )]
@@ -598,5 +671,49 @@ mod tests {
         assert_eq!(f(r#""abc\"def""#), Ok(("", r#"abc"def"#.to_string())));
         assert_eq!(f(r#""abc\\def""#), Ok(("", r#"abc\\def"#.to_string())));
         assert_eq!(f(r#""abc"def""#), Ok(("def\"", r#"abc"#.to_string())));
+    }
+
+    #[test]
+    fn comment_test() {
+        let f = comment;
+        assert_eq!(f("/*abc*/"), Ok(("", ())));
+        assert_eq!(f("//def"), Ok(("", ())));
+    }
+
+    #[test]
+    fn block_comment_test() {
+        let f = block_comment;
+        assert_eq!(f("/**/"), Ok(("", "")));
+        assert_eq!(f("/*a*/"), Ok(("", "a")));
+        assert_eq!(f("/*a\nb*/"), Ok(("", "a\nb")));
+        assert_eq!(f("/*a\n*/b*/"), Ok(("b*/", "a\n")));
+    }
+
+    #[test]
+    fn line_comment_test() {
+        let f = line_comment;
+        assert_eq!(f("//"), Ok(("", ())));
+        assert_eq!(f("//\n"), Ok(("", ())));
+        assert_eq!(f("//\naaa"), Ok(("aaa", ())));
+        assert_eq!(f("//\r"), Ok(("", ())));
+        assert_eq!(f("//\raaa"), Ok(("aaa", ())));
+        assert_eq!(f("//\r\n"), Ok(("", ())));
+        assert_eq!(f("//\r\naaa"), Ok(("aaa", ())));
+        assert_eq!(f("// foo"), Ok(("", ())));
+        assert_eq!(f("// foo\nbbb"), Ok(("bbb", ())));
+    }
+
+    #[test]
+    fn test() {
+        let f = line_comment;
+        assert_eq!(f("//"), Ok(("", ())));
+        assert_eq!(f("//\n"), Ok(("", ())));
+        assert_eq!(f("//\naaa"), Ok(("aaa", ())));
+        assert_eq!(f("//\r"), Ok(("", ())));
+        assert_eq!(f("//\raaa"), Ok(("aaa", ())));
+        assert_eq!(f("//\r\n"), Ok(("", ())));
+        assert_eq!(f("//\r\naaa"), Ok(("aaa", ())));
+        assert_eq!(f("// foo"), Ok(("", ())));
+        assert_eq!(f("// foo\nbbb"), Ok(("bbb", ())));
     }
 }
