@@ -23,13 +23,20 @@ fn graph(s: &str) -> IResult<&str, Graph> {
     map(
         tuple((
             opt(ws(tag_no_case("strict"))),
-            alt((ws(tag_no_case("graph")), ws(tag_no_case("digraph")))),
+            ws(graph_directed),
             opt(ws(id)),
             ws(char('{')),
             ws(stmt_list),
             ws(char('}')),
         )),
-        |(_strict, _graph, name, _, statements, _)| Graph::new(name, statements),
+        |(_strict, directed, name, _, statements, _)| Graph::new(Some(directed), name, statements),
+    )(s)
+}
+
+fn graph_directed(s: &str) -> IResult<&str, bool> {
+    map(
+        alt((tag_no_case("graph"), tag_no_case("digraph"))),
+        |t: &str| t.eq_ignore_ascii_case("digraph"),
     )(s)
 }
 
@@ -168,7 +175,7 @@ fn subgraph(s: &str) -> IResult<&str, Graph> {
                 None | Some((_, None)) => None,
                 Some((_, Some(id))) => Some(id),
             };
-            Graph::new(name, stmt_list)
+            Graph::new(None, name, stmt_list)
         },
     )(s)
 }
@@ -309,27 +316,30 @@ mod tests {
     fn graph_test() {
         assert_eq!(
             graph("// comment\ngraph {}"),
-            Ok(("", Graph::new(None, vec![])))
+            Ok(("", Graph::undirected(None, vec![])))
         );
         assert_eq!(
             graph("/* comment */graph {}"),
-            Ok(("", Graph::new(None, vec![])))
+            Ok(("", Graph::undirected(None, vec![])))
         );
-        assert_eq!(graph("strict graph {}"), Ok(("", Graph::new(None, vec![]))));
-        assert_eq!(graph("graph {}"), Ok(("", Graph::new(None, vec![]))));
-        assert_eq!(graph("graph{}"), Ok(("", Graph::new(None, vec![]))));
+        assert_eq!(
+            graph("strict graph {}"),
+            Ok(("", Graph::undirected(None, vec![])))
+        );
+        assert_eq!(graph("graph {}"), Ok(("", Graph::undirected(None, vec![]))));
+        assert_eq!(graph("graph{}"), Ok(("", Graph::undirected(None, vec![]))));
         assert_eq!(
             graph("graph {n}"),
             Ok((
                 "",
-                Graph::new(None, vec![Statement::Node("n".to_string(), vec![])])
+                Graph::undirected(None, vec![Statement::Node("n".to_string(), vec![])])
             ))
         );
         assert_eq!(
             graph("digraph {n1 n2 n3 -> n4}"),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![
                         Statement::Node("n1".to_string(), vec![]),
@@ -345,17 +355,20 @@ mod tests {
         );
         assert_eq!(
             graph("digraph example {}"),
-            Ok(("", Graph::new(Some("example".to_string()), vec![])))
+            Ok(("", Graph::directed(Some("example".to_string()), vec![])))
         );
         assert_eq!(
             graph(r#"digraph "example graph" {}"#),
-            Ok(("", Graph::new(Some("example graph".to_string()), vec![])))
+            Ok((
+                "",
+                Graph::directed(Some("example graph".to_string()), vec![])
+            ))
         );
         assert_eq!(
             graph(r#"digraph{node[N1=V1]}"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Attr(
                         "node".to_string(),
@@ -368,7 +381,7 @@ mod tests {
             graph(r#"digraph{graph[N1=V1]}"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Attr(
                         "graph".to_string(),
@@ -381,7 +394,7 @@ mod tests {
             graph(r#"digraph{edge[N1=V1]}"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Attr(
                         "edge".to_string(),
@@ -394,7 +407,7 @@ mod tests {
             graph(r#"digraph{N1[K1=V1] N1 -> N2[K2=V2] }"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![
                         Statement::Node(
@@ -414,7 +427,7 @@ mod tests {
             graph(r#"graph { layout="patchwork" }"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::undirected(
                     None,
                     vec![Statement::IDeqID(
                         "layout".to_string(),
@@ -427,11 +440,11 @@ mod tests {
             graph(r#"digraph { A -> {B C} }"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Edge(
                         Either::Left("A".to_string()),
-                        Either::Right(Graph::new(
+                        Either::Right(Graph::subgraph(
                             None,
                             vec![
                                 Statement::Node("B".to_string(), vec![]),
@@ -447,11 +460,11 @@ mod tests {
             graph(r#"digraph { A -> subgraph {B C} }"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Edge(
                         Either::Left("A".to_string()),
-                        Either::Right(Graph::new(
+                        Either::Right(Graph::subgraph(
                             None,
                             vec![
                                 Statement::Node("B".to_string(), vec![]),
@@ -467,10 +480,10 @@ mod tests {
             graph(r#"digraph { { N1 -> N2 } -> { N3 -> N4 } }"#),
             Ok((
                 "",
-                Graph::new(
+                Graph::directed(
                     None,
                     vec![Statement::Edge(
-                        Either::Right(Graph::new(
+                        Either::Right(Graph::subgraph(
                             None,
                             vec![Statement::Edge(
                                 Either::Left("N1".to_string()),
@@ -478,7 +491,7 @@ mod tests {
                                 vec![]
                             )]
                         )),
-                        Either::Right(Graph::new(
+                        Either::Right(Graph::subgraph(
                             None,
                             vec![Statement::Edge(
                                 Either::Left("N3".to_string()),
@@ -536,9 +549,9 @@ mod tests {
             stmt("subgraph subgraph1 { subgraph subgraph2 {} }"),
             Ok((
                 "",
-                Statement::Subgraph(Graph::new(
+                Statement::Subgraph(Graph::subgraph(
                     Some("subgraph1".to_string()),
-                    vec![Statement::Subgraph(Graph::new(
+                    vec![Statement::Subgraph(Graph::subgraph(
                         Some("subgraph2".to_string()),
                         vec![]
                     ))]
@@ -629,7 +642,7 @@ mod tests {
             subgraph("subgraph id1 { node_id1 }"),
             Ok((
                 "",
-                Graph::new(
+                Graph::subgraph(
                     Some("id1".to_string()),
                     vec![Statement::Node("node_id1".to_string(), vec![])]
                 )
@@ -639,17 +652,17 @@ mod tests {
             subgraph("subgraph { node_id1 }"),
             Ok((
                 "",
-                Graph::new(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                Graph::subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
         assert_eq!(
             subgraph("{ node_id1 }"),
             Ok((
                 "",
-                Graph::new(None, vec![Statement::Node("node_id1".to_string(), vec![])])
+                Graph::subgraph(None, vec![Statement::Node("node_id1".to_string(), vec![])])
             ))
         );
-        assert_eq!(subgraph("{}"), Ok(("", Graph::new(None, vec![]))));
+        assert_eq!(subgraph("{}"), Ok(("", Graph::subgraph(None, vec![]))));
     }
 
     #[test]

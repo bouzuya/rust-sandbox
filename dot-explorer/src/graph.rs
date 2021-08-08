@@ -5,13 +5,18 @@ pub type AttrList = Vec<(String, String)>;
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct Graph {
     name: Option<String>,
+    directed: Option<bool>,
     statements: Vec<Statement>,
     nodes: BTreeSet<String>,
     edges: Vec<(String, String, AttrList)>,
 }
 
 impl Graph {
-    pub fn new(name: Option<String>, statements: Vec<Statement>) -> Self {
+    pub fn directed(name: Option<String>, statements: Vec<Statement>) -> Self {
+        Self::new(Some(true), name, statements)
+    }
+
+    pub fn new(directed: Option<bool>, name: Option<String>, statements: Vec<Statement>) -> Self {
         let mut nodes = BTreeSet::new();
         let mut edges = vec![];
         for x in statements.clone() {
@@ -75,10 +80,19 @@ impl Graph {
         }
         Self {
             name,
+            directed,
             statements,
             nodes,
             edges,
         }
+    }
+
+    pub fn subgraph(name: Option<String>, statements: Vec<Statement>) -> Self {
+        Self::new(None, name, statements)
+    }
+
+    pub fn undirected(name: Option<String>, statements: Vec<Statement>) -> Self {
+        Self::new(Some(false), name, statements)
     }
 
     pub fn name(&self) -> Option<&str> {
@@ -128,16 +142,17 @@ mod tests {
 
     #[test]
     fn test_new_flat() {
-        assert_eq!(Graph::new(None, vec![]), Graph::default());
-        let g = Graph::new(Some("name1".to_string()), vec![]);
+        assert_eq!(Graph::new(None, None, vec![]), Graph::default());
+        let g = Graph::new(None, Some("name1".to_string()), vec![]);
         assert_eq!(g.name(), Some("name1"));
-        let g = Graph::new(None, vec![Statement::Node("N".to_string(), vec![])]);
+        let g = Graph::new(None, None, vec![Statement::Node("N".to_string(), vec![])]);
         assert_eq!(g.nodes(), {
             let mut set = BTreeSet::new();
             set.insert("N".to_string());
             set
         });
         let g = Graph::new(
+            None,
             None,
             vec![
                 Statement::Node("N1".to_string(), vec![]),
@@ -151,6 +166,7 @@ mod tests {
             set
         });
         let g = Graph::new(
+            None,
             None,
             vec![Statement::Edge(
                 Either::Left("N1".to_string()),
@@ -172,14 +188,14 @@ mod tests {
 
     #[test]
     fn test_new_nested() {
-        // digraph {
+        // graph {
         //   {
         //     N1
         //   }
         // }
-        let g = Graph::new(
+        let g = Graph::undirected(
             None,
-            vec![Statement::Subgraph(Graph::new(
+            vec![Statement::Subgraph(Graph::subgraph(
                 None,
                 vec![Statement::Node("N1".to_string(), vec![])],
             ))],
@@ -196,9 +212,9 @@ mod tests {
         //   }
         // }
         // N1 -> N2
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
-            vec![Statement::Subgraph(Graph::new(
+            vec![Statement::Subgraph(Graph::subgraph(
                 None,
                 vec![Statement::Edge(
                     Either::Left("N1".to_string()),
@@ -226,11 +242,11 @@ mod tests {
         // }
         // N1 -> N2
         // N1 -> N3
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
                 Either::Left("N1".to_string()),
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![
                         Statement::Node("N2".to_string(), vec![]),
@@ -263,11 +279,11 @@ mod tests {
         // N1 -> N2
         // N1 -> N3
         // N2 -> N3
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
                 Either::Left("N1".to_string()),
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![Statement::Edge(
                         Either::Left("N2".to_string()),
@@ -304,15 +320,17 @@ mod tests {
         // N1 -> N2
         // N1 -> N3
         // N2 -> N3
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
                 Either::Left("N1".to_string()),
                 Either::Right(Graph::new(
                     None,
+                    None,
                     vec![Statement::Edge(
                         Either::Left("N2".to_string()),
                         Either::Right(Graph::new(
+                            None,
                             None,
                             vec![Statement::Node("N3".to_string(), vec![])],
                         )),
@@ -346,10 +364,10 @@ mod tests {
         // }
         // N1 -> N3
         // N2 -> N3
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![
                         Statement::Node("N1".to_string(), vec![]),
@@ -383,10 +401,10 @@ mod tests {
         // N1 -> N2
         // N1 -> N3
         // N2 -> N3
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![Statement::Edge(
                         Either::Left("N1".to_string()),
@@ -427,17 +445,17 @@ mod tests {
         // N1 -> N4
         // N2 -> N3
         // N2 -> N4
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![
                         Statement::Node("N1".to_string(), vec![]),
                         Statement::Node("N2".to_string(), vec![]),
                     ],
                 )),
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![
                         Statement::Node("N3".to_string(), vec![]),
@@ -478,10 +496,10 @@ mod tests {
         // N1 -> N4
         // N2 -> N3
         // N2 -> N4
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![Statement::Edge(
                         Either::Left("N1".to_string()),
@@ -489,7 +507,7 @@ mod tests {
                         vec![],
                     )],
                 )),
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![
                         Statement::Node("N3".to_string(), vec![]),
@@ -531,10 +549,10 @@ mod tests {
         // N2 -> N3
         // N2 -> N4
         // N3 -> N4
-        let g = Graph::new(
+        let g = Graph::directed(
             None,
             vec![Statement::Edge(
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![Statement::Edge(
                         Either::Left("N1".to_string()),
@@ -542,7 +560,7 @@ mod tests {
                         vec![],
                     )],
                 )),
-                Either::Right(Graph::new(
+                Either::Right(Graph::subgraph(
                     None,
                     vec![Statement::Edge(
                         Either::Left("N3".to_string()),
