@@ -8,4 +8,5 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.42"
+git2 = "0.13.20"
 structopt = "0.3.22"
