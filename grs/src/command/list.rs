@@ -3,9 +3,6 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use anyhow::bail;
-use git2::{build::RepoBuilder, Cred, FetchOptions, RemoteCallbacks, Repository};
-
 use crate::command::root;
 
 fn paths(dir: &Path) -> anyhow::Result<Vec<PathBuf>> {
@@ -34,7 +31,11 @@ fn list_users(hosts: Vec<PathBuf>) -> anyhow::Result<Vec<PathBuf>> {
 fn list_repos(users: Vec<PathBuf>) -> anyhow::Result<Vec<PathBuf>> {
     let mut repos = vec![];
     for user in users {
-        repos.append(&mut paths(user.as_path())?);
+        for repo in paths(user.as_path())? {
+            if repo.join(".git").is_dir() {
+                repos.push(repo);
+            }
+        }
     }
     Ok(repos)
 }
