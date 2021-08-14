@@ -37,7 +37,7 @@ pub fn run() -> anyhow::Result<()> {
             list()?;
         }
         Subcommand::Root => {
-            println!("{:?}", root()?);
+            println!("{}", root()?.display());
         }
     }
     Ok(())
