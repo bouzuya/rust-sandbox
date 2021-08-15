@@ -22,7 +22,10 @@ enum Subcommand {
         name: String,
     },
     #[structopt(name = "list", about = "List repositories")]
-    List,
+    List {
+        #[structopt(name = "QUERY")]
+        query: Option<String>,
+    },
     #[structopt(name = "root", about = "Prints root")]
     Root,
 }
@@ -33,8 +36,8 @@ pub fn run() -> anyhow::Result<()> {
         Subcommand::Get { name } => {
             get(name)?;
         }
-        Subcommand::List => {
-            list()?;
+        Subcommand::List { query } => {
+            list(query)?;
         }
         Subcommand::Root => {
             println!("{}", root()?.display());
