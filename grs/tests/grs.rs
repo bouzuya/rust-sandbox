@@ -36,6 +36,18 @@ fn list_test() -> anyhow::Result<()> {
 }
 
 #[test]
+fn list_query_test() -> anyhow::Result<()> {
+    // TODO
+    Ok(())
+}
+
+#[test]
+fn list_full_path_test() -> anyhow::Result<()> {
+    // TODO
+    Ok(())
+}
+
+#[test]
 fn root_test() -> anyhow::Result<()> {
     let temp_dir = tempdir().unwrap();
     let root_dir = temp_dir.path().join("grs");

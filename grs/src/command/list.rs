@@ -53,14 +53,22 @@ fn list_repos(users: Vec<PathBuf>, query: Option<String>) -> anyhow::Result<Vec<
     Ok(repos)
 }
 
-pub fn list(query: Option<String>) -> anyhow::Result<()> {
+pub fn list(query: Option<String>, full_path: bool) -> anyhow::Result<()> {
     let dir = root()?;
     let hosts = list_hosts(dir.as_path())?;
     let users = list_users(hosts)?;
     let mut repos = list_repos(users, query)?;
     repos.sort();
     for repo in repos {
-        println!("{}", repo.strip_prefix(dir.as_path())?.to_string_lossy());
+        println!(
+            "{}",
+            if full_path {
+                Ok(repo.as_path())
+            } else {
+                repo.strip_prefix(dir.as_path())
+            }?
+            .to_string_lossy()
+        );
     }
     Ok(())
 }

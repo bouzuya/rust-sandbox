@@ -23,6 +23,8 @@ enum Subcommand {
     },
     #[structopt(name = "list", about = "List repositories")]
     List {
+        #[structopt(long = "full-path")]
+        full_path: bool,
         #[structopt(name = "QUERY")]
         query: Option<String>,
     },
@@ -36,8 +38,8 @@ pub fn run() -> anyhow::Result<()> {
         Subcommand::Get { name } => {
             get(name)?;
         }
-        Subcommand::List { query } => {
-            list(query)?;
+        Subcommand::List { full_path, query } => {
+            list(query, full_path)?;
         }
         Subcommand::Root => {
             println!("{}", root()?.display());
