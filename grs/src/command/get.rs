@@ -10,7 +10,10 @@ pub fn get(name: String) -> anyhow::Result<()> {
     }
     let user = user_project[0];
     let project = user_project[1];
-    let dir = root()?.join("github.com").join(user);
+    let dir = root()?.join("github.com").join(user).join(project);
+    if dir.exists() {
+        bail!("exists {}", dir.as_path().to_string_lossy());
+    }
     let url = format!("git@github.com:{}/{}.git", user, project);
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(|_url, username_from_url, _allowed_types| {
