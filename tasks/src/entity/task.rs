@@ -21,6 +21,10 @@ impl Task {
     pub fn id(&self) -> usize {
         self.id
     }
+
+    pub fn complete(&mut self) {
+        self.done = true;
+    }
 }
 
 #[cfg(test)]
@@ -29,8 +33,10 @@ mod tests {
 
     #[test]
     fn test() {
-        let task = Task::new(1, "task1");
+        let mut task = Task::new(1, "task1");
         assert_eq!(task, Task::raw(1, "task1".to_string(), false));
         assert_eq!(task.id(), 1);
+        task.complete();
+        assert_eq!(task, Task::raw(1, "task1".to_string(), true));
     }
 }

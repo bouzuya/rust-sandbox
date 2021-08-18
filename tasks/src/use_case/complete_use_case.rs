@@ -12,7 +12,7 @@ impl CompleteUseCase {
 
     pub fn handle(&self, id: usize) {
         let mut task = self.repository.find_by_id(id).unwrap();
-        task.done = true;
+        task.complete();
         self.repository.save(task);
     }
 }

@@ -136,7 +136,7 @@ mod tests {
         );
 
         let mut task = Task::new(1, "task1");
-        task.done = true;
+        task.complete();
         repository.save(task.clone());
         assert_eq!(repository.find_all(), vec![task.clone()]);
         assert_eq!(repository.find_by_id(1), Some(task));

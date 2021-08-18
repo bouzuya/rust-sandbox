@@ -74,7 +74,7 @@ mod tests {
         assert_eq!(repository.find_by_id(1), Some(Task::new(1, "task1")));
 
         let mut updated = Task::new(1, "task1");
-        updated.done = true;
+        updated.complete();
         repository.save(updated.clone());
         assert_eq!(repository.find_by_id(1), Some(updated.clone()));
 
