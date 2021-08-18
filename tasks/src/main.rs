@@ -26,10 +26,10 @@ enum Subcommand {
     Remove { id: usize },
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let list_presenter = Rc::new(ListConsolePresenter::new());
-    let repository = Rc::new(TaskJsonRepository::new());
+    let repository = Rc::new(TaskJsonRepository::new()?);
     match opt.subcommand {
         Subcommand::Add { text } => AddUseCase::new(repository.clone()).handle(text),
         Subcommand::Complete { id } => CompleteUseCase::new(repository.clone()).handle(id),
@@ -38,4 +38,5 @@ fn main() {
         }
         Subcommand::Remove { id } => RemoveUseCase::new(repository.clone()).handle(id),
     }
+    Ok(())
 }

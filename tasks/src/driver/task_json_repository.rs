@@ -1,4 +1,5 @@
-use std::{fs, path::PathBuf};
+use anyhow::Context;
+use std::{env, fs, path::PathBuf};
 use tasks::{entity::Task, use_case::TaskRepository};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
@@ -40,14 +41,20 @@ pub struct TaskJsonRepository {
 }
 
 impl TaskJsonRepository {
-    pub fn new() -> Self {
-        let data_dir = dirs::data_dir().unwrap();
-        let data_dir = data_dir.join("net.bouzuya.rust-sandbox.tasks");
-        if !data_dir.exists() {
-            fs::create_dir(data_dir.as_path()).unwrap();
+    pub fn new() -> anyhow::Result<Self> {
+        let path = match env::var("TASKS_JSON") {
+            Ok(path) => PathBuf::from(path),
+            Err(_) => dirs::data_dir()
+                .context("data_dir is none")?
+                .join("net.bouzuya.rust-sandbox.tasks")
+                .join("tasks.json"),
+        };
+        if let Some(dir) = path.parent() {
+            if !dir.exists() {
+                fs::create_dir(dir).unwrap();
+            }
         }
-        let path = data_dir.join("tasks.json");
-        Self { path }
+        Ok(Self { path })
     }
 
     fn read(&self) -> Tasks {
@@ -105,5 +112,51 @@ impl TaskRepository for TaskJsonRepository {
         let task = tasks.tasks.get_mut(task_position).unwrap();
         task.done = true;
         self.write(&tasks);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let tasks_json = temp_dir.path().join("tasks.json");
+        env::set_var("TASKS_JSON", tasks_json.as_path());
+        let repository = TaskJsonRepository::new()?;
+        assert_eq!(repository.find_all(), vec![]);
+        assert_eq!(repository.find_by_id(1), None);
+        assert_eq!(tasks_json.as_path().exists(), false);
+
+        repository.create("task1".to_string());
+        assert_eq!(repository.find_all(), vec![Task::new(1, "task1")]);
+        assert_eq!(repository.find_by_id(1), Some(Task::new(1, "task1")));
+        assert_eq!(
+            fs::read_to_string(tasks_json.as_path())?,
+            r#"{"next_id":2,"tasks":[{"done":false,"id":1,"text":"task1"}]}"#
+        );
+
+        let mut task = Task::new(1, "task1");
+        task.done = true;
+        repository.save(task.clone());
+        assert_eq!(repository.find_all(), vec![task.clone()]);
+        assert_eq!(repository.find_by_id(1), Some(task));
+        assert_eq!(
+            fs::read_to_string(tasks_json.as_path())?,
+            r#"{"next_id":2,"tasks":[{"done":true,"id":1,"text":"task1"}]}"#
+        );
+
+        repository.delete(1);
+        assert_eq!(repository.find_all(), vec![]);
+        assert_eq!(repository.find_by_id(1), None);
+        assert_eq!(
+            fs::read_to_string(tasks_json.as_path())?,
+            r#"{"next_id":2,"tasks":[]}"#
+        );
+
+        Ok(())
     }
 }
