@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Task {
     pub done: bool,
     pub id: usize,

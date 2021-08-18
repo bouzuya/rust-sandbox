@@ -4,7 +4,35 @@ use tasks::{entity::Task, use_case::TaskRepository};
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Tasks {
     next_id: usize,
-    tasks: Vec<Task>,
+    tasks: Vec<TaskData>,
+}
+
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+struct TaskData {
+    pub done: bool,
+    pub id: usize,
+    pub text: String,
+}
+
+impl From<Task> for TaskData {
+    fn from(task: Task) -> Self {
+        Self {
+            done: task.done,
+            id: task.id,
+            text: task.text,
+        }
+    }
+}
+
+// -> TryFrom
+impl From<TaskData> for Task {
+    fn from(data: TaskData) -> Self {
+        Self {
+            done: data.done,
+            id: data.id,
+            text: data.text,
+        }
+    }
 }
 
 pub struct TaskJsonRepository {
@@ -40,7 +68,11 @@ impl TaskJsonRepository {
 impl TaskRepository for TaskJsonRepository {
     fn create(&self, text: String) {
         let mut tasks = self.read();
-        tasks.tasks.push(Task::new(tasks.next_id, text));
+        tasks.tasks.push(TaskData {
+            id: tasks.next_id,
+            text,
+            done: false,
+        });
         tasks.next_id += 1;
         self.write(&tasks);
     }
@@ -54,12 +86,17 @@ impl TaskRepository for TaskJsonRepository {
 
     fn find_all(&self) -> Vec<Task> {
         let tasks = self.read();
-        tasks.tasks
+        tasks
+            .tasks
+            .iter()
+            .cloned()
+            .map(Task::from)
+            .collect::<Vec<Task>>()
     }
 
     fn find_by_id(&self, id: usize) -> Option<Task> {
         let tasks = self.read();
-        tasks.tasks.into_iter().find(|t| t.id == id)
+        tasks.tasks.into_iter().find(|t| t.id == id).map(Task::from)
     }
 
     fn save(&self, task: Task) {
