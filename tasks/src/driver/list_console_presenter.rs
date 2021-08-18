@@ -15,7 +15,7 @@ impl ListPresenter for ListConsolePresenter {
                 .iter()
                 .map(|task| format!(
                     "{} {} {}",
-                    task.id,
+                    task.id(),
                     if task.done { "☑" } else { "☐" },
                     task.text
                 ))

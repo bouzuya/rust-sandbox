@@ -19,7 +19,7 @@ impl From<Task> for TaskData {
     fn from(task: Task) -> Self {
         Self {
             done: task.done,
-            id: task.id,
+            id: task.id(),
             text: task.text,
         }
     }
@@ -28,11 +28,7 @@ impl From<Task> for TaskData {
 // -> TryFrom
 impl From<TaskData> for Task {
     fn from(data: TaskData) -> Self {
-        Self {
-            done: data.done,
-            id: data.id,
-            text: data.text,
-        }
+        Self::raw(data.id, data.text, data.done)
     }
 }
 
@@ -108,7 +104,7 @@ impl TaskRepository for TaskJsonRepository {
 
     fn save(&self, task: Task) {
         let mut tasks = self.read();
-        let task_position = tasks.tasks.iter().position(|t| t.id == task.id).unwrap();
+        let task_position = tasks.tasks.iter().position(|t| t.id == task.id()).unwrap();
         let task = tasks.tasks.get_mut(task_position).unwrap();
         task.done = true;
         self.write(&tasks);

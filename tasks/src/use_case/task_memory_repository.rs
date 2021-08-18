@@ -33,7 +33,7 @@ impl TaskRepository for TaskMemoryRepository {
 
     fn delete(&self, id: usize) {
         let mut tasks = self.rc.borrow_mut();
-        let task_position = tasks.tasks.iter().position(|t| t.id == id).unwrap();
+        let task_position = tasks.tasks.iter().position(|t| t.id() == id).unwrap();
         tasks.tasks.remove(task_position);
     }
 
@@ -44,12 +44,16 @@ impl TaskRepository for TaskMemoryRepository {
 
     fn find_by_id(&self, id: usize) -> Option<Task> {
         let tasks = self.rc.borrow();
-        tasks.tasks.iter().cloned().find(|t| t.id == id)
+        tasks.tasks.iter().cloned().find(|t| t.id() == id)
     }
 
     fn save(&self, task: Task) {
         let mut tasks = self.rc.borrow_mut();
-        let task_position = tasks.tasks.iter().position(|t| t.id == task.id).unwrap();
+        let task_position = tasks
+            .tasks
+            .iter()
+            .position(|t| t.id() == task.id())
+            .unwrap();
         let task = tasks.tasks.get_mut(task_position).unwrap();
         task.done = true;
     }
