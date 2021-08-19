@@ -20,7 +20,7 @@ impl From<Task> for TaskData {
         Self {
             done: task.done(),
             id: task.id(),
-            text: task.text,
+            text: task.text().to_string(),
         }
     }
 }

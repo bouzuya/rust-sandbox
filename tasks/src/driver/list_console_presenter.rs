@@ -17,7 +17,7 @@ impl ListPresenter for ListConsolePresenter {
                     "{} {} {}",
                     task.id(),
                     if task.done() { "☑" } else { "☐" },
-                    task.text
+                    task.text()
                 ))
                 .collect::<Vec<String>>()
                 .join("\n")

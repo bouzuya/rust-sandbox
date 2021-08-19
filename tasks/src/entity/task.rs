@@ -2,7 +2,7 @@
 pub struct Task {
     done: bool,
     id: usize,
-    pub text: String,
+    text: String,
 }
 
 impl Task {
@@ -28,6 +28,10 @@ impl Task {
 
     pub fn complete(&mut self) {
         self.done = true;
+    }
+
+    pub fn text(&self) -> &str {
+        &self.text
     }
 }
 
