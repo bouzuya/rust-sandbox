@@ -10,7 +10,7 @@ struct Tasks {
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 struct TaskData {
-    pub done: bool,
+    pub completed_at: Option<i64>,
     pub id: usize,
     pub text: String,
 }
@@ -18,7 +18,7 @@ struct TaskData {
 impl From<Task> for TaskData {
     fn from(task: Task) -> Self {
         Self {
-            done: task.done(),
+            completed_at: task.completed_at(),
             id: task.id(),
             text: task.text().to_string(),
         }
@@ -28,7 +28,7 @@ impl From<Task> for TaskData {
 // -> TryFrom
 impl From<TaskData> for Task {
     fn from(data: TaskData) -> Self {
-        Self::raw(data.id, data.text, data.done)
+        Self::raw(data.id, data.text, data.completed_at)
     }
 }
 
@@ -74,7 +74,7 @@ impl TaskRepository for TaskJsonRepository {
         tasks.tasks.push(TaskData {
             id: tasks.next_id,
             text,
-            done: false,
+            completed_at: None,
         });
         tasks.next_id += 1;
         self.write(&tasks);
@@ -105,8 +105,8 @@ impl TaskRepository for TaskJsonRepository {
     fn save(&self, task: Task) {
         let mut tasks = self.read();
         let task_position = tasks.tasks.iter().position(|t| t.id == task.id()).unwrap();
-        let task = tasks.tasks.get_mut(task_position).unwrap();
-        task.done = true;
+        let task_data_mut = tasks.tasks.get_mut(task_position).unwrap();
+        *task_data_mut = TaskData::from(task);
         self.write(&tasks);
     }
 }
@@ -132,17 +132,20 @@ mod tests {
         assert_eq!(repository.find_by_id(1), Some(Task::new(1, "task1")));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
-            r#"{"next_id":2,"tasks":[{"done":false,"id":1,"text":"task1"}]}"#
+            r#"{"next_id":2,"tasks":[{"completed_at":null,"id":1,"text":"task1"}]}"#
         );
 
         let mut task = Task::new(1, "task1");
         task.complete();
         repository.save(task.clone());
         assert_eq!(repository.find_all(), vec![task.clone()]);
-        assert_eq!(repository.find_by_id(1), Some(task));
+        assert_eq!(repository.find_by_id(1), Some(task.clone()));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
-            r#"{"next_id":2,"tasks":[{"done":true,"id":1,"text":"task1"}]}"#
+            format!(
+                r#"{{"next_id":2,"tasks":[{{"completed_at":{},"id":1,"text":"task1"}}]}}"#,
+                task.completed_at().unwrap()
+            )
         );
 
         repository.delete(1);

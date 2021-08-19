@@ -31,12 +31,10 @@ fn main() -> anyhow::Result<()> {
     let list_presenter = Rc::new(ListConsolePresenter::new());
     let repository = Rc::new(TaskJsonRepository::new()?);
     match opt.subcommand {
-        Subcommand::Add { text } => AddUseCase::new(repository.clone()).handle(text),
-        Subcommand::Complete { id } => CompleteUseCase::new(repository.clone()).handle(id),
-        Subcommand::List { all } => {
-            ListUseCase::new(list_presenter.clone(), repository.clone()).handle(all)
-        }
-        Subcommand::Remove { id } => RemoveUseCase::new(repository.clone()).handle(id),
+        Subcommand::Add { text } => AddUseCase::new(repository).handle(text),
+        Subcommand::Complete { id } => CompleteUseCase::new(repository).handle(id),
+        Subcommand::List { all } => ListUseCase::new(list_presenter, repository).handle(all),
+        Subcommand::Remove { id } => RemoveUseCase::new(repository).handle(id),
     }
     Ok(())
 }
