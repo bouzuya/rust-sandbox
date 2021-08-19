@@ -20,7 +20,7 @@ impl ListUseCase {
             .repository
             .find_all()
             .into_iter()
-            .filter(|task| all || !task.done)
+            .filter(|task| all || !task.done())
             .collect::<Vec<Task>>();
         self.presenter.complete(&tasks);
     }

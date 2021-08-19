@@ -18,7 +18,7 @@ struct TaskData {
 impl From<Task> for TaskData {
     fn from(task: Task) -> Self {
         Self {
-            done: task.done,
+            done: task.done(),
             id: task.id(),
             text: task.text,
         }

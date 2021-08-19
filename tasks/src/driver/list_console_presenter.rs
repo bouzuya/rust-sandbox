@@ -16,7 +16,7 @@ impl ListPresenter for ListConsolePresenter {
                 .map(|task| format!(
                     "{} {} {}",
                     task.id(),
-                    if task.done { "☑" } else { "☐" },
+                    if task.done() { "☑" } else { "☐" },
                     task.text
                 ))
                 .collect::<Vec<String>>()

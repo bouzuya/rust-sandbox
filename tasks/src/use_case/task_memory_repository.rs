@@ -54,8 +54,8 @@ impl TaskRepository for TaskMemoryRepository {
             .iter()
             .position(|t| t.id() == task.id())
             .unwrap();
-        let task = tasks.tasks.get_mut(task_position).unwrap();
-        task.done = true;
+        let task_mut = tasks.tasks.get_mut(task_position).unwrap();
+        *task_mut = task;
     }
 }
 

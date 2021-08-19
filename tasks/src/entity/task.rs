@@ -1,6 +1,6 @@
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Task {
-    pub done: bool,
+    done: bool,
     id: usize,
     pub text: String,
 }
@@ -16,6 +16,10 @@ impl Task {
             id,
             text: text.into(),
         }
+    }
+
+    pub fn done(&self) -> bool {
+        self.done
     }
 
     pub fn id(&self) -> usize {
