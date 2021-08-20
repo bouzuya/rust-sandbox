@@ -31,9 +31,7 @@ impl TaskRepository for TaskMemoryRepository {
         tasks.next_id += 1;
     }
 
-    // TODO: usize -> TaskId
-    fn delete(&self, id: usize) {
-        let id = TaskId::from(id);
+    fn delete(&self, id: TaskId) {
         let mut tasks = self.rc.borrow_mut();
         let task_position = tasks.tasks.iter().position(|t| t.id() == id).unwrap();
         tasks.tasks.remove(task_position);
@@ -44,9 +42,7 @@ impl TaskRepository for TaskMemoryRepository {
         tasks.tasks.clone()
     }
 
-    // TODO: usize -> TaskId
-    fn find_by_id(&self, id: usize) -> Option<Task> {
-        let id = TaskId::from(id);
+    fn find_by_id(&self, id: TaskId) -> Option<Task> {
         let tasks = self.rc.borrow();
         tasks.tasks.iter().cloned().find(|t| t.id() == id)
     }
@@ -73,22 +69,31 @@ mod tests {
         assert!(repository.find_all().is_empty());
         repository.create("task1".to_string());
 
-        assert_eq!(repository.find_all(), vec![Task::new(1.into(), "task1")]);
-        assert_eq!(repository.find_by_id(2), None);
-        assert_eq!(repository.find_by_id(1), Some(Task::new(1.into(), "task1")));
+        assert_eq!(
+            repository.find_all(),
+            vec![Task::new(TaskId::from(1), "task1")]
+        );
+        assert_eq!(repository.find_by_id(TaskId::from(2)), None);
+        assert_eq!(
+            repository.find_by_id(TaskId::from(1)),
+            Some(Task::new(1.into(), "task1"))
+        );
 
-        let mut updated = Task::new(1.into(), "task1");
+        let mut updated = Task::new(TaskId::from(1), "task1");
         updated.complete();
         repository.save(updated.clone());
-        assert_eq!(repository.find_by_id(1), Some(updated.clone()));
+        assert_eq!(
+            repository.find_by_id(TaskId::from(1)),
+            Some(updated.clone())
+        );
 
         repository.create("task2".to_string());
         assert_eq!(
             repository.find_all(),
-            vec![updated, Task::new(2.into(), "task2"),]
+            vec![updated, Task::new(TaskId::from(2), "task2"),]
         );
 
-        repository.delete(1);
+        repository.delete(TaskId::from(1));
         assert_eq!(repository.find_all(), vec![Task::new(2.into(), "task2")]);
     }
 }

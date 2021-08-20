@@ -1,4 +1,4 @@
-use crate::use_case::TaskRepository;
+use crate::{entity::TaskId, use_case::TaskRepository};
 use std::rc::Rc;
 
 pub struct RemoveUseCase {
@@ -10,7 +10,9 @@ impl RemoveUseCase {
         Self { repository }
     }
 
+    // TODO: id -> task_id
     pub fn handle(&self, id: usize) {
+        let id = TaskId::from(id);
         self.repository.delete(id);
     }
 }

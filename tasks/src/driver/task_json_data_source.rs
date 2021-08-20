@@ -83,7 +83,8 @@ impl TaskRepository for TaskJsonDataSource {
         self.write(&tasks);
     }
 
-    fn delete(&self, id: usize) {
+    fn delete(&self, id: TaskId) {
+        let id = usize::from(id);
         let mut tasks = self.read();
         let task_position = tasks.tasks.iter().position(|t| t.id == id).unwrap();
         tasks.tasks.remove(task_position);
@@ -100,7 +101,8 @@ impl TaskRepository for TaskJsonDataSource {
             .collect::<Vec<Task>>()
     }
 
-    fn find_by_id(&self, id: usize) -> Option<Task> {
+    fn find_by_id(&self, id: TaskId) -> Option<Task> {
+        let id = usize::from(id);
         let tasks = self.read();
         tasks.tasks.into_iter().find(|t| t.id == id).map(Task::from)
     }
@@ -131,23 +133,24 @@ mod tests {
         let tasks_json = temp_dir.path().join("tasks.json");
         env::set_var("TASKS_JSON", tasks_json.as_path());
         let repository = TaskJsonDataSource::new()?;
+        let id = TaskId::from(1);
         assert_eq!(repository.find_all(), vec![]);
-        assert_eq!(repository.find_by_id(1), None);
+        assert_eq!(repository.find_by_id(id), None);
         assert_eq!(tasks_json.as_path().exists(), false);
 
         repository.create("task1".to_string());
-        assert_eq!(repository.find_all(), vec![Task::new(1.into(), "task1")]);
-        assert_eq!(repository.find_by_id(1), Some(Task::new(1.into(), "task1")));
+        assert_eq!(repository.find_all(), vec![Task::new(id, "task1")]);
+        assert_eq!(repository.find_by_id(id), Some(Task::new(id, "task1")));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[{"completed_at":null,"id":1,"text":"task1"}]}"#
         );
 
-        let mut task = Task::new(1.into(), "task1");
+        let mut task = Task::new(id, "task1");
         task.complete();
         repository.save(task.clone());
         assert_eq!(repository.find_all(), vec![task.clone()]);
-        assert_eq!(repository.find_by_id(1), Some(task.clone()));
+        assert_eq!(repository.find_by_id(id), Some(task.clone()));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             format!(
@@ -156,9 +159,9 @@ mod tests {
             )
         );
 
-        repository.delete(1);
+        repository.delete(id);
         assert_eq!(repository.find_all(), vec![]);
-        assert_eq!(repository.find_by_id(1), None);
+        assert_eq!(repository.find_by_id(id), None);
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[]}"#

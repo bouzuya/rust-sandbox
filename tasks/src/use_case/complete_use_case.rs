@@ -1,4 +1,4 @@
-use crate::use_case::TaskRepository;
+use crate::{entity::TaskId, use_case::TaskRepository};
 use std::rc::Rc;
 
 pub struct CompleteUseCase {
@@ -10,7 +10,9 @@ impl CompleteUseCase {
         Self { repository }
     }
 
+    // TODO: id -> task_id
     pub fn handle(&self, id: usize) {
+        let id = TaskId::from(id);
         let mut task = self.repository.find_by_id(id).unwrap();
         task.complete();
         self.repository.save(task);
