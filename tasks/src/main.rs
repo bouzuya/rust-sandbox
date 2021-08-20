@@ -1,6 +1,6 @@
 mod driver;
 
-use driver::{ListConsolePresenter, TaskJsonRepository};
+use driver::{ListConsolePresenter, TaskJsonDataSource};
 use std::rc::Rc;
 use structopt::StructOpt;
 use tasks::use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase};
@@ -29,7 +29,7 @@ enum Subcommand {
 fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     let list_presenter = Rc::new(ListConsolePresenter::new());
-    let repository = Rc::new(TaskJsonRepository::new()?);
+    let repository = Rc::new(TaskJsonDataSource::new()?);
     match opt.subcommand {
         Subcommand::Add { text } => AddUseCase::new(repository).handle(text),
         Subcommand::Complete { id } => CompleteUseCase::new(repository).handle(id),

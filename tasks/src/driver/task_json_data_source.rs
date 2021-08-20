@@ -35,11 +35,11 @@ impl From<TaskData> for Task {
     }
 }
 
-pub struct TaskJsonRepository {
+pub struct TaskJsonDataSource {
     path: PathBuf,
 }
 
-impl TaskJsonRepository {
+impl TaskJsonDataSource {
     pub fn new() -> anyhow::Result<Self> {
         let path = match env::var("TASKS_JSON") {
             Ok(path) => PathBuf::from(path),
@@ -71,7 +71,7 @@ impl TaskJsonRepository {
     }
 }
 
-impl TaskRepository for TaskJsonRepository {
+impl TaskRepository for TaskJsonDataSource {
     fn create(&self, text: String) {
         let mut tasks = self.read();
         tasks.tasks.push(TaskData {
@@ -130,7 +130,7 @@ mod tests {
         let temp_dir = tempdir()?;
         let tasks_json = temp_dir.path().join("tasks.json");
         env::set_var("TASKS_JSON", tasks_json.as_path());
-        let repository = TaskJsonRepository::new()?;
+        let repository = TaskJsonDataSource::new()?;
         assert_eq!(repository.find_all(), vec![]);
         assert_eq!(repository.find_by_id(1), None);
         assert_eq!(tasks_json.as_path().exists(), false);
