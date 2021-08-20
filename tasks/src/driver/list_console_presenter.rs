@@ -8,7 +8,7 @@ impl ListConsolePresenter {
 }
 
 impl ListPresenter for ListConsolePresenter {
-    fn complete(&self, tasks: &Vec<Task>) {
+    fn complete(&self, tasks: &[Task]) {
         println!(
             "{}",
             tasks

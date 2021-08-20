@@ -15,9 +15,9 @@ impl ListMemoryPresenter {
 }
 
 impl ListPresenter for ListMemoryPresenter {
-    fn complete(&self, tasks: &Vec<Task>) {
+    fn complete(&self, tasks: &[Task]) {
         let mut cell = self.rc.borrow_mut();
-        *cell = Some(tasks.clone());
+        *cell = Some(tasks.to_vec());
     }
 }
 
