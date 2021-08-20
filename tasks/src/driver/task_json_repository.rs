@@ -1,6 +1,9 @@
 use anyhow::Context;
 use std::{env, fs, path::PathBuf};
-use tasks::{entity::Task, use_case::TaskRepository};
+use tasks::{
+    entity::{Task, TaskId},
+    use_case::TaskRepository,
+};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Tasks {
@@ -19,7 +22,7 @@ impl From<Task> for TaskData {
     fn from(task: Task) -> Self {
         Self {
             completed_at: task.completed_at(),
-            id: task.id(),
+            id: usize::from(task.id()),
             text: task.text().to_string(),
         }
     }
@@ -28,7 +31,7 @@ impl From<Task> for TaskData {
 // -> TryFrom
 impl From<TaskData> for Task {
     fn from(data: TaskData) -> Self {
-        Self::raw(data.id, data.text, data.completed_at)
+        Self::raw(TaskId::from(data.id), data.text, data.completed_at)
     }
 }
 
@@ -104,7 +107,12 @@ impl TaskRepository for TaskJsonRepository {
 
     fn save(&self, task: Task) {
         let mut tasks = self.read();
-        let task_position = tasks.tasks.iter().position(|t| t.id == task.id()).unwrap();
+        let id_as_usize = usize::from(task.id());
+        let task_position = tasks
+            .tasks
+            .iter()
+            .position(|t| t.id == id_as_usize)
+            .unwrap();
         let task_data_mut = tasks.tasks.get_mut(task_position).unwrap();
         *task_data_mut = TaskData::from(task);
         self.write(&tasks);
@@ -128,14 +136,14 @@ mod tests {
         assert_eq!(tasks_json.as_path().exists(), false);
 
         repository.create("task1".to_string());
-        assert_eq!(repository.find_all(), vec![Task::new(1, "task1")]);
-        assert_eq!(repository.find_by_id(1), Some(Task::new(1, "task1")));
+        assert_eq!(repository.find_all(), vec![Task::new(1.into(), "task1")]);
+        assert_eq!(repository.find_by_id(1), Some(Task::new(1.into(), "task1")));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[{"completed_at":null,"id":1,"text":"task1"}]}"#
         );
 
-        let mut task = Task::new(1, "task1");
+        let mut task = Task::new(1.into(), "task1");
         task.complete();
         repository.save(task.clone());
         assert_eq!(repository.find_all(), vec![task.clone()]);

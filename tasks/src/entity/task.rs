@@ -1,14 +1,16 @@
 use chrono::Utc;
 
+use super::TaskId;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Task {
     completed_at: Option<i64>,
-    id: usize,
+    id: TaskId,
     text: String,
 }
 
 impl Task {
-    pub fn raw(id: usize, text: String, completed_at: Option<i64>) -> Self {
+    pub fn raw(id: TaskId, text: String, completed_at: Option<i64>) -> Self {
         Self {
             completed_at,
             id,
@@ -16,7 +18,7 @@ impl Task {
         }
     }
 
-    pub fn new(id: usize, text: impl Into<String>) -> Self {
+    pub fn new(id: TaskId, text: impl Into<String>) -> Self {
         Self {
             completed_at: None,
             id,
@@ -28,7 +30,7 @@ impl Task {
         self.completed_at.is_some()
     }
 
-    pub fn id(&self) -> usize {
+    pub fn id(&self) -> TaskId {
         self.id
     }
 
@@ -51,13 +53,17 @@ mod tests {
 
     #[test]
     fn test() {
-        let mut task = Task::new(1, "task1");
-        assert_eq!(task, Task::raw(1, "task1".to_string(), None));
-        assert_eq!(task.id(), 1);
+        let mut task = Task::new(1.into(), "task1");
+        assert_eq!(task, Task::raw(1.into(), "task1".to_string(), None));
+        assert_eq!(task.id(), 1.into());
         task.complete();
         assert_eq!(
             task,
-            Task::raw(1, "task1".to_string(), Some(task.completed_at().unwrap()))
+            Task::raw(
+                1.into(),
+                "task1".to_string(),
+                Some(task.completed_at().unwrap())
+            )
         );
     }
 }

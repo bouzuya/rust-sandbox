@@ -38,6 +38,6 @@ mod tests {
         repository.create("task1".to_string());
         ListUseCase::new(presenter.clone(), Rc::new(repository)).handle(false);
         let cell = presenter.rc.borrow_mut();
-        assert_eq!(*cell, Some(vec![Task::new(1, "task1")]));
+        assert_eq!(*cell, Some(vec![Task::new(1.into(), "task1")]));
     }
 }

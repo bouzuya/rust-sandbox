@@ -28,7 +28,7 @@ mod tests {
     #[test]
     fn test() {
         let presenter = ListMemoryPresenter::new();
-        let tasks = vec![Task::new(1, "task 1")];
+        let tasks = vec![Task::new(1.into(), "task 1")];
         presenter.complete(&tasks);
 
         let cell = presenter.rc.borrow_mut();
