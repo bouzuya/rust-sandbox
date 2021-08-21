@@ -2,11 +2,11 @@ use crate::entity::Task;
 use crate::use_case::ListPresenter;
 use std::{cell::RefCell, rc::Rc};
 
-pub struct ListMemoryPresenter {
+pub struct MockListPresenter {
     pub rc: Rc<RefCell<Option<Vec<Task>>>>,
 }
 
-impl ListMemoryPresenter {
+impl MockListPresenter {
     pub fn new() -> Self {
         Self {
             rc: Rc::new(RefCell::new(None)),
@@ -14,7 +14,7 @@ impl ListMemoryPresenter {
     }
 }
 
-impl ListPresenter for ListMemoryPresenter {
+impl ListPresenter for MockListPresenter {
     fn complete(&self, tasks: &[Task]) {
         let mut cell = self.rc.borrow_mut();
         *cell = Some(tasks.to_vec());
@@ -27,7 +27,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let presenter = ListMemoryPresenter::new();
+        let presenter = MockListPresenter::new();
         let tasks = vec![Task::new(1.into(), "task 1")];
         presenter.complete(&tasks);
 
