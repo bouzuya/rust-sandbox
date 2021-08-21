@@ -8,11 +8,11 @@ struct Tasks {
     tasks: Vec<Task>,
 }
 
-pub struct TaskMemoryRepository {
+pub struct MockTaskRepository {
     rc: Rc<RefCell<Tasks>>,
 }
 
-impl TaskMemoryRepository {
+impl MockTaskRepository {
     pub fn new() -> Self {
         Self {
             rc: Rc::new(RefCell::new(Tasks {
@@ -23,7 +23,7 @@ impl TaskMemoryRepository {
     }
 }
 
-impl TaskRepository for TaskMemoryRepository {
+impl TaskRepository for MockTaskRepository {
     fn create(&self, text: String) {
         let mut tasks = self.rc.borrow_mut();
         let next_id = tasks.next_id;
@@ -65,7 +65,7 @@ mod tests {
 
     #[test]
     fn test() {
-        let repository = TaskMemoryRepository::new();
+        let repository = MockTaskRepository::new();
         assert!(repository.find_all().is_empty());
         repository.create("task1".to_string());
 

@@ -20,11 +20,11 @@ impl RemoveUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::use_case::TaskMemoryRepository;
+    use crate::use_case::MockTaskRepository;
 
     #[test]
     fn test() {
-        let repository = TaskMemoryRepository::new();
+        let repository = MockTaskRepository::new();
         RemoveUseCase::new(Rc::new(repository));
         // TODO
     }

@@ -29,12 +29,12 @@ impl ListUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::use_case::{ListMemoryPresenter, TaskMemoryRepository};
+    use crate::use_case::{ListMemoryPresenter, MockTaskRepository};
 
     #[test]
     fn test() {
         let presenter = Rc::new(ListMemoryPresenter::new());
-        let repository = TaskMemoryRepository::new();
+        let repository = MockTaskRepository::new();
         repository.create("task1".to_string());
         ListUseCase::new(presenter.clone(), Rc::new(repository)).handle(false);
         let cell = presenter.rc.borrow_mut();
