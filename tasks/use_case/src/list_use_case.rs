@@ -1,5 +1,5 @@
-use crate::entity::Task;
-use crate::use_case::{ListPresenter, TaskRepository};
+use crate::{ListPresenter, TaskRepository};
+use entity::Task;
 use std::rc::Rc;
 
 pub struct ListUseCase {
@@ -29,7 +29,7 @@ impl ListUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::use_case::{MockListPresenter, MockTaskRepository};
+    use crate::{MockListPresenter, MockTaskRepository};
 
     #[test]
     fn test() {

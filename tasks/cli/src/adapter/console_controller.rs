@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use structopt::StructOpt;
-use tasks::use_case::{
+use use_case::{
     AddUseCase, CompleteUseCase, ListPresenter, ListUseCase, RemoveUseCase, TaskRepository,
 };
 

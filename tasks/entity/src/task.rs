@@ -1,6 +1,6 @@
 use chrono::Utc;
 
-use super::TaskId;
+use crate::TaskId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Task {

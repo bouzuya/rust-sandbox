@@ -1,4 +1,4 @@
-use crate::use_case::TaskRepository;
+use crate::TaskRepository;
 use std::rc::Rc;
 
 pub struct AddUseCase {
@@ -18,7 +18,7 @@ impl AddUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::use_case::MockTaskRepository;
+    use crate::MockTaskRepository;
 
     #[test]
     fn test() {

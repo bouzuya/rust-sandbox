@@ -1,5 +1,5 @@
-use crate::entity::Task;
-use crate::use_case::ListPresenter;
+use crate::ListPresenter;
+use entity::Task;
 use std::{cell::RefCell, rc::Rc};
 
 pub struct MockListPresenter {

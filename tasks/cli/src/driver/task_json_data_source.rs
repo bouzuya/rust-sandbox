@@ -1,9 +1,7 @@
 use anyhow::Context;
+use entity::{Task, TaskId};
 use std::{env, fs, path::PathBuf};
-use tasks::{
-    entity::{Task, TaskId},
-    use_case::TaskRepository,
-};
+use use_case::TaskRepository;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Tasks {
