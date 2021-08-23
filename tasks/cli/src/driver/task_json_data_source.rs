@@ -134,7 +134,7 @@ mod tests {
         let id = TaskId::from(1);
         assert_eq!(repository.find_all(), vec![]);
         assert_eq!(repository.find_by_id(id), None);
-        assert_eq!(tasks_json.as_path().exists(), false);
+        assert!(!tasks_json.as_path().exists());
 
         repository.create("task1".to_string());
         assert_eq!(repository.find_all(), vec![Task::new(id, "task1")]);

@@ -11,9 +11,7 @@ impl RemoveUseCase {
         Self { repository }
     }
 
-    // TODO: id -> task_id
-    pub fn handle(&self, id: usize) {
-        let id = TaskId::from(id);
+    pub fn handle(&self, id: TaskId) {
         self.repository.delete(id);
     }
 }
@@ -26,7 +24,11 @@ mod tests {
     #[test]
     fn test() {
         let repository = MockTaskRepository::new();
-        RemoveUseCase::new(Rc::new(repository));
-        // TODO
+        repository.create("text".to_string());
+        assert!(!repository.find_all().is_empty());
+        let repository = Rc::new(repository);
+        let use_case = RemoveUseCase::new(repository.clone());
+        use_case.handle(TaskId::from(1));
+        assert!(repository.find_all().is_empty());
     }
 }
