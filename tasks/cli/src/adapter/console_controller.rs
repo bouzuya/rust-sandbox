@@ -44,7 +44,11 @@ impl ConsoleController {
         let opt = Opt::from_args();
         match opt.subcommand {
             Subcommand::Add { text } => AddUseCase::new(self.repository.clone()).handle(text),
-            Subcommand::Complete { id } => CompleteUseCase::new(self.repository.clone()).handle(id),
+            Subcommand::Complete { id } => {
+                let id = TaskId::from(id);
+                let use_case = CompleteUseCase::new(self.repository.clone());
+                use_case.handle(id);
+            }
             Subcommand::List { all } => {
                 ListUseCase::new(self.list_presenter.clone(), self.repository.clone()).handle(all)
             }

@@ -11,9 +11,7 @@ impl CompleteUseCase {
         Self { repository }
     }
 
-    // TODO: id -> task_id
-    pub fn handle(&self, id: usize) {
-        let id = TaskId::from(id);
+    pub fn handle(&self, id: TaskId) {
         let mut task = self.repository.find_by_id(id).unwrap();
         task.complete();
         self.repository.save(task);
@@ -28,7 +26,13 @@ mod tests {
     #[test]
     fn test() {
         let repository = MockTaskRepository::new();
-        CompleteUseCase::new(Rc::new(repository));
-        // TODO
+        repository.create("text".to_string());
+        let created = repository.find_all().first().unwrap().clone();
+        assert!(created.completed_at().is_none());
+        let repository = Rc::new(repository);
+        let use_case = CompleteUseCase::new(repository.clone());
+        use_case.handle(created.id());
+        let completed = repository.find_all().first().unwrap().clone();
+        assert!(completed.completed_at().is_some());
     }
 }
