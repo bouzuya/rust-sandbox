@@ -16,9 +16,11 @@ impl ListUseCase {
     }
 
     pub fn handle(&self, all: bool) {
+        // TODO: unwrap
         let tasks = self
             .repository
             .find_all()
+            .unwrap()
             .into_iter()
             .filter(|task| all || !task.done())
             .collect::<Vec<Task>>();
@@ -32,12 +34,13 @@ mod tests {
     use crate::{MockListPresenter, MockTaskRepository};
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         let presenter = Rc::new(MockListPresenter::new());
         let repository = MockTaskRepository::new();
-        repository.create("task1".to_string());
+        repository.create("task1".to_string())?;
         ListUseCase::new(presenter.clone(), Rc::new(repository)).handle(false);
         let cell = presenter.rc.borrow_mut();
         assert_eq!(*cell, Some(vec![Task::new(1.into(), "task1")]));
+        Ok(())
     }
 }

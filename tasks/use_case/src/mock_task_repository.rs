@@ -1,4 +1,4 @@
-use crate::TaskRepository;
+use crate::{task_repository::TaskRepositoryError, TaskRepository};
 use entity::{Task, TaskId};
 use std::{cell::RefCell, rc::Rc};
 
@@ -24,30 +24,32 @@ impl MockTaskRepository {
 }
 
 impl TaskRepository for MockTaskRepository {
-    fn create(&self, text: String) {
+    fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError> {
         let mut tasks = self.rc.borrow_mut();
-        let next_id = tasks.next_id;
-        tasks.tasks.push(Task::new(TaskId::from(next_id), text));
+        let id = TaskId::from(tasks.next_id);
+        tasks.tasks.push(Task::new(id, text));
         tasks.next_id += 1;
+        Ok(id)
     }
 
-    fn delete(&self, id: TaskId) {
+    fn delete(&self, id: TaskId) -> Result<(), TaskRepositoryError> {
         let mut tasks = self.rc.borrow_mut();
         let task_position = tasks.tasks.iter().position(|t| t.id() == id).unwrap();
         tasks.tasks.remove(task_position);
+        Ok(())
     }
 
-    fn find_all(&self) -> Vec<Task> {
+    fn find_all(&self) -> Result<Vec<Task>, TaskRepositoryError> {
         let tasks = self.rc.borrow();
-        tasks.tasks.clone()
+        Ok(tasks.tasks.clone())
     }
 
-    fn find_by_id(&self, id: TaskId) -> Option<Task> {
+    fn find_by_id(&self, id: TaskId) -> Result<Option<Task>, TaskRepositoryError> {
         let tasks = self.rc.borrow();
-        tasks.tasks.iter().cloned().find(|t| t.id() == id)
+        Ok(tasks.tasks.iter().cloned().find(|t| t.id() == id))
     }
 
-    fn save(&self, task: Task) {
+    fn save(&self, task: Task) -> Result<(), TaskRepositoryError> {
         let mut tasks = self.rc.borrow_mut();
         let task_position = tasks
             .tasks
@@ -56,6 +58,7 @@ impl TaskRepository for MockTaskRepository {
             .unwrap();
         let task_mut = tasks.tasks.get_mut(task_position).unwrap();
         *task_mut = task;
+        Ok(())
     }
 }
 
@@ -64,36 +67,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
-        assert!(repository.find_all().is_empty());
-        repository.create("task1".to_string());
+        assert!(repository.find_all()?.is_empty());
+        repository.create("task1".to_string())?;
 
         assert_eq!(
-            repository.find_all(),
+            repository.find_all()?,
             vec![Task::new(TaskId::from(1), "task1")]
         );
-        assert_eq!(repository.find_by_id(TaskId::from(2)), None);
+        assert_eq!(repository.find_by_id(TaskId::from(2))?, None);
         assert_eq!(
-            repository.find_by_id(TaskId::from(1)),
+            repository.find_by_id(TaskId::from(1))?,
             Some(Task::new(1.into(), "task1"))
         );
 
         let mut updated = Task::new(TaskId::from(1), "task1");
         updated.complete();
-        repository.save(updated.clone());
+        repository.save(updated.clone())?;
         assert_eq!(
-            repository.find_by_id(TaskId::from(1)),
+            repository.find_by_id(TaskId::from(1))?,
             Some(updated.clone())
         );
 
-        repository.create("task2".to_string());
+        repository.create("task2".to_string())?;
         assert_eq!(
-            repository.find_all(),
+            repository.find_all()?,
             vec![updated, Task::new(TaskId::from(2), "task2"),]
         );
 
-        repository.delete(TaskId::from(1));
-        assert_eq!(repository.find_all(), vec![Task::new(2.into(), "task2")]);
+        repository.delete(TaskId::from(1))?;
+        assert_eq!(repository.find_all()?, vec![Task::new(2.into(), "task2")]);
+        Ok(())
     }
 }

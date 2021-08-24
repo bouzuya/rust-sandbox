@@ -11,7 +11,8 @@ impl AddUseCase {
     }
 
     pub fn handle(&self, text: String) {
-        self.repository.create(text)
+        // TODO: unwrap
+        self.repository.create(text).unwrap();
     }
 }
 

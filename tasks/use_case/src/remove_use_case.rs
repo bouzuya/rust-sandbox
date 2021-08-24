@@ -12,7 +12,8 @@ impl RemoveUseCase {
     }
 
     pub fn handle(&self, id: TaskId) {
-        self.repository.delete(id);
+        // TODO: unwrap
+        self.repository.delete(id).unwrap();
     }
 }
 
@@ -22,13 +23,14 @@ mod tests {
     use crate::MockTaskRepository;
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
-        repository.create("text".to_string());
-        assert!(!repository.find_all().is_empty());
+        repository.create("text".to_string())?;
+        assert!(!repository.find_all()?.is_empty());
         let repository = Rc::new(repository);
         let use_case = RemoveUseCase::new(repository.clone());
         use_case.handle(TaskId::from(1));
-        assert!(repository.find_all().is_empty());
+        assert!(repository.find_all()?.is_empty());
+        Ok(())
     }
 }

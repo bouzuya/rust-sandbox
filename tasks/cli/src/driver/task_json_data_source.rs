@@ -1,7 +1,7 @@
 use anyhow::Context;
 use entity::{Task, TaskId};
 use std::{env, fs, path::PathBuf};
-use use_case::TaskRepository;
+use use_case::{TaskRepository, TaskRepositoryError};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Tasks {
@@ -54,68 +54,75 @@ impl TaskJsonDataSource {
         Ok(Self { path })
     }
 
-    fn read(&self) -> Tasks {
+    fn read(&self) -> anyhow::Result<Tasks> {
         let json_string = if self.path.exists() {
-            fs::read_to_string(self.path.as_path()).unwrap()
+            fs::read_to_string(self.path.as_path())?
         } else {
             r#"{"next_id":1,"tasks":[]}"#.to_owned()
         };
-        serde_json::from_str(json_string.as_str()).unwrap()
+        Ok(serde_json::from_str(json_string.as_str())?)
     }
 
-    fn write(&self, tasks: &Tasks) {
-        let json_string = serde_json::to_string(tasks).unwrap();
-        fs::write(self.path.as_path(), json_string).unwrap();
+    fn write(&self, tasks: &Tasks) -> anyhow::Result<()> {
+        let json_string = serde_json::to_string(tasks)?;
+        Ok(fs::write(self.path.as_path(), json_string)?)
     }
 }
 
 impl TaskRepository for TaskJsonDataSource {
-    fn create(&self, text: String) {
-        let mut tasks = self.read();
+    fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError> {
+        let mut tasks = self.read().map_err(|_| TaskRepositoryError)?;
+        let id = tasks.next_id;
         tasks.tasks.push(TaskData {
-            id: tasks.next_id,
+            id,
             text,
             completed_at: None,
         });
         tasks.next_id += 1;
-        self.write(&tasks);
+        self.write(&tasks).map_err(|_| TaskRepositoryError)?;
+        Ok(TaskId::from(id))
     }
 
-    fn delete(&self, id: TaskId) {
+    fn delete(&self, id: TaskId) -> Result<(), TaskRepositoryError> {
         let id = usize::from(id);
-        let mut tasks = self.read();
+        let mut tasks = self.read().map_err(|_| TaskRepositoryError)?;
         let task_position = tasks.tasks.iter().position(|t| t.id == id).unwrap();
         tasks.tasks.remove(task_position);
-        self.write(&tasks);
+        self.write(&tasks).map_err(|_| TaskRepositoryError)?;
+        Ok(())
     }
 
-    fn find_all(&self) -> Vec<Task> {
-        let tasks = self.read();
-        tasks
+    fn find_all(&self) -> Result<Vec<Task>, TaskRepositoryError> {
+        let tasks = self.read().map_err(|_| TaskRepositoryError)?;
+        Ok(tasks
             .tasks
             .iter()
             .cloned()
             .map(Task::from)
-            .collect::<Vec<Task>>()
+            .collect::<Vec<Task>>())
     }
 
-    fn find_by_id(&self, id: TaskId) -> Option<Task> {
+    fn find_by_id(&self, id: TaskId) -> Result<Option<Task>, TaskRepositoryError> {
         let id = usize::from(id);
-        let tasks = self.read();
-        tasks.tasks.into_iter().find(|t| t.id == id).map(Task::from)
+        let tasks = self.read().map_err(|_| TaskRepositoryError)?;
+        Ok(tasks.tasks.into_iter().find(|t| t.id == id).map(Task::from))
     }
 
-    fn save(&self, task: Task) {
-        let mut tasks = self.read();
+    fn save(&self, task: Task) -> Result<(), TaskRepositoryError> {
+        let mut tasks = self.read().map_err(|_| TaskRepositoryError)?;
         let id_as_usize = usize::from(task.id());
         let task_position = tasks
             .tasks
             .iter()
             .position(|t| t.id == id_as_usize)
-            .unwrap();
-        let task_data_mut = tasks.tasks.get_mut(task_position).unwrap();
+            .ok_or(TaskRepositoryError)?;
+        let task_data_mut = tasks
+            .tasks
+            .get_mut(task_position)
+            .ok_or(TaskRepositoryError)?;
         *task_data_mut = TaskData::from(task);
-        self.write(&tasks);
+        self.write(&tasks).map_err(|_| TaskRepositoryError)?;
+        Ok(())
     }
 }
 
@@ -132,13 +139,13 @@ mod tests {
         env::set_var("TASKS_JSON", tasks_json.as_path());
         let repository = TaskJsonDataSource::new()?;
         let id = TaskId::from(1);
-        assert_eq!(repository.find_all(), vec![]);
-        assert_eq!(repository.find_by_id(id), None);
+        assert_eq!(repository.find_all()?, vec![]);
+        assert_eq!(repository.find_by_id(id)?, None);
         assert!(!tasks_json.as_path().exists());
 
-        repository.create("task1".to_string());
-        assert_eq!(repository.find_all(), vec![Task::new(id, "task1")]);
-        assert_eq!(repository.find_by_id(id), Some(Task::new(id, "task1")));
+        repository.create("task1".to_string())?;
+        assert_eq!(repository.find_all()?, vec![Task::new(id, "task1")]);
+        assert_eq!(repository.find_by_id(id)?, Some(Task::new(id, "task1")));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[{"completed_at":null,"id":1,"text":"task1"}]}"#
@@ -146,9 +153,9 @@ mod tests {
 
         let mut task = Task::new(id, "task1");
         task.complete();
-        repository.save(task.clone());
-        assert_eq!(repository.find_all(), vec![task.clone()]);
-        assert_eq!(repository.find_by_id(id), Some(task.clone()));
+        repository.save(task.clone())?;
+        assert_eq!(repository.find_all()?, vec![task.clone()]);
+        assert_eq!(repository.find_by_id(id)?, Some(task.clone()));
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             format!(
@@ -157,9 +164,9 @@ mod tests {
             )
         );
 
-        repository.delete(id);
-        assert_eq!(repository.find_all(), vec![]);
-        assert_eq!(repository.find_by_id(id), None);
+        repository.delete(id)?;
+        assert_eq!(repository.find_all()?, vec![]);
+        assert_eq!(repository.find_by_id(id)?, None);
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[]}"#

@@ -18,4 +18,4 @@ pub use mock_list_presenter::MockListPresenter;
 #[cfg(test)]
 pub use mock_task_repository::MockTaskRepository;
 pub use remove_use_case::RemoveUseCase;
-pub use task_repository::TaskRepository;
+pub use task_repository::*;

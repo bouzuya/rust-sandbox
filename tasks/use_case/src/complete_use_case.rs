@@ -12,9 +12,11 @@ impl CompleteUseCase {
     }
 
     pub fn handle(&self, id: TaskId) {
-        let mut task = self.repository.find_by_id(id).unwrap();
+        // TODO: unwrap
+        let mut task = self.repository.find_by_id(id).unwrap().unwrap();
         task.complete();
-        self.repository.save(task);
+        // TODO: unwrap
+        self.repository.save(task).unwrap();
     }
 }
 
@@ -24,15 +26,16 @@ mod tests {
     use crate::MockTaskRepository;
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
-        repository.create("text".to_string());
-        let created = repository.find_all().first().unwrap().clone();
+        repository.create("text".to_string())?;
+        let created = repository.find_all()?.first().unwrap().clone();
         assert!(created.completed_at().is_none());
         let repository = Rc::new(repository);
         let use_case = CompleteUseCase::new(repository.clone());
         use_case.handle(created.id());
-        let completed = repository.find_all().first().unwrap().clone();
+        let completed = repository.find_all()?.first().unwrap().clone();
         assert!(completed.completed_at().is_some());
+        Ok(())
     }
 }

@@ -8,3 +8,7 @@ edition = "2018"
 [dependencies]
 chrono = "0.4.19"
 entity = { path = "../entity" }
+thiserror = "1.0.26"
+
+[dev-dependencies]
+anyhow = "1.0.43"
