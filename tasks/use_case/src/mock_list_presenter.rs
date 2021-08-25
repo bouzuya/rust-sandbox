@@ -23,12 +23,14 @@ impl ListPresenter for MockListPresenter {
 
 #[cfg(test)]
 mod tests {
+    use entity::TaskText;
+
     use super::*;
 
     #[test]
     fn test() {
         let presenter = MockListPresenter::new();
-        let tasks = vec![Task::new(1.into(), "task 1")];
+        let tasks = vec![Task::new(1.into(), TaskText::from("task 1".to_string()))];
         presenter.complete(&tasks);
 
         let cell = presenter.rc.borrow_mut();

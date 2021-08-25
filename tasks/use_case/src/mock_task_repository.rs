@@ -1,5 +1,5 @@
 use crate::{task_repository::TaskRepositoryError, TaskRepository};
-use entity::{Task, TaskId};
+use entity::{Task, TaskId, TaskText};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
@@ -25,6 +25,8 @@ impl MockTaskRepository {
 
 impl TaskRepository for MockTaskRepository {
     fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError> {
+        // TODO: TaskText
+        let text = TaskText::from(text);
         let mut tasks = self.rc.borrow_mut();
         let id = TaskId::from(tasks.next_id);
         tasks.tasks.push(Task::new(id, text));
@@ -64,6 +66,8 @@ impl TaskRepository for MockTaskRepository {
 
 #[cfg(test)]
 mod tests {
+    use entity::TaskText;
+
     use super::*;
 
     #[test]
@@ -74,15 +78,18 @@ mod tests {
 
         assert_eq!(
             repository.find_all()?,
-            vec![Task::new(TaskId::from(1), "task1")]
+            vec![Task::new(
+                TaskId::from(1),
+                TaskText::from("task1".to_string())
+            )]
         );
         assert_eq!(repository.find_by_id(TaskId::from(2))?, None);
         assert_eq!(
             repository.find_by_id(TaskId::from(1))?,
-            Some(Task::new(1.into(), "task1"))
+            Some(Task::new(1.into(), TaskText::from("task1".to_string())))
         );
 
-        let mut updated = Task::new(TaskId::from(1), "task1");
+        let mut updated = Task::new(TaskId::from(1), TaskText::from("task1".to_string()));
         updated.complete();
         repository.save(updated.clone())?;
         assert_eq!(
@@ -93,11 +100,17 @@ mod tests {
         repository.create("task2".to_string())?;
         assert_eq!(
             repository.find_all()?,
-            vec![updated, Task::new(TaskId::from(2), "task2"),]
+            vec![
+                updated,
+                Task::new(TaskId::from(2), TaskText::from("task2".to_string())),
+            ]
         );
 
         repository.delete(TaskId::from(1))?;
-        assert_eq!(repository.find_all()?, vec![Task::new(2.into(), "task2")]);
+        assert_eq!(
+            repository.find_all()?,
+            vec![Task::new(2.into(), TaskText::from("task2".to_string()))]
+        );
         Ok(())
     }
 }

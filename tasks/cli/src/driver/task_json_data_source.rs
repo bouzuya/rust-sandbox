@@ -1,5 +1,5 @@
 use anyhow::Context;
-use entity::{Task, TaskId};
+use entity::{Task, TaskId, TaskText};
 use std::{env, fs, path::PathBuf};
 use use_case::{TaskRepository, TaskRepositoryError};
 
@@ -29,7 +29,11 @@ impl From<Task> for TaskData {
 // -> TryFrom
 impl From<TaskData> for Task {
     fn from(data: TaskData) -> Self {
-        Self::raw(TaskId::from(data.id), data.text, data.completed_at)
+        Self::raw(
+            TaskId::from(data.id),
+            TaskText::from(data.text),
+            data.completed_at,
+        )
     }
 }
 
@@ -128,6 +132,7 @@ impl TaskRepository for TaskJsonDataSource {
 
 #[cfg(test)]
 mod tests {
+    use entity::TaskText;
     use tempfile::tempdir;
 
     use super::*;
@@ -144,14 +149,20 @@ mod tests {
         assert!(!tasks_json.as_path().exists());
 
         repository.create("task1".to_string())?;
-        assert_eq!(repository.find_all()?, vec![Task::new(id, "task1")]);
-        assert_eq!(repository.find_by_id(id)?, Some(Task::new(id, "task1")));
+        assert_eq!(
+            repository.find_all()?,
+            vec![Task::new(id, TaskText::from("task1".to_string()))]
+        );
+        assert_eq!(
+            repository.find_by_id(id)?,
+            Some(Task::new(id, TaskText::from("task1".to_string())))
+        );
         assert_eq!(
             fs::read_to_string(tasks_json.as_path())?,
             r#"{"next_id":2,"tasks":[{"completed_at":null,"id":1,"text":"task1"}]}"#
         );
 
-        let mut task = Task::new(id, "task1");
+        let mut task = Task::new(id, TaskText::from("task1".to_string()));
         task.complete();
         repository.save(task.clone())?;
         assert_eq!(repository.find_all()?, vec![task.clone()]);
