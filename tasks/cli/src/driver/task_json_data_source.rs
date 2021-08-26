@@ -74,12 +74,12 @@ impl TaskJsonDataSource {
 }
 
 impl TaskRepository for TaskJsonDataSource {
-    fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError> {
+    fn create(&self, text: TaskText) -> Result<TaskId, TaskRepositoryError> {
         let mut tasks = self.read().map_err(|_| TaskRepositoryError)?;
         let id = tasks.next_id;
         tasks.tasks.push(TaskData {
             id,
-            text,
+            text: String::from(text),
             completed_at: None,
         });
         tasks.next_id += 1;
@@ -148,7 +148,7 @@ mod tests {
         assert_eq!(repository.find_by_id(id)?, None);
         assert!(!tasks_json.as_path().exists());
 
-        repository.create("task1".to_string())?;
+        repository.create(TaskText::from("task1".to_string()))?;
         assert_eq!(
             repository.find_all()?,
             vec![Task::new(id, TaskText::from("task1".to_string()))]

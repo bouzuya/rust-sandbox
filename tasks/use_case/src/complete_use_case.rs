@@ -22,13 +22,15 @@ impl CompleteUseCase {
 
 #[cfg(test)]
 mod tests {
+    use entity::TaskText;
+
     use super::*;
     use crate::MockTaskRepository;
 
     #[test]
     fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
-        repository.create("text".to_string())?;
+        repository.create(TaskText::from("text".to_string()))?;
         let created = repository.find_all()?.first().unwrap().clone();
         assert!(created.completed_at().is_none());
         let repository = Rc::new(repository);

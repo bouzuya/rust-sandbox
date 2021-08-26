@@ -19,13 +19,15 @@ impl RemoveUseCase {
 
 #[cfg(test)]
 mod tests {
+    use entity::TaskText;
+
     use super::*;
     use crate::MockTaskRepository;
 
     #[test]
     fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
-        repository.create("text".to_string())?;
+        repository.create(TaskText::from("text".to_string()))?;
         assert!(!repository.find_all()?.is_empty());
         let repository = Rc::new(repository);
         let use_case = RemoveUseCase::new(repository.clone());

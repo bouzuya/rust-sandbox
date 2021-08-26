@@ -24,9 +24,7 @@ impl MockTaskRepository {
 }
 
 impl TaskRepository for MockTaskRepository {
-    fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError> {
-        // TODO: TaskText
-        let text = TaskText::from(text);
+    fn create(&self, text: TaskText) -> Result<TaskId, TaskRepositoryError> {
         let mut tasks = self.rc.borrow_mut();
         let id = TaskId::from(tasks.next_id);
         tasks.tasks.push(Task::new(id, text));
@@ -74,7 +72,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let repository = MockTaskRepository::new();
         assert!(repository.find_all()?.is_empty());
-        repository.create("task1".to_string())?;
+        repository.create(TaskText::from("task1".to_string()))?;
 
         assert_eq!(
             repository.find_all()?,
@@ -97,7 +95,7 @@ mod tests {
             Some(updated.clone())
         );
 
-        repository.create("task2".to_string())?;
+        repository.create(TaskText::from("task2".to_string()))?;
         assert_eq!(
             repository.find_all()?,
             vec![

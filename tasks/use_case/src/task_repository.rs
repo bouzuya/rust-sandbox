@@ -1,4 +1,4 @@
-use entity::{Task, TaskId};
+use entity::{Task, TaskId, TaskText};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -6,7 +6,7 @@ use thiserror::Error;
 pub struct TaskRepositoryError;
 
 pub trait TaskRepository {
-    fn create(&self, text: String) -> Result<TaskId, TaskRepositoryError>;
+    fn create(&self, text: TaskText) -> Result<TaskId, TaskRepositoryError>;
     fn delete(&self, id: TaskId) -> Result<(), TaskRepositoryError>;
     fn find_all(&self) -> Result<Vec<Task>, TaskRepositoryError>;
     fn find_by_id(&self, id: TaskId) -> Result<Option<Task>, TaskRepositoryError>;

@@ -39,7 +39,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let presenter = Rc::new(MockListPresenter::new());
         let repository = MockTaskRepository::new();
-        repository.create("task1".to_string())?;
+        repository.create(TaskText::from("task1".to_string()))?;
         ListUseCase::new(presenter.clone(), Rc::new(repository)).handle(false);
         let cell = presenter.rc.borrow_mut();
         assert_eq!(

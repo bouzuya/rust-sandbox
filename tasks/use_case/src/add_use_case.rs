@@ -1,3 +1,5 @@
+use entity::TaskText;
+
 use crate::TaskRepository;
 use std::rc::Rc;
 
@@ -12,6 +14,8 @@ impl AddUseCase {
 
     pub fn handle(&self, text: String) {
         // TODO: unwrap
+        // TODO: use TaskText
+        let text = TaskText::from(text);
         self.repository.create(text).unwrap();
     }
 }
