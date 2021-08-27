@@ -12,10 +12,8 @@ impl AddUseCase {
         Self { repository }
     }
 
-    pub fn handle(&self, text: String) {
+    pub fn handle(&self, text: TaskText) {
         // TODO: unwrap
-        // TODO: use TaskText
-        let text = TaskText::from(text);
         self.repository.create(text).unwrap();
     }
 }

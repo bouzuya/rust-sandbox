@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use entity::TaskId;
+use entity::{TaskId, TaskText};
 use structopt::StructOpt;
 use use_case::{
     AddUseCase, CompleteUseCase, ListPresenter, ListUseCase, RemoveUseCase, TaskRepository,
@@ -43,7 +43,11 @@ impl ConsoleController {
     pub fn run(&self) {
         let opt = Opt::from_args();
         match opt.subcommand {
-            Subcommand::Add { text } => AddUseCase::new(self.repository.clone()).handle(text),
+            Subcommand::Add { text } => {
+                let text = TaskText::from(text);
+                let use_case = AddUseCase::new(self.repository.clone());
+                use_case.handle(text);
+            }
             Subcommand::Complete { id } => {
                 let id = TaskId::from(id);
                 let use_case = CompleteUseCase::new(self.repository.clone());
