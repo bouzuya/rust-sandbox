@@ -1,6 +1,6 @@
 [package]
 name = "tasks"
-version = "0.8.7"
+version = "0.8.8"
 authors = ["bouzuya <m@bouzuya.net>"]
 edition = "2018"
 
