@@ -1,6 +1,13 @@
 use crate::{ListPresenter, TaskRepository};
 use entity::Task;
 use std::rc::Rc;
+use thiserror::Error;
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum ListUseCaseError {
+    #[error("io error")]
+    IOError,
+}
 
 pub struct ListUseCase {
     presenter: Rc<dyn ListPresenter>,
@@ -15,16 +22,17 @@ impl ListUseCase {
         }
     }
 
-    pub fn handle(&self, all: bool) {
-        // TODO: unwrap
+    pub fn handle(&self, all: bool) -> Result<(), ListUseCaseError> {
         let tasks = self
             .repository
             .find_all()
-            .unwrap()
+            .map_err(|_| ListUseCaseError::IOError)?;
+        let filtered = tasks
             .into_iter()
             .filter(|task| all || !task.done())
             .collect::<Vec<Task>>();
-        self.presenter.complete(&tasks);
+        self.presenter.complete(&filtered);
+        Ok(())
     }
 }
 
@@ -40,7 +48,8 @@ mod tests {
         let presenter = Rc::new(MockListPresenter::new());
         let repository = MockTaskRepository::new();
         repository.create(TaskText::from("task1".to_string()))?;
-        ListUseCase::new(presenter.clone(), Rc::new(repository)).handle(false);
+        let use_case = ListUseCase::new(presenter.clone(), Rc::new(repository));
+        use_case.handle(false)?;
         let cell = presenter.rc.borrow_mut();
         assert_eq!(
             *cell,

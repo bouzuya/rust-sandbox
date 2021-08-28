@@ -54,7 +54,9 @@ impl ConsoleController {
                 return Ok(use_case.handle(id)?);
             }
             Subcommand::List { all } => {
-                ListUseCase::new(self.list_presenter.clone(), self.repository.clone()).handle(all)
+                let use_case =
+                    ListUseCase::new(self.list_presenter.clone(), self.repository.clone());
+                return Ok(use_case.handle(all)?);
             }
             Subcommand::Remove { id } => {
                 let id = TaskId::from(id);
