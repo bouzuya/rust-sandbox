@@ -1,6 +1,15 @@
 use crate::TaskRepository;
 use entity::TaskId;
 use std::rc::Rc;
+use thiserror::Error;
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum CompleteUseCaseError {
+    #[error("task not found error")]
+    TaskNotFoundError,
+    #[error("io error")]
+    IOError,
+}
 
 pub struct CompleteUseCase {
     repository: Rc<dyn TaskRepository>,
@@ -11,12 +20,20 @@ impl CompleteUseCase {
         Self { repository }
     }
 
-    pub fn handle(&self, id: TaskId) {
-        // TODO: unwrap
-        let mut task = self.repository.find_by_id(id).unwrap().unwrap();
-        task.complete();
-        // TODO: unwrap
-        self.repository.save(task).unwrap();
+    pub fn handle(&self, id: TaskId) -> Result<(), CompleteUseCaseError> {
+        match self
+            .repository
+            .find_by_id(id)
+            .map_err(|_| CompleteUseCaseError::IOError)?
+        {
+            None => Err(CompleteUseCaseError::TaskNotFoundError),
+            Some(mut task) => {
+                task.complete();
+                self.repository
+                    .save(task)
+                    .map_err(|_| CompleteUseCaseError::IOError)
+            }
+        }
     }
 }
 
@@ -35,7 +52,7 @@ mod tests {
         assert!(created.completed_at().is_none());
         let repository = Rc::new(repository);
         let use_case = CompleteUseCase::new(repository.clone());
-        use_case.handle(created.id());
+        use_case.handle(created.id())?;
         let completed = repository.find_all()?.first().unwrap().clone();
         assert!(completed.completed_at().is_some());
         Ok(())
