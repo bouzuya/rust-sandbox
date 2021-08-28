@@ -3,19 +3,26 @@ use entity::{Task, TaskId, TaskText};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug)]
-struct Tasks {
+struct TaskStore {
     next_id: usize,
     tasks: Vec<Task>,
 }
 
+#[derive(Debug)]
 pub struct MockTaskRepository {
-    rc: Rc<RefCell<Tasks>>,
+    rc: Rc<RefCell<TaskStore>>,
+}
+
+impl Default for MockTaskRepository {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockTaskRepository {
     pub fn new() -> Self {
         Self {
-            rc: Rc::new(RefCell::new(Tasks {
+            rc: Rc::new(RefCell::new(TaskStore {
                 next_id: 1,
                 tasks: vec![],
             })),
@@ -25,38 +32,38 @@ impl MockTaskRepository {
 
 impl TaskRepository for MockTaskRepository {
     fn create(&self, text: TaskText) -> Result<TaskId, TaskRepositoryError> {
-        let mut tasks = self.rc.borrow_mut();
-        let id = TaskId::from(tasks.next_id);
-        tasks.tasks.push(Task::new(id, text));
-        tasks.next_id += 1;
+        let mut store = self.rc.borrow_mut();
+        let id = TaskId::from(store.next_id);
+        store.tasks.push(Task::new(id, text));
+        store.next_id += 1;
         Ok(id)
     }
 
     fn delete(&self, id: TaskId) -> Result<(), TaskRepositoryError> {
-        let mut tasks = self.rc.borrow_mut();
-        let task_position = tasks.tasks.iter().position(|t| t.id() == id).unwrap();
-        tasks.tasks.remove(task_position);
+        let mut store = self.rc.borrow_mut();
+        let task_position = store.tasks.iter().position(|t| t.id() == id).unwrap();
+        store.tasks.remove(task_position);
         Ok(())
     }
 
     fn find_all(&self) -> Result<Vec<Task>, TaskRepositoryError> {
-        let tasks = self.rc.borrow();
-        Ok(tasks.tasks.clone())
+        let store = self.rc.borrow();
+        Ok(store.tasks.clone())
     }
 
     fn find_by_id(&self, id: TaskId) -> Result<Option<Task>, TaskRepositoryError> {
-        let tasks = self.rc.borrow();
-        Ok(tasks.tasks.iter().cloned().find(|t| t.id() == id))
+        let store = self.rc.borrow();
+        Ok(store.tasks.iter().cloned().find(|t| t.id() == id))
     }
 
     fn save(&self, task: Task) -> Result<(), TaskRepositoryError> {
-        let mut tasks = self.rc.borrow_mut();
-        let task_position = tasks
+        let mut store = self.rc.borrow_mut();
+        let task_position = store
             .tasks
             .iter()
             .position(|t| t.id() == task.id())
             .unwrap();
-        let task_mut = tasks.tasks.get_mut(task_position).unwrap();
+        let task_mut = store.tasks.get_mut(task_position).unwrap();
         *task_mut = task;
         Ok(())
     }

@@ -2,15 +2,14 @@ use crate::ListPresenter;
 use entity::Task;
 use std::{cell::RefCell, rc::Rc};
 
+#[derive(Debug, Default)]
 pub struct MockListPresenter {
     pub rc: Rc<RefCell<Option<Vec<Task>>>>,
 }
 
 impl MockListPresenter {
     pub fn new() -> Self {
-        Self {
-            rc: Rc::new(RefCell::new(None)),
-        }
+        Self::default()
     }
 }
 
