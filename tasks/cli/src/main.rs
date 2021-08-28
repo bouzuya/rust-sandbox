@@ -9,6 +9,5 @@ fn main() -> anyhow::Result<()> {
     let list_presenter = Rc::new(ListConsolePresenter::new());
     let repository = Rc::new(TaskJsonDataSource::new()?);
     let controller = ConsoleController::new(list_presenter, repository);
-    controller.run();
-    Ok(())
+    controller.run()
 }

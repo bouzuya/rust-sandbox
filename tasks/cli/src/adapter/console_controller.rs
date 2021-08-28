@@ -40,13 +40,13 @@ impl ConsoleController {
         }
     }
 
-    pub fn run(&self) {
+    pub fn run(&self) -> anyhow::Result<()> {
         let opt = Opt::from_args();
         match opt.subcommand {
             Subcommand::Add { text } => {
                 let text = TaskText::from(text);
                 let use_case = AddUseCase::new(self.repository.clone());
-                use_case.handle(text);
+                return Ok(use_case.handle(text)?);
             }
             Subcommand::Complete { id } => {
                 let id = TaskId::from(id);
@@ -62,5 +62,6 @@ impl ConsoleController {
                 use_case.handle(id);
             }
         }
+        Ok(())
     }
 }
