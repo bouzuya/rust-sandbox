@@ -1,6 +1,13 @@
 use crate::TaskRepository;
 use entity::TaskId;
 use std::rc::Rc;
+use thiserror::Error;
+
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum RemoveUseCaseError {
+    #[error("io error")]
+    IOError,
+}
 
 pub struct RemoveUseCase {
     repository: Rc<dyn TaskRepository>,
@@ -11,9 +18,10 @@ impl RemoveUseCase {
         Self { repository }
     }
 
-    pub fn handle(&self, id: TaskId) {
-        // TODO: unwrap
-        self.repository.delete(id).unwrap();
+    pub fn handle(&self, id: TaskId) -> Result<(), RemoveUseCaseError> {
+        self.repository
+            .delete(id)
+            .map_err(|_| RemoveUseCaseError::IOError)
     }
 }
 
@@ -31,7 +39,7 @@ mod tests {
         assert!(!repository.find_all()?.is_empty());
         let repository = Rc::new(repository);
         let use_case = RemoveUseCase::new(repository.clone());
-        use_case.handle(TaskId::from(1));
+        use_case.handle(TaskId::from(1))?;
         assert!(repository.find_all()?.is_empty());
         Ok(())
     }

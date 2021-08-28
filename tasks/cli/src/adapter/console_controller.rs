@@ -46,24 +46,23 @@ impl ConsoleController {
             Subcommand::Add { text } => {
                 let text = TaskText::from(text);
                 let use_case = AddUseCase::new(self.repository.clone());
-                return Ok(use_case.handle(text)?);
+                Ok(use_case.handle(text)?)
             }
             Subcommand::Complete { id } => {
                 let id = TaskId::from(id);
                 let use_case = CompleteUseCase::new(self.repository.clone());
-                return Ok(use_case.handle(id)?);
+                Ok(use_case.handle(id)?)
             }
             Subcommand::List { all } => {
                 let use_case =
                     ListUseCase::new(self.list_presenter.clone(), self.repository.clone());
-                return Ok(use_case.handle(all)?);
+                Ok(use_case.handle(all)?)
             }
             Subcommand::Remove { id } => {
                 let id = TaskId::from(id);
                 let use_case = RemoveUseCase::new(self.repository.clone());
-                use_case.handle(id);
+                Ok(use_case.handle(id)?)
             }
         }
-        Ok(())
     }
 }
