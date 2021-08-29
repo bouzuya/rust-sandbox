@@ -1,21 +1,9 @@
-mod add_use_case;
-mod complete_use_case;
-mod list_presenter;
-mod list_use_case;
 #[cfg(test)]
-mod mock_list_presenter;
-#[cfg(test)]
-mod mock_task_repository;
-mod remove_use_case;
-mod task_repository;
+mod adapter;
+mod port;
+mod use_case;
 
-pub use add_use_case::AddUseCase;
-pub use complete_use_case::CompleteUseCase;
-pub use list_presenter::ListPresenter;
-pub use list_use_case::ListUseCase;
 #[cfg(test)]
-pub use mock_list_presenter::MockListPresenter;
-#[cfg(test)]
-pub use mock_task_repository::MockTaskRepository;
-pub use remove_use_case::RemoveUseCase;
-pub use task_repository::*;
+pub use self::adapter::*;
+pub use self::port::*;
+pub use self::use_case::*;

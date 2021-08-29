@@ -1,4 +1,4 @@
-use crate::{task_repository::TaskRepositoryError, TaskRepository};
+use crate::{TaskRepository, TaskRepositoryError};
 use entity::{Task, TaskId, TaskText};
 use std::{cell::RefCell, rc::Rc};
 
