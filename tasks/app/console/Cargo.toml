@@ -1,5 +1,5 @@
 [package]
-name = "json"
+name = "console"
 version = "0.0.0"
 authors = ["bouzuya <m@bouzuya.net>"]
 edition = "2018"
@@ -8,11 +8,6 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.43"
-dirs = "3.0.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0.64"
-entity = { path = "../entity" }
-use_case = { path = "../use_case" }
-
-[dev-dependencies]
-tempfile = "3.2.0"
+entity = { path = "../../entity" }
+structopt = "0.3.22"
+use_case = { path = "../../use_case" }

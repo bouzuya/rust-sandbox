@@ -8,9 +8,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.43"
-console = { path = "../console" }
+console = { path = "../app/console" }
 entity = { path = "../entity" }
-json = { path = "../json" }
+json = { path = "../persistence/json" }
 use_case = { path = "../use_case" }
 
 [dev-dependencies]

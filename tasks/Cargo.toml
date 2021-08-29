@@ -1,2 +1,2 @@
 [workspace]
-members = ["console", "entity", "json", "main", "use_case"]
+members = ["app/console", "entity", "main", "persistence/json", "use_case"]
