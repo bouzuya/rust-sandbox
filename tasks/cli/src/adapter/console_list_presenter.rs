@@ -1,16 +1,13 @@
 use entity::Task;
-use use_case::ListPresenter;
 
-pub struct ConsoleListPresenter;
+pub struct ConsolePresenter;
 
-impl ConsoleListPresenter {
+impl ConsolePresenter {
     pub fn new() -> Self {
         Self
     }
-}
 
-impl ListPresenter for ConsoleListPresenter {
-    fn complete(&self, tasks: &[Task]) {
+    pub fn complete(&self, tasks: &[Task]) {
         println!(
             "{}",
             tasks

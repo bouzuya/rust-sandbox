@@ -1,11 +1,11 @@
 mod adapter;
 
-use adapter::{ConsoleController, ConsoleListPresenter, JsonTaskDataSource};
+use adapter::{ConsoleController, ConsolePresenter, JsonTaskDataSource};
 use std::rc::Rc;
 
 fn main() -> anyhow::Result<()> {
-    let list_presenter = Rc::new(ConsoleListPresenter::new());
+    let presenter = ConsolePresenter::new();
     let repository = Rc::new(JsonTaskDataSource::new()?);
-    let controller = ConsoleController::new(list_presenter, repository);
+    let controller = ConsoleController::new(presenter, repository);
     controller.run()
 }

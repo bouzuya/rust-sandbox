@@ -2,9 +2,9 @@ use std::rc::Rc;
 
 use entity::{TaskId, TaskText};
 use structopt::StructOpt;
-use use_case::{
-    AddUseCase, CompleteUseCase, ListPresenter, ListUseCase, RemoveUseCase, TaskRepository,
-};
+use use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase, TaskRepository};
+
+use super::ConsolePresenter;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -28,14 +28,14 @@ enum Subcommand {
 }
 
 pub struct ConsoleController {
-    list_presenter: Rc<dyn ListPresenter>,
+    presenter: ConsolePresenter,
     repository: Rc<dyn TaskRepository>,
 }
 
 impl ConsoleController {
-    pub fn new(list_presenter: Rc<dyn ListPresenter>, repository: Rc<dyn TaskRepository>) -> Self {
+    pub fn new(presenter: ConsolePresenter, repository: Rc<dyn TaskRepository>) -> Self {
         Self {
-            list_presenter,
+            presenter,
             repository,
         }
     }
@@ -54,9 +54,10 @@ impl ConsoleController {
                 Ok(use_case.handle(id)?)
             }
             Subcommand::List { all } => {
-                let use_case =
-                    ListUseCase::new(self.list_presenter.clone(), self.repository.clone());
-                Ok(use_case.handle(all)?)
+                let use_case = ListUseCase::new(self.repository.clone());
+                let output = use_case.handle(all)?;
+                self.presenter.complete(&output);
+                Ok(())
             }
             Subcommand::Remove { id } => {
                 let id = TaskId::from(id);
