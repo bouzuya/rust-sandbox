@@ -1,0 +1,13 @@
+[package]
+name = "console"
+version = "0.0.0"
+authors = ["bouzuya <m@bouzuya.net>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.43"
+entity = { path = "../entity" }
+structopt = "0.3.22"
+use_case = { path = "../use_case" }

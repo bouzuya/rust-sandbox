@@ -1,2 +1,2 @@
 [workspace]
-members = ["cli", "entity", "use_case"]
+members = ["console", "entity", "json", "main", "use_case"]
