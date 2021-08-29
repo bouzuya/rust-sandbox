@@ -1,10 +1,8 @@
 use std::rc::Rc;
 
-use entity::{TaskId, TaskText};
+use entity::{Task, TaskId, TaskText};
 use structopt::StructOpt;
 use use_case::{AddUseCase, CompleteUseCase, ListUseCase, RemoveUseCase, TaskRepository};
-
-use super::ConsolePresenter;
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -27,17 +25,13 @@ enum Subcommand {
     Remove { id: usize },
 }
 
-pub struct ConsoleController {
-    presenter: ConsolePresenter,
+pub struct ConsoleGateway {
     repository: Rc<dyn TaskRepository>,
 }
 
-impl ConsoleController {
-    pub fn new(presenter: ConsolePresenter, repository: Rc<dyn TaskRepository>) -> Self {
-        Self {
-            presenter,
-            repository,
-        }
+impl ConsoleGateway {
+    pub fn new(repository: Rc<dyn TaskRepository>) -> Self {
+        Self { repository }
     }
 
     pub fn run(&self) -> anyhow::Result<()> {
@@ -56,7 +50,7 @@ impl ConsoleController {
             Subcommand::List { all } => {
                 let use_case = ListUseCase::new(self.repository.clone());
                 let output = use_case.handle(all)?;
-                self.presenter.complete(&output);
+                list(&output);
                 Ok(())
             }
             Subcommand::Remove { id } => {
@@ -66,4 +60,20 @@ impl ConsoleController {
             }
         }
     }
+}
+
+fn list(tasks: &[Task]) {
+    println!(
+        "{}",
+        tasks
+            .iter()
+            .map(|task| format!(
+                "{} {} {}",
+                usize::from(task.id()),
+                if task.done() { "☑" } else { "☐" },
+                task.text()
+            ))
+            .collect::<Vec<String>>()
+            .join("\n")
+    );
 }
