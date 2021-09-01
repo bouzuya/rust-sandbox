@@ -1,5 +1,5 @@
 [package]
-name = "use-case"
+name = "port"
 version = "0.0.0"
 edition = "2018"
 
@@ -7,7 +7,6 @@ edition = "2018"
 
 [dependencies]
 entity = { path = "../entity" }
-port = { path = "../port" }
 thiserror = "1.0.28"
 
 [dev-dependencies]

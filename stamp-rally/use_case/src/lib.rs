@@ -1,7 +1,3 @@
-mod adapter;
-mod interactor;
-mod port;
+mod use_case;
 
-pub use self::adapter::*;
-pub use self::interactor::*;
-pub use self::port::*;
+pub use self::use_case::*;

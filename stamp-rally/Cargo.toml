@@ -1,2 +1,2 @@
 [workspace]
-members = ["app/console", "entity", "main", "use_case"]
+members = ["adapter/console", "application", "entity", "port", "use_case"]

@@ -8,4 +8,5 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.43"
 entity = { path = "../../entity" }
-use-case = { path = "../../use_case" }
+port = { path = "../../port" }
+use-case = { path = "../../use_case" } # FIXME
