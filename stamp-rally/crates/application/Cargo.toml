@@ -7,4 +7,4 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.43"
-console = { path = "../console" }
+adapter_console = { path = "../adapter_console" }

@@ -3,6 +3,16 @@
 version = 3
 
 [[package]]
+name = "adapter_console"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "entity",
+ "port",
+ "use-case",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -12,8 +22,8 @@ checksum = "28ae2b3dec75a406790005a200b1bd89785afc02517a00ca99ecfe093ee9e6cf"
 name = "application"
 version = "0.1.2"
 dependencies = [
+ "adapter_console",
  "anyhow",
- "console",
 ]
 
 [[package]]
@@ -68,16 +78,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "console"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "entity",
- "port",
- "use-case",
 ]
 
 [[package]]
