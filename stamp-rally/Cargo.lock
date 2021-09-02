@@ -19,7 +19,7 @@ checksum = "28ae2b3dec75a406790005a200b1bd89785afc02517a00ca99ecfe093ee9e6cf"
 
 [[package]]
 name = "application"
-version = "0.1.2"
+version = "0.1.3"
 dependencies = [
  "adapter_console",
  "anyhow",
