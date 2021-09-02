@@ -9,7 +9,6 @@ dependencies = [
  "anyhow",
  "entity",
  "port",
- "use-case",
 ]
 
 [[package]]
@@ -24,6 +23,7 @@ version = "0.1.2"
 dependencies = [
  "adapter_console",
  "anyhow",
+ "use_case",
 ]
 
 [[package]]
@@ -347,7 +347,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ccb82d61f80a663efe1f787a51b16b5a51e3314d6ac365b08639f52387b33f3"
 
 [[package]]
-name = "use-case"
+name = "use_case"
 version = "0.0.0"
 dependencies = [
  "anyhow",
