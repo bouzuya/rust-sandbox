@@ -1,5 +1,5 @@
 [package]
-name = "stamp-rally"
+name = "application"
 version = "0.1.2"
 edition = "2018"
 
@@ -7,4 +7,4 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.43"
-console = { path = "../adapter/console" }
+console = { path = "../console" }

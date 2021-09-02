@@ -9,6 +9,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28ae2b3dec75a406790005a200b1bd89785afc02517a00ca99ecfe093ee9e6cf"
 
 [[package]]
+name = "application"
+version = "0.1.2"
+dependencies = [
+ "anyhow",
+ "console",
+]
+
+[[package]]
 name = "autocfg"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -277,14 +285,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
 dependencies = [
  "rand_core 0.3.1",
-]
-
-[[package]]
-name = "stamp-rally"
-version = "0.1.2"
-dependencies = [
- "anyhow",
- "console",
 ]
 
 [[package]]

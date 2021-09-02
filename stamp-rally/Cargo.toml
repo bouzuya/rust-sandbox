@@ -1,2 +1,2 @@
 [workspace]
-members = ["adapter/console", "application", "entity", "port", "use_case"]
+members = ["crates/*"]
