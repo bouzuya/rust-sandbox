@@ -12,3 +12,9 @@ pub trait StampRallyRepository {
     ) -> Result<Option<StampRally>, StampRallyRepositoryError>;
     fn save(&self, stamp_rally: StampRally) -> Result<(), StampRallyRepositoryError>;
 }
+
+pub trait HasStampRallyRepository {
+    type StampRallyRepository: StampRallyRepository;
+
+    fn stamp_rally_repository(&self) -> &Self::StampRallyRepository;
+}
