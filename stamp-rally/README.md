@@ -2,6 +2,8 @@
 
 ## モジュール間の依存関係
 
+(note: trait の default method で use_cases が削除されたため修正する)
+
 ```dot
 digraph {
   rankdir = "BT"
