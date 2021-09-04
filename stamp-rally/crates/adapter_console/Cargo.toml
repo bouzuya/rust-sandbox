@@ -8,4 +8,5 @@ edition = "2018"
 [dependencies]
 anyhow = "1.0.43"
 entity = { path = "../entity" }
+rustyline = "9.0.0"
 use_case = { path = "../use_case" }
