@@ -1,5 +1,5 @@
 use adapter_console::run;
-use use_case::{HasStampRallyRepository, InMemoryStampRallyRepository};
+use use_case::{HasCreateStampRallyUseCase, HasStampRallyRepository, InMemoryStampRallyRepository};
 
 struct Application {
     stamp_rally_repository: InMemoryStampRallyRepository,
@@ -18,6 +18,14 @@ impl HasStampRallyRepository for Application {
 
     fn stamp_rally_repository(&self) -> &Self::StampRallyRepository {
         &self.stamp_rally_repository
+    }
+}
+
+impl HasCreateStampRallyUseCase for Application {
+    type CreateStampRallyUseCase = Application;
+
+    fn create_stamp_rally_use_case(&self) -> &Self::CreateStampRallyUseCase {
+        self
     }
 }
 
