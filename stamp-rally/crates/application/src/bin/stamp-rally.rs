@@ -1,5 +1,5 @@
 use adapter_console::run;
-use port::{HasStampRallyRepository, InMemoryStampRallyRepository};
+use use_case::{HasStampRallyRepository, InMemoryStampRallyRepository};
 
 struct Application {
     stamp_rally_repository: InMemoryStampRallyRepository,
