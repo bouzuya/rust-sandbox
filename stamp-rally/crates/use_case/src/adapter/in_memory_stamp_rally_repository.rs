@@ -2,7 +2,7 @@ use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use entity::{StampRally, StampRallyId};
 
-use crate::{StampRallyRepository, StampRallyRepositoryError};
+use crate::port::{StampRallyRepository, StampRallyRepositoryError};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct InMemoryStampRallyRepository {
@@ -19,7 +19,7 @@ impl StampRallyRepository for InMemoryStampRallyRepository {
     fn find_by_id(
         &self,
         stamp_rally_id: StampRallyId,
-    ) -> Result<Option<StampRally>, crate::StampRallyRepositoryError> {
+    ) -> Result<Option<StampRally>, StampRallyRepositoryError> {
         let storage = self.rc.borrow();
         Ok(storage.get(&stamp_rally_id).cloned())
     }

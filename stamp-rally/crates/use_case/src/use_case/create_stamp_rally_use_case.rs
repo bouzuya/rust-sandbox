@@ -1,7 +1,7 @@
 use entity::{StampRally, StampRallyId};
 use thiserror::Error;
 
-use crate::{HasStampRallyRepository, StampRallyRepository};
+use crate::port::{HasStampRallyRepository, StampRallyRepository};
 
 #[derive(Debug, Eq, Error, PartialEq)]
 #[error("create stamp rally error")]
