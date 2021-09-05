@@ -30,6 +30,12 @@ digraph {
   - あるユーザー (User) はあるスタンプラリー (StampRally) に参加できる (join)
   - 参加することでユーザー (User) は参加者 (Player) を得られる
 
+## 集約
+
+- Player
+- StampRally
+- User
+
 ## 実装メモ
 
 - DI: Dependency Injection として Cake Pattern を使用する
