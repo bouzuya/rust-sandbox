@@ -116,7 +116,12 @@ where
             Ok(line) => {
                 rl.add_history_entry(line.as_str());
                 let command = Command::from(line);
-                command.execute(&application)?;
+                match command.execute(&application) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        println!("Error: {:?}", err);
+                    }
+                }
             }
             Err(ReadlineError::Interrupted) => {
                 println!("CTRL-C");
