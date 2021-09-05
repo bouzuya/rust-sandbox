@@ -1,21 +1,25 @@
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
-use use_case::{CreateStampRallyUseCase, HasCreateStampRallyUseCase};
+use use_case::{
+    CreateStampRallyUseCase, CreateUserUseCase, HasCreateStampRallyUseCase, HasCreateUserUseCase,
+};
 
 enum Command {
     ShowHelp,
     CreateStampRally,
+    CreateUser,
     Unknown(String),
 }
 
 impl Command {
     fn execute<A>(&self, application: &A) -> anyhow::Result<()>
     where
-        A: HasCreateStampRallyUseCase,
+        A: HasCreateStampRallyUseCase + HasCreateUserUseCase,
     {
         match self {
             Command::ShowHelp => show_help(),
             Command::CreateStampRally => create_stamp_rally(application),
+            Command::CreateUser => create_user(application),
             Command::Unknown(ref line) => {
                 println!("{} is unknown command", line);
                 Ok(())
@@ -30,6 +34,8 @@ impl From<String> for Command {
             Command::ShowHelp
         } else if s == "create stamp-rally" {
             Command::CreateStampRally
+        } else if s == "create user" {
+            Command::CreateUser
         } else {
             Command::Unknown(s)
         }
@@ -39,6 +45,7 @@ impl From<String> for Command {
 fn show_help() -> anyhow::Result<()> {
     println!("Commands:");
     println!("  create stamp-rally");
+    println!("  create user");
     Ok(())
 }
 
@@ -51,9 +58,19 @@ where
     Ok(())
 }
 
+fn create_user<A>(application: &A) -> anyhow::Result<()>
+where
+    A: HasCreateUserUseCase,
+{
+    let use_case = application.create_user_use_case();
+    let user_id = use_case.handle()?;
+    println!("User created (ID: {})", user_id);
+    Ok(())
+}
+
 pub fn run<A>(application: A) -> anyhow::Result<()>
 where
-    A: HasCreateStampRallyUseCase,
+    A: HasCreateStampRallyUseCase + HasCreateUserUseCase,
 {
     let mut rl = Editor::<()>::new();
     loop {
