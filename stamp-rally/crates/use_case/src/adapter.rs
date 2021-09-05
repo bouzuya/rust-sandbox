@@ -1,3 +1,5 @@
 mod in_memory_stamp_rally_repository;
+mod in_memory_user_repository;
 
 pub use self::in_memory_stamp_rally_repository::*;
+pub use self::in_memory_user_repository::*;
