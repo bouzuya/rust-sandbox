@@ -11,9 +11,10 @@ pub trait CreateStampRallyUseCase: HasStampRallyRepository {
     fn handle(&self) -> Result<StampRallyId, CreateStampRallyError> {
         let stamp_rally_repository = self.stamp_rally_repository();
         let stamp_rally = StampRally::new();
+        let stamp_rally_id = stamp_rally.id();
         stamp_rally_repository
-            .save(stamp_rally.clone())
-            .map(|_| stamp_rally.id())
+            .save(stamp_rally)
+            .map(|_| stamp_rally_id)
             .map_err(|_| CreateStampRallyError)
     }
 }
