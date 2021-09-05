@@ -21,10 +21,12 @@ digraph {
 
 ## ユースケース
 
-- (WIP) スタンプラリーを作成する (create_stamp_rally)
-  - スタンプラリー (StampRally) を作成できる (create_stamp_rally)
-  - 将来的に管理者 (Administrator) としてのユーザー (User) を導入する
-- 参加する (join)
+- (WIP) ユーザーを作成する (create)
+  - ユーザー (User) を作成できる (create)
+- (WIP) スタンプラリーを作成する (create)
+  - スタンプラリー (StampRally) を作成できる (create)
+  - 将来的に管理者 (Administrator) としてのユーザー (User) を導入し彼らのみが操作できるよう制限する
+- スタンプラリーに参加する (join)
   - あるユーザー (User) はあるスタンプラリー (StampRally) に参加できる (join)
   - 参加することでユーザー (User) は参加者 (Player) を得られる
 
@@ -34,6 +36,6 @@ digraph {
   - <https://keens.github.io/blog/2017/12/01/rustnodi/>
   - Use Case の "Input Boundary" を trait として提供するつもりだったが
     default method として "Use Case Interactor" を提供できてしまうので兼ねる
-    - "Input Boundary" および "Use Case Interactor" は Clean Architecture より。
+    - "Input Boundary" および "Use Case Interactor" は Clean Architecture より
     - trait <https://doc.rust-lang.org/reference/items/traits.html>
   - adapter のテストで "Input Boundary" が必要な場合には default method を上書きすると良さそう (未検証)
