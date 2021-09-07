@@ -122,3 +122,69 @@ impl CustomerApplicationService {
             .append_to_stream(customer_id, stream.version, customer.changes());
     }
 }
+
+// ---
+
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct MyVersion(usize);
+
+struct MyEvent {
+    id: MyAggregateId, // ?
+    version: MyVersion,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct MyAggregateId;
+
+struct Aggregate {
+    id: MyAggregateId,
+    version: MyVersion,
+}
+
+impl Aggregate {
+    fn from_events(events: &[MyEvent]) -> Self {
+        // events.is_empty() ?
+        Self {
+            id: events.first().unwrap().id,
+            version: events.last().unwrap().version,
+        }
+    }
+
+    fn id(&self) -> MyAggregateId {
+        self.id
+    }
+
+    fn update(&self) -> Vec<MyEvent> {
+        vec![]
+    }
+
+    fn version(&self) -> MyVersion {
+        self.version
+    }
+}
+
+struct MyEventStore;
+
+impl MyEventStore {
+    fn find_by_id(&self, aggregate_id: MyAggregateId) -> Vec<MyEvent> {
+        vec![]
+    }
+
+    fn save(&self, aggregate_id: MyAggregateId, version: MyVersion, events: &[MyEvent]) {}
+}
+
+fn appliation_service_method() {
+    let event_store = MyEventStore {};
+    let aggregate_id = MyAggregateId {};
+
+    // Repository::find_by_id(&self, aggregate_id: AggregateId) -> Aggregate
+    let aggregate = {
+        let committed_events = event_store.find_by_id(aggregate_id);
+        Aggregate::from_events(&committed_events)
+    };
+
+    let uncommitted_events = aggregate.update();
+
+    // Repository::save(&self, aggregate: Aggregate)
+    event_store.save(aggregate.id(), aggregate.version(), &uncommitted_events);
+}
