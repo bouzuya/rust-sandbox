@@ -1,151 +1,48 @@
+use std::collections::BTreeMap;
+
+use ulid::Ulid;
+
 fn main() {
-    println!("Hello, world!");
+    let mut event_store = MyEventStore::default();
+    let aggregate_id = MyAggregateId(Ulid::new());
+    event_store.save(
+        aggregate_id,
+        MyVersion(1),
+        &[MyEvent {
+            aggregate_id,
+            version: MyVersion(1),
+            data: "created".to_string(),
+        }],
+    );
+
+    appliation_service_method(&mut event_store, aggregate_id);
+
+    println!("{:?}", event_store);
 }
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum Event {
-    CustomerLocked,
-    CustomerUnlocked,
-}
-
-trait Identity {}
-
-trait IEventStore {
-    fn load_event_stream<I: Identity>(&self, id: &I) -> EventStream;
-    fn load_event_stream_with_limit<I: Identity>(
-        &self,
-        id: &I,
-        skip_events: usize,
-        max_count: usize,
-    ) -> EventStream;
-    fn append_to_stream<I: Identity>(&self, id: I, expected_version: usize, events: &[Event]);
-}
-
-struct EventStore {
-    store: Vec<Event>,
-}
-
-impl IEventStore for EventStore {
-    fn load_event_stream<I: Identity>(&self, id: &I) -> EventStream {
-        todo!()
-    }
-
-    fn load_event_stream_with_limit<I: Identity>(
-        &self,
-        id: &I,
-        skip_events: usize,
-        max_count: usize,
-    ) -> EventStream {
-        todo!()
-    }
-
-    fn append_to_stream<I: Identity>(&self, id: I, expected_version: usize, events: &[Event]) {
-        todo!()
-    }
-}
-
-struct EventStream {
-    events: Vec<Event>,
-    version: usize,
-}
-
-struct IPricingService;
-
-struct Customer {
-    changes: Vec<Event>,
-    consumption_locked: bool,
-}
-
-impl Customer {
-    pub fn new(events: Vec<Event>) -> Self {
-        events.into_iter().fold(
-            Self {
-                changes: vec![],
-                consumption_locked: false,
-            },
-            |mut customer, event| {
-                customer.mutate(&event);
-                customer
-            },
-        )
-    }
-
-    pub fn lock_for_account_overdraft(&self, comment: String, pricing_service: &IPricingService) {
-        todo!()
-    }
-
-    // pub fn lock_customer(&self, reason: String) {
-    //     if !self.consumption_locked {
-    //         self.apply(Event::CustomerLocked(state.id, reason));
-    //     }
-    // }
-
-    pub fn changes(&self) -> &Vec<Event> {
-        &self.changes
-    }
-
-    fn apply(&mut self, event: Event) {
-        self.mutate(&event);
-        self.changes.push(event);
-    }
-
-    fn mutate(&mut self, event: &Event) {
-        match event {
-            Event::CustomerLocked => self.consumption_locked = true,
-            Event::CustomerUnlocked => self.consumption_locked = false,
-        }
-    }
-}
-
-struct CustomerId;
-
-impl Identity for CustomerId {}
-
-struct CustomerApplicationService {
-    event_store: EventStore,
-    pricing_service: IPricingService,
-}
-
-impl CustomerApplicationService {
-    fn new(event_store: EventStore, pricing_service: IPricingService) -> Self {
-        Self {
-            event_store,
-            pricing_service,
-        }
-    }
-
-    fn lock_for_account_overdraft(&self, customer_id: CustomerId, comment: String) {
-        let stream = self.event_store.load_event_stream(&customer_id);
-        let customer = Customer::new(stream.events);
-        customer.lock_for_account_overdraft(comment, &self.pricing_service);
-        self.event_store
-            .append_to_stream(customer_id, stream.version, customer.changes());
-    }
-}
-
-// ---
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct MyVersion(usize);
 
+#[derive(Clone, Debug)]
 struct MyEvent {
-    id: MyAggregateId, // ?
+    aggregate_id: MyAggregateId, // ?
     version: MyVersion,
+    data: String,
 }
 
-#[derive(Clone, Copy, Debug)]
-struct MyAggregateId;
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct MyAggregateId(Ulid);
 
-struct Aggregate {
+struct MyAggregate {
     id: MyAggregateId,
     version: MyVersion,
 }
 
-impl Aggregate {
+impl MyAggregate {
     fn from_events(events: &[MyEvent]) -> Self {
         // events.is_empty() ?
         Self {
-            id: events.first().unwrap().id,
+            id: events.first().unwrap().aggregate_id,
             version: events.last().unwrap().version,
         }
     }
@@ -155,7 +52,11 @@ impl Aggregate {
     }
 
     fn update(&self) -> Vec<MyEvent> {
-        vec![]
+        vec![MyEvent {
+            aggregate_id: self.id(),
+            version: MyVersion(self.version.0 + 1),
+            data: "updated".to_string(),
+        }]
     }
 
     fn version(&self) -> MyVersion {
@@ -163,24 +64,43 @@ impl Aggregate {
     }
 }
 
-struct MyEventStore;
+#[derive(Clone, Debug, Default)]
+struct MyEventStore {
+    aggregates: BTreeMap<MyAggregateId, MyVersion>,
+    events: Vec<MyEvent>,
+}
 
 impl MyEventStore {
     fn find_by_id(&self, aggregate_id: MyAggregateId) -> Vec<MyEvent> {
-        vec![]
+        // SELECT * FROM events WHERE aggregate_id = ? ORDER BY version;
+        self.events
+            .iter()
+            .filter(|e| e.aggregate_id == aggregate_id)
+            .cloned()
+            .collect()
     }
 
-    fn save(&self, aggregate_id: MyAggregateId, version: MyVersion, events: &[MyEvent]) {}
+    fn save(&mut self, aggregate_id: MyAggregateId, version: MyVersion, events: &[MyEvent]) {
+        // UPDATE aggregates SET version = ? WHERE aggregate_id = ? AND version = ?
+        let uncommitted_version = events.last().unwrap().version;
+        let committed_version = self
+            .aggregates
+            .entry(aggregate_id)
+            .or_insert(uncommitted_version);
+        if *committed_version != version {
+            panic!();
+        }
+        *committed_version = uncommitted_version;
+        // INSERT INTO events (aggregate_id, version, data) VALUES (?, ?, ?);
+        self.events.extend(events.iter().cloned());
+    }
 }
 
-fn appliation_service_method() {
-    let event_store = MyEventStore {};
-    let aggregate_id = MyAggregateId {};
-
+fn appliation_service_method(event_store: &mut MyEventStore, aggregate_id: MyAggregateId) {
     // Repository::find_by_id(&self, aggregate_id: AggregateId) -> Aggregate
     let aggregate = {
         let committed_events = event_store.find_by_id(aggregate_id);
-        Aggregate::from_events(&committed_events)
+        MyAggregate::from_events(&committed_events)
     };
 
     let uncommitted_events = aggregate.update();
