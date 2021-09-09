@@ -1,17 +1,19 @@
 use std::collections::BTreeMap;
 
+use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
 fn main() {
     let mut event_store = MyEventStore::default();
     let aggregate_id = MyAggregateId(Ulid::new());
+    let version = MyVersion(1);
     event_store.save(
         aggregate_id,
-        MyVersion(1),
+        version,
         &[MyEvent {
             aggregate_id,
-            version: MyVersion(1),
-            data: "created".to_string(),
+            version,
+            data: serde_json::to_string(&MyAggregateEvent::Created).unwrap(),
         }],
     );
 
@@ -23,11 +25,24 @@ fn main() {
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 struct MyVersion(usize);
 
+impl MyVersion {
+    fn next(&self) -> Self {
+        Self(self.0 + 1)
+    }
+}
+
 #[derive(Clone, Debug)]
 struct MyEvent {
     aggregate_id: MyAggregateId, // ?
     version: MyVersion,
     data: String,
+}
+
+#[derive(Deserialize, Serialize)]
+enum MyAggregateEvent {
+    Created,
+    ValueTrue,
+    ValueFalse,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -36,26 +51,69 @@ struct MyAggregateId(Ulid);
 struct MyAggregate {
     id: MyAggregateId,
     version: MyVersion,
+    value: bool,
 }
 
 impl MyAggregate {
     fn from_events(events: &[MyEvent]) -> Self {
-        // events.is_empty() ?
-        Self {
-            id: events.first().unwrap().aggregate_id,
-            version: events.last().unwrap().version,
-        }
+        events
+            .iter()
+            .fold(None, |acc, event| {
+                let e: MyAggregateEvent = serde_json::from_str(event.data.as_str()).unwrap();
+                match e {
+                    MyAggregateEvent::Created => match acc {
+                        Some(_) => panic!(),
+                        None => Some(Self {
+                            id: event.aggregate_id,
+                            version: MyVersion(1),
+                            value: false,
+                        }),
+                    },
+                    MyAggregateEvent::ValueTrue => match acc {
+                        None => panic!(),
+                        Some(mut x) => {
+                            if x.id != event.aggregate_id {
+                                panic!();
+                            }
+                            x.version = x.version.next();
+                            x.value = true;
+                            Some(x)
+                        }
+                    },
+                    MyAggregateEvent::ValueFalse => match acc {
+                        None => panic!(),
+                        Some(mut x) => {
+                            if x.id != event.aggregate_id {
+                                panic!();
+                            }
+                            x.version = x.version().next();
+                            x.value = false;
+                            Some(x)
+                        }
+                    },
+                    _ => unreachable!(),
+                }
+            })
+            .unwrap()
     }
 
     fn id(&self) -> MyAggregateId {
         self.id
     }
 
-    fn update(&self) -> Vec<MyEvent> {
+    fn update_a(&self) -> Vec<MyEvent> {
         vec![MyEvent {
             aggregate_id: self.id(),
-            version: MyVersion(self.version.0 + 1),
-            data: "updated".to_string(),
+            version: self.version().next(),
+            data: serde_json::to_string(&MyAggregateEvent::ValueTrue).unwrap(),
+        }]
+    }
+
+    fn update_b(&self) -> Vec<MyEvent> {
+        vec![MyEvent {
+            aggregate_id: self.id(),
+            version: self.version().next(),
+            data: serde_json::to_string(&MyAggregateEvent::ValueFalse).unwrap(),
         }]
     }
 
@@ -66,7 +124,28 @@ impl MyAggregate {
 
 #[derive(Clone, Debug, Default)]
 struct MyEventStore {
+    // 集約別の最新のバージョンを保持する
+    // `SELECT MAX(version) FROM events WHERE aggregate_id = ?` で取得できるが排他制御の観点で使用する
+    //
+    // ```sql
+    // CREATE TABLE aggregates (
+    //     id      BLOB    NOT NULL, -- ULID
+    //     version INTEGER NOT NULL,
+    //     PRIMARY KEY (id)
+    // )
+    // ```
     aggregates: BTreeMap<MyAggregateId, MyVersion>,
+    // 集約別のイベントを保持する
+    //
+    // ```sql
+    // CREATE TABLE events (
+    //     aggregate_id BLOB    NOT NULL, -- ULID
+    //     version      INTEGER NOT NULL,
+    //     data         TEXT    NOT NULL, -- or BLOB
+    //     PRIMARY KEY (aggregate_id, version),
+    //     FOREIGN KEY (aggregate_id) REFERENCES aggregates (id)
+    // )
+    // ```
     events: Vec<MyEvent>,
 }
 
@@ -81,7 +160,7 @@ impl MyEventStore {
     }
 
     fn save(&mut self, aggregate_id: MyAggregateId, version: MyVersion, events: &[MyEvent]) {
-        // UPDATE aggregates SET version = ? WHERE aggregate_id = ? AND version = ?
+        // UPDATE aggregates SET version = ? WHERE id = ? AND version = ?
         let uncommitted_version = events.last().unwrap().version;
         let committed_version = self
             .aggregates
@@ -103,7 +182,7 @@ fn appliation_service_method(event_store: &mut MyEventStore, aggregate_id: MyAgg
         MyAggregate::from_events(&committed_events)
     };
 
-    let uncommitted_events = aggregate.update();
+    let uncommitted_events = aggregate.update_a();
 
     // Repository::save(&self, aggregate: Aggregate)
     event_store.save(aggregate.id(), aggregate.version(), &uncommitted_events);
