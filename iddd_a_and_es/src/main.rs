@@ -1,9 +1,10 @@
 use std::collections::BTreeMap;
 
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use ulid::Ulid;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let mut event_store = MyEventStore::default();
     let aggregate_id = MyAggregateId(Ulid::new());
     let version = MyVersion(1);
@@ -15,11 +16,13 @@ fn main() {
             version,
             data: serde_json::to_string(&MyAggregateEvent::Created).unwrap(),
         }],
-    );
+    )?;
 
-    appliation_service_method(&mut event_store, aggregate_id);
+    appliation_service_method(&mut event_store, aggregate_id)?;
 
     println!("{:?}", event_store);
+
+    Ok(())
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -55,66 +58,65 @@ struct MyAggregate {
 }
 
 impl MyAggregate {
-    fn from_events(events: &[MyEvent]) -> Self {
+    fn from_events(events: &[MyEvent]) -> anyhow::Result<Self> {
         events
             .iter()
-            .fold(None, |acc, event| {
-                let e: MyAggregateEvent = serde_json::from_str(event.data.as_str()).unwrap();
+            .try_fold(None, |acc: Option<MyAggregate>, event| {
+                let e: MyAggregateEvent = serde_json::from_str(event.data.as_str())?;
                 match e {
                     MyAggregateEvent::Created => match acc {
-                        Some(_) => panic!(),
-                        None => Some(Self {
+                        None => Ok(Some(Self {
                             id: event.aggregate_id,
                             version: MyVersion(1),
                             value: false,
-                        }),
+                        })),
+                        Some(_) => anyhow::bail!("created"),
                     },
                     MyAggregateEvent::ValueTrue => match acc {
-                        None => panic!(),
+                        None => anyhow::bail!("no created"),
                         Some(mut x) => {
                             if x.id != event.aggregate_id {
                                 panic!();
                             }
                             x.version = x.version.next();
                             x.value = true;
-                            Some(x)
+                            Ok(Some(x))
                         }
                     },
                     MyAggregateEvent::ValueFalse => match acc {
-                        None => panic!(),
+                        None => anyhow::bail!("no created"),
                         Some(mut x) => {
                             if x.id != event.aggregate_id {
                                 panic!();
                             }
                             x.version = x.version().next();
                             x.value = false;
-                            Some(x)
+                            Ok(Some(x))
                         }
                     },
-                    _ => unreachable!(),
                 }
             })
-            .unwrap()
+            .and_then(|op| op.context("empty"))
     }
 
     fn id(&self) -> MyAggregateId {
         self.id
     }
 
-    fn update_a(&self) -> Vec<MyEvent> {
-        vec![MyEvent {
+    fn update_a(&self) -> anyhow::Result<Vec<MyEvent>> {
+        Ok(vec![MyEvent {
             aggregate_id: self.id(),
             version: self.version().next(),
             data: serde_json::to_string(&MyAggregateEvent::ValueTrue).unwrap(),
-        }]
+        }])
     }
 
-    fn update_b(&self) -> Vec<MyEvent> {
-        vec![MyEvent {
+    fn update_b(&self) -> anyhow::Result<Vec<MyEvent>> {
+        Ok(vec![MyEvent {
             aggregate_id: self.id(),
             version: self.version().next(),
             data: serde_json::to_string(&MyAggregateEvent::ValueFalse).unwrap(),
-        }]
+        }])
     }
 
     fn version(&self) -> MyVersion {
@@ -150,16 +152,22 @@ struct MyEventStore {
 }
 
 impl MyEventStore {
-    fn find_by_id(&self, aggregate_id: MyAggregateId) -> Vec<MyEvent> {
+    fn find_by_id(&self, aggregate_id: MyAggregateId) -> anyhow::Result<Vec<MyEvent>> {
         // SELECT * FROM events WHERE aggregate_id = ? ORDER BY version;
-        self.events
+        Ok(self
+            .events
             .iter()
             .filter(|e| e.aggregate_id == aggregate_id)
             .cloned()
-            .collect()
+            .collect())
     }
 
-    fn save(&mut self, aggregate_id: MyAggregateId, version: MyVersion, events: &[MyEvent]) {
+    fn save(
+        &mut self,
+        aggregate_id: MyAggregateId,
+        version: MyVersion,
+        events: &[MyEvent],
+    ) -> anyhow::Result<()> {
         // UPDATE aggregates SET version = ? WHERE id = ? AND version = ?
         let uncommitted_version = events.last().unwrap().version;
         let committed_version = self
@@ -167,23 +175,29 @@ impl MyEventStore {
             .entry(aggregate_id)
             .or_insert(uncommitted_version);
         if *committed_version != version {
-            panic!();
+            anyhow::bail!("concurrent exception");
         }
         *committed_version = uncommitted_version;
         // INSERT INTO events (aggregate_id, version, data) VALUES (?, ?, ?);
         self.events.extend(events.iter().cloned());
+        Ok(())
     }
 }
 
-fn appliation_service_method(event_store: &mut MyEventStore, aggregate_id: MyAggregateId) {
+fn appliation_service_method(
+    event_store: &mut MyEventStore,
+    aggregate_id: MyAggregateId,
+) -> anyhow::Result<()> {
     // Repository::find_by_id(&self, aggregate_id: AggregateId) -> Aggregate
     let aggregate = {
-        let committed_events = event_store.find_by_id(aggregate_id);
-        MyAggregate::from_events(&committed_events)
+        let committed_events = event_store.find_by_id(aggregate_id)?;
+        MyAggregate::from_events(&committed_events)?
     };
 
-    let uncommitted_events = aggregate.update_a();
+    let uncommitted_events = aggregate.update_a()?;
 
-    // Repository::save(&self, aggregate: Aggregate)
-    event_store.save(aggregate.id(), aggregate.version(), &uncommitted_events);
+    // Repository::save(&self, aggregate: Aggregate) -> Result<()>
+    event_store.save(aggregate.id(), aggregate.version(), &uncommitted_events)?;
+
+    Ok(())
 }
