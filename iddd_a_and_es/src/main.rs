@@ -1,3 +1,7 @@
+// TODO: ID に対応した Event がほしい。 AggregateId -> Vec<AggregateEvent>。 別の集約の型を追加すると良さそう。二種類の ID を取らないといけなくなるのでそこが検討される
+// TODO: ID 以外の条件で対象を取得する必要が出たらどうするのだろうか
+// TODO: 集約以外の単位でのイベント
+
 use std::collections::BTreeMap;
 
 use anyhow::Context;
@@ -36,7 +40,7 @@ impl MyVersion {
 
 #[derive(Clone, Debug)]
 struct MyEvent {
-    aggregate_id: MyAggregateId, // ?
+    aggregate_id: MyAggregateId,
     version: MyVersion,
     data: String,
 }
@@ -76,7 +80,7 @@ impl MyAggregate {
                         None => anyhow::bail!("no created"),
                         Some(mut x) => {
                             if x.id != event.aggregate_id {
-                                panic!();
+                                anyhow::bail!("other aggregate event");
                             }
                             x.version = x.version.next();
                             x.value = true;
@@ -87,7 +91,7 @@ impl MyAggregate {
                         None => anyhow::bail!("no created"),
                         Some(mut x) => {
                             if x.id != event.aggregate_id {
-                                panic!();
+                                anyhow::bail!("other aggregate event");
                             }
                             x.version = x.version().next();
                             x.value = false;
