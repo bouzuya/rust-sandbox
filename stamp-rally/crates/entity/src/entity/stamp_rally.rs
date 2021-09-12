@@ -1,4 +1,4 @@
-use crate::{Player, StampRallyId, UserId};
+use crate::{Player, PlayerId, StampCard, StampRallyId, UserId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StampRally {
@@ -21,6 +21,11 @@ impl StampRally {
     pub fn join(&self, user_id: UserId) -> Player {
         Player::new(self.id, user_id)
     }
+
+    // factory
+    pub fn issue(&self, player_id: PlayerId) -> StampCard {
+        StampCard::new(self.id, player_id)
+    }
 }
 
 #[cfg(test)]
@@ -37,6 +42,11 @@ mod tests {
 
     #[test]
     fn join_test() {
+        // TODO:
+    }
+
+    #[test]
+    fn issue_test() {
         // TODO:
     }
 }
