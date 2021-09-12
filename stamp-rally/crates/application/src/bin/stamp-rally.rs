@@ -1,12 +1,14 @@
 use adapter_console::run;
 use use_case::{
-    HasCreateStampRallyUseCase, HasCreateUserUseCase, HasJoinStampRallyUseCase,
-    HasPlayerRepository, HasStampRallyRepository, HasUserRepository, InMemoryPlayerRepository,
+    HasCreateStampRallyUseCase, HasCreateUserUseCase, HasIssueStampCardUseCase,
+    HasJoinStampRallyUseCase, HasPlayerRepository, HasStampCardRepository, HasStampRallyRepository,
+    HasUserRepository, InMemoryPlayerRepository, InMemoryStampCardRepository,
     InMemoryStampRallyRepository, InMemoryUserRepository,
 };
 
 struct Application {
     player_repository: InMemoryPlayerRepository,
+    stamp_card_repository: InMemoryStampCardRepository,
     stamp_rally_repository: InMemoryStampRallyRepository,
     user_repository: InMemoryUserRepository,
 }
@@ -15,6 +17,7 @@ impl Application {
     fn new() -> Self {
         Self {
             player_repository: InMemoryPlayerRepository::new(),
+            stamp_card_repository: InMemoryStampCardRepository::new(),
             stamp_rally_repository: InMemoryStampRallyRepository::new(),
             user_repository: InMemoryUserRepository::new(),
         }
@@ -28,6 +31,14 @@ impl HasPlayerRepository for Application {
 
     fn player_repository(&self) -> &Self::PlayerRepository {
         &self.player_repository
+    }
+}
+
+impl HasStampCardRepository for Application {
+    type StampCardRepository = InMemoryStampCardRepository;
+
+    fn stamp_card_repository(&self) -> &Self::StampCardRepository {
+        &self.stamp_card_repository
     }
 }
 
@@ -61,6 +72,14 @@ impl HasCreateUserUseCase for Application {
     type CreateUserUseCase = Application;
 
     fn create_user_use_case(&self) -> &Self::CreateUserUseCase {
+        self
+    }
+}
+
+impl HasIssueStampCardUseCase for Application {
+    type IssueStampCardUseCase = Application;
+
+    fn issue_stamp_card_use_case(&self) -> &Self::IssueStampCardUseCase {
         self
     }
 }

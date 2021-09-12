@@ -1,16 +1,18 @@
 use std::str::FromStr;
 
-use entity::{StampRallyId, UserId};
+use entity::{PlayerId, StampRallyId, UserId};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use use_case::{
     CreateStampRallyUseCase, CreateUserUseCase, HasCreateStampRallyUseCase, HasCreateUserUseCase,
-    HasJoinStampRallyUseCase, JoinStampRallyUseCase,
+    HasIssueStampCardUseCase, HasJoinStampRallyUseCase, IssueStampCardUseCase,
+    JoinStampRallyUseCase,
 };
 
 enum Command {
     CreateStampRally,
     CreateUser,
+    IssueStampCard(String, String),
     JoinStampRally(String, String),
     ShowHelp,
     Unknown(String),
@@ -19,11 +21,17 @@ enum Command {
 impl Command {
     fn execute<A>(&self, application: &A) -> anyhow::Result<()>
     where
-        A: HasCreateStampRallyUseCase + HasCreateUserUseCase + HasJoinStampRallyUseCase,
+        A: HasCreateStampRallyUseCase
+            + HasCreateUserUseCase
+            + HasIssueStampCardUseCase
+            + HasJoinStampRallyUseCase,
     {
         match self {
             Command::CreateStampRally => create_stamp_rally(application),
             Command::CreateUser => create_user(application),
+            Command::IssueStampCard(stamp_rally_id, player_id) => {
+                issue_stamp_card(application, stamp_rally_id, player_id)
+            }
             Command::JoinStampRally(stamp_rally_id, user_id) => {
                 join_stamp_rally(application, stamp_rally_id, user_id)
             }
@@ -44,6 +52,18 @@ impl From<String> for Command {
             Command::CreateStampRally
         } else if s == "create user" {
             Command::CreateUser
+        } else if s.starts_with("issue stamp-card ") {
+            let ids = s
+                .trim_start_matches("issue stamp-card ")
+                .split(' ')
+                .collect::<Vec<&str>>();
+            if ids.len() != 2 {
+                Command::Unknown(s)
+            } else {
+                let stamp_rally_id = ids[0];
+                let player_id = ids[1];
+                Command::IssueStampCard(stamp_rally_id.to_string(), player_id.to_string())
+            }
         } else if s.starts_with("join stamp-rally ") {
             let ids = s
                 .trim_start_matches("join stamp-rally ")
@@ -66,6 +86,7 @@ fn show_help() -> anyhow::Result<()> {
     println!("Commands:");
     println!("  create stamp-rally");
     println!("  create user");
+    println!("  issue stamp-card <stamp_rally_id> <player_id>");
     println!("  join stamp-rally <stamp_rally_id> <user_id>");
     Ok(())
 }
@@ -90,6 +111,21 @@ where
     Ok(())
 }
 
+fn issue_stamp_card<A>(application: &A, stamp_rally_id: &str, player_id: &str) -> anyhow::Result<()>
+where
+    A: HasIssueStampCardUseCase,
+{
+    let use_case = application.issue_stamp_card_use_case();
+    let stamp_rally_id = StampRallyId::from_str(stamp_rally_id)?;
+    let player_id = PlayerId::from_str(player_id)?;
+    let stamp_card_id = IssueStampCardUseCase::handle(use_case, stamp_rally_id, player_id)?;
+    println!(
+        "StampCard created (ID: {}, StampRally ID: {}, Player ID: {})",
+        stamp_card_id, stamp_rally_id, player_id
+    );
+    Ok(())
+}
+
 fn join_stamp_rally<A>(application: &A, stamp_rally_id: &str, user_id: &str) -> anyhow::Result<()>
 where
     A: HasJoinStampRallyUseCase,
@@ -107,7 +143,10 @@ where
 
 pub fn run<A>(application: A) -> anyhow::Result<()>
 where
-    A: HasCreateStampRallyUseCase + HasCreateUserUseCase + HasJoinStampRallyUseCase,
+    A: HasCreateStampRallyUseCase
+        + HasCreateUserUseCase
+        + HasIssueStampCardUseCase
+        + HasJoinStampRallyUseCase,
 {
     let mut rl = Editor::<()>::new();
     loop {
