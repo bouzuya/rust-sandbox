@@ -29,10 +29,14 @@ digraph {
 - スタンプラリーに参加する (join)
   - あるユーザー (User) はあるスタンプラリー (StampRally) に参加できる (join)
   - 参加することでユーザー (User) は参加者 (Player) を得られる
+- スタンプカードを発行する (issue)
+  - あるスタンプラリー (StampRally) はスタンプカード (StampCard) を発行できる (issue)
+  - (WIP) スタンプラリーごとのスタンプカードの発行枚数には上限がある
 
 ## 集約
 
 - Player
+- StampCard
 - StampRally
 - User
 
