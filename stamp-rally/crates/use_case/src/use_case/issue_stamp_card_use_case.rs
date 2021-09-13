@@ -28,7 +28,7 @@ pub trait IssueStampCardUseCase:
         let stamp_card_repository = self.stamp_card_repository();
         let stamp_rally_repository = self.stamp_rally_repository();
 
-        let stamp_rally = stamp_rally_repository
+        let mut stamp_rally = stamp_rally_repository
             .find_by_id(stamp_rally_id)
             .map_err(|_| IssueStampCardError::Unknown)?
             .ok_or(IssueStampCardError::StampRallyNotFound)?;
@@ -38,6 +38,8 @@ pub trait IssueStampCardUseCase:
             .ok_or(IssueStampCardError::PlayerNotFound)?;
 
         let stamp_card = stamp_rally.issue(player.id());
+
+        // TODO: save stamp_rally
 
         let stamp_card_id = stamp_card.id();
         stamp_card_repository

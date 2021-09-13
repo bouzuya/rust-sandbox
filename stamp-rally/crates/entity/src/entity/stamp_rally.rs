@@ -1,8 +1,9 @@
-use crate::{Player, PlayerId, StampCard, StampRallyId, UserId};
+use crate::{Player, PlayerId, StampCard, StampCardId, StampRallyId, UserId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StampRally {
     id: StampRallyId,
+    stamp_card_ids: Vec<StampCardId>,
 }
 
 impl StampRally {
@@ -10,6 +11,7 @@ impl StampRally {
     pub fn new() -> Self {
         Self {
             id: StampRallyId::generate(),
+            stamp_card_ids: vec![],
         }
     }
 
@@ -22,9 +24,10 @@ impl StampRally {
         Player::new(self.id, user_id)
     }
 
-    // factory
-    pub fn issue(&self, player_id: PlayerId) -> StampCard {
-        StampCard::new(self.id, player_id)
+    pub fn issue(&mut self, player_id: PlayerId) -> StampCard {
+        let stamp_card = StampCard::new(self.id, player_id);
+        self.stamp_card_ids.push(stamp_card.id());
+        stamp_card
     }
 }
 
