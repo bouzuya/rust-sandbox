@@ -12,6 +12,8 @@ pub enum IssueStampCardError {
     StampRallyNotFound,
     #[error("player not found error")]
     PlayerNotFound,
+    #[error("stamp card issue failure error")]
+    IssueFailure,
     #[error("unknown error")]
     Unknown,
 }
@@ -37,7 +39,9 @@ pub trait IssueStampCardUseCase:
             .map_err(|_| IssueStampCardError::Unknown)?
             .ok_or(IssueStampCardError::PlayerNotFound)?;
 
-        let stamp_card = stamp_rally.issue(player.id());
+        let stamp_card = stamp_rally
+            .issue(player.id())
+            .map_err(|_| IssueStampCardError::IssueFailure)?;
 
         stamp_rally_repository
             .save(stamp_rally)
