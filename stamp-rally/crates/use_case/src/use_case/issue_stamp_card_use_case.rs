@@ -39,7 +39,9 @@ pub trait IssueStampCardUseCase:
 
         let stamp_card = stamp_rally.issue(player.id());
 
-        // TODO: save stamp_rally
+        stamp_rally_repository
+            .save(stamp_rally)
+            .map_err(|_| IssueStampCardError::Unknown)?;
 
         let stamp_card_id = stamp_card.id();
         stamp_card_repository

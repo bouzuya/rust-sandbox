@@ -1,9 +1,11 @@
+use std::collections::BTreeSet;
+
 use crate::{Player, PlayerId, StampCard, StampCardId, StampRallyId, UserId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StampRally {
     id: StampRallyId,
-    stamp_card_ids: Vec<StampCardId>,
+    stamp_card_ids: BTreeSet<StampCardId>, // the stamp card may not exist
 }
 
 impl StampRally {
@@ -11,7 +13,7 @@ impl StampRally {
     pub fn new() -> Self {
         Self {
             id: StampRallyId::generate(),
-            stamp_card_ids: vec![],
+            stamp_card_ids: BTreeSet::new(),
         }
     }
 
@@ -26,8 +28,15 @@ impl StampRally {
 
     pub fn issue(&mut self, player_id: PlayerId) -> StampCard {
         let stamp_card = StampCard::new(self.id, player_id);
-        self.stamp_card_ids.push(stamp_card.id());
-        stamp_card
+        if self.stamp_card_ids.insert(stamp_card.id()) {
+            stamp_card
+        } else {
+            todo!()
+        }
+    }
+
+    pub fn is_issued(&mut self, stamp_card_id: StampCardId) -> bool {
+        self.stamp_card_ids.contains(&stamp_card_id)
     }
 }
 
@@ -50,6 +59,11 @@ mod tests {
 
     #[test]
     fn issue_test() {
+        // TODO:
+    }
+
+    #[test]
+    fn issued_test() {
         // TODO:
     }
 }
