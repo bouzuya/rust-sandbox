@@ -48,8 +48,7 @@ impl Group {
         &self.g
     }
 
-    // p: large prime (modulus)
-    pub fn p(&self) -> &Modulus {
+    pub fn modulus(&self) -> &Modulus {
         &self.p
     }
 
