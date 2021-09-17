@@ -4,8 +4,28 @@ use num_bigint::{BigUint, RandBigInt, ToBigUint};
 #[derive(Debug, Eq, PartialEq)]
 pub struct Generator(BigUint);
 
+impl Generator {
+    pub fn from_bytes_be(bytes: &[u8]) -> Self {
+        Self(BigUint::from_bytes_be(bytes))
+    }
+
+    pub fn to_bytes_be(&self) -> Vec<u8> {
+        self.0.to_bytes_be()
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Modulus(BigUint);
+
+impl Modulus {
+    pub fn from_bytes_be(bytes: &[u8]) -> Self {
+        Self(BigUint::from_bytes_be(bytes))
+    }
+
+    pub fn to_bytes_be(&self) -> Vec<u8> {
+        self.0.to_bytes_be()
+    }
+}
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct PublicKey(BigUint);
@@ -24,23 +44,7 @@ pub struct Group {
 }
 
 impl Group {
-    pub fn new() -> Self {
-        let g = Generator(BigUint::parse_bytes(b"2", 16).unwrap());
-
-        let p = Modulus(
-            BigUint::parse_bytes(
-                concat!(
-                    "DCF93A0B883972EC0E19989AC5A2CE310E1D37717E8D9571BB7623731866E61E",
-                    "F75A2E27898B057F9891C2E27A639C3F29B60814581CD3B2CA3986D268370557",
-                    "7D45C2E7E52DC81C7A171876E5CEA74B1448BFDFAF18828EFD2519F14E45E382",
-                    "6634AF1949E5B535CC829A483B8A76223E5D490A257F05BDFF16F2FB22C583AB"
-                )
-                .as_bytes(),
-                16,
-            )
-            .unwrap(),
-        );
-
+    pub fn new(g: Generator, p: Modulus) -> Self {
         Self { g, p }
     }
 
@@ -92,7 +96,22 @@ mod tests {
 
     #[test]
     fn test() {
-        let group = Group::new();
+        let g = Generator::from_bytes_be(&[0x02]);
+        let p = Modulus::from_bytes_be(
+            &BigUint::parse_bytes(
+                concat!(
+                    "DCF93A0B883972EC0E19989AC5A2CE310E1D37717E8D9571BB7623731866E61E",
+                    "F75A2E27898B057F9891C2E27A639C3F29B60814581CD3B2CA3986D268370557",
+                    "7D45C2E7E52DC81C7A171876E5CEA74B1448BFDFAF18828EFD2519F14E45E382",
+                    "6634AF1949E5B535CC829A483B8A76223E5D490A257F05BDFF16F2FB22C583AB"
+                )
+                .as_bytes(),
+                16,
+            )
+            .unwrap()
+            .to_bytes_be(),
+        );
+        let group = Group::new(g, p);
         let a = group.generate_key_pair();
         let b = group.generate_key_pair();
         assert_eq!(
