@@ -59,22 +59,22 @@ impl Group {
     //     &self.q
     // }
 
-    pub fn generate_key_pair(&self) -> T {
+    pub fn generate_key_pair(&self) -> KeyPair {
         let mut rng = rand::thread_rng();
         let low = 1.to_biguint().unwrap();
         let x = PrivateKey(rng.gen_biguint_range(&low, &self.p.0));
         let y = PublicKey(self.g.0.modpow(&x.0, &self.p.0));
-        T { group: self, x, y }
+        KeyPair { group: self, x, y }
     }
 }
 
-pub struct T<'a> {
+pub struct KeyPair<'a> {
     group: &'a Group,
     x: PrivateKey,
     y: PublicKey,
 }
 
-impl T<'_> {
+impl KeyPair<'_> {
     // x: private key
     pub fn x(&self) -> &PrivateKey {
         &self.x
