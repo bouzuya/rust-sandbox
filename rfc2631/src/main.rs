@@ -4,6 +4,6 @@ fn main() {
     let group = Group::new();
     let a = group.generate_key_pair();
     let b = group.generate_key_pair();
-    println!("{:?}", a.zz(&b));
-    println!("{:?}", b.zz(&a));
+    println!("{:?}", a.zz(b.y()));
+    println!("{:?}", b.zz(a.y()));
 }

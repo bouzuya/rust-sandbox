@@ -86,8 +86,8 @@ impl T<'_> {
     }
 
     // ZZ: shared secret
-    pub fn zz(&self, t: &T) -> SharedSecret {
-        SharedSecret(t.y().0.modpow(&self.x.0, &self.group.p.0))
+    pub fn zz(&self, y: &PublicKey) -> SharedSecret {
+        SharedSecret(y.0.modpow(&self.x.0, &self.group.p.0))
     }
 }
 
@@ -100,6 +100,6 @@ mod tests {
         let group = Group::new();
         let a = group.generate_key_pair();
         let b = group.generate_key_pair();
-        assert_eq!(a.zz(&b), b.zz(&a));
+        assert_eq!(a.zz(b.y()), b.zz(a.y()));
     }
 }
