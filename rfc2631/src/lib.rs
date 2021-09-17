@@ -79,8 +79,7 @@ impl KeyPair<'_> {
         &self.x
     }
 
-    // y: public key
-    pub fn y(&self) -> &PublicKey {
+    pub fn public_key(&self) -> &PublicKey {
         &self.y
     }
 
@@ -99,6 +98,6 @@ mod tests {
         let group = Group::new();
         let a = group.generate_key_pair();
         let b = group.generate_key_pair();
-        assert_eq!(a.zz(b.y()), b.zz(a.y()));
+        assert_eq!(a.zz(b.public_key()), b.zz(a.public_key()));
     }
 }
