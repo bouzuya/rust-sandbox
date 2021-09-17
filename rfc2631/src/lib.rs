@@ -44,8 +44,7 @@ impl Group {
         Self { g, p }
     }
 
-    // g: generator
-    pub fn g(&self) -> &Generator {
+    pub fn generator(&self) -> &Generator {
         &self.g
     }
 
