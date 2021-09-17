@@ -16,16 +16,15 @@ pub struct PrivateKey(BigUint);
 #[derive(Debug, Eq, PartialEq)]
 pub struct SharedSecret(BigUint);
 
-pub struct T {
+#[derive(Debug, Eq, PartialEq)]
+pub struct Group {
     g: Generator,
     p: Modulus,
     // q: BigUint,
-    x: PrivateKey,
-    y: PublicKey,
 }
 
-impl T {
-    pub fn generate_x() -> Self {
+impl Group {
+    pub fn new() -> Self {
         let g = Generator(BigUint::parse_bytes(b"2", 16).unwrap());
 
         let p = Modulus(
@@ -42,13 +41,7 @@ impl T {
             .unwrap(),
         );
 
-        let mut rng = rand::thread_rng();
-        let low = 1.to_biguint().unwrap();
-        let x = PrivateKey(rng.gen_biguint_range(&low, &p.0));
-
-        let y = PublicKey(g.0.modpow(&x.0, &p.0));
-
-        Self { g, p, x, y }
+        Self { g, p }
     }
 
     // g: generator
@@ -66,6 +59,22 @@ impl T {
     //     &self.q
     // }
 
+    pub fn generate_key_pair(&self) -> T {
+        let mut rng = rand::thread_rng();
+        let low = 1.to_biguint().unwrap();
+        let x = PrivateKey(rng.gen_biguint_range(&low, &self.p.0));
+        let y = PublicKey(self.g.0.modpow(&x.0, &self.p.0));
+        T { group: self, x, y }
+    }
+}
+
+pub struct T<'a> {
+    group: &'a Group,
+    x: PrivateKey,
+    y: PublicKey,
+}
+
+impl T<'_> {
     // x: private key
     pub fn x(&self) -> &PrivateKey {
         &self.x
@@ -78,6 +87,19 @@ impl T {
 
     // ZZ: shared secret
     pub fn zz(&self, t: &T) -> SharedSecret {
-        SharedSecret(t.y().0.modpow(&self.x.0, &self.p.0))
+        SharedSecret(t.y().0.modpow(&self.x.0, &self.group.p.0))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        let group = Group::new();
+        let a = group.generate_key_pair();
+        let b = group.generate_key_pair();
+        assert_eq!(a.zz(&b), b.zz(&a));
     }
 }

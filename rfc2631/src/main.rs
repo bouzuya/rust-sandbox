@@ -1,7 +1,9 @@
-use rfc2631::T;
+use rfc2631::Group;
 
 fn main() {
-    let a = T::generate_x();
-    let b = T::generate_x();
+    let group = Group::new();
+    let a = group.generate_key_pair();
+    let b = group.generate_key_pair();
     println!("{:?}", a.zz(&b));
+    println!("{:?}", b.zz(&a));
 }
