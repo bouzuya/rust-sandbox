@@ -75,8 +75,7 @@ pub struct KeyPair<'a> {
 }
 
 impl KeyPair<'_> {
-    // x: private key
-    pub fn x(&self) -> &PrivateKey {
+    pub fn private_key(&self) -> &PrivateKey {
         &self.x
     }
 
