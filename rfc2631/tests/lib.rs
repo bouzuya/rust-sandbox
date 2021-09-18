@@ -9,7 +9,7 @@ fn bytes_debug_test() {
 }
 
 #[test]
-fn test() {
+fn test() -> anyhow::Result<()> {
     let g = Generator::from_bytes_be(&[0x02]);
     let p = Modulus::from_bytes_be(
         &BigUint::parse_bytes(
@@ -32,4 +32,9 @@ fn test() {
         a.shared_secret(b.public_key()),
         b.shared_secret(a.public_key())
     );
+
+    let a2 = group.create_key_pair_from_private_key(a.private_key().clone())?;
+    assert_eq!(a, a2);
+
+    Ok(())
 }
