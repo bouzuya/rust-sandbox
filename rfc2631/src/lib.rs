@@ -1,5 +1,3 @@
-// <https://datatracker.ietf.org/doc/html/rfc2631>
-
 mod generator;
 mod group;
 mod key_pair;
