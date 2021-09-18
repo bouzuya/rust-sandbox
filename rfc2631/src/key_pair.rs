@@ -1,12 +1,16 @@
 use crate::{Group, PrivateKey, PublicKey, SharedSecret};
 
 pub struct KeyPair<'a> {
-    pub(crate) group: &'a Group,
-    pub(crate) x: PrivateKey,
-    pub(crate) y: PublicKey,
+    group: &'a Group,
+    x: PrivateKey,
+    y: PublicKey,
 }
 
 impl KeyPair<'_> {
+    pub(crate) fn internal_new<'a>(group: &'a Group, x: PrivateKey, y: PublicKey) -> KeyPair<'a> {
+        KeyPair::<'a> { group, x, y }
+    }
+
     pub fn private_key(&self) -> &PrivateKey {
         &self.x
     }
@@ -16,6 +20,9 @@ impl KeyPair<'_> {
     }
 
     pub fn shared_secret(&self, y: &PublicKey) -> SharedSecret {
-        SharedSecret(y.0.modpow(&self.x.0, &self.group.p.0))
+        SharedSecret::from_big_uint(
+            y.as_big_uint()
+                .modpow(self.x.as_big_uint(), self.group.modulus().as_big_uint()),
+        )
     }
 }

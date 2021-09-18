@@ -1,7 +1,7 @@
 use num_bigint::BigUint;
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Modulus(pub(crate) BigUint);
+pub struct Modulus(BigUint);
 
 impl Modulus {
     pub fn from_bytes_be(bytes: &[u8]) -> Self {
@@ -10,5 +10,9 @@ impl Modulus {
 
     pub fn to_bytes_be(&self) -> Vec<u8> {
         self.0.to_bytes_be()
+    }
+
+    pub(crate) fn as_big_uint(&self) -> &BigUint {
+        &self.0
     }
 }
