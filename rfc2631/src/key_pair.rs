@@ -1,5 +1,6 @@
 use crate::{Group, PrivateKey, PublicKey, SharedSecret};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct KeyPair<'a> {
     group: &'a Group,
     x: PrivateKey,

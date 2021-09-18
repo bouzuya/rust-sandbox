@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PrivateKey(BigUint);
 
 impl PrivateKey {

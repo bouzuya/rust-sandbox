@@ -2,7 +2,7 @@ use num_bigint::{RandBigInt, ToBigUint};
 
 use crate::{Generator, KeyPair, Modulus, PrivateKey, PublicKey};
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Group {
     g: Generator,
     p: Modulus,
