@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct PrivateKey(BigUint);
 
 impl PrivateKey {
@@ -18,6 +18,14 @@ impl PrivateKey {
 
     pub(crate) fn as_big_uint(&self) -> &BigUint {
         &self.0
+    }
+}
+
+impl std::fmt::Debug for PrivateKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("PrivateKey")
+            .field(&self.0.to_bytes_be())
+            .finish()
     }
 }
 
@@ -43,5 +51,11 @@ mod tests {
             PrivateKey::from_big_uint(big_uint.clone()).as_big_uint(),
             &big_uint
         );
+    }
+
+    #[test]
+    fn debug_test() {
+        let x = PrivateKey::from_bytes_be(&[0x01, 0x02]);
+        assert_eq!(format!("{:?}", x), "PrivateKey([1, 2])");
     }
 }

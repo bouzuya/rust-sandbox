@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct Modulus(BigUint);
 
 impl Modulus {
@@ -14,6 +14,14 @@ impl Modulus {
 
     pub(crate) fn as_big_uint(&self) -> &BigUint {
         &self.0
+    }
+}
+
+impl std::fmt::Debug for Modulus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Modulus")
+            .field(&self.0.to_bytes_be())
+            .finish()
     }
 }
 
@@ -38,5 +46,11 @@ mod tests {
         // no from_big_uint
         let p = Modulus::from_bytes_be(&big_uint.to_bytes_be());
         assert_eq!(p.as_big_uint(), &big_uint);
+    }
+
+    #[test]
+    fn debug_test() {
+        let p = Modulus::from_bytes_be(&[0x01, 0x02]);
+        assert_eq!(format!("{:?}", p), "Modulus([1, 2])");
     }
 }

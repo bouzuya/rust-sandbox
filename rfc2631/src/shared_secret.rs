@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct SharedSecret(BigUint);
 
 impl SharedSecret {
@@ -14,6 +14,14 @@ impl SharedSecret {
 
     pub fn to_bytes_be(&self) -> Vec<u8> {
         self.0.to_bytes_be()
+    }
+}
+
+impl std::fmt::Debug for SharedSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SharedSecret")
+            .field(&self.0.to_bytes_be())
+            .finish()
     }
 }
 
@@ -40,5 +48,11 @@ mod tests {
             SharedSecret::from_big_uint(big_uint.clone()),
             SharedSecret::from_bytes_be(&big_uint.to_bytes_be())
         );
+    }
+
+    #[test]
+    fn debug_test() {
+        let zz = SharedSecret::from_bytes_be(&[0x01, 0x02]);
+        assert_eq!(format!("{:?}", zz), "SharedSecret([1, 2])");
     }
 }

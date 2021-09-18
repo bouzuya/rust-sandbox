@@ -1,6 +1,6 @@
 use num_bigint::BigUint;
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct PublicKey(BigUint);
 
 impl PublicKey {
@@ -18,6 +18,14 @@ impl PublicKey {
 
     pub(crate) fn as_big_uint(&self) -> &BigUint {
         &self.0
+    }
+}
+
+impl std::fmt::Debug for PublicKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("PublicKey")
+            .field(&self.0.to_bytes_be())
+            .finish()
     }
 }
 
@@ -43,5 +51,11 @@ mod tests {
             PublicKey::from_big_uint(big_uint.clone()).as_big_uint(),
             &big_uint
         );
+    }
+
+    #[test]
+    fn debug_test() {
+        let y = PublicKey::from_bytes_be(&[0x01, 0x02]);
+        assert_eq!(format!("{:?}", y), "PublicKey([1, 2])");
     }
 }
