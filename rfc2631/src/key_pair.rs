@@ -21,9 +21,11 @@ impl KeyPair<'_> {
     }
 
     pub fn shared_secret(&self, y: &PublicKey) -> SharedSecret {
-        SharedSecret::from_big_uint(
-            y.as_big_uint()
-                .modpow(self.x.as_big_uint(), self.group.modulus().as_big_uint()),
-        )
+        // ZZ = g ^ (xb * xa) mod p
+        // ZZ = (yb ^ xa) mod p  = (ya ^ xb) mod p
+        let y = y.as_big_uint();
+        let x = self.x.as_big_uint();
+        let p = self.group.modulus().as_big_uint();
+        SharedSecret::from_big_uint(y.modpow(x, p))
     }
 }
