@@ -1,4 +1,4 @@
-use rfc2631::{Generator, Group, Modulus, PrivateKey, PublicKey, SharedSecret};
+use dhkex::{Generator, Group, Modulus, PrivateKey, PublicKey, SharedSecret};
 
 #[test]
 fn bytes_debug_test() {

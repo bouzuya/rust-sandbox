@@ -1,5 +1,5 @@
 [package]
-name = "rfc2631"
+name = "dhkex"
 version = "0.3.0"
 edition = "2018"
 

@@ -1,4 +1,4 @@
-use rfc2631::{Generator, Group, Modulus};
+use dhkex::{Generator, Group, Modulus};
 
 fn main() -> anyhow::Result<()> {
     let g_bytes = hex::decode("02")?;
