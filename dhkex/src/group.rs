@@ -9,9 +9,12 @@ pub enum CreateKeyPairError {
     OutOfRange,
 }
 
+/// A finite cyclic group
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Group {
+    /// generator. primitive root modulo p.
     g: Generator,
+    /// prime
     p: Modulus,
 }
 
