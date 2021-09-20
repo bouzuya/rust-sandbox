@@ -48,7 +48,7 @@ impl BId {
         self.0
     }
 
-    fn to_naive_date_time(&self) -> NaiveDateTime {
+    fn to_naive_date_time(self) -> NaiveDateTime {
         NaiveDateTime::from_timestamp(self.0, 0)
     }
 }
@@ -81,10 +81,10 @@ mod tests {
                 .timestamp()
         );
 
-        assert_eq!(BId::from_timestamp_opt(min_timestamp - 1).is_some(), false);
-        assert_eq!(BId::from_timestamp_opt(min_timestamp).is_some(), true);
-        assert_eq!(BId::from_timestamp_opt(max_timestamp).is_some(), true);
-        assert_eq!(BId::from_timestamp_opt(max_timestamp + 1).is_some(), false);
+        assert!(!BId::from_timestamp_opt(min_timestamp - 1).is_some());
+        assert!(BId::from_timestamp_opt(min_timestamp).is_some());
+        assert!(BId::from_timestamp_opt(max_timestamp).is_some());
+        assert!(!BId::from_timestamp_opt(max_timestamp + 1).is_some());
     }
 
     #[test]

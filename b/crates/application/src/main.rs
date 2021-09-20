@@ -1,4 +1,5 @@
-use b::{use_case, BId};
+use b::use_case;
+use entity::BId;
 use std::{io, path::PathBuf};
 use structopt::{clap::Shell, StructOpt};
 

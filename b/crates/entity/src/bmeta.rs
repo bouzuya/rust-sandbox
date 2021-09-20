@@ -1,4 +1,4 @@
-use crate::bid::BId;
+use crate::BId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BMeta {

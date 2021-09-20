@@ -1,6 +1,7 @@
 use crate::brepository::BRepository;
-use crate::{BId, TimeZoneOffset};
+use crate::TimeZoneOffset;
 use anyhow::Context;
+use entity::BId;
 use std::{fs, io, path::PathBuf};
 
 pub fn view(data_dir: PathBuf, id: BId, writer: &mut impl io::Write) -> anyhow::Result<()> {
