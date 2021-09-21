@@ -2,7 +2,6 @@ mod brepository;
 mod data;
 mod entry;
 mod parse;
-mod query;
 mod template;
 mod template_entry;
 mod time_zone_offset;

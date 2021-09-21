@@ -1,10 +1,10 @@
-use crate::brepository::{BRepository, BRepositoryImpl};
-use crate::query::Query;
+use crate::brepository::BRepositoryImpl;
 use crate::TimeZoneOffset;
-use anyhow::{anyhow, Context};
+use anyhow::anyhow;
 use chrono::{Local, NaiveDateTime, TimeZone};
 use entity::BMeta;
 use std::{io, path::PathBuf, str::FromStr};
+use use_case::{BRepository, HasBRepository, HasListUseCase, ListUseCase, Query};
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize)]
 struct BOutput {
@@ -31,24 +31,25 @@ impl BOutput {
     }
 }
 
-fn list_bmetas(repository: &impl BRepository, query: &Query) -> anyhow::Result<Vec<BMeta>> {
-    let mut bmetas = vec![];
-    let bids = repository.find_ids(query.date.as_str())?;
-    for bid in bids {
-        let bmeta = repository.find_meta(bid)?.context("no meta error")?;
-        match &query.tags {
-            Some(ref tags) => {
-                if tags
-                    .iter()
-                    .all(|tag| bmeta.tags.iter().any(|s| s.as_str() == tag))
-                {
-                    bmetas.push(bmeta);
-                }
-            }
-            None => bmetas.push(bmeta),
-        }
+// FIXME:
+struct App {
+    brepository: BRepositoryImpl,
+}
+
+impl HasBRepository for App {
+    type BRepository = BRepositoryImpl;
+
+    fn b_repository(&self) -> &Self::BRepository {
+        &self.brepository
     }
-    Ok(bmetas)
+}
+
+impl HasListUseCase for App {
+    type ListUseCase = App;
+
+    fn list_use_case(&self) -> &Self::ListUseCase {
+        self
+    }
 }
 
 pub fn list(
@@ -65,14 +66,16 @@ pub fn list(
         }
         None => TimeZoneOffset::default(),
     };
-    let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
-    let bmetas = list_bmetas(&repository, &query)?;
+    let app = App {
+        brepository: BRepositoryImpl::new(data_dir, time_zone_offset),
+    };
+    let bmetas = app.list_use_case().handle(&query)?;
     if json {
         serde_json::to_writer(
             writer,
             &bmetas
                 .into_iter()
-                .map(|bmeta| BOutput::from(bmeta, &repository))
+                .map(|bmeta| BOutput::from(bmeta, app.b_repository()))
                 .collect::<Vec<BOutput>>(),
         )?;
         Ok(())
@@ -81,7 +84,10 @@ pub fn list(
             writeln!(
                 writer,
                 "{} {}",
-                repository.to_content_path_buf(&bmeta.id).to_str().unwrap(),
+                app.b_repository()
+                    .to_content_path_buf(&bmeta.id)
+                    .to_str()
+                    .unwrap(),
                 bmeta.title
             )?;
         }
@@ -119,16 +125,22 @@ mod tests {
             dir.path().to_path_buf(),
             TimeZoneOffset::from_str("+09:00").unwrap(),
         );
+        let app = App {
+            brepository: repository,
+        };
+        let use_case = app.list_use_case();
         assert_eq!(
-            list_bmetas(&repository, &query)
+            use_case
+                .handle(&query)
                 .unwrap()
                 .into_iter()
-                .map(|p| repository.to_content_path_buf(&p.id))
+                .map(|p| app.b_repository().to_content_path_buf(&p.id))
                 .collect::<Vec<PathBuf>>(),
             files[1..1 + 4]
         );
         assert_eq!(
-            list_bmetas(&repository, &query)
+            use_case
+                .handle(&query)
                 .unwrap()
                 .into_iter()
                 .map(|p| p.title)

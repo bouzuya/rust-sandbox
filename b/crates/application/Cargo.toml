@@ -15,6 +15,7 @@ serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
 structopt = "0.3.21"
 thiserror = "1.0.24"
+use_case = { path = "../use_case" }
 
 [dev-dependencies]
 assert_cmd = "1.0.4"

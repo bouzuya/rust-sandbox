@@ -1,8 +1,9 @@
-use crate::brepository::{BRepository, BRepositoryImpl};
+use crate::brepository::BRepositoryImpl;
 use crate::TimeZoneOffset;
 use anyhow::Context;
 use entity::BId;
 use std::{fs, io, path::PathBuf};
+use use_case::BRepository;
 
 pub fn view(data_dir: PathBuf, id: BId, writer: &mut impl io::Write) -> anyhow::Result<()> {
     let time_zone_offset = TimeZoneOffset::default(); // TODO

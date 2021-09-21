@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+use use_case::BRepository;
 
 type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
 
@@ -18,22 +19,6 @@ type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
 struct BMetaJson {
     tags: Option<Vec<String>>,
     title: Option<String>,
-}
-
-pub trait BRepository {
-    // TODO: hide path ?
-    fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId>;
-
-    // TODO: hide path ?
-    fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId>;
-
-    fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>>;
-
-    fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>>;
-
-    fn to_content_path_buf(&self, id: &BId) -> PathBuf;
-
-    fn to_meta_path_buf(&self, id: &BId) -> PathBuf;
 }
 
 pub struct BRepositoryImpl {
@@ -148,7 +133,7 @@ impl BRepository for BRepositoryImpl {
     }
 
     fn to_meta_path_buf(&self, id: &BId) -> PathBuf {
-        let components = to_dir_components(&id);
+        let components = to_dir_components(id);
         components
             .into_iter()
             .fold(self.data_dir.to_path_buf(), |acc, x| acc.join(x))
