@@ -20,7 +20,23 @@ struct BMetaJson {
     title: Option<String>,
 }
 
-pub struct BRepository {
+pub trait BRepository {
+    // TODO: hide path ?
+    fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId>;
+
+    // TODO: hide path ?
+    fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId>;
+
+    fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>>;
+
+    fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>>;
+
+    fn to_content_path_buf(&self, id: &BId) -> PathBuf;
+
+    fn to_meta_path_buf(&self, id: &BId) -> PathBuf;
+}
+
+pub struct BRepositoryImpl {
     data_dir: PathBuf,
     time_zone_offset: TimeZoneOffset,
 }
@@ -33,22 +49,15 @@ fn to_dir_components(id: &BId) -> Vec<String> {
     vec!["flow".to_string(), yyyy, mm, dd]
 }
 
-impl BRepository {
-    pub fn new(data_dir: PathBuf, time_zone_offset: TimeZoneOffset) -> Self {
-        Self {
-            data_dir,
-            time_zone_offset,
-        }
-    }
-
+impl BRepository for BRepositoryImpl {
     // TODO: hide path ?
-    pub fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId> {
+    fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId> {
         // TODO: using fs
         self.find_by_meta_path(path.with_extension("json").as_path())
     }
 
     // TODO: hide path ?
-    pub fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId> {
+    fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId> {
         // TODO: using fs
         let p = path
             .strip_prefix(self.data_dir.as_path())
@@ -78,7 +87,7 @@ impl BRepository {
         }
     }
 
-    pub fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
+    fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
         let mut bids = vec![];
         let date_time_range = self.utc_date_time_range(date)?;
         let timestamp_range =
@@ -102,7 +111,7 @@ impl BRepository {
         Ok(bids)
     }
 
-    pub fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>> {
+    fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>> {
         let meta_path_buf = self.to_meta_path_buf(&id);
         let content_path_buf = self.to_content_path_buf(&id);
 
@@ -134,17 +143,26 @@ impl BRepository {
         }))
     }
 
-    pub fn to_content_path_buf(&self, id: &BId) -> PathBuf {
+    fn to_content_path_buf(&self, id: &BId) -> PathBuf {
         self.to_meta_path_buf(id).with_extension("md")
     }
 
-    pub fn to_meta_path_buf(&self, id: &BId) -> PathBuf {
+    fn to_meta_path_buf(&self, id: &BId) -> PathBuf {
         let components = to_dir_components(&id);
         components
             .into_iter()
             .fold(self.data_dir.to_path_buf(), |acc, x| acc.join(x))
             .join(id.to_string())
             .with_extension("json")
+    }
+}
+
+impl BRepositoryImpl {
+    pub fn new(data_dir: PathBuf, time_zone_offset: TimeZoneOffset) -> Self {
+        Self {
+            data_dir,
+            time_zone_offset,
+        }
     }
 
     fn dirs(&self, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
@@ -195,7 +213,7 @@ mod tests {
     fn path_buf_convert_test() {
         let time_zone_offset = TimeZoneOffset::from_str("+09:00").unwrap();
         let data_dir = PathBuf::from("/");
-        let repository = BRepository::new(data_dir, time_zone_offset);
+        let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
         let content_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.md");
         let bid = repository
             .find_by_content_path(content_path_buf.as_path())
@@ -209,7 +227,7 @@ mod tests {
         assert_eq!(repository.to_meta_path_buf(&bid), meta_path_buf);
 
         let data_dir = PathBuf::from("/data_dir");
-        let repository = BRepository::new(data_dir, time_zone_offset);
+        let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
         let meta_path_buf = PathBuf::from("/data_dir/flow/2021/02/03/20210203T000000Z.json");
         let bid = repository
             .find_by_meta_path(meta_path_buf.as_path())

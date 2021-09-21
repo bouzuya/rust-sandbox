@@ -1,4 +1,4 @@
-use crate::brepository::BRepository;
+use crate::brepository::{BRepository, BRepositoryImpl};
 use crate::query::Query;
 use crate::TimeZoneOffset;
 use anyhow::{anyhow, Context};
@@ -17,7 +17,7 @@ struct BOutput {
 }
 
 impl BOutput {
-    fn from(bmeta: BMeta, repository: &BRepository) -> Self {
+    fn from(bmeta: BMeta, repository: &BRepositoryImpl) -> Self {
         BOutput {
             content_path: repository.to_content_path_buf(&bmeta.id),
             created_at: Local
@@ -31,7 +31,7 @@ impl BOutput {
     }
 }
 
-fn list_bmetas(repository: &BRepository, query: &Query) -> anyhow::Result<Vec<BMeta>> {
+fn list_bmetas(repository: &impl BRepository, query: &Query) -> anyhow::Result<Vec<BMeta>> {
     let mut bmetas = vec![];
     let bids = repository.find_ids(query.date.as_str())?;
     for bid in bids {
@@ -65,7 +65,7 @@ pub fn list(
         }
         None => TimeZoneOffset::default(),
     };
-    let repository = BRepository::new(data_dir, time_zone_offset);
+    let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
     let bmetas = list_bmetas(&repository, &query)?;
     if json {
         serde_json::to_writer(
@@ -115,7 +115,7 @@ mod tests {
             fs::write(f.as_path().with_extension("json"), "{}").unwrap();
         }
         let query = Query::from_str("2021-02-03").unwrap();
-        let repository = BRepository::new(
+        let repository = BRepositoryImpl::new(
             dir.path().to_path_buf(),
             TimeZoneOffset::from_str("+09:00").unwrap(),
         );

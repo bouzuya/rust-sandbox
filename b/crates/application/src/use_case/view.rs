@@ -1,4 +1,4 @@
-use crate::brepository::BRepository;
+use crate::brepository::{BRepository, BRepositoryImpl};
 use crate::TimeZoneOffset;
 use anyhow::Context;
 use entity::BId;
@@ -6,7 +6,7 @@ use std::{fs, io, path::PathBuf};
 
 pub fn view(data_dir: PathBuf, id: BId, writer: &mut impl io::Write) -> anyhow::Result<()> {
     let time_zone_offset = TimeZoneOffset::default(); // TODO
-    let repository = BRepository::new(data_dir, time_zone_offset);
+    let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
     let meta = repository.find_meta(id)?;
     let meta = meta.with_context(|| "b not found")?;
     let content = fs::read_to_string(repository.to_content_path_buf(&meta.id).as_path())?;
