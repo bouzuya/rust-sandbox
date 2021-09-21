@@ -1,5 +1,5 @@
-mod bid;
-mod bmeta;
+mod b_id;
+mod b_meta;
 
-pub use bid::*;
-pub use bmeta::*;
+pub use b_id::*;
+pub use b_meta::*;
