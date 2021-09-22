@@ -1,5 +1,3 @@
-mod b_id;
-mod b_meta;
+mod entity;
 
-pub use b_id::*;
-pub use b_meta::*;
+pub use self::entity::*;
