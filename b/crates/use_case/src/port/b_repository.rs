@@ -9,6 +9,8 @@ pub trait BRepository {
     // TODO: hide path ?
     fn find_by_meta_path(&self, path: &Path) -> anyhow::Result<BId>;
 
+    fn find_content(&self, id: BId) -> anyhow::Result<Option<String>>;
+
     fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>>;
 
     fn find_meta(&self, id: BId) -> anyhow::Result<Option<BMeta>>;

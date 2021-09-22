@@ -72,6 +72,15 @@ impl BRepository for BRepositoryImpl {
         }
     }
 
+    fn find_content(&self, id: BId) -> anyhow::Result<Option<String>> {
+        let content_path_buf = self.to_content_path_buf(&id);
+        if !content_path_buf.exists() {
+            return Ok(None);
+        }
+
+        Ok(Some(fs::read_to_string(content_path_buf.as_path())?))
+    }
+
     fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
         let mut bids = vec![];
         let date_time_range = self.utc_date_time_range(date)?;
