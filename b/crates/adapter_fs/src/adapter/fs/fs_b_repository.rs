@@ -1,17 +1,14 @@
-use crate::TimeZoneOffset;
 use anyhow::{anyhow, bail, Context};
-use chrono::FixedOffset;
-use chrono::{DateTime, NaiveDate, NaiveDateTime, TimeZone, Utc};
+use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use entity::{BId, BMeta};
-use std::fs::File;
 use std::{
     ffi::OsStr,
-    fs,
+    fs::{self, File},
     io::{BufReader, Read},
     path::{Path, PathBuf},
     str::FromStr,
 };
-use use_case::BRepository;
+use use_case::{BRepository, TimeZoneOffset};
 
 type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
 
@@ -21,7 +18,7 @@ struct BMetaJson {
     title: Option<String>,
 }
 
-pub struct BRepositoryImpl {
+pub struct FsBRepository {
     data_dir: PathBuf,
     time_zone_offset: TimeZoneOffset,
 }
@@ -34,7 +31,7 @@ fn to_dir_components(id: &BId) -> Vec<String> {
     vec!["flow".to_string(), yyyy, mm, dd]
 }
 
-impl BRepository for BRepositoryImpl {
+impl BRepository for FsBRepository {
     // TODO: hide path ?
     fn find_by_content_path(&self, path: &Path) -> anyhow::Result<BId> {
         // TODO: using fs
@@ -151,7 +148,7 @@ impl BRepository for BRepositoryImpl {
     }
 }
 
-impl BRepositoryImpl {
+impl FsBRepository {
     pub fn new(data_dir: PathBuf, time_zone_offset: TimeZoneOffset) -> Self {
         Self {
             data_dir,
@@ -207,7 +204,7 @@ mod tests {
     fn path_buf_convert_test() {
         let time_zone_offset = TimeZoneOffset::from_str("+09:00").unwrap();
         let data_dir = PathBuf::from("/");
-        let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
+        let repository = FsBRepository::new(data_dir, time_zone_offset);
         let content_path_buf = PathBuf::from("/flow/2021/02/03/20210203T000000Z.md");
         let bid = repository
             .find_by_content_path(content_path_buf.as_path())
@@ -221,7 +218,7 @@ mod tests {
         assert_eq!(repository.to_meta_path_buf(&bid), meta_path_buf);
 
         let data_dir = PathBuf::from("/data_dir");
-        let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
+        let repository = FsBRepository::new(data_dir, time_zone_offset);
         let meta_path_buf = PathBuf::from("/data_dir/flow/2021/02/03/20210203T000000Z.json");
         let bid = repository
             .find_by_meta_path(meta_path_buf.as_path())

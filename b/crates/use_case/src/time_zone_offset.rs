@@ -36,7 +36,7 @@ impl From<TimeZoneOffset> for FixedOffset {
 }
 
 fn from_digit2(s: &str) -> Result<i32, ParseIntError> {
-    i32::from_str_radix(s, 10)
+    s.parse::<i32>()
 }
 
 fn hour_or_minutes(s: &str) -> IResult<&str, i32> {

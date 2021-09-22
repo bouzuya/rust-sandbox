@@ -1,6 +1,7 @@
-use ::use_case::{HasBRepository, HasListUseCase, HasViewUseCase};
+use ::use_case::{HasBRepository, HasListUseCase, HasViewUseCase, TimeZoneOffset};
+use adapter_fs::FsBRepository;
 use anyhow::anyhow;
-use b::{use_case, BRepositoryImpl, TimeZoneOffset};
+use b::use_case;
 use entity::BId;
 use std::{io, path::PathBuf, str::FromStr};
 use structopt::{clap::Shell, StructOpt};
@@ -50,11 +51,11 @@ enum Subcommand {
 
 // FIXME:
 struct App {
-    brepository: BRepositoryImpl,
+    brepository: FsBRepository,
 }
 
 impl HasBRepository for App {
-    type BRepository = BRepositoryImpl;
+    type BRepository = FsBRepository;
 
     fn b_repository(&self) -> &Self::BRepository {
         &self.brepository
@@ -96,7 +97,7 @@ fn main() -> anyhow::Result<()> {
                 None => TimeZoneOffset::default(),
             };
             let app = App {
-                brepository: BRepositoryImpl::new(data_dir, time_zone_offset),
+                brepository: FsBRepository::new(data_dir, time_zone_offset),
             };
             use_case::list(&app, json, query, &mut io::stdout())
         }
@@ -106,7 +107,7 @@ fn main() -> anyhow::Result<()> {
         } => use_case::new(data_file, template),
         Subcommand::View { data_dir, id } => {
             let time_zone_offset = TimeZoneOffset::default(); // TODO
-            let repository = BRepositoryImpl::new(data_dir, time_zone_offset);
+            let repository = FsBRepository::new(data_dir, time_zone_offset);
             let app = App {
                 brepository: repository,
             };
@@ -118,9 +119,9 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::use_case::{BRepository, ListUseCase, Query};
-    use b::{BRepositoryImpl, TimeZoneOffset};
-    use std::fs;
+    use ::use_case::{BRepository, ListUseCase, Query, TimeZoneOffset};
+    use adapter_fs::FsBRepository;
+    use std::{fs, str::FromStr};
     use tempfile::tempdir;
 
     #[test]
@@ -143,7 +144,7 @@ mod tests {
             fs::write(f.as_path().with_extension("json"), "{}").unwrap();
         }
         let query = Query::from_str("2021-02-03").unwrap();
-        let repository = BRepositoryImpl::new(
+        let repository = FsBRepository::new(
             dir.path().to_path_buf(),
             TimeZoneOffset::from_str("+09:00").unwrap(),
         );
@@ -182,7 +183,7 @@ mod tests {
         fs::write(content.as_path(), "Hello, world!").unwrap();
         let bid = BId::from_str("20210203T000000Z").unwrap();
         let mut output = vec![];
-        let repository = BRepositoryImpl::new(
+        let repository = FsBRepository::new(
             dir.path().to_path_buf(),
             TimeZoneOffset::from_str("+09:00").unwrap(),
         );
