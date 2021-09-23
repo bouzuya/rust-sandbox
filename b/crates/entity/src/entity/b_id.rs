@@ -1,5 +1,10 @@
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::str::FromStr;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+#[error("parse bid error")]
+pub struct ParseBIdError;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct BId(i64);
@@ -11,16 +16,16 @@ impl std::fmt::Display for BId {
 }
 
 impl FromStr for BId {
-    type Err = &'static str;
+    type Err = ParseBIdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.ends_with('Z') {
             let ndt =
-                NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%SZ").map_err(|_| "invalid str")?;
+                NaiveDateTime::parse_from_str(s, "%Y%m%dT%H%M%SZ").map_err(|_| ParseBIdError)?;
             Ok(BId(ndt.timestamp()))
         } else {
             let dt =
-                DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%:z").map_err(|_| "invalid str")?;
+                DateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%:z").map_err(|_| ParseBIdError)?;
             Ok(BId(dt.timestamp()))
         }
     }
@@ -88,14 +93,13 @@ mod tests {
     }
 
     #[test]
-    fn string_convert_test() {
+    fn string_conversion_test() -> anyhow::Result<()> {
         let s = "20210203T161718Z";
-        assert_eq!(BId::from_str(s).unwrap().to_string(), s.to_string());
+        assert_eq!(BId::from_str(s)?.to_string(), s.to_string());
         assert_eq!(
-            BId::from_str("2021-02-03T16:17:18+09:00")
-                .unwrap()
-                .to_string(),
+            BId::from_str("2021-02-03T16:17:18+09:00")?.to_string(),
             "20210203T071718Z".to_string()
         );
+        Ok(())
     }
 }
