@@ -1,4 +1,4 @@
-use crate::parse::{parse, Token};
+use super::parse::{parse, Token};
 use anyhow::Context;
 use std::collections::{BTreeMap, HashSet};
 use thiserror::Error;

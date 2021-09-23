@@ -1,4 +1,12 @@
-use crate::{build_data, list_entries, TemplateEntry};
+mod data;
+mod entry;
+mod parse;
+mod template;
+mod template_entry;
+
+use self::data::build_data;
+use self::entry::list_entries;
+use self::template_entry::TemplateEntry;
 use std::{convert::TryFrom, env, fs::File, io, path::PathBuf};
 
 pub fn new(data_file: PathBuf, template: PathBuf) -> anyhow::Result<()> {

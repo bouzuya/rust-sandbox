@@ -89,33 +89,33 @@ mod tests {
                 ]
             ))
         );
-        assert_eq!(template("abc{{foo}}def{{bar").is_err(), true);
+        assert!(template("abc{{foo}}def{{bar").is_err());
     }
 
     #[test]
     fn template_token_test() {
-        assert_eq!(template_token("").is_err(), true);
+        assert!(template_token("").is_err());
         assert_eq!(template_token("abc"), Ok(("", Token::Str("abc"))));
         assert_eq!(template_token("{{foo}}"), Ok(("", Token::Var("foo"))));
     }
 
     #[test]
     fn template_str_test() {
-        assert_eq!(template_non_block("").is_err(), true);
-        assert_eq!(template_non_block("{{").is_err(), true);
+        assert!(template_non_block("").is_err());
+        assert!(template_non_block("{{").is_err());
         assert_eq!(template_non_block("a{{"), Ok(("{{", Token::Str("a"))));
         assert_eq!(template_non_block("abc{{"), Ok(("{{", Token::Str("abc"))));
     }
 
     #[test]
     fn template_block_test() {
-        assert_eq!(template_block("").is_err(), true);
+        assert!(template_block("").is_err());
         assert_eq!(template_block("{{_}}"), Ok(("", Token::Var("_"))));
         assert_eq!(template_block("{{0}}"), Ok(("", Token::Var("0"))));
         assert_eq!(template_block("{{a}}"), Ok(("", Token::Var("a"))));
         assert_eq!(template_block("{{abc}}"), Ok(("", Token::Var("abc"))));
         assert_eq!(template_block("{{abc}}bar"), Ok(("bar", Token::Var("abc"))));
-        assert_eq!(template_block("foo{{abc}}").is_err(), true);
+        assert!(template_block("foo{{abc}}").is_err());
         assert_eq!(template_block(r#"{{"{{"}}"#), Ok(("", Token::Str("{{"))));
     }
 }

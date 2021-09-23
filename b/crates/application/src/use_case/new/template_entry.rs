@@ -1,6 +1,6 @@
 use anyhow::Context;
 
-use crate::{entry::Entry, template::Template};
+use super::{entry::Entry, template::Template};
 use std::{collections::BTreeMap, convert::TryFrom, fs, path::Path};
 
 #[derive(Debug, Eq, PartialEq)]
@@ -27,7 +27,7 @@ impl<'a> TemplateEntry<'a> {
             }
             TemplateEntry::TemplateFile { name, content } => {
                 let dest = root_dir.join(name.render(data)?);
-                let content = content.render(&data)?;
+                let content = content.render(data)?;
                 fs::write(dest.as_path(), content)?;
                 println!("{}", dest.as_path().to_str().context("to_str error")?);
                 Ok(())
@@ -85,8 +85,8 @@ mod tests {
             t.render(dir.path(), &data).unwrap();
         }
 
-        assert_eq!(dir.path().join("FOO").is_dir(), true);
-        assert_eq!(dir.path().join("FOO").join("BAR").is_file(), true);
+        assert!(dir.path().join("FOO").is_dir());
+        assert!(dir.path().join("FOO").join("BAR").is_file());
         assert_eq!(
             fs::read_to_string(dir.path().join("FOO").join("BAR")).unwrap(),
             "BAZ".to_string()
