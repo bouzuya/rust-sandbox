@@ -52,7 +52,7 @@ impl BRepository for FsBRepository {
             .with_context(|| "invalid file_stem")?
             .to_str()
             .with_context(|| "invalid str (file_stem)")?;
-        let bid = BId::from_str(s).map_err(|_| anyhow!("invalid format"))?;
+        let bid = BId::from_str(s)?;
         let components = p
             .components()
             .map(|c| c.as_os_str().to_str().with_context(|| "invalid component"))

@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn view_test() {
+    fn view_test() -> anyhow::Result<()> {
         let dir = tempdir().unwrap();
         let dir20210203 = dir.path().join("flow").join("2021").join("02").join("03");
         fs::create_dir_all(dir20210203.as_path()).unwrap();
@@ -181,7 +181,7 @@ mod tests {
         fs::write(meta.as_path(), "{}").unwrap();
         let content = meta.with_extension("md");
         fs::write(content.as_path(), "Hello, world!").unwrap();
-        let bid = BId::from_str("20210203T000000Z").unwrap();
+        let bid = BId::from_str("20210203T000000Z")?;
         let mut output = vec![];
         let repository = FsBRepository::new(
             dir.path().to_path_buf(),
@@ -192,5 +192,6 @@ mod tests {
         };
         use_case::view(&app, bid, &mut output).unwrap();
         assert_eq!(output, b"Hello, world!");
+        Ok(())
     }
 }
