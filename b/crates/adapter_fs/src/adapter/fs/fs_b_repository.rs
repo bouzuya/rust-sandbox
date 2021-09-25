@@ -156,6 +156,36 @@ impl FsBRepository {
         }
     }
 
+    fn find_all_ids(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
+        let files = list_files(self.data_dir.join("flow"))?;
+        Ok(files
+            .map(|f| {
+                let p = f?;
+                if p.extension() != Some(OsStr::new("json")) {
+                    return Ok(None);
+                }
+
+                let s = p
+                    .file_stem()
+                    .with_context(|| "invalid file_stem")?
+                    .to_str()
+                    .with_context(|| "invalid str (file_stem)")?;
+                let bid = BId::from_str(s)?;
+                Ok(Some(bid))
+            })
+            .filter(|x| match x {
+                Ok(None) => false,
+                Ok(Some(_)) => true,
+                Err(_) => true,
+            })
+            .map(|x| {
+                x.map(|o| match o {
+                    Some(x) => x,
+                    None => unreachable!(),
+                })
+            }))
+    }
+
     fn dirs(&self, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
         let (start, end) = date_time_range;
         let dates = if start == end {
