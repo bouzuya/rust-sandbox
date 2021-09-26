@@ -156,7 +156,7 @@ impl FsBRepository {
         }
     }
 
-    fn find_all_ids(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
+    pub fn find_all_ids(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
         let files = list_files(self.data_dir.join("flow"))?;
         Ok(files
             .map(|f| {
@@ -173,17 +173,30 @@ impl FsBRepository {
                 let bid = BId::from_str(s)?;
                 Ok(Some(bid))
             })
-            .filter(|x| match x {
-                Ok(None) => false,
-                Ok(Some(_)) => true,
-                Err(_) => true,
-            })
-            .map(|x| {
-                x.map(|o| match o {
-                    Some(x) => x,
-                    None => unreachable!(),
-                })
+            .filter_map(|x| match x {
+                Ok(None) => None,
+                Ok(Some(bid)) => Some(Ok(bid)),
+                Err(err) => Some(Err(err)),
             }))
+    }
+
+    pub fn find_ids_iter(
+        &self,
+        date: &str,
+    ) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
+        let date_time_range = self.utc_date_time_range(date)?;
+        let timestamp_range =
+            date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
+        Ok(self.find_all_ids()?.filter_map(move |bid| match bid {
+            Ok(bid) => {
+                if timestamp_range.contains(&bid.to_timestamp()) {
+                    Some(Ok(bid))
+                } else {
+                    None
+                }
+            }
+            Err(err) => Some(Err(err)),
+        }))
     }
 
     fn dirs(&self, date_time_range: &DateTimeRange) -> Vec<PathBuf> {
