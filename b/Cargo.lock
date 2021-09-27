@@ -390,6 +390,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "query"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "nom 7.0.0",
+ "thiserror",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
