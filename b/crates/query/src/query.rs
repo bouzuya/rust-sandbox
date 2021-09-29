@@ -1,12 +1,16 @@
+use std::str::FromStr;
+
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
     character::complete::char,
-    combinator::{all_consuming, map},
+    combinator::{all_consuming, map, map_res},
     sequence::tuple,
     IResult,
 };
 use thiserror::Error;
+
+use crate::Digit4;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Query<'a> {
@@ -15,7 +19,7 @@ pub enum Query<'a> {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Date<'a>(Option<&'a str>, Option<&'a str>, Option<&'a str>);
+pub struct Date<'a>(Option<Digit4>, Option<&'a str>, Option<&'a str>);
 
 impl<'a> std::fmt::Display for Date<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -90,7 +94,7 @@ fn date_range(s: &str) -> IResult<&str, DateRange> {
 }
 
 fn yyyymmdd(s: &str) -> IResult<&str, Date> {
-    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
+    let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
     let (s, _) = char('-')(s)?;
@@ -99,14 +103,14 @@ fn yyyymmdd(s: &str) -> IResult<&str, Date> {
 }
 
 fn yyyymm(s: &str) -> IResult<&str, Date> {
-    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
+    let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
     Ok((s, Date(Some(y), Some(m), None)))
 }
 
 fn yyyy(s: &str) -> IResult<&str, Date> {
-    let (s, y) = take_while_m_n(4, 4, is_digit)(s)?;
+    let (s, y) = digit4(s)?;
     Ok((s, Date(Some(y), None, None)))
 }
 
@@ -132,6 +136,10 @@ fn dd(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
     Ok((s, Date(None, None, Some(d))))
+}
+
+fn digit4(s: &str) -> IResult<&str, Digit4> {
+    map_res(take_while_m_n(4, 4, is_digit), Digit4::from_str)(s)
 }
 
 fn parse(s: &str) -> IResult<&str, Query> {
