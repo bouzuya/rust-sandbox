@@ -13,9 +13,9 @@ use thiserror::Error;
 use crate::{Digit2, Digit4};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Query<'a> {
+pub enum Query {
     Date(Date),
-    DateRange(DateRange<'a>),
+    DateRange(DateRange),
 }
 
 #[derive(Debug, Eq, PartialEq)]
@@ -37,18 +37,18 @@ impl std::fmt::Display for Date {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct DateRangeDate<'a>(&'a str, &'a str, &'a str);
+pub struct DateRangeDate(Digit4, Digit2, Digit2);
 
-impl<'a> std::fmt::Display for DateRangeDate<'a> {
+impl std::fmt::Display for DateRangeDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}-{}", self.0, self.1, self.2)
     }
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct DateRange<'a>(DateRangeDate<'a>, DateRangeDate<'a>);
+pub struct DateRange(DateRangeDate, DateRangeDate);
 
-impl<'a> std::fmt::Display for DateRange<'a> {
+impl std::fmt::Display for DateRange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/{}", self.0, self.1)
     }
@@ -60,7 +60,7 @@ pub enum ParseQueryError {
     Parse,
 }
 
-impl<'a> std::fmt::Display for Query<'a> {
+impl std::fmt::Display for Query {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Query::Date(date) => write!(f, "date:{}", date),
@@ -75,13 +75,7 @@ fn is_digit(c: char) -> bool {
 
 fn date_range_date(s: &str) -> IResult<&str, DateRangeDate> {
     map(
-        tuple((
-            take_while_m_n(4, 4, is_digit),
-            char('-'),
-            take_while_m_n(2, 2, is_digit),
-            char('-'),
-            take_while_m_n(2, 2, is_digit),
-        )),
+        tuple((digit4, char('-'), digit2, char('-'), digit2)),
         |(y, _, m, _, d)| DateRangeDate(y, m, d),
     )(s)
 }
@@ -160,10 +154,10 @@ fn parse(s: &str) -> IResult<&str, Query> {
     Ok((s, date))
 }
 
-impl<'a> std::convert::TryFrom<&'a str> for Query<'a> {
+impl std::convert::TryFrom<&str> for Query {
     type Error = ParseQueryError;
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
         parse(value)
             .map(|(_, q)| Ok(q))
             .map_err(|_| ParseQueryError::Parse)?
