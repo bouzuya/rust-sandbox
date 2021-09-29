@@ -10,18 +10,18 @@ use nom::{
 };
 use thiserror::Error;
 
-use crate::Digit4;
+use crate::{Digit2, Digit4};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Query<'a> {
-    Date(Date<'a>),
+    Date(Date),
     DateRange(DateRange<'a>),
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Date<'a>(Option<Digit4>, Option<&'a str>, Option<&'a str>);
+pub struct Date(Option<Digit4>, Option<Digit2>, Option<Digit2>);
 
-impl<'a> std::fmt::Display for Date<'a> {
+impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.0, &self.1, &self.2) {
             (None, None, None) => write!(f, ""),
@@ -96,16 +96,16 @@ fn date_range(s: &str) -> IResult<&str, DateRange> {
 fn yyyymmdd(s: &str) -> IResult<&str, Date> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, m) = digit2(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, d) = digit2(s)?;
     Ok((s, Date(Some(y), Some(m), Some(d))))
 }
 
 fn yyyymm(s: &str) -> IResult<&str, Date> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, m) = digit2(s)?;
     Ok((s, Date(Some(y), Some(m), None)))
 }
 
@@ -117,16 +117,16 @@ fn yyyy(s: &str) -> IResult<&str, Date> {
 fn mmdd(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, m) = digit2(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, d) = digit2(s)?;
     Ok((s, Date(None, Some(m), Some(d))))
 }
 
 fn mm(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, m) = digit2(s)?;
     Ok((s, Date(None, Some(m), None)))
 }
 
@@ -134,8 +134,12 @@ fn dd(s: &str) -> IResult<&str, Date> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = take_while_m_n(2, 2, is_digit)(s)?;
+    let (s, d) = digit2(s)?;
     Ok((s, Date(None, None, Some(d))))
+}
+
+fn digit2(s: &str) -> IResult<&str, Digit2> {
+    map_res(take_while_m_n(2, 2, is_digit), Digit2::from_str)(s)
 }
 
 fn digit4(s: &str) -> IResult<&str, Digit4> {
