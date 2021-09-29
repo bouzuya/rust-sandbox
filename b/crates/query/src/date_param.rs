@@ -13,15 +13,15 @@ use thiserror::Error;
 use crate::{Digit2, Digit4};
 
 #[derive(Debug, Eq, PartialEq)]
-pub enum Query {
-    Date(Date),
-    DateRange(DateRange),
+pub enum DateParam {
+    Single(DateParamSingle),
+    Range(DateParamRange),
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct Date(Option<Digit4>, Option<Digit2>, Option<Digit2>);
+pub struct DateParamSingle(Option<Digit4>, Option<Digit2>, Option<Digit2>);
 
-impl std::fmt::Display for Date {
+impl std::fmt::Display for DateParamSingle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.0, &self.1, &self.2) {
             (None, None, None) => write!(f, ""),
@@ -46,9 +46,9 @@ impl std::fmt::Display for DateRangeDate {
 }
 
 #[derive(Debug, Eq, PartialEq)]
-pub struct DateRange(DateRangeDate, DateRangeDate);
+pub struct DateParamRange(DateRangeDate, DateRangeDate);
 
-impl std::fmt::Display for DateRange {
+impl std::fmt::Display for DateParamRange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/{}", self.0, self.1)
     }
@@ -60,11 +60,11 @@ pub enum ParseQueryError {
     Parse,
 }
 
-impl std::fmt::Display for Query {
+impl std::fmt::Display for DateParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Query::Date(date) => write!(f, "date:{}", date),
-            Query::DateRange(date_range) => write!(f, "date:{}", date_range),
+            DateParam::Single(date) => write!(f, "date:{}", date),
+            DateParam::Range(date_range) => write!(f, "date:{}", date_range),
         }
     }
 }
@@ -80,56 +80,56 @@ fn date_range_date(s: &str) -> IResult<&str, DateRangeDate> {
     )(s)
 }
 
-fn date_range(s: &str) -> IResult<&str, DateRange> {
+fn date_range(s: &str) -> IResult<&str, DateParamRange> {
     map(
         tuple((date_range_date, char('/'), date_range_date)),
-        |(d1, _, d2)| DateRange(d1, d2),
+        |(d1, _, d2)| DateParamRange(d1, d2),
     )(s)
 }
 
-fn yyyymmdd(s: &str) -> IResult<&str, Date> {
+fn yyyymmdd(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
     let (s, _) = char('-')(s)?;
     let (s, d) = digit2(s)?;
-    Ok((s, Date(Some(y), Some(m), Some(d))))
+    Ok((s, DateParamSingle(Some(y), Some(m), Some(d))))
 }
 
-fn yyyymm(s: &str) -> IResult<&str, Date> {
+fn yyyymm(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
-    Ok((s, Date(Some(y), Some(m), None)))
+    Ok((s, DateParamSingle(Some(y), Some(m), None)))
 }
 
-fn yyyy(s: &str) -> IResult<&str, Date> {
+fn yyyy(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, y) = digit4(s)?;
-    Ok((s, Date(Some(y), None, None)))
+    Ok((s, DateParamSingle(Some(y), None, None)))
 }
 
-fn mmdd(s: &str) -> IResult<&str, Date> {
+fn mmdd(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
     let (s, _) = char('-')(s)?;
     let (s, d) = digit2(s)?;
-    Ok((s, Date(None, Some(m), Some(d))))
+    Ok((s, DateParamSingle(None, Some(m), Some(d))))
 }
 
-fn mm(s: &str) -> IResult<&str, Date> {
+fn mm(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
-    Ok((s, Date(None, Some(m), None)))
+    Ok((s, DateParamSingle(None, Some(m), None)))
 }
 
-fn dd(s: &str) -> IResult<&str, Date> {
+fn dd(s: &str) -> IResult<&str, DateParamSingle> {
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, _) = char('-')(s)?;
     let (s, d) = digit2(s)?;
-    Ok((s, Date(None, None, Some(d))))
+    Ok((s, DateParamSingle(None, None, Some(d))))
 }
 
 fn digit2(s: &str) -> IResult<&str, Digit2> {
@@ -140,21 +140,21 @@ fn digit4(s: &str) -> IResult<&str, Digit4> {
     map_res(take_while_m_n(4, 4, is_digit), Digit4::from_str)(s)
 }
 
-fn parse(s: &str) -> IResult<&str, Query> {
+fn parse(s: &str) -> IResult<&str, DateParam> {
     if s.is_empty() {
-        return Ok((s, Query::Date(Date(None, None, None))));
+        return Ok((s, DateParam::Single(DateParamSingle(None, None, None))));
     }
     let (s, _) = tag("date:")(s)?;
     let (s, date) = all_consuming(alt((
-        map(date_range, Query::DateRange),
+        map(date_range, DateParam::Range),
         map(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)), |d| {
-            Query::Date(d)
+            DateParam::Single(d)
         }),
     )))(s)?;
     Ok((s, date))
 }
 
-impl std::convert::TryFrom<&str> for Query {
+impl std::convert::TryFrom<&str> for DateParam {
     type Error = ParseQueryError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -172,7 +172,7 @@ mod tests {
     #[test]
     fn str_conversion_test() -> anyhow::Result<()> {
         let f = |s: &str| -> anyhow::Result<()> {
-            assert_eq!(Query::try_from(s)?.to_string(), s.to_string());
+            assert_eq!(DateParam::try_from(s)?.to_string(), s.to_string());
             Ok(())
         };
         f("date:2021-02-03")?;
