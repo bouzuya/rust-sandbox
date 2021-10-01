@@ -4,7 +4,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
     character::complete::char,
-    combinator::{all_consuming, map, map_res},
+    combinator::{map, map_res},
     sequence::tuple,
     IResult,
 };
@@ -140,17 +140,14 @@ fn digit4(s: &str) -> IResult<&str, Digit4> {
     map_res(take_while_m_n(4, 4, is_digit), Digit4::from_str)(s)
 }
 
-fn parse(s: &str) -> IResult<&str, DateParam> {
-    if s.is_empty() {
-        return Ok((s, DateParam::Single(DateParamSingle(None, None, None))));
-    }
+pub fn parse(s: &str) -> IResult<&str, DateParam> {
     let (s, _) = tag("date:")(s)?;
-    let (s, date) = all_consuming(alt((
+    let (s, date) = alt((
         map(date_range, DateParam::Range),
         map(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)), |d| {
             DateParam::Single(d)
         }),
-    )))(s)?;
+    ))(s)?;
     Ok((s, date))
 }
 

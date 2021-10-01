@@ -14,7 +14,11 @@ pub struct TagParam(String);
 
 impl std::fmt::Display for TagParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "tag:\"{}\"", self.0)
+        if self.0.contains(' ') {
+            write!(f, "tag:\"{}\"", self.0)
+        } else {
+            write!(f, "tag:{}", self.0)
+        }
     }
 }
 
@@ -22,7 +26,7 @@ fn is_ascii_alphanumeric_or_space(c: char) -> bool {
     c == ' ' || c.is_ascii_alphanumeric()
 }
 
-fn parse(s: &str) -> IResult<&str, TagParam> {
+pub fn parse(s: &str) -> IResult<&str, TagParam> {
     let (s, _) = tag("tag:")(s)?;
     let (s, t) = map(
         alt((
@@ -44,9 +48,16 @@ mod tests {
 
     #[test]
     fn str_conversion_test() -> anyhow::Result<()> {
-        let s = "tag:\"abc def\"";
-        let (_, t) = parse(s)?;
-        assert_eq!(t.to_string(), s.to_string());
+        {
+            let s = "tag:\"abc 123\"";
+            let (_, t) = parse(s)?;
+            assert_eq!(t.to_string(), s.to_string());
+        }
+        {
+            let s = "tag:abc";
+            let (_, t) = parse(s)?;
+            assert_eq!(t.to_string(), s.to_string());
+        }
         Ok(())
     }
 }
