@@ -22,8 +22,35 @@ pub enum QueryParam {
     Tag(TagParam),
 }
 
+impl std::fmt::Display for QueryParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                QueryParam::Date(d) => d.to_string(),
+                QueryParam::Tag(t) => t.to_string(),
+            }
+        )
+    }
+}
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct Query(Vec<QueryParam>);
+
+impl std::fmt::Display for Query {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            self.0
+                .iter()
+                .map(|p| format!("{}", p))
+                .collect::<Vec<String>>()
+                .join(" ")
+        )
+    }
+}
 
 fn parse(s: &str) -> IResult<&str, Query> {
     map(
@@ -53,8 +80,15 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
-        assert!(Query::from_str("date:2012-03-04 tag:abc").is_ok());
-        assert!(Query::from_str("date:2012").is_ok());
+    fn string_conversion_test() -> anyhow::Result<()> {
+        assert_eq!(
+            Query::from_str("date:2021-02-03 tag:abc")?.to_string(),
+            "date:2021-02-03 tag:abc".to_string()
+        );
+        assert_eq!(
+            Query::from_str("date:2021")?.to_string(),
+            "date:2021".to_string()
+        );
+        Ok(())
     }
 }
