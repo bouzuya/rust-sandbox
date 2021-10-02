@@ -4,7 +4,7 @@ use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
     character::complete::char,
-    combinator::{map, map_res},
+    combinator::{all_consuming, map, map_res},
     sequence::tuple,
     IResult,
 };
@@ -12,11 +12,54 @@ use thiserror::Error;
 
 use crate::{Digit2, Digit4};
 
+// ParseQueryError
+
+#[derive(Debug, Error)]
+pub enum ParseDateParamError {
+    #[error("parse date param error")]
+    Parse,
+}
+
+// DateParam
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum DateParam {
     Single(DateParamSingle),
     Range(DateParamRange),
 }
+
+impl std::fmt::Display for DateParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                DateParam::Single(s) => s.to_string(),
+                DateParam::Range(r) => r.to_string(),
+            }
+        )
+    }
+}
+
+impl FromStr for DateParam {
+    type Err = ParseDateParamError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        all_consuming(parse)(s)
+            .map(|(_, q)| q)
+            .map_err(|_| ParseDateParamError::Parse)
+    }
+}
+
+impl std::convert::TryFrom<&str> for DateParam {
+    type Error = ParseDateParamError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        DateParam::from_str(value)
+    }
+}
+
+// DateParamSingle
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct DateParamSingle(Option<Digit4>, Option<Digit2>, Option<Digit2>);
@@ -36,6 +79,8 @@ impl std::fmt::Display for DateParamSingle {
     }
 }
 
+// DateRangeDate
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct DateRangeDate(Digit4, Digit2, Digit2);
 
@@ -45,27 +90,14 @@ impl std::fmt::Display for DateRangeDate {
     }
 }
 
+// DateParamRange
+
 #[derive(Debug, Eq, PartialEq)]
 pub struct DateParamRange(DateRangeDate, DateRangeDate);
 
 impl std::fmt::Display for DateParamRange {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}/{}", self.0, self.1)
-    }
-}
-
-#[derive(Debug, Error)]
-pub enum ParseQueryError {
-    #[error("parse error")]
-    Parse,
-}
-
-impl std::fmt::Display for DateParam {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            DateParam::Single(date) => write!(f, "date:{}", date),
-            DateParam::Range(date_range) => write!(f, "date:{}", date_range),
-        }
     }
 }
 
@@ -151,25 +183,14 @@ pub fn parse(s: &str) -> IResult<&str, DateParam> {
     Ok((s, date))
 }
 
-impl std::convert::TryFrom<&str> for DateParam {
-    type Error = ParseQueryError;
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        parse(value)
-            .map(|(_, q)| Ok(q))
-            .map_err(|_| ParseQueryError::Parse)?
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::convert::TryFrom;
 
     #[test]
     fn str_conversion_test() -> anyhow::Result<()> {
         let f = |s: &str| -> anyhow::Result<()> {
-            assert_eq!(DateParam::try_from(s)?.to_string(), s.to_string());
+            assert_eq!(DateParam::from_str(s)?.to_string(), s.to_string());
             Ok(())
         };
         f("date:2021-02-03")?;
