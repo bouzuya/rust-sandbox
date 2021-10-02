@@ -73,6 +73,16 @@ impl std::str::FromStr for Query {
     }
 }
 
+impl IntoIterator for Query {
+    type Item = QueryParam;
+
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -88,6 +98,20 @@ mod tests {
         assert_eq!(
             Query::from_str("date:2021")?.to_string(),
             "date:2021".to_string()
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn iterator_test() -> anyhow::Result<()> {
+        let q = Query::from_str("date:2021-02-03 tag:abc")?;
+        let qps = q.into_iter().collect::<Vec<QueryParam>>();
+        assert_eq!(
+            qps,
+            vec![
+                QueryParam::Date(DateParam::from_str("date:2021-02-03")?),
+                QueryParam::Tag(TagParam::from_str("tag:abc")?),
+            ]
         );
         Ok(())
     }
