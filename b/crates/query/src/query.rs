@@ -42,10 +42,7 @@ impl std::str::FromStr for Query {
     type Err = ParseQueryError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        parse(s).map(|(_, q)| q).map_err(|e| {
-            println!("{:?}", e);
-            ParseQueryError
-        })
+        parse(s).map(|(_, q)| q).map_err(|_| ParseQueryError)
     }
 }
 
