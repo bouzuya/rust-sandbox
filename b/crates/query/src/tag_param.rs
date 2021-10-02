@@ -20,7 +20,7 @@ pub struct ParseTagParamError;
 
 // TagParam
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TagParam(String);
 
 impl std::fmt::Display for TagParam {

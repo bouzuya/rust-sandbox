@@ -22,7 +22,7 @@ pub enum ParseDateParamError {
 
 // DateParam
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DateParam {
     Single(DateParamSingle),
     Range(DateParamRange),
@@ -61,7 +61,7 @@ impl std::convert::TryFrom<&str> for DateParam {
 
 // DateParamSingle
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateParamSingle(Option<Digit4>, Option<Digit2>, Option<Digit2>);
 
 impl std::fmt::Display for DateParamSingle {
@@ -81,7 +81,7 @@ impl std::fmt::Display for DateParamSingle {
 
 // DateRangeDate
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateRangeDate(Digit4, Digit2, Digit2);
 
 impl std::fmt::Display for DateRangeDate {
@@ -92,7 +92,7 @@ impl std::fmt::Display for DateRangeDate {
 
 // DateParamRange
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateParamRange(DateRangeDate, DateRangeDate);
 
 impl std::fmt::Display for DateParamRange {

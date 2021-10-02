@@ -16,7 +16,7 @@ use thiserror::Error;
 #[error("parse query error")]
 pub struct ParseQueryError;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum QueryParam {
     Date(DateParam),
     Tag(TagParam),
@@ -35,7 +35,7 @@ impl std::fmt::Display for QueryParam {
     }
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Query(Vec<QueryParam>);
 
 impl std::fmt::Display for Query {
