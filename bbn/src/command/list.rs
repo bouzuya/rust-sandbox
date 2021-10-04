@@ -6,6 +6,13 @@ use crate::{
 use std::convert::TryFrom;
 
 pub fn list(json: bool, query: String) -> anyhow::Result<()> {
+    #[derive(serde::Serialize)]
+    struct OutputJson {
+        date: String,
+        title: String,
+        url: String,
+    }
+
     let config_repository = ConfigRepository::new();
     let config = config_repository
         .load()
@@ -23,12 +30,12 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
             .find_meta_by_id(&entry_id)?
             .context("meta not found")?;
         if json {
-            output.push(format!(
-                r#"{{"date":"{}","title":"{}","url":"{}"}}"#,
-                entry_id.date(),
-                entry_meta.title,
-                entry_url(&entry_id),
-            ));
+            let output_json = OutputJson {
+                date: entry_id.date().to_string(),
+                title: entry_meta.title,
+                url: entry_url(&entry_id),
+            };
+            output.push(serde_json::to_string(&output_json)?);
         } else {
             output.push(format!(
                 "{} {} <{}>",

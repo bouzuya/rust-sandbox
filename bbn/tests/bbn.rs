@@ -39,7 +39,24 @@ fn list_test() {
             config_dir.as_os_str().to_str().unwrap(),
         )
         .assert()
-        .success();
+        .success()
+        .stdout(predicates::ord::eq(
+            b"2021-02-03 TITLE1 <https://blog.bouzuya.net/2021/02/03/>\n" as &[u8],
+        ));
+    Command::cargo_bin("bbn")
+        .unwrap()
+        .arg("list")
+        .arg("--json")
+        .arg("date:--02-03")
+        .env(
+            "BBN_TEST_CONFIG_DIR",
+            config_dir.as_os_str().to_str().unwrap(),
+        )
+        .assert()
+        .success()
+        .stdout(predicates::ord::eq(
+            b"[{\"date\":\"2021-02-03\",\"title\":\"TITLE1\",\"url\":\"https://blog.bouzuya.net/2021/02/03/\"}]\n" as &[u8],
+        ));
 }
 
 #[test]
