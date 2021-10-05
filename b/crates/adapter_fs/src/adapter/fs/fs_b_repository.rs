@@ -160,7 +160,7 @@ impl FsBRepository {
     }
 
     pub fn find_all_ids(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
-        let files = ListFiles::new(self.data_dir.join("flow"))?;
+        let files = ListFiles::new(self.data_dir.join("flow"), query::Query::from_str("")?)?;
         Ok(files
             .map(|f| {
                 let p = f?;

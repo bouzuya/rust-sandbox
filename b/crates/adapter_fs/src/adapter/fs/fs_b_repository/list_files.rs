@@ -1,24 +1,114 @@
 use std::{
+    collections::VecDeque,
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
 };
 
-pub struct ListFiles(Vec<PathBuf>);
+use query::{DateParam, Digit2, Digit4, Query};
+
+pub struct ListFiles {
+    root_dir: PathBuf,
+    query: Query,
+    queue: VecDeque<PathBuf>,
+}
 
 impl ListFiles {
-    pub fn new<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        Ok(ListFiles(if path.as_ref().is_dir() {
-            read_dir_sorted(path).map(|dir_entries| {
-                dir_entries
-                    .into_iter()
-                    .rev()
-                    .map(|dir_entry| dir_entry.path())
-                    .collect()
-            })?
-        } else {
-            vec![path.as_ref().to_path_buf()]
-        }))
+    pub fn new<P: AsRef<Path>>(path: P, query: Query) -> io::Result<Self> {
+        Ok(ListFiles {
+            root_dir: path.as_ref().to_path_buf(),
+            query,
+            queue: if path.as_ref().is_dir() {
+                read_dir_sorted(path).map(|dir_entries| {
+                    dir_entries
+                        .into_iter()
+                        .map(|dir_entry| dir_entry.path())
+                        .collect::<VecDeque<_>>()
+                })?
+            } else {
+                let mut queue = VecDeque::new();
+                queue.push_back(path.as_ref().to_path_buf());
+                queue
+            },
+        })
+    }
+
+    fn match_query<P: AsRef<Path>>(&self, path: P) -> bool {
+        let date_params = self
+            .query
+            .clone()
+            .into_iter()
+            .filter_map(|p| match p {
+                query::QueryParam::Date(d) => Some(d),
+                query::QueryParam::Tag(_) => None,
+            })
+            .collect::<Vec<DateParam>>();
+        if date_params.is_empty() {
+            return true;
+        }
+        if date_params.len() > 1 {
+            unimplemented!();
+        }
+        let q = match &date_params[0] {
+            DateParam::Single(d) => d,
+            DateParam::Range(_) => unimplemented!(),
+        };
+        let query_year = q.year();
+        let query_month = q.month();
+        let query_day_of_month = q.day_of_month();
+
+        let (year, month, day_of_month) = self.parse_path(path);
+        match (year, query_year) {
+            (None, _) => return true,
+            (Some(y1), Some(y2)) => {
+                if y1 != y2 {
+                    return false;
+                }
+            }
+            (Some(_), None) => {}
+        }
+        match (month, query_month) {
+            (None, _) => return true,
+            (Some(m1), Some(m2)) => {
+                if m1 != m2 {
+                    return false;
+                }
+            }
+            (Some(_), None) => {}
+        }
+        match (day_of_month, query_day_of_month) {
+            (None, _) => return true,
+            (Some(d1), Some(d2)) => {
+                if d1 != d2 {
+                    return false;
+                }
+            }
+            (Some(_), None) => {}
+        }
+
+        true
+    }
+
+    fn parse_path<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> (Option<Digit4>, Option<Digit2>, Option<Digit2>) {
+        let relative = path.as_ref().strip_prefix(self.root_dir.as_path()).unwrap(); // FIXME
+        let mut components = relative.components();
+        (
+            components
+                .next()
+                .and_then(|c| c.as_os_str().to_str())
+                .and_then(|s| s.parse::<Digit4>().ok()),
+            components
+                .next()
+                .and_then(|c| c.as_os_str().to_str())
+                .and_then(|s| s.parse::<Digit2>().ok()),
+            components
+                .next()
+                .and_then(|c| c.as_os_str().to_str())
+                .and_then(|s| s.parse::<Digit2>().ok()),
+        )
     }
 }
 
@@ -26,13 +116,14 @@ impl Iterator for ListFiles {
     type Item = io::Result<PathBuf>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(entry_path) = self.0.pop() {
+        while let Some(entry_path) = self.queue.pop_front() {
+            if !self.match_query(entry_path.as_path()) {
+                continue;
+            }
+
             if entry_path.is_dir() {
-                self.0.extend(match read_dir_sorted(entry_path) {
-                    Ok(dir_entries) => dir_entries
-                        .into_iter()
-                        .rev()
-                        .map(|dir_entry| dir_entry.path()),
+                self.queue.extend(match read_dir_sorted(entry_path) {
+                    Ok(dir_entries) => dir_entries.into_iter().map(|dir_entry| dir_entry.path()),
                     Err(err) => return Some(Err(err)),
                 });
                 continue;
@@ -97,7 +188,8 @@ mod tests {
     #[test]
     fn list_files_test() -> anyhow::Result<()> {
         let tempdir = setup()?;
-        let path_bufs = ListFiles::new(tempdir.path())?.collect::<io::Result<Vec<PathBuf>>>()?;
+        let path_bufs =
+            ListFiles::new(tempdir.path(), "".parse()?)?.collect::<io::Result<Vec<PathBuf>>>()?;
         assert_eq!(
             path_bufs,
             vec![

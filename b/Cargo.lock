@@ -9,6 +9,7 @@ dependencies = [
  "anyhow",
  "chrono",
  "entity",
+ "query",
  "serde",
  "serde_json",
  "tempfile",

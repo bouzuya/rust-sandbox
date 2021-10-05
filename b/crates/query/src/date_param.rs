@@ -32,7 +32,7 @@ impl std::fmt::Display for DateParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}",
+            "date:{}",
             match self {
                 DateParam::Single(s) => s.to_string(),
                 DateParam::Range(r) => r.to_string(),
@@ -63,6 +63,20 @@ impl std::convert::TryFrom<&str> for DateParam {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DateParamSingle(Option<Digit4>, Option<Digit2>, Option<Digit2>);
+
+impl DateParamSingle {
+    pub fn year(&self) -> Option<Digit4> {
+        self.0
+    }
+
+    pub fn month(&self) -> Option<Digit2> {
+        self.1
+    }
+
+    pub fn day_of_month(&self) -> Option<Digit2> {
+        self.2
+    }
+}
 
 impl std::fmt::Display for DateParamSingle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -185,6 +199,8 @@ pub fn parse(s: &str) -> IResult<&str, DateParam> {
 
 #[cfg(test)]
 mod tests {
+    use std::convert::TryFrom;
+
     use super::*;
 
     #[test]
@@ -200,6 +216,28 @@ mod tests {
         f("date:--02")?;
         f("date:---03")?;
         f("date:2021-02-03/2022-03-04")?;
+        Ok(())
+    }
+
+    #[test]
+    fn date_param_single_test() -> anyhow::Result<()> {
+        let year = Digit4::try_from(2021)?;
+        let month = Digit2::try_from(2)?;
+        let day_of_month = Digit2::try_from(3)?;
+        assert_eq!(
+            DateParam::from_str("date:2021-02-03")?,
+            DateParam::Single(DateParamSingle(Some(year), Some(month), Some(day_of_month))),
+        );
+        if let DateParam::Single(date_param_single) = DateParam::from_str("date:2021-02-03")? {
+            assert_eq!(date_param_single.year(), Some(year));
+            assert_eq!(date_param_single.month(), Some(month));
+            assert_eq!(date_param_single.day_of_month(), Some(day_of_month));
+        }
+        // TODO: "date:2021-02"
+        // TODO: "date:2021"
+        // TODO: "date:--02-03"
+        // TODO: "date:--02"
+        // TODO: "date:---03"
         Ok(())
     }
 }
