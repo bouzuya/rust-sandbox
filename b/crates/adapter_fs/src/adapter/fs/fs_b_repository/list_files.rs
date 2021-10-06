@@ -57,58 +57,65 @@ impl ListFiles {
         let query_month = q.month();
         let query_day_of_month = q.day_of_month();
 
-        let (year, month, day_of_month) = self.parse_path(path);
-        match (year, query_year) {
-            (None, _) => return true,
-            (Some(y1), Some(y2)) => {
-                if y1 != y2 {
-                    return false;
+        match self.parse_path(path) {
+            Err(_) => false,
+            Ok((year, month, day_of_month)) => {
+                match (year, query_year) {
+                    (None, _) => return true,
+                    (Some(y1), Some(y2)) => {
+                        if y1 != y2 {
+                            return false;
+                        }
+                    }
+                    (Some(_), None) => {}
                 }
-            }
-            (Some(_), None) => {}
-        }
-        match (month, query_month) {
-            (None, _) => return true,
-            (Some(m1), Some(m2)) => {
-                if m1 != m2 {
-                    return false;
+                match (month, query_month) {
+                    (None, _) => return true,
+                    (Some(m1), Some(m2)) => {
+                        if m1 != m2 {
+                            return false;
+                        }
+                    }
+                    (Some(_), None) => {}
                 }
-            }
-            (Some(_), None) => {}
-        }
-        match (day_of_month, query_day_of_month) {
-            (None, _) => return true,
-            (Some(d1), Some(d2)) => {
-                if d1 != d2 {
-                    return false;
+                match (day_of_month, query_day_of_month) {
+                    (None, _) => return true,
+                    (Some(d1), Some(d2)) => {
+                        if d1 != d2 {
+                            return false;
+                        }
+                    }
+                    (Some(_), None) => {}
                 }
-            }
-            (Some(_), None) => {}
-        }
 
-        true
+                true
+            }
+        }
     }
 
     fn parse_path<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> (Option<Digit4>, Option<Digit2>, Option<Digit2>) {
-        let relative = path.as_ref().strip_prefix(self.root_dir.as_path()).unwrap(); // FIXME
+    ) -> anyhow::Result<(Option<Digit4>, Option<Digit2>, Option<Digit2>)> {
+        let relative = path.as_ref().strip_prefix(self.root_dir.as_path())?;
         let mut components = relative.components();
-        (
+        Ok((
             components
                 .next()
                 .and_then(|c| c.as_os_str().to_str())
-                .and_then(|s| s.parse::<Digit4>().ok()),
+                .map(|s| s.parse::<Digit4>())
+                .transpose()?,
             components
                 .next()
                 .and_then(|c| c.as_os_str().to_str())
-                .and_then(|s| s.parse::<Digit2>().ok()),
+                .map(|s| s.parse::<Digit2>())
+                .transpose()?,
             components
                 .next()
                 .and_then(|c| c.as_os_str().to_str())
-                .and_then(|s| s.parse::<Digit2>().ok()),
-        )
+                .map(|s| s.parse::<Digit2>())
+                .transpose()?,
+        ))
     }
 }
 
@@ -151,7 +158,7 @@ mod tests {
 
     use std::fs;
 
-    use tempfile::TempDir;
+    use tempfile::{tempdir, TempDir};
 
     fn setup() -> anyhow::Result<TempDir> {
         let tempdir = tempfile::tempdir()?;
@@ -199,6 +206,28 @@ mod tests {
                 tempdir.path().join("dir2").join("file2"),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn list_files_query_test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+        let root_dir = temp_dir.path().join("data_dir").join("flow");
+        fs::create_dir_all(root_dir.as_path())?;
+        let d20210203 = root_dir.join("2021").join("02").join("03");
+        fs::create_dir_all(d20210203.as_path())?;
+        let f20210203 = d20210203.as_path().join("20210203T000000Z.json");
+        fs::write(f20210203.as_path(), "{}")?;
+        let d20210204 = root_dir.join("2021").join("02").join("04");
+        fs::create_dir_all(d20210204.as_path())?;
+        let f20210204 = d20210204.as_path().join("20210204T000000Z.json");
+        fs::write(f20210204.as_path(), "{}")?;
+        let path_bufs = ListFiles::new(root_dir.as_path(), "date:2021-02-03".parse()?)?
+            .collect::<io::Result<Vec<PathBuf>>>()?;
+        assert_eq!(path_bufs, vec![f20210203.clone()]);
+        let path_bufs = ListFiles::new(root_dir.as_path(), "date:2021-02".parse()?)?
+            .collect::<io::Result<Vec<PathBuf>>>()?;
+        assert_eq!(path_bufs, vec![f20210203, f20210204]);
         Ok(())
     }
 }
