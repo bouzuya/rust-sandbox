@@ -35,7 +35,7 @@ impl std::fmt::Display for QueryParam {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Query(Vec<QueryParam>);
 
 impl std::fmt::Display for Query {
@@ -113,6 +113,12 @@ mod tests {
                 QueryParam::Tag(TagParam::from_str("tag:abc")?),
             ]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn default_test() -> anyhow::Result<()> {
+        assert_eq!(Query::default(), Query::from_str("")?);
         Ok(())
     }
 }
