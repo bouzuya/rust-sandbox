@@ -195,8 +195,8 @@ mod tests {
     #[test]
     fn list_files_test() -> anyhow::Result<()> {
         let tempdir = setup()?;
-        let path_bufs =
-            ListFiles::new(tempdir.path(), "".parse()?)?.collect::<io::Result<Vec<PathBuf>>>()?;
+        let path_bufs = ListFiles::new(tempdir.path(), Query::default())?
+            .collect::<io::Result<Vec<PathBuf>>>()?;
         assert_eq!(
             path_bufs,
             vec![
