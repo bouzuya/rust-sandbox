@@ -81,10 +81,7 @@ impl DateParamSingle {
 impl std::fmt::Display for DateParamSingle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.0, &self.1, &self.2) {
-            (None, None, None) => write!(f, ""),
-            (None, None, Some(dd)) => write!(f, "---{}", dd),
-            (None, Some(mm), None) => write!(f, "--{}", mm),
-            (None, Some(mm), Some(dd)) => write!(f, "--{}-{}", mm, dd),
+            (None, _, _) => unreachable!(),
             (Some(yyyy), None, None) => write!(f, "{}", yyyy),
             (Some(_), None, Some(_)) => unreachable!(),
             (Some(yyyy), Some(mm), None) => write!(f, "{}-{}", yyyy, mm),
@@ -154,30 +151,6 @@ fn yyyy(s: &str) -> IResult<&str, DateParamSingle> {
     Ok((s, DateParamSingle(Some(y), None, None)))
 }
 
-fn mmdd(s: &str) -> IResult<&str, DateParamSingle> {
-    let (s, _) = char('-')(s)?;
-    let (s, _) = char('-')(s)?;
-    let (s, m) = digit2(s)?;
-    let (s, _) = char('-')(s)?;
-    let (s, d) = digit2(s)?;
-    Ok((s, DateParamSingle(None, Some(m), Some(d))))
-}
-
-fn mm(s: &str) -> IResult<&str, DateParamSingle> {
-    let (s, _) = char('-')(s)?;
-    let (s, _) = char('-')(s)?;
-    let (s, m) = digit2(s)?;
-    Ok((s, DateParamSingle(None, Some(m), None)))
-}
-
-fn dd(s: &str) -> IResult<&str, DateParamSingle> {
-    let (s, _) = char('-')(s)?;
-    let (s, _) = char('-')(s)?;
-    let (s, _) = char('-')(s)?;
-    let (s, d) = digit2(s)?;
-    Ok((s, DateParamSingle(None, None, Some(d))))
-}
-
 fn digit2(s: &str) -> IResult<&str, Digit2> {
     map_res(take_while_m_n(2, 2, is_digit), Digit2::from_str)(s)
 }
@@ -190,9 +163,7 @@ pub fn parse(s: &str) -> IResult<&str, DateParam> {
     let (s, _) = tag("date:")(s)?;
     let (s, date) = alt((
         map(date_range, DateParam::Range),
-        map(alt((yyyymmdd, yyyymm, yyyy, mmdd, mm, dd)), |d| {
-            DateParam::Single(d)
-        }),
+        map(alt((yyyymmdd, yyyymm, yyyy)), DateParam::Single),
     ))(s)?;
     Ok((s, date))
 }
@@ -212,9 +183,6 @@ mod tests {
         f("date:2021-02-03")?;
         f("date:2021-02")?;
         f("date:2021")?;
-        f("date:--02-03")?;
-        f("date:--02")?;
-        f("date:---03")?;
         f("date:2021-02-03/2022-03-04")?;
         Ok(())
     }
