@@ -1,6 +1,6 @@
 [package]
 name = "b"
-version = "0.10.17"
+version = "0.10.18"
 authors = ["bouzuya <m@bouzuya.net>"]
 edition = "2018"
 
