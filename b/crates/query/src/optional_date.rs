@@ -1,3 +1,5 @@
+use chrono::{NaiveDate, NaiveDateTime};
+
 use crate::{Digit2, Digit4};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,6 +28,54 @@ impl OptionalDate {
 
     pub fn day_of_month(&self) -> Option<Digit2> {
         self.2
+    }
+
+    pub fn naive_date_time_range(&self) -> (NaiveDateTime, NaiveDateTime) {
+        let date_range = match (self.0, self.1, self.2) {
+            (None, None, None) => unreachable!(),
+            (None, None, Some(_)) => unreachable!(),
+            (None, Some(_), None) => unreachable!(),
+            (None, Some(_), Some(_)) => unreachable!(),
+            (Some(yyyy), None, None) => {
+                let year = u16::from(yyyy) as i32;
+                let mn = NaiveDate::from_ymd(year, 1, 1);
+                let mx = NaiveDate::from_ymd(year, 12, 31);
+                (mn, mx)
+            }
+            (Some(_), None, Some(_)) => unreachable!(),
+            (Some(yyyy), Some(mm), None) => {
+                let year = u16::from(yyyy) as i32;
+                let month = u8::from(mm) as u32;
+                let mn = NaiveDate::from_ymd(year, month, 1);
+                let last_day_of_month = NaiveDate::from_ymd(
+                    match month {
+                        12 => year + 1,
+                        _ => year,
+                    },
+                    match month {
+                        12 => 1,
+                        _ => month + 1,
+                    },
+                    1,
+                )
+                .signed_duration_since(mn)
+                .num_days() as u32;
+                let mx = NaiveDate::from_ymd(year, month, last_day_of_month);
+                (mn, mx)
+            }
+            (Some(yyyy), Some(mm), Some(dd)) => {
+                let year = u16::from(yyyy) as i32;
+                let month = u8::from(mm) as u32;
+                let day_of_month = u8::from(dd) as u32;
+                let mn = NaiveDate::from_ymd(year, month, day_of_month);
+                let mx = mn;
+                (mn, mx)
+            }
+        };
+        (
+            date_range.0.and_hms(0, 0, 0),
+            date_range.1.and_hms(23, 59, 59),
+        )
     }
 }
 

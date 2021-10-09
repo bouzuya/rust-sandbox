@@ -1,6 +1,6 @@
-use std::{cmp, str::FromStr};
+use std::str::FromStr;
 
-use chrono::{NaiveDate, NaiveDateTime};
+use chrono::NaiveDateTime;
 use nom::{
     branch::alt,
     bytes::complete::tag,
@@ -30,63 +30,13 @@ impl Query {
         for query_param in self.clone().into_iter() {
             match query_param {
                 QueryParam::Date(datea_param) => match datea_param {
-                    crate::DateParam::Single(date_param_single) => {
-                        let date_range = match (
-                            date_param_single.year(),
-                            date_param_single.month(),
-                            date_param_single.day_of_month(),
-                        ) {
-                            (None, None, None) => continue,
-                            (None, None, Some(_)) => unreachable!(),
-                            (None, Some(_), None) => unreachable!(),
-                            (None, Some(_), Some(_)) => unreachable!(),
-                            (Some(yyyy), None, None) => {
-                                let year = u16::from(yyyy) as i32;
-                                let mn = NaiveDate::from_ymd(year, 1, 1);
-                                let mx = NaiveDate::from_ymd(year, 12, 31);
-                                (mn, mx)
-                            }
-                            (Some(_), None, Some(_)) => unreachable!(),
-                            (Some(yyyy), Some(mm), None) => {
-                                let year = u16::from(yyyy) as i32;
-                                let month = u8::from(mm) as u32;
-                                let mn = NaiveDate::from_ymd(year, month, 1);
-                                let last_day_of_month = NaiveDate::from_ymd(
-                                    match month {
-                                        12 => year + 1,
-                                        _ => year,
-                                    },
-                                    match month {
-                                        12 => 1,
-                                        _ => month + 1,
-                                    },
-                                    1,
-                                )
-                                .signed_duration_since(mn)
-                                .num_days()
-                                    as u32;
-                                let mx = NaiveDate::from_ymd(year, month, last_day_of_month);
-                                (mn, mx)
-                            }
-                            (Some(yyyy), Some(mm), Some(dd)) => {
-                                let year = u16::from(yyyy) as i32;
-                                let month = u8::from(mm) as u32;
-                                let day_of_month = u8::from(dd) as u32;
-                                let mn = NaiveDate::from_ymd(year, month, day_of_month);
-                                let mx = mn;
-                                (mn, mx)
-                            }
-                        };
-                        let date_time_range = (
-                            date_range.0.and_hms(0, 0, 0),
-                            date_range.1.and_hms(23, 59, 59),
-                        );
-                        let (mn, mx) = date_time_range;
+                    crate::DateParam::Single(optional_date) => {
+                        let (mn, mx) = optional_date.naive_date_time_range();
                         if max < mn || mx < min {
                             return empty;
                         }
-                        min = cmp::max(min, mn);
-                        max = cmp::min(max, mx);
+                        min = min.max(mn);
+                        max = max.min(mx);
                         if min > max {
                             return empty;
                         }
