@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use query::{DateParam, Digit2, Digit4, Query};
+use query::{DateParam, Digit2, Digit4, OptionalDate, Query};
 
 pub struct ListFiles {
     root_dir: PathBuf,
@@ -34,61 +34,28 @@ impl ListFiles {
     }
 
     fn match_query<P: AsRef<Path>>(&self, path: P) -> bool {
-        let date_params = self
-            .query
-            .clone()
-            .into_iter()
-            .filter_map(|p| match p {
-                query::QueryParam::Date(d) => Some(d),
-                query::QueryParam::Tag(_) => None,
-            })
-            .collect::<Vec<DateParam>>();
-        if date_params.is_empty() {
-            return true;
+        let (query_since, query_until) = self.query.naive_date_time_range();
+        let is_empty = query_since > query_until;
+        if is_empty {
+            return false;
         }
-        if date_params.len() > 1 {
-            unimplemented!();
-        }
-        let q = match &date_params[0] {
-            DateParam::Single(d) => d,
-            DateParam::Range(_) => unimplemented!(),
-        };
-        let query_year = q.year();
-        let query_month = q.month();
-        let query_day_of_month = q.day_of_month();
 
         match self.parse_path(path) {
             Err(_) => false,
             Ok((year, month, day_of_month)) => {
-                match (year, query_year) {
-                    (None, _) => return true,
-                    (Some(y1), Some(y2)) => {
-                        if y1 != y2 {
-                            return false;
-                        }
-                    }
-                    (Some(_), None) => {}
-                }
-                match (month, query_month) {
-                    (None, _) => return true,
-                    (Some(m1), Some(m2)) => {
-                        if m1 != m2 {
-                            return false;
-                        }
-                    }
-                    (Some(_), None) => {}
-                }
-                match (day_of_month, query_day_of_month) {
-                    (None, _) => return true,
-                    (Some(d1), Some(d2)) => {
-                        if d1 != d2 {
-                            return false;
-                        }
-                    }
-                    (Some(_), None) => {}
-                }
+                let optional_date = match (year, month, day_of_month) {
+                    (None, None, None) => return false,
+                    (None, None, Some(_)) => unreachable!(),
+                    (None, Some(_), None) => unreachable!(),
+                    (None, Some(_), Some(_)) => unreachable!(),
+                    (Some(yyyy), None, None) => OptionalDate::from_yyyy(yyyy),
+                    (Some(_), None, Some(_)) => unreachable!(),
+                    (Some(yyyy), Some(mm), None) => OptionalDate::from_yyyymm(yyyy, mm),
+                    (Some(yyyy), Some(mm), Some(dd)) => OptionalDate::from_yyyymmdd(yyyy, mm, dd),
+                };
 
-                true
+                let (path_since, path_until) = optional_date.naive_date_time_range();
+                !(query_until < path_since || path_until < query_since)
             }
         }
     }
