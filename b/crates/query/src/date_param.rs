@@ -10,7 +10,7 @@ use nom::{
 };
 use thiserror::Error;
 
-use crate::{Digit2, Digit4};
+use crate::{Digit2, Digit4, OptionalDate};
 
 // ParseQueryError
 
@@ -24,7 +24,7 @@ pub enum ParseDateParamError {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DateParam {
-    Single(DateParamSingle),
+    Single(OptionalDate),
     Range(DateParamRange),
 }
 
@@ -56,37 +56,6 @@ impl std::convert::TryFrom<&str> for DateParam {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         DateParam::from_str(value)
-    }
-}
-
-// DateParamSingle
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DateParamSingle(Option<Digit4>, Option<Digit2>, Option<Digit2>);
-
-impl DateParamSingle {
-    pub fn year(&self) -> Option<Digit4> {
-        self.0
-    }
-
-    pub fn month(&self) -> Option<Digit2> {
-        self.1
-    }
-
-    pub fn day_of_month(&self) -> Option<Digit2> {
-        self.2
-    }
-}
-
-impl std::fmt::Display for DateParamSingle {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match (&self.0, &self.1, &self.2) {
-            (None, _, _) => unreachable!(),
-            (Some(yyyy), None, None) => write!(f, "{}", yyyy),
-            (Some(_), None, Some(_)) => unreachable!(),
-            (Some(yyyy), Some(mm), None) => write!(f, "{}-{}", yyyy, mm),
-            (Some(yyyy), Some(mm), Some(dd)) => write!(f, "{}-{}-{}", yyyy, mm, dd),
-        }
     }
 }
 
@@ -130,25 +99,25 @@ fn date_range(s: &str) -> IResult<&str, DateParamRange> {
     )(s)
 }
 
-fn yyyymmdd(s: &str) -> IResult<&str, DateParamSingle> {
+fn yyyymmdd(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
     let (s, _) = char('-')(s)?;
     let (s, d) = digit2(s)?;
-    Ok((s, DateParamSingle(Some(y), Some(m), Some(d))))
+    Ok((s, OptionalDate::from_yyyymmdd(y, m, d)))
 }
 
-fn yyyymm(s: &str) -> IResult<&str, DateParamSingle> {
+fn yyyymm(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = digit2(s)?;
-    Ok((s, DateParamSingle(Some(y), Some(m), None)))
+    Ok((s, OptionalDate::from_yyyymm(y, m)))
 }
 
-fn yyyy(s: &str) -> IResult<&str, DateParamSingle> {
+fn yyyy(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
-    Ok((s, DateParamSingle(Some(y), None, None)))
+    Ok((s, OptionalDate::from_yyyy(y)))
 }
 
 fn digit2(s: &str) -> IResult<&str, Digit2> {
@@ -194,7 +163,7 @@ mod tests {
         let day_of_month = Digit2::try_from(3)?;
         assert_eq!(
             DateParam::from_str("date:2021-02-03")?,
-            DateParam::Single(DateParamSingle(Some(year), Some(month), Some(day_of_month))),
+            DateParam::Single(OptionalDate::from_yyyymmdd(year, month, day_of_month)),
         );
         if let DateParam::Single(date_param_single) = DateParam::from_str("date:2021-02-03")? {
             assert_eq!(date_param_single.year(), Some(year));
