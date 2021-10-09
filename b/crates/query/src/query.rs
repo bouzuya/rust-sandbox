@@ -8,32 +8,13 @@ use nom::{
 
 use super::date_param::parse as date_param;
 use super::tag_param::parse as tag_param;
-use crate::{DateParam, TagParam};
+use crate::QueryParam;
 
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 #[error("parse query error")]
 pub struct ParseQueryError;
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum QueryParam {
-    Date(DateParam),
-    Tag(TagParam),
-}
-
-impl std::fmt::Display for QueryParam {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                QueryParam::Date(d) => d.to_string(),
-                QueryParam::Tag(t) => t.to_string(),
-            }
-        )
-    }
-}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct Query(Vec<QueryParam>);
@@ -86,6 +67,8 @@ impl IntoIterator for Query {
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    use crate::{DateParam, TagParam};
 
     use super::*;
 
