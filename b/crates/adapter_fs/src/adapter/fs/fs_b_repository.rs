@@ -4,6 +4,7 @@ use self::list_files::ListFiles;
 use anyhow::{bail, Context};
 use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use entity::{BId, BMeta};
+use query::Query;
 use std::{
     ffi::OsStr,
     fs::{self, File},
@@ -160,7 +161,22 @@ impl FsBRepository {
     }
 
     pub fn find_all_ids(&self) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
-        let files = ListFiles::new(self.data_dir.join("flow"), query::Query::default())?;
+        self.find_ids_by_query(query::Query::default())
+    }
+
+    pub fn find_ids_iter(
+        &self,
+        date: &str,
+    ) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
+        let q = query::Query::from_str(&format!("date:{}", date))?;
+        self.find_ids_by_query(q)
+    }
+
+    pub fn find_ids_by_query(
+        &self,
+        query: query::Query,
+    ) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
+        let files = ListFiles::new(self.data_dir.join("flow"), query, self.time_zone_offset)?;
         Ok(files
             .map(|f| {
                 let p = f?;
@@ -181,25 +197,6 @@ impl FsBRepository {
                 Ok(Some(bid)) => Some(Ok(bid)),
                 Err(err) => Some(Err(err)),
             }))
-    }
-
-    pub fn find_ids_iter(
-        &self,
-        date: &str,
-    ) -> anyhow::Result<impl Iterator<Item = anyhow::Result<BId>>> {
-        let date_time_range = self.utc_date_time_range(date)?;
-        let timestamp_range =
-            date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
-        Ok(self.find_all_ids()?.filter_map(move |bid| match bid {
-            Ok(bid) => {
-                if timestamp_range.contains(&bid.to_timestamp()) {
-                    Some(Ok(bid))
-                } else {
-                    None
-                }
-            }
-            Err(err) => Some(Err(err)),
-        }))
     }
 
     fn dirs(&self, date_time_range: &DateTimeRange) -> Vec<PathBuf> {

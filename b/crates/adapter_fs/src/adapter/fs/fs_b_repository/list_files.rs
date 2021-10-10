@@ -3,21 +3,31 @@ use std::{
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
-use query::{DateParam, Digit2, Digit4, OptionalDate, Query};
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
+use entity::BId;
+use query::{Digit2, Digit4, OptionalDate, Query};
+use use_case::TimeZoneOffset;
 
 pub struct ListFiles {
     root_dir: PathBuf,
     query: Query,
+    query_time_zone_offset: TimeZoneOffset,
     queue: VecDeque<PathBuf>,
 }
 
 impl ListFiles {
-    pub fn new<P: AsRef<Path>>(path: P, query: Query) -> io::Result<Self> {
+    pub fn new<P: AsRef<Path>>(
+        path: P,
+        query: Query,
+        query_time_zone_offset: TimeZoneOffset,
+    ) -> io::Result<Self> {
         Ok(ListFiles {
             root_dir: path.as_ref().to_path_buf(),
             query,
+            query_time_zone_offset,
             queue: if path.as_ref().is_dir() {
                 read_dir_sorted(path).map(|dir_entries| {
                     dir_entries
@@ -35,14 +45,24 @@ impl ListFiles {
 
     fn match_query<P: AsRef<Path>>(&self, path: P) -> bool {
         let (query_since, query_until) = self.query.naive_date_time_range();
+        let query_since = DateTime::<Utc>::from(
+            FixedOffset::from(self.query_time_zone_offset)
+                .from_local_datetime(&query_since)
+                .unwrap(),
+        ); // TODO
+        let query_until = DateTime::<Utc>::from(
+            FixedOffset::from(self.query_time_zone_offset)
+                .from_local_datetime(&query_until)
+                .unwrap(),
+        ); // TODO
         let is_empty = query_since > query_until;
         if is_empty {
             return false;
         }
 
         match self.parse_path(path) {
-            Err(_) => false,
-            Ok((year, month, day_of_month)) => {
+            Err(_) => return false,
+            Ok((year, month, day_of_month, file)) => {
                 let optional_date = match (year, month, day_of_month) {
                     (None, None, None) => return false,
                     (None, None, Some(_)) => unreachable!(),
@@ -55,15 +75,34 @@ impl ListFiles {
                 };
 
                 let (path_since, path_until) = optional_date.naive_date_time_range();
-                !(query_until < path_since || path_until < query_since)
+                let path_since = DateTime::<Utc>::from_utc(path_since, Utc);
+                let path_until = DateTime::<Utc>::from_utc(path_until, Utc);
+                if query_until < path_since || path_until < query_since {
+                    return false;
+                }
+
+                // TODO
+                if let Some(file) = file {
+                    let s = file.rsplit_once('.').unwrap().0;
+                    let bid = BId::from_str(s).unwrap();
+                    return (query_since.timestamp()..=query_until.timestamp())
+                        .contains(&bid.to_timestamp());
+                }
             }
         }
+
+        true
     }
 
     fn parse_path<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> anyhow::Result<(Option<Digit4>, Option<Digit2>, Option<Digit2>)> {
+    ) -> anyhow::Result<(
+        Option<Digit4>,
+        Option<Digit2>,
+        Option<Digit2>,
+        Option<String>,
+    )> {
         let relative = path.as_ref().strip_prefix(self.root_dir.as_path())?;
         let mut components = relative.components();
         Ok((
@@ -82,6 +121,10 @@ impl ListFiles {
                 .and_then(|c| c.as_os_str().to_str())
                 .map(|s| s.parse::<Digit2>())
                 .transpose()?,
+            components
+                .next()
+                .and_then(|c| c.as_os_str().to_str())
+                .map(|s| s.to_owned()),
         ))
     }
 }
@@ -162,8 +205,9 @@ mod tests {
     #[test]
     fn list_files_test() -> anyhow::Result<()> {
         let tempdir = setup()?;
-        let path_bufs = ListFiles::new(tempdir.path(), Query::default())?
-            .collect::<io::Result<Vec<PathBuf>>>()?;
+        let path_bufs =
+            ListFiles::new(tempdir.path(), Query::default(), TimeZoneOffset::default())?
+                .collect::<io::Result<Vec<PathBuf>>>()?;
         assert_eq!(
             path_bufs,
             vec![
@@ -189,11 +233,19 @@ mod tests {
         fs::create_dir_all(d20210204.as_path())?;
         let f20210204 = d20210204.as_path().join("20210204T000000Z.json");
         fs::write(f20210204.as_path(), "{}")?;
-        let path_bufs = ListFiles::new(root_dir.as_path(), "date:2021-02-03".parse()?)?
-            .collect::<io::Result<Vec<PathBuf>>>()?;
+        let path_bufs = ListFiles::new(
+            root_dir.as_path(),
+            "date:2021-02-03".parse()?,
+            TimeZoneOffset::default(),
+        )?
+        .collect::<io::Result<Vec<PathBuf>>>()?;
         assert_eq!(path_bufs, vec![f20210203.clone()]);
-        let path_bufs = ListFiles::new(root_dir.as_path(), "date:2021-02".parse()?)?
-            .collect::<io::Result<Vec<PathBuf>>>()?;
+        let path_bufs = ListFiles::new(
+            root_dir.as_path(),
+            "date:2021-02".parse()?,
+            TimeZoneOffset::default(),
+        )?
+        .collect::<io::Result<Vec<PathBuf>>>()?;
         assert_eq!(path_bufs, vec![f20210203, f20210204]);
         Ok(())
     }
