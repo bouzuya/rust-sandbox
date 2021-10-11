@@ -87,34 +87,34 @@ mod tests {
     use super::*;
 
     #[test]
-    fn month() {
-        assert_eq!(
-            YearMonth::from_str("2021-01").unwrap().month(),
-            Month::from_str("01").unwrap()
-        );
+    fn month_test() -> anyhow::Result<()> {
+        let year = Year::from_str("2021")?;
+        let month = Month::from_str("01")?;
+        let year_month = YearMonth::new(year, month);
+        assert_eq!(year_month.month(), month);
+        Ok(())
     }
 
     #[test]
-    fn new() {
-        assert_eq!(
-            YearMonth::new(
-                Year::from_str("2021").unwrap(),
-                Month::from_str("01").unwrap()
-            ),
-            YearMonth::from_str("2021-01").unwrap()
-        );
+    fn new_test() -> anyhow::Result<()> {
+        let year = Year::from_str("2021")?;
+        let month = Month::from_str("01")?;
+        let year_month = YearMonth::new(year, month);
+        assert_eq!(year_month, YearMonth::from_str("2021-01")?);
+        Ok(())
     }
 
     #[test]
-    fn year() {
-        assert_eq!(
-            YearMonth::from_str("2021-01").unwrap().year(),
-            Year::from_str("2021").unwrap()
-        );
+    fn year_test() -> anyhow::Result<()> {
+        let year = Year::from_str("2021")?;
+        let month = Month::from_str("01")?;
+        let year_month = YearMonth::new(year, month);
+        assert_eq!(year_month.year(), year);
+        Ok(())
     }
 
     #[test]
-    fn str_convert() {
+    fn str_conversion_test() {
         type E = ParseYearMonthError;
         let f = |s| YearMonth::from_str(s);
         assert_eq!(
@@ -128,21 +128,24 @@ mod tests {
     }
 
     #[test]
-    fn last_day_of_month() {
-        let f = |s: &str| -> DayOfMonth { YearMonth::from_str(s).unwrap().last_day_of_month() };
-        let d = |d: u8| -> DayOfMonth { DayOfMonth::try_from(d).unwrap() };
-        assert_eq!(f("1999-01"), d(31));
-        assert_eq!(f("1999-02"), d(28));
-        assert_eq!(f("1999-03"), d(31));
-        assert_eq!(f("1999-04"), d(30));
-        assert_eq!(f("1999-05"), d(31));
-        assert_eq!(f("1999-06"), d(30));
-        assert_eq!(f("1999-07"), d(31));
-        assert_eq!(f("1999-08"), d(31));
-        assert_eq!(f("1999-09"), d(30));
-        assert_eq!(f("1999-10"), d(31));
-        assert_eq!(f("1999-11"), d(30));
-        assert_eq!(f("1999-12"), d(31));
-        assert_eq!(f("2000-02"), d(29));
+    fn last_day_of_month_test() -> anyhow::Result<()> {
+        let f = |s: &str| -> anyhow::Result<DayOfMonth> {
+            Ok(YearMonth::from_str(s)?.last_day_of_month())
+        };
+        let d = |d: &str| -> anyhow::Result<DayOfMonth> { Ok(DayOfMonth::from_str(d)?) };
+        assert_eq!(f("1999-01")?, d("31")?);
+        assert_eq!(f("1999-02")?, d("28")?);
+        assert_eq!(f("1999-03")?, d("31")?);
+        assert_eq!(f("1999-04")?, d("30")?);
+        assert_eq!(f("1999-05")?, d("31")?);
+        assert_eq!(f("1999-06")?, d("30")?);
+        assert_eq!(f("1999-07")?, d("31")?);
+        assert_eq!(f("1999-08")?, d("31")?);
+        assert_eq!(f("1999-09")?, d("30")?);
+        assert_eq!(f("1999-10")?, d("31")?);
+        assert_eq!(f("1999-11")?, d("30")?);
+        assert_eq!(f("1999-12")?, d("31")?);
+        assert_eq!(f("2000-02")?, d("29")?);
+        Ok(())
     }
 }

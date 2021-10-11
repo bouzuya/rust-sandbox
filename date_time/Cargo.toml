@@ -7,3 +7,6 @@ edition = "2018"
 
 [dependencies]
 thiserror = "1.0.30"
+
+[dev-dependencies]
+anyhow = "1.0.44"
