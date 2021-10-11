@@ -74,16 +74,14 @@ mod tests {
 
     #[test]
     fn is_leap_year() {
-        let f = |y: u16| Year::try_from(y).unwrap().is_leap_year();
-        assert_eq!(f(2000), true);
-        assert_eq!(f(2004), true);
-        assert_eq!(f(2100), false);
+        let f = |y: u16| Year::try_from(y).map(|y| Year::is_leap_year(&y));
+        assert_eq!(f(2000), Ok(true));
+        assert_eq!(f(2004), Ok(true));
+        assert_eq!(f(2100), Ok(false));
     }
 
     #[test]
-    fn str_convert() {
-        // str -(from_str / parse)-> Year
-        // str <-(to_string & as_str)- Year
+    fn str_conversion_test() {
         type E = ParseYearError;
         let f = |s: &str| s.parse::<Year>();
         assert_eq!(f("1970").map(|y| y.to_string()), Ok("1970".to_string()));
@@ -97,14 +95,12 @@ mod tests {
     }
 
     #[test]
-    fn u16_convert() {
-        // u16 -(try_from)-> Year
-        // u16 <-(from)- Year
+    fn u16_conversion_test() {
         type E = TryFromYearError;
         let f = |y: u16| Year::try_from(y);
         assert_eq!(f(1969_u16), Err(E::OutOfRange));
-        assert_eq!(f(1970_u16).map(|m| u16::from(m)), Ok(1970_u16));
-        assert_eq!(f(9999_u16).map(|m| u16::from(m)), Ok(9999_u16));
+        assert_eq!(f(1970_u16).map(u16::from), Ok(1970_u16));
+        assert_eq!(f(9999_u16).map(u16::from), Ok(9999_u16));
         assert_eq!(f(10000_u16), Err(E::OutOfRange));
     }
 }
