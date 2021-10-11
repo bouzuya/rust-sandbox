@@ -32,7 +32,27 @@ pub enum ParseDateError {
     ParseYear(ParseYearError),
 }
 
+#[derive(Debug, Eq, Error, PartialEq)]
+#[error("invalid local date error")]
+pub struct InvalidLocalDateError;
+
 impl LocalDate {
+    pub fn from_ymd(
+        year: Year,
+        month: Month,
+        day_of_month: DayOfMonth,
+    ) -> Result<Self, InvalidLocalDateError> {
+        let year_month = YearMonth::new(year, month);
+        if day_of_month > year_month.last_day_of_month() {
+            return Err(InvalidLocalDateError);
+        }
+        Ok(Self {
+            year,
+            month,
+            day_of_month,
+        })
+    }
+
     pub fn day_of_month(&self) -> DayOfMonth {
         self.day_of_month
     }
@@ -95,6 +115,27 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn from_ymd_test() -> anyhow::Result<()> {
+        assert_eq!(
+            LocalDate::from_ymd(
+                Year::from_str("2021")?,
+                Month::from_str("02")?,
+                DayOfMonth::from_str("03")?
+            )?,
+            LocalDate::from_str("2021-02-03")?
+        );
+        assert!(matches!(
+            LocalDate::from_ymd(
+                Year::from_str("2021")?,
+                Month::from_str("02")?,
+                DayOfMonth::from_str("31")?
+            ),
+            Err(InvalidLocalDateError)
+        ));
+        Ok(())
+    }
 
     #[test]
     fn str_conversion_test() {
