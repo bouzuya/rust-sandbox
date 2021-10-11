@@ -67,9 +67,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn str_convert() {
-        // str -(from_str / parse)-> Month
-        // str <-(to_string & as_str)- Month
+    fn str_conversion_test() {
         type E = ParseMonthError;
         let f = |s: &str| s.parse::<Month>();
         assert_eq!(f("01").map(|m| m.to_string()), Ok("01".to_string()));
@@ -84,14 +82,12 @@ mod tests {
     }
 
     #[test]
-    fn u8_convert() {
-        // u8 -(try_from)-> Month
-        // u8 <-(from)- Month
+    fn u8_conversion_test() {
         type E = TryFromMonthError;
         let f = |d: u8| Month::try_from(d);
         assert_eq!(f(0_u8), Err(E::OutOfRange));
-        assert_eq!(f(1_u8).map(|m| u8::from(m)), Ok(1_u8));
-        assert_eq!(f(12_u8).map(|m| u8::from(m)), Ok(12_u8));
+        assert_eq!(f(1_u8).map(u8::from), Ok(1_u8));
+        assert_eq!(f(12_u8).map(u8::from), Ok(12_u8));
         assert_eq!(f(13_u8), Err(E::OutOfRange));
     }
 }
