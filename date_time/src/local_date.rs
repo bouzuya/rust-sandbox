@@ -17,7 +17,7 @@ pub struct LocalDate {
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-pub enum ParseDateError {
+pub enum ParseLocalDateError {
     #[error("invalid day of month")]
     InvalidDayOfMonth,
     #[error("invalid format")]
@@ -77,7 +77,7 @@ impl std::fmt::Display for LocalDate {
 }
 
 impl std::str::FromStr for LocalDate {
-    type Err = ParseDateError;
+    type Err = ParseLocalDateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 10 {
@@ -139,7 +139,7 @@ mod tests {
 
     #[test]
     fn str_conversion_test() {
-        type E = ParseDateError;
+        type E = ParseLocalDateError;
         let f = |s: &str| LocalDate::from_str(s);
 
         assert!(matches!(f("2021-01-02"), Ok(_)));
