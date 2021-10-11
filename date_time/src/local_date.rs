@@ -10,7 +10,7 @@ pub use self::year_month::{ParseYearMonthError, YearMonth};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Date {
+pub struct LocalDate {
     year: Year,
     month: Month,
     day_of_month: DayOfMonth,
@@ -32,7 +32,7 @@ pub enum ParseDateError {
     ParseYear(ParseYearError),
 }
 
-impl Date {
+impl LocalDate {
     pub fn day_of_month(&self) -> DayOfMonth {
         self.day_of_month
     }
@@ -50,13 +50,13 @@ impl Date {
     }
 }
 
-impl std::fmt::Display for Date {
+impl std::fmt::Display for LocalDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}-{}", self.year, self.month, self.day_of_month)
     }
 }
 
-impl std::str::FromStr for Date {
+impl std::str::FromStr for LocalDate {
     type Err = ParseDateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -82,7 +82,7 @@ impl std::str::FromStr for Date {
         if day_of_month > year_month.last_day_of_month() {
             return Err(Self::Err::InvalidDayOfMonth);
         }
-        Ok(Date {
+        Ok(LocalDate {
             year: year_month.year(),
             month: year_month.month(),
             day_of_month,
@@ -97,9 +97,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_str() {
+    fn str_conversion_test() {
         type E = ParseDateError;
-        let f = |s: &str| Date::from_str(s);
+        let f = |s: &str| LocalDate::from_str(s);
 
         assert!(matches!(f("2021-01-02"), Ok(_)));
         assert!(matches!(f("20021-01-02"), Err(E::InvalidLength)));
@@ -109,37 +109,38 @@ mod tests {
         assert!(matches!(f("2021-13-02"), Err(E::ParseMonth(_))));
         assert!(matches!(f("2021-01-32"), Err(E::ParseDayOfMonth(_))));
         assert!(matches!(f("2021-02-29"), Err(E::InvalidDayOfMonth)));
-    }
 
-    #[test]
-    fn day_of_month() {
-        let d = Date::from_str("2021-01-02").unwrap();
-        assert_eq!(d.day_of_month(), DayOfMonth::from_str("02").unwrap());
-    }
-
-    #[test]
-    fn month() {
-        let d = Date::from_str("2021-01-02").unwrap();
-        assert_eq!(d.month(), Month::from_str("01").unwrap());
-    }
-
-    #[test]
-    fn to_string() {
         assert_eq!(
-            Date::from_str("2021-01-02").unwrap().to_string(),
-            "2021-01-02".to_string()
+            f("2021-01-02").map(|d| d.to_string()),
+            Ok("2021-01-02".to_string())
         );
     }
 
     #[test]
-    fn year() {
-        let d = Date::from_str("2021-01-02").unwrap();
-        assert_eq!(d.year(), Year::from_str("2021").unwrap());
+    fn day_of_month_test() -> anyhow::Result<()> {
+        let d = LocalDate::from_str("2021-01-02")?;
+        assert_eq!(d.day_of_month(), DayOfMonth::from_str("02")?);
+        Ok(())
     }
 
     #[test]
-    fn year_month() {
-        let d = Date::from_str("2021-01-02").unwrap();
-        assert_eq!(d.year_month(), YearMonth::from_str("2021-01").unwrap());
+    fn month_test() -> anyhow::Result<()> {
+        let d = LocalDate::from_str("2021-01-02")?;
+        assert_eq!(d.month(), Month::from_str("01")?);
+        Ok(())
+    }
+
+    #[test]
+    fn year_test() -> anyhow::Result<()> {
+        let d = LocalDate::from_str("2021-01-02")?;
+        assert_eq!(d.year(), Year::from_str("2021")?);
+        Ok(())
+    }
+
+    #[test]
+    fn year_month_test() -> anyhow::Result<()> {
+        let d = LocalDate::from_str("2021-01-02")?;
+        assert_eq!(d.year_month(), YearMonth::from_str("2021-01")?);
+        Ok(())
     }
 }
