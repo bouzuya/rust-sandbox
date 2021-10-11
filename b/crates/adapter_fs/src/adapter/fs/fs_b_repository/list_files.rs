@@ -1,5 +1,6 @@
 use std::{
     collections::VecDeque,
+    ffi::OsStr,
     fs::{self, DirEntry},
     io,
     path::{Path, PathBuf},
@@ -44,49 +45,51 @@ impl ListFiles {
     }
 
     fn match_query<P: AsRef<Path>>(&self, path: P) -> bool {
-        let (query_since, query_until) = self.query.naive_date_time_range();
-        let query_since = DateTime::<Utc>::from(
-            FixedOffset::from(self.query_time_zone_offset)
+        let (query_since, query_until) = {
+            let (query_since, query_until) = self.query.naive_date_time_range();
+            let is_empty = query_since > query_until;
+            if is_empty {
+                return false;
+            }
+            let query_since_opt = FixedOffset::from(self.query_time_zone_offset)
                 .from_local_datetime(&query_since)
-                .unwrap(),
-        ); // TODO
-        let query_until = DateTime::<Utc>::from(
-            FixedOffset::from(self.query_time_zone_offset)
+                .single()
+                .map(DateTime::<Utc>::from);
+            let query_since = match query_since_opt {
+                Some(dt) => dt,
+                None => return false,
+            };
+            let query_until_opt = FixedOffset::from(self.query_time_zone_offset)
                 .from_local_datetime(&query_until)
-                .unwrap(),
-        ); // TODO
-        let is_empty = query_since > query_until;
-        if is_empty {
+                .single()
+                .map(DateTime::<Utc>::from);
+            let query_until = match query_until_opt {
+                Some(dt) => dt,
+                None => return false,
+            };
+            (query_since, query_until)
+        };
+
+        let out_of_range_dir = self
+            .parse_path_date_range(path.as_ref())
+            .map(|(path_since, path_until)| !(query_until < path_since || path_until < query_since))
+            .unwrap_or(false);
+        if !out_of_range_dir {
             return false;
         }
 
-        match self.parse_path(path) {
-            Err(_) => return false,
-            Ok((year, month, day_of_month, file)) => {
-                let optional_date = match (year, month, day_of_month) {
-                    (None, None, None) => return false,
-                    (None, None, Some(_)) => unreachable!(),
-                    (None, Some(_), None) => unreachable!(),
-                    (None, Some(_), Some(_)) => unreachable!(),
-                    (Some(yyyy), None, None) => OptionalDate::from_yyyy(yyyy),
-                    (Some(_), None, Some(_)) => unreachable!(),
-                    (Some(yyyy), Some(mm), None) => OptionalDate::from_yyyymm(yyyy, mm),
-                    (Some(yyyy), Some(mm), Some(dd)) => OptionalDate::from_yyyymmdd(yyyy, mm, dd),
-                };
-
-                let (path_since, path_until) = optional_date.naive_date_time_range();
-                let path_since = DateTime::<Utc>::from_utc(path_since, Utc);
-                let path_until = DateTime::<Utc>::from_utc(path_until, Utc);
-                if query_until < path_since || path_until < query_since {
+        let extension = path.as_ref().extension();
+        if extension == Some(OsStr::new("json")) || extension == Some(OsStr::new("md")) {
+            if let Some(s) = path.as_ref().file_stem().and_then(|s| s.to_str()) {
+                println!("{:?} {:?}", s, path.as_ref());
+                let out_of_range_bid = !BId::from_str(s)
+                    .map(|bid| {
+                        (query_since.timestamp()..=query_until.timestamp())
+                            .contains(&bid.to_timestamp())
+                    })
+                    .unwrap_or(false);
+                if out_of_range_bid {
                     return false;
-                }
-
-                // TODO
-                if let Some(file) = file {
-                    let s = file.rsplit_once('.').unwrap().0;
-                    let bid = BId::from_str(s).unwrap();
-                    return (query_since.timestamp()..=query_until.timestamp())
-                        .contains(&bid.to_timestamp());
                 }
             }
         }
@@ -94,15 +97,32 @@ impl ListFiles {
         true
     }
 
+    fn parse_path_date_range<P: AsRef<Path>>(
+        &self,
+        path: P,
+    ) -> anyhow::Result<(DateTime<Utc>, DateTime<Utc>)> {
+        let (year, month, day_of_month) = self.parse_path(path)?;
+        let optional_date = match (year, month, day_of_month) {
+            (None, None, None) => anyhow::bail!("root_directory"), // TODO
+            (None, None, Some(_)) => unreachable!(),
+            (None, Some(_), None) => unreachable!(),
+            (None, Some(_), Some(_)) => unreachable!(),
+            (Some(yyyy), None, None) => OptionalDate::from_yyyy(yyyy),
+            (Some(_), None, Some(_)) => unreachable!(),
+            (Some(yyyy), Some(mm), None) => OptionalDate::from_yyyymm(yyyy, mm),
+            (Some(yyyy), Some(mm), Some(dd)) => OptionalDate::from_yyyymmdd(yyyy, mm, dd),
+        };
+
+        let (since, until) = optional_date.naive_date_time_range();
+        let since = DateTime::<Utc>::from_utc(since, Utc);
+        let until = DateTime::<Utc>::from_utc(until, Utc);
+        Ok((since, until))
+    }
+
     fn parse_path<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> anyhow::Result<(
-        Option<Digit4>,
-        Option<Digit2>,
-        Option<Digit2>,
-        Option<String>,
-    )> {
+    ) -> anyhow::Result<(Option<Digit4>, Option<Digit2>, Option<Digit2>)> {
         let relative = path.as_ref().strip_prefix(self.root_dir.as_path())?;
         let mut components = relative.components();
         Ok((
@@ -121,10 +141,6 @@ impl ListFiles {
                 .and_then(|c| c.as_os_str().to_str())
                 .map(|s| s.parse::<Digit2>())
                 .transpose()?,
-            components
-                .next()
-                .and_then(|c| c.as_os_str().to_str())
-                .map(|s| s.to_owned()),
         ))
     }
 }
