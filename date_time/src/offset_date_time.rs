@@ -41,7 +41,7 @@ impl std::fmt::Display for OffsetDateTime {
             f,
             "{}{}",
             self.local_date_time,
-            if self.time_zone_offset.hour() == 0 && self.time_zone_offset.minute() == 0 {
+            if self.time_zone_offset == TimeZoneOffset::utc() {
                 "Z".to_string()
             } else {
                 self.time_zone_offset.to_string()
