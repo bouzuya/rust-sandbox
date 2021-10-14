@@ -31,6 +31,17 @@ impl OffsetDateTime {
         }
     }
 
+    pub fn from_instant(instant: Instant, time_zone_offset: TimeZoneOffset) -> Self {
+        // FIXME: (1970-01-01T00:00:00 & -00:01) or (9999-12-31T00:00:00 & +00:01)
+        let timestamp =
+            (u64::from(instant) as i64 + time_zone_offset.offset_in_minutes() as i64 * 60) as u64;
+        let local_date_time = local_date_time_from_instant(Instant::try_from(timestamp).unwrap());
+        Self {
+            local_date_time,
+            time_zone_offset,
+        }
+    }
+
     pub fn instant(&self) -> Instant {
         Instant::from(*self)
     }
@@ -135,6 +146,14 @@ mod tests {
         f("1970-01-01T00:00:00Z", 0)?;
         f("1970-01-02T00:00:01Z", 86401)?;
         f("9999-12-31T23:59:59Z", 253_402_300_799_u64)?;
+
+        {
+            let instant = Instant::try_from(0_u64)?;
+            let time_zone_offset = TimeZoneOffset::from_str("+09:00")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset);
+            assert_eq!(offset_date_time.to_string(), "1970-01-01T09:00:00+09:00");
+            assert_eq!(offset_date_time.instant(), instant);
+        }
         Ok(())
     }
 
