@@ -77,18 +77,17 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
             if local_date.day_of_month() == local_date.year_month().last_day_of_month() {
                 let day_of_month = DayOfMonth::try_from(1)?;
                 // TODO: year_month next month
-                if local_date.month() == Month::try_from(12)? {
-                    // TODO: year next year
-                    let year_as_u16 = u16::from(local_date.year());
-                    let next_year_as_u16 = year_as_u16 + 1;
-                    let next_year = Year::try_from(next_year_as_u16)?;
-                    LocalDate::from_ymd(next_year, Month::try_from(1)?, day_of_month)?
-                } else {
-                    // TODO: month next month
-                    let month_as_u8 = u8::from(local_date.month());
-                    let next_month_as_u8 = month_as_u8 + 1;
-                    let next_month = Month::try_from(next_month_as_u8)?;
-                    LocalDate::from_ymd(local_date.year(), next_month, day_of_month)?
+                match local_date.month().succ() {
+                    Some(next_month) => {
+                        LocalDate::from_ymd(local_date.year(), next_month, day_of_month)?
+                    }
+                    None => {
+                        // TODO: year next year
+                        let year_as_u16 = u16::from(local_date.year());
+                        let next_year_as_u16 = year_as_u16 + 1;
+                        let next_year = Year::try_from(next_year_as_u16)?;
+                        LocalDate::from_ymd(next_year, Month::try_from(1)?, day_of_month)?
+                    }
                 }
             } else {
                 // TODO: day of month next day
@@ -124,21 +123,17 @@ fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
         let year_month = local_date.year_month();
 
         // TODO: local_date -> local_date // next date
-        let updated_year_month =
-                // TODO: year_month next month
-                if local_date.month() == Month::try_from(12)? {
-                    // TODO: year next year
-                    let year_as_u16 = u16::from(year_month.year());
-                    let next_year_as_u16 = year_as_u16 + 1;
-                    let next_year = Year::try_from(next_year_as_u16)?;
-                    YearMonth::new(next_year, Month::try_from(1)?)
-                } else {
-                    // TODO: month next month
-                    let month_as_u8 = u8::from(year_month.month());
-                    let next_month_as_u8 = month_as_u8 + 1;
-                    let next_month = Month::try_from(next_month_as_u8)?;
-                    YearMonth::new(year_month.year(), next_month)
-                };
+        // TODO: year_month next month
+        let updated_year_month = match local_date.month().succ() {
+            Some(next_month) => YearMonth::new(year_month.year(), next_month),
+            None => {
+                // TODO: year next year
+                let year_as_u16 = u16::from(year_month.year());
+                let next_year_as_u16 = year_as_u16 + 1;
+                let next_year = Year::try_from(next_year_as_u16)?;
+                YearMonth::new(next_year, Month::try_from(1)?)
+            }
+        };
         let updated_local_date = LocalDate::from_ymd(
             updated_year_month.year(),
             updated_year_month.month(),
