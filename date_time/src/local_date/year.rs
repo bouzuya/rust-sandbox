@@ -4,6 +4,24 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Year(u16);
 
+impl Year {
+    pub fn pred(&self) -> Option<Self> {
+        if self.0 > 1970 {
+            Some(Self(self.0 - 1))
+        } else {
+            None
+        }
+    }
+
+    pub fn succ(&self) -> Option<Self> {
+        if self.0 < 9999 {
+            Some(Self(self.0 + 1))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum ParseYearError {
     #[error("invalid digit")]
@@ -102,5 +120,21 @@ mod tests {
         assert_eq!(f(1970_u16).map(u16::from), Ok(1970_u16));
         assert_eq!(f(9999_u16).map(u16::from), Ok(9999_u16));
         assert_eq!(f(10000_u16), Err(E::OutOfRange));
+    }
+
+    #[test]
+    fn pred_test() -> anyhow::Result<()> {
+        assert_eq!(Year::try_from(9999)?.pred(), Some(Year::try_from(9998)?));
+        assert_eq!(Year::try_from(1971)?.pred(), Some(Year::try_from(1970)?));
+        assert_eq!(Year::try_from(1970)?.pred(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn succ_test() -> anyhow::Result<()> {
+        assert_eq!(Year::try_from(1970)?.succ(), Some(Year::try_from(1971)?));
+        assert_eq!(Year::try_from(9998)?.succ(), Some(Year::try_from(9999)?));
+        assert_eq!(Year::try_from(9999)?.succ(), None);
+        Ok(())
     }
 }
