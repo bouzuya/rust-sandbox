@@ -50,6 +50,32 @@ impl YearMonth {
     pub fn year(&self) -> Year {
         self.year
     }
+
+    pub fn pred(&self) -> Option<Self> {
+        match self.month().pred() {
+            Some(last_month) => Some(Self::new(self.year(), last_month)),
+            None => self.year().pred().map(|last_year| {
+                Self::new(
+                    last_year,
+                    // TODO: Month::december()
+                    Month::try_from(12).unwrap(),
+                )
+            }),
+        }
+    }
+
+    pub fn succ(&self) -> Option<Self> {
+        match self.month().succ() {
+            Some(next_month) => Some(Self::new(self.year(), next_month)),
+            None => self.year().succ().map(|next_year| {
+                Self::new(
+                    next_year,
+                    // TODO: Month::january()
+                    Month::try_from(1).unwrap(),
+                )
+            }),
+        }
+    }
 }
 
 impl std::fmt::Display for YearMonth {
@@ -146,6 +172,42 @@ mod tests {
         assert_eq!(f("1999-11")?, d("30")?);
         assert_eq!(f("1999-12")?, d("31")?);
         assert_eq!(f("2000-02")?, d("29")?);
+        Ok(())
+    }
+
+    #[test]
+    fn pred_test() -> anyhow::Result<()> {
+        assert_eq!(
+            YearMonth::from_str("9999-12")?.pred(),
+            Some(YearMonth::from_str("9999-11")?)
+        );
+        assert_eq!(
+            YearMonth::from_str("1971-01")?.pred(),
+            Some(YearMonth::from_str("1970-12")?)
+        );
+        assert_eq!(
+            YearMonth::from_str("1970-02")?.pred(),
+            Some(YearMonth::from_str("1970-01")?)
+        );
+        assert_eq!(YearMonth::from_str("1970-01")?.pred(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn succ_test() -> anyhow::Result<()> {
+        assert_eq!(
+            YearMonth::from_str("1970-01")?.succ(),
+            Some(YearMonth::from_str("1970-02")?)
+        );
+        assert_eq!(
+            YearMonth::from_str("1970-12")?.succ(),
+            Some(YearMonth::from_str("1971-01")?)
+        );
+        assert_eq!(
+            YearMonth::from_str("9999-11")?.succ(),
+            Some(YearMonth::from_str("9999-12")?)
+        );
+        assert_eq!(YearMonth::from_str("9999-12")?.succ(), None);
         Ok(())
     }
 }
