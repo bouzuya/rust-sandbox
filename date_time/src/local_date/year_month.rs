@@ -26,6 +26,10 @@ impl YearMonth {
         Self { year, month }
     }
 
+    pub fn first_day_of_month(&self) -> DayOfMonth {
+        DayOfMonth::try_from(1).expect("invalid day of month")
+    }
+
     pub fn last_day_of_month(&self) -> DayOfMonth {
         let m: u8 = self.month.into();
         let d: u8 = match m {
@@ -151,6 +155,15 @@ mod tests {
         assert!(matches!(f("2000+01"), Err(E::InvalidFormat)));
         assert!(matches!(f("+000-01"), Err(E::ParseYear(_))));
         assert!(matches!(f("2000-13"), Err(E::ParseMonth(_))));
+    }
+
+    #[test]
+    fn first_day_of_month_test() -> anyhow::Result<()> {
+        assert_eq!(
+            YearMonth::from_str("2021-02")?.first_day_of_month(),
+            DayOfMonth::from_str("01")?
+        );
+        Ok(())
     }
 
     #[test]
