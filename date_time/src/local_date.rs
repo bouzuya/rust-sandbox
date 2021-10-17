@@ -3,8 +3,6 @@ mod month;
 mod year;
 mod year_month;
 
-use std::convert::TryFrom;
-
 pub use self::day_of_month::{DayOfMonth, ParseDayOfMonthError};
 pub use self::month::{Month, ParseMonthError};
 pub use self::year::{ParseYearError, Year};
@@ -72,10 +70,7 @@ impl LocalDate {
     }
 
     pub fn pred(&self) -> Option<Self> {
-        // TODO:: YearMonth::first_day_of_month()
-        // TODO: DayOfMonth::first()
-        let first = DayOfMonth::try_from(1).unwrap();
-        if self.day_of_month() == first {
+        if self.day_of_month() == self.year_month().first_day_of_month() {
             self.year_month().pred().and_then(|last_year_month| {
                 // TODO: end_of_month: YearMonth -> LocalDate
                 LocalDate::from_ymd(
@@ -99,8 +94,7 @@ impl LocalDate {
                 LocalDate::from_ymd(
                     next_year_month.year(),
                     next_year_month.month(),
-                    // TODO: DayOfMonth::first()
-                    DayOfMonth::try_from(1).unwrap(),
+                    next_year_month.first_day_of_month(),
                 )
                 .ok()
             })
