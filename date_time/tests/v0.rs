@@ -69,27 +69,9 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
         let time_zone_offset = offset_date_time.time_zone_offset();
         let local_date = local_date_time.date();
         let local_time = local_date_time.time();
-
-        // TODO: local_date -> local_date // next date
-        let updated_local_date =
-            if local_date.day_of_month() == local_date.year_month().last_day_of_month() {
-                let next_year_month = local_date
-                    .year_month()
-                    .succ()
-                    .ok_or_else(|| anyhow::anyhow!("YearMonth out of range"))?;
-                LocalDate::from_ymd(
-                    next_year_month.year(),
-                    next_year_month.month(),
-                    DayOfMonth::try_from(1)?,
-                )?
-            } else {
-                // TODO: day of month next day
-                let day_of_month_as_u8 = u8::from(local_date.day_of_month());
-                let next_day_of_month_as_u8 = day_of_month_as_u8 + 1;
-                let next_day_of_month = DayOfMonth::try_from(next_day_of_month_as_u8)?;
-                LocalDate::from_ymd(local_date.year(), local_date.month(), next_day_of_month)?
-            };
-
+        let updated_local_date = local_date
+            .succ()
+            .ok_or_else(|| anyhow::anyhow!("LocalDate out of range"))?;
         let updated_local_date_time = LocalDateTime::from_dt(updated_local_date, local_time);
         let updated_offset_date_time =
             OffsetDateTime::new(updated_local_date_time, time_zone_offset);
