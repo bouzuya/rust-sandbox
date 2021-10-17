@@ -4,6 +4,24 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DayOfMonth(u8);
 
+impl DayOfMonth {
+    pub fn pred(&self) -> Option<Self> {
+        if self.0 > 1 {
+            Some(Self(self.0 - 1))
+        } else {
+            None
+        }
+    }
+
+    pub fn succ(&self) -> Option<Self> {
+        if self.0 < 31 {
+            Some(Self(self.0 + 1))
+        } else {
+            None
+        }
+    }
+}
+
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum ParseDayOfMonthError {
     #[error("invalid digit")]
@@ -89,5 +107,33 @@ mod tests {
         assert_eq!(f(1_u8).map(u8::from), Ok(1_u8));
         assert_eq!(f(31_u8).map(u8::from), Ok(31_u8));
         assert_eq!(f(32_u8), Err(E::OutOfRange));
+    }
+
+    #[test]
+    fn pred_test() -> anyhow::Result<()> {
+        assert_eq!(
+            DayOfMonth::try_from(31)?.pred(),
+            Some(DayOfMonth::try_from(30)?)
+        );
+        assert_eq!(
+            DayOfMonth::try_from(2)?.pred(),
+            Some(DayOfMonth::try_from(1)?)
+        );
+        assert_eq!(DayOfMonth::try_from(1)?.pred(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn succ_test() -> anyhow::Result<()> {
+        assert_eq!(
+            DayOfMonth::try_from(1)?.succ(),
+            Some(DayOfMonth::try_from(2)?)
+        );
+        assert_eq!(
+            DayOfMonth::try_from(30)?.succ(),
+            Some(DayOfMonth::try_from(31)?)
+        );
+        assert_eq!(DayOfMonth::try_from(31)?.succ(), None);
+        Ok(())
     }
 }
