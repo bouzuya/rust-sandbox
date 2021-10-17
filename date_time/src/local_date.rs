@@ -3,6 +3,8 @@ mod month;
 mod year;
 mod year_month;
 
+use std::convert::TryFrom;
+
 pub use self::day_of_month::{DayOfMonth, ParseDayOfMonthError};
 pub use self::month::{Month, ParseMonthError};
 pub use self::year::{ParseYearError, Year};
@@ -67,6 +69,46 @@ impl LocalDate {
 
     pub fn year_month(&self) -> YearMonth {
         YearMonth::new(self.year, self.month)
+    }
+
+    pub fn pred(&self) -> Option<Self> {
+        // TODO:: YearMonth::first_day_of_month()
+        // TODO: DayOfMonth::first()
+        let first = DayOfMonth::try_from(1).unwrap();
+        if self.day_of_month() == first {
+            self.year_month().pred().and_then(|last_year_month| {
+                // TODO: end_of_month: YearMonth -> LocalDate
+                LocalDate::from_ymd(
+                    last_year_month.year(),
+                    last_year_month.month(),
+                    last_year_month.last_day_of_month(),
+                )
+                .ok()
+            })
+        } else {
+            self.day_of_month().pred().and_then(|next_day_of_month| {
+                LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
+            })
+        }
+    }
+
+    pub fn succ(&self) -> Option<Self> {
+        if self.day_of_month() == self.year_month().last_day_of_month() {
+            self.year_month().succ().and_then(|next_year_month| {
+                // TODO: start_of_month: YearMonth -> LocalDate
+                LocalDate::from_ymd(
+                    next_year_month.year(),
+                    next_year_month.month(),
+                    // TODO: DayOfMonth::first()
+                    DayOfMonth::try_from(1).unwrap(),
+                )
+                .ok()
+            })
+        } else {
+            self.day_of_month().succ().and_then(|next_day_of_month| {
+                LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
+            })
+        }
     }
 }
 
@@ -182,6 +224,46 @@ mod tests {
     fn year_month_test() -> anyhow::Result<()> {
         let d = LocalDate::from_str("2021-01-02")?;
         assert_eq!(d.year_month(), YearMonth::from_str("2021-01")?);
+        Ok(())
+    }
+
+    #[test]
+    fn pred_test() -> anyhow::Result<()> {
+        assert_eq!(
+            LocalDate::from_str("9999-12-31")?.pred(),
+            Some(LocalDate::from_str("9999-12-30")?)
+        );
+        assert_eq!(
+            LocalDate::from_str("1971-01-01")?.pred(),
+            Some(LocalDate::from_str("1970-12-31")?)
+        );
+        assert_eq!(
+            LocalDate::from_str("1970-12-01")?.pred(),
+            Some(LocalDate::from_str("1970-11-30")?)
+        );
+        assert_eq!(
+            LocalDate::from_str("1970-01-02")?.pred(),
+            Some(LocalDate::from_str("1970-01-01")?)
+        );
+        assert_eq!(LocalDate::from_str("1970-01-01")?.pred(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn succ_test() -> anyhow::Result<()> {
+        assert_eq!(
+            LocalDate::from_str("1970-01-01")?.succ(),
+            Some(LocalDate::from_str("1970-01-02")?)
+        );
+        assert_eq!(
+            LocalDate::from_str("9998-12-31")?.succ(),
+            Some(LocalDate::from_str("9999-01-01")?)
+        );
+        assert_eq!(
+            LocalDate::from_str("9999-01-31")?.succ(),
+            Some(LocalDate::from_str("9999-02-01")?)
+        );
+        assert_eq!(LocalDate::from_str("9999-12-31")?.succ(), None);
         Ok(())
     }
 }
