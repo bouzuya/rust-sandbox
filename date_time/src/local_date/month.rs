@@ -5,21 +5,19 @@ use thiserror::Error;
 pub struct Month(u8);
 
 impl Month {
-    pub fn pred(&mut self) -> Option<Self> {
-        if self.0 == 1 {
-            None
+    pub fn pred(&self) -> Option<Self> {
+        if self.0 > 1 {
+            Some(Self(self.0 - 1))
         } else {
-            self.0 -= 1;
-            Some(Self(self.0))
+            None
         }
     }
 
-    pub fn succ(&mut self) -> Option<Self> {
-        if self.0 == 12 {
-            None
+    pub fn succ(&self) -> Option<Self> {
+        if self.0 < 12 {
+            Some(Self(self.0 + 1))
         } else {
-            self.0 += 1;
-            Some(Self(self.0))
+            None
         }
     }
 }
@@ -113,37 +111,35 @@ mod tests {
 
     #[test]
     fn pred_test() -> anyhow::Result<()> {
-        let mut month = Month::try_from(12)?;
-        assert_eq!(month.pred(), Some(Month::try_from(11)?));
-        assert_eq!(month.pred(), Some(Month::try_from(10)?));
-        assert_eq!(month.pred(), Some(Month::try_from(9)?));
-        assert_eq!(month.pred(), Some(Month::try_from(8)?));
-        assert_eq!(month.pred(), Some(Month::try_from(7)?));
-        assert_eq!(month.pred(), Some(Month::try_from(6)?));
-        assert_eq!(month.pred(), Some(Month::try_from(5)?));
-        assert_eq!(month.pred(), Some(Month::try_from(4)?));
-        assert_eq!(month.pred(), Some(Month::try_from(3)?));
-        assert_eq!(month.pred(), Some(Month::try_from(2)?));
-        assert_eq!(month.pred(), Some(Month::try_from(1)?));
-        assert_eq!(month.pred(), None);
+        assert_eq!(Month::try_from(12)?.pred(), Some(Month::try_from(11)?));
+        assert_eq!(Month::try_from(11)?.pred(), Some(Month::try_from(10)?));
+        assert_eq!(Month::try_from(10)?.pred(), Some(Month::try_from(9)?));
+        assert_eq!(Month::try_from(9)?.pred(), Some(Month::try_from(8)?));
+        assert_eq!(Month::try_from(8)?.pred(), Some(Month::try_from(7)?));
+        assert_eq!(Month::try_from(7)?.pred(), Some(Month::try_from(6)?));
+        assert_eq!(Month::try_from(6)?.pred(), Some(Month::try_from(5)?));
+        assert_eq!(Month::try_from(5)?.pred(), Some(Month::try_from(4)?));
+        assert_eq!(Month::try_from(4)?.pred(), Some(Month::try_from(3)?));
+        assert_eq!(Month::try_from(3)?.pred(), Some(Month::try_from(2)?));
+        assert_eq!(Month::try_from(2)?.pred(), Some(Month::try_from(1)?));
+        assert_eq!(Month::try_from(1)?.pred(), None);
         Ok(())
     }
 
     #[test]
     fn succ_test() -> anyhow::Result<()> {
-        let mut month = Month::try_from(1)?;
-        assert_eq!(month.succ(), Some(Month::try_from(2)?));
-        assert_eq!(month.succ(), Some(Month::try_from(3)?));
-        assert_eq!(month.succ(), Some(Month::try_from(4)?));
-        assert_eq!(month.succ(), Some(Month::try_from(5)?));
-        assert_eq!(month.succ(), Some(Month::try_from(6)?));
-        assert_eq!(month.succ(), Some(Month::try_from(7)?));
-        assert_eq!(month.succ(), Some(Month::try_from(8)?));
-        assert_eq!(month.succ(), Some(Month::try_from(9)?));
-        assert_eq!(month.succ(), Some(Month::try_from(10)?));
-        assert_eq!(month.succ(), Some(Month::try_from(11)?));
-        assert_eq!(month.succ(), Some(Month::try_from(12)?));
-        assert_eq!(month.succ(), None);
+        assert_eq!(Month::try_from(1)?.succ(), Some(Month::try_from(2)?));
+        assert_eq!(Month::try_from(2)?.succ(), Some(Month::try_from(3)?));
+        assert_eq!(Month::try_from(3)?.succ(), Some(Month::try_from(4)?));
+        assert_eq!(Month::try_from(4)?.succ(), Some(Month::try_from(5)?));
+        assert_eq!(Month::try_from(5)?.succ(), Some(Month::try_from(6)?));
+        assert_eq!(Month::try_from(6)?.succ(), Some(Month::try_from(7)?));
+        assert_eq!(Month::try_from(7)?.succ(), Some(Month::try_from(8)?));
+        assert_eq!(Month::try_from(8)?.succ(), Some(Month::try_from(9)?));
+        assert_eq!(Month::try_from(9)?.succ(), Some(Month::try_from(10)?));
+        assert_eq!(Month::try_from(10)?.succ(), Some(Month::try_from(11)?));
+        assert_eq!(Month::try_from(11)?.succ(), Some(Month::try_from(12)?));
+        assert_eq!(Month::try_from(12)?.succ(), None);
         Ok(())
     }
 }
