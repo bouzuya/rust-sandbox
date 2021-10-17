@@ -5,6 +5,54 @@ use thiserror::Error;
 pub struct Month(u8);
 
 impl Month {
+    pub fn january() -> Self {
+        Self(1)
+    }
+
+    pub fn february() -> Self {
+        Self(2)
+    }
+
+    pub fn march() -> Self {
+        Self(3)
+    }
+
+    pub fn april() -> Self {
+        Self(4)
+    }
+
+    pub fn may() -> Self {
+        Self(5)
+    }
+
+    pub fn june() -> Self {
+        Self(6)
+    }
+
+    pub fn july() -> Self {
+        Self(7)
+    }
+
+    pub fn august() -> Self {
+        Self(8)
+    }
+
+    pub fn september() -> Self {
+        Self(9)
+    }
+
+    pub fn october() -> Self {
+        Self(10)
+    }
+
+    pub fn november() -> Self {
+        Self(11)
+    }
+
+    pub fn december() -> Self {
+        Self(12)
+    }
+
     pub fn pred(&self) -> Option<Self> {
         if self.0 > 1 {
             Some(Self(self.0 - 1))
@@ -140,6 +188,23 @@ mod tests {
         assert_eq!(Month::try_from(10)?.succ(), Some(Month::try_from(11)?));
         assert_eq!(Month::try_from(11)?.succ(), Some(Month::try_from(12)?));
         assert_eq!(Month::try_from(12)?.succ(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn name_test() -> anyhow::Result<()> {
+        assert_eq!(Month::try_from(1)?, Month::january());
+        assert_eq!(Month::try_from(2)?, Month::february());
+        assert_eq!(Month::try_from(3)?, Month::march());
+        assert_eq!(Month::try_from(4)?, Month::april());
+        assert_eq!(Month::try_from(5)?, Month::may());
+        assert_eq!(Month::try_from(6)?, Month::june());
+        assert_eq!(Month::try_from(7)?, Month::july());
+        assert_eq!(Month::try_from(8)?, Month::august());
+        assert_eq!(Month::try_from(9)?, Month::september());
+        assert_eq!(Month::try_from(10)?, Month::october());
+        assert_eq!(Month::try_from(11)?, Month::november());
+        assert_eq!(Month::try_from(12)?, Month::december());
         Ok(())
     }
 }
