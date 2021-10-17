@@ -58,26 +58,20 @@ impl YearMonth {
     pub fn pred(&self) -> Option<Self> {
         match self.month().pred() {
             Some(last_month) => Some(Self::new(self.year(), last_month)),
-            None => self.year().pred().map(|last_year| {
-                Self::new(
-                    last_year,
-                    // TODO: Month::december()
-                    Month::try_from(12).unwrap(),
-                )
-            }),
+            None => self
+                .year()
+                .pred()
+                .map(|last_year| Self::new(last_year, Month::december())),
         }
     }
 
     pub fn succ(&self) -> Option<Self> {
         match self.month().succ() {
             Some(next_month) => Some(Self::new(self.year(), next_month)),
-            None => self.year().succ().map(|next_year| {
-                Self::new(
-                    next_year,
-                    // TODO: Month::january()
-                    Month::try_from(1).unwrap(),
-                )
-            }),
+            None => self
+                .year()
+                .succ()
+                .map(|next_year| Self::new(next_year, Month::january())),
         }
     }
 }
