@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use date_time::{DayOfMonth, Instant, LocalDate, LocalDateTime, Month, OffsetDateTime, YearMonth};
+use date_time::{DayOfMonth, Instant, LocalDate, LocalDateTime, OffsetDateTime};
 
 #[test]
 fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
@@ -73,15 +73,10 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
         // TODO: local_date -> local_date // next date
         let updated_local_date =
             if local_date.day_of_month() == local_date.year_month().last_day_of_month() {
-                let year_month = local_date.year_month();
-                // TODO: year_month next month
-                let next_year_month = match year_month.month().succ() {
-                    Some(next_month) => YearMonth::new(year_month.year(), next_month),
-                    None => match year_month.year().succ() {
-                        Some(next_year) => YearMonth::new(next_year, Month::try_from(1)?),
-                        None => return Err(anyhow::anyhow!("YearMonth out of range")),
-                    },
-                };
+                let next_year_month = local_date
+                    .year_month()
+                    .succ()
+                    .ok_or_else(|| anyhow::anyhow!("YearMonth out of range"))?;
                 LocalDate::from_ymd(
                     next_year_month.year(),
                     next_year_month.month(),
@@ -118,19 +113,13 @@ fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
         let time_zone_offset = offset_date_time.time_zone_offset();
         let local_date = local_date_time.date();
         let local_time = local_date_time.time();
-        let year_month = local_date.year_month();
-
-        // TODO: year_month next month
-        let updated_year_month = match year_month.month().succ() {
-            Some(next_month) => YearMonth::new(year_month.year(), next_month),
-            None => match year_month.year().succ() {
-                Some(next_year) => YearMonth::new(next_year, Month::try_from(1)?),
-                None => return Err(anyhow::anyhow!("YearMonth out of range")),
-            },
-        };
+        let next_year_month = local_date
+            .year_month()
+            .succ()
+            .ok_or_else(|| anyhow::anyhow!("YearMonth out of range"))?;
         let updated_local_date = LocalDate::from_ymd(
-            updated_year_month.year(),
-            updated_year_month.month(),
+            next_year_month.year(),
+            next_year_month.month(),
             local_date.day_of_month(),
         )?;
         let updated_local_date_time = LocalDateTime::from_dt(updated_local_date, local_time);
