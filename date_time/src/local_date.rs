@@ -37,6 +37,22 @@ pub enum ParseLocalDateError {
 pub struct InvalidLocalDateError;
 
 impl LocalDate {
+    pub fn first_date_of_month(year_month: YearMonth) -> Self {
+        Self {
+            year: year_month.year(),
+            month: year_month.month(),
+            day_of_month: year_month.first_day_of_month(),
+        }
+    }
+
+    pub fn last_date_of_month(year_month: YearMonth) -> Self {
+        Self {
+            year: year_month.year(),
+            month: year_month.month(),
+            day_of_month: year_month.last_day_of_month(),
+        }
+    }
+
     pub fn from_ymd(
         year: Year,
         month: Month,
@@ -71,15 +87,7 @@ impl LocalDate {
 
     pub fn pred(&self) -> Option<Self> {
         if self.day_of_month() == self.year_month().first_day_of_month() {
-            self.year_month().pred().and_then(|last_year_month| {
-                // TODO: end_of_month: YearMonth -> LocalDate
-                LocalDate::from_ymd(
-                    last_year_month.year(),
-                    last_year_month.month(),
-                    last_year_month.last_day_of_month(),
-                )
-                .ok()
-            })
+            self.year_month().pred().map(Self::last_date_of_month)
         } else {
             self.day_of_month().pred().and_then(|next_day_of_month| {
                 LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
@@ -89,15 +97,7 @@ impl LocalDate {
 
     pub fn succ(&self) -> Option<Self> {
         if self.day_of_month() == self.year_month().last_day_of_month() {
-            self.year_month().succ().and_then(|next_year_month| {
-                // TODO: start_of_month: YearMonth -> LocalDate
-                LocalDate::from_ymd(
-                    next_year_month.year(),
-                    next_year_month.month(),
-                    next_year_month.first_day_of_month(),
-                )
-                .ok()
-            })
+            self.year_month().succ().map(Self::first_date_of_month)
         } else {
             self.day_of_month().succ().and_then(|next_day_of_month| {
                 LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
@@ -151,6 +151,31 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn first_date_of_month_test() -> anyhow::Result<()> {
+        let year_month = YearMonth::from_str("2021-01")?;
+        assert_eq!(
+            LocalDate::first_date_of_month(year_month).to_string(),
+            "2021-01-01"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn last_date_of_month_test() -> anyhow::Result<()> {
+        let year_month = YearMonth::from_str("2021-01")?;
+        assert_eq!(
+            LocalDate::last_date_of_month(year_month).to_string(),
+            "2021-01-31"
+        );
+        let year_month = YearMonth::from_str("2021-02")?;
+        assert_eq!(
+            LocalDate::last_date_of_month(year_month).to_string(),
+            "2021-02-28"
+        );
+        Ok(())
+    }
 
     #[test]
     fn from_ymd_test() -> anyhow::Result<()> {
