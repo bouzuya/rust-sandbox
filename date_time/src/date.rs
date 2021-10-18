@@ -10,14 +10,14 @@ pub use self::year_month::{ParseYearMonthError, YearMonth};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct LocalDate {
+pub struct Date {
     year: Year,
     month: Month,
     day_of_month: DayOfMonth,
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-pub enum ParseLocalDateError {
+pub enum ParseDateError {
     #[error("invalid day of month")]
     InvalidDayOfMonth,
     #[error("invalid format")]
@@ -34,9 +34,9 @@ pub enum ParseLocalDateError {
 
 #[derive(Debug, Eq, Error, PartialEq)]
 #[error("invalid local date error")]
-pub struct InvalidLocalDateError;
+pub struct InvalidDateError;
 
-impl LocalDate {
+impl Date {
     pub fn first_date_of_month(year_month: YearMonth) -> Self {
         Self {
             year: year_month.year(),
@@ -57,10 +57,10 @@ impl LocalDate {
         year: Year,
         month: Month,
         day_of_month: DayOfMonth,
-    ) -> Result<Self, InvalidLocalDateError> {
+    ) -> Result<Self, InvalidDateError> {
         let year_month = YearMonth::new(year, month);
         if day_of_month > year_month.last_day_of_month() {
-            return Err(InvalidLocalDateError);
+            return Err(InvalidDateError);
         }
         Ok(Self {
             year,
@@ -90,7 +90,7 @@ impl LocalDate {
             self.year_month().pred().map(Self::last_date_of_month)
         } else {
             self.day_of_month().pred().and_then(|next_day_of_month| {
-                LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
+                Date::from_ymd(self.year(), self.month(), next_day_of_month).ok()
             })
         }
     }
@@ -100,20 +100,20 @@ impl LocalDate {
             self.year_month().succ().map(Self::first_date_of_month)
         } else {
             self.day_of_month().succ().and_then(|next_day_of_month| {
-                LocalDate::from_ymd(self.year(), self.month(), next_day_of_month).ok()
+                Date::from_ymd(self.year(), self.month(), next_day_of_month).ok()
             })
         }
     }
 }
 
-impl std::fmt::Display for LocalDate {
+impl std::fmt::Display for Date {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}-{}", self.year, self.month, self.day_of_month)
     }
 }
 
-impl std::str::FromStr for LocalDate {
-    type Err = ParseLocalDateError;
+impl std::str::FromStr for Date {
+    type Err = ParseDateError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 10 {
@@ -138,7 +138,7 @@ impl std::str::FromStr for LocalDate {
         if day_of_month > year_month.last_day_of_month() {
             return Err(Self::Err::InvalidDayOfMonth);
         }
-        Ok(LocalDate {
+        Ok(Date {
             year: year_month.year(),
             month: year_month.month(),
             day_of_month,
@@ -156,7 +156,7 @@ mod tests {
     fn first_date_of_month_test() -> anyhow::Result<()> {
         let year_month = YearMonth::from_str("2021-01")?;
         assert_eq!(
-            LocalDate::first_date_of_month(year_month).to_string(),
+            Date::first_date_of_month(year_month).to_string(),
             "2021-01-01"
         );
         Ok(())
@@ -166,12 +166,12 @@ mod tests {
     fn last_date_of_month_test() -> anyhow::Result<()> {
         let year_month = YearMonth::from_str("2021-01")?;
         assert_eq!(
-            LocalDate::last_date_of_month(year_month).to_string(),
+            Date::last_date_of_month(year_month).to_string(),
             "2021-01-31"
         );
         let year_month = YearMonth::from_str("2021-02")?;
         assert_eq!(
-            LocalDate::last_date_of_month(year_month).to_string(),
+            Date::last_date_of_month(year_month).to_string(),
             "2021-02-28"
         );
         Ok(())
@@ -180,28 +180,28 @@ mod tests {
     #[test]
     fn from_ymd_test() -> anyhow::Result<()> {
         assert_eq!(
-            LocalDate::from_ymd(
+            Date::from_ymd(
                 Year::from_str("2021")?,
                 Month::from_str("02")?,
                 DayOfMonth::from_str("03")?
             )?,
-            LocalDate::from_str("2021-02-03")?
+            Date::from_str("2021-02-03")?
         );
         assert!(matches!(
-            LocalDate::from_ymd(
+            Date::from_ymd(
                 Year::from_str("2021")?,
                 Month::from_str("02")?,
                 DayOfMonth::from_str("31")?
             ),
-            Err(InvalidLocalDateError)
+            Err(InvalidDateError)
         ));
         Ok(())
     }
 
     #[test]
     fn str_conversion_test() {
-        type E = ParseLocalDateError;
-        let f = |s: &str| LocalDate::from_str(s);
+        type E = ParseDateError;
+        let f = |s: &str| Date::from_str(s);
 
         assert!(matches!(f("2021-01-02"), Ok(_)));
         assert!(matches!(f("20021-01-02"), Err(E::InvalidLength)));
@@ -220,28 +220,28 @@ mod tests {
 
     #[test]
     fn day_of_month_test() -> anyhow::Result<()> {
-        let d = LocalDate::from_str("2021-01-02")?;
+        let d = Date::from_str("2021-01-02")?;
         assert_eq!(d.day_of_month(), DayOfMonth::from_str("02")?);
         Ok(())
     }
 
     #[test]
     fn month_test() -> anyhow::Result<()> {
-        let d = LocalDate::from_str("2021-01-02")?;
+        let d = Date::from_str("2021-01-02")?;
         assert_eq!(d.month(), Month::from_str("01")?);
         Ok(())
     }
 
     #[test]
     fn year_test() -> anyhow::Result<()> {
-        let d = LocalDate::from_str("2021-01-02")?;
+        let d = Date::from_str("2021-01-02")?;
         assert_eq!(d.year(), Year::from_str("2021")?);
         Ok(())
     }
 
     #[test]
     fn year_month_test() -> anyhow::Result<()> {
-        let d = LocalDate::from_str("2021-01-02")?;
+        let d = Date::from_str("2021-01-02")?;
         assert_eq!(d.year_month(), YearMonth::from_str("2021-01")?);
         Ok(())
     }
@@ -249,40 +249,40 @@ mod tests {
     #[test]
     fn pred_test() -> anyhow::Result<()> {
         assert_eq!(
-            LocalDate::from_str("9999-12-31")?.pred(),
-            Some(LocalDate::from_str("9999-12-30")?)
+            Date::from_str("9999-12-31")?.pred(),
+            Some(Date::from_str("9999-12-30")?)
         );
         assert_eq!(
-            LocalDate::from_str("1971-01-01")?.pred(),
-            Some(LocalDate::from_str("1970-12-31")?)
+            Date::from_str("1971-01-01")?.pred(),
+            Some(Date::from_str("1970-12-31")?)
         );
         assert_eq!(
-            LocalDate::from_str("1970-12-01")?.pred(),
-            Some(LocalDate::from_str("1970-11-30")?)
+            Date::from_str("1970-12-01")?.pred(),
+            Some(Date::from_str("1970-11-30")?)
         );
         assert_eq!(
-            LocalDate::from_str("1970-01-02")?.pred(),
-            Some(LocalDate::from_str("1970-01-01")?)
+            Date::from_str("1970-01-02")?.pred(),
+            Some(Date::from_str("1970-01-01")?)
         );
-        assert_eq!(LocalDate::from_str("1970-01-01")?.pred(), None);
+        assert_eq!(Date::from_str("1970-01-01")?.pred(), None);
         Ok(())
     }
 
     #[test]
     fn succ_test() -> anyhow::Result<()> {
         assert_eq!(
-            LocalDate::from_str("1970-01-01")?.succ(),
-            Some(LocalDate::from_str("1970-01-02")?)
+            Date::from_str("1970-01-01")?.succ(),
+            Some(Date::from_str("1970-01-02")?)
         );
         assert_eq!(
-            LocalDate::from_str("9998-12-31")?.succ(),
-            Some(LocalDate::from_str("9999-01-01")?)
+            Date::from_str("9998-12-31")?.succ(),
+            Some(Date::from_str("9999-01-01")?)
         );
         assert_eq!(
-            LocalDate::from_str("9999-01-31")?.succ(),
-            Some(LocalDate::from_str("9999-02-01")?)
+            Date::from_str("9999-01-31")?.succ(),
+            Some(Date::from_str("9999-02-01")?)
         );
-        assert_eq!(LocalDate::from_str("9999-12-31")?.succ(), None);
+        assert_eq!(Date::from_str("9999-12-31")?.succ(), None);
         Ok(())
     }
 }
