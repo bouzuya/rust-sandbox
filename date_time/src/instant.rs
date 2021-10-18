@@ -13,6 +13,15 @@ impl Instant {
     pub fn min() -> Self {
         Self(0_u64)
     }
+
+    pub fn now() -> Self {
+        let timestamp = chrono::Utc::now().timestamp();
+        if (0..=i64::from(Self::max())).contains(&timestamp) {
+            Self(timestamp as u64)
+        } else {
+            panic!()
+        }
+    }
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
@@ -87,6 +96,11 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn now_test() {
+        assert_ne!(Instant::now().to_string(), "");
+    }
 
     #[test]
     fn i64_conversion_test() -> anyhow::Result<()> {
