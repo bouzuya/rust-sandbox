@@ -165,12 +165,43 @@ mod tests {
             assert_eq!(offset_date_time.to_string(), "1970-01-01T00:00:00Z");
             assert_eq!(offset_date_time.instant(), instant);
         }
-
         {
             let instant = Instant::min();
-            let time_zone_offset = TimeZoneOffset::from_str("+09:00")?;
+            let time_zone_offset = TimeZoneOffset::from_str("+00:01")?;
             let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
-            assert_eq!(offset_date_time.to_string(), "1970-01-01T09:00:00+09:00");
+            assert_eq!(offset_date_time.to_string(), "1970-01-01T00:01:00+00:01");
+            assert_eq!(offset_date_time.instant(), instant);
+        }
+
+        {
+            let instant = Instant::try_from(i64::from(Instant::min()) + 60)?;
+            let time_zone_offset = TimeZoneOffset::from_str("-00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            assert_eq!(offset_date_time.to_string(), "1970-01-01T00:00:00-00:01");
+            assert_eq!(offset_date_time.instant(), instant);
+        }
+
+        {
+            let instant = Instant::try_from(i64::from(Instant::max()) - 60)?;
+            let time_zone_offset = TimeZoneOffset::from_str("+00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            assert_eq!(offset_date_time.to_string(), "9999-12-31T23:59:59+00:01");
+            assert_eq!(offset_date_time.instant(), instant);
+        }
+
+        {
+            let instant = Instant::max();
+            let time_zone_offset = TimeZoneOffset::from_str("-00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            assert_eq!(offset_date_time.to_string(), "9999-12-31T23:58:59-00:01");
+            assert_eq!(offset_date_time.instant(), instant);
+        }
+
+        {
+            let instant = Instant::max();
+            let time_zone_offset = TimeZoneOffset::from_str("+00:00")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            assert_eq!(offset_date_time.to_string(), "9999-12-31T23:59:59Z");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
