@@ -7,7 +7,7 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct OffsetDateTime {
     date_time: DateTime,
-    time_zone_offset: TimeZoneOffset,
+    offset: TimeZoneOffset,
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
@@ -27,23 +27,20 @@ pub enum TryFromOffsetDateTimeError {
 }
 
 impl OffsetDateTime {
-    pub fn new(date_time: DateTime, time_zone_offset: TimeZoneOffset) -> Self {
+    pub fn new(date_time: DateTime, offset: TimeZoneOffset) -> Self {
         // FIXME: (1970-01-01T00:00:00 & -00:01) or (9999-12-31T00:00:00 & +00:01)
-        Self {
-            date_time,
-            time_zone_offset,
-        }
+        Self { date_time, offset }
     }
 
     pub fn from_instant(
         instant: Instant,
-        time_zone_offset: TimeZoneOffset,
+        offset: TimeZoneOffset,
     ) -> Result<Self, TryFromOffsetDateTimeError> {
-        let timestamp = i64::from(instant) + time_zone_offset.offset_in_minutes() as i64 * 60;
+        let timestamp = i64::from(instant) + offset.offset_in_minutes() as i64 * 60;
         // check range
         Instant::try_from(timestamp).map_err(|_| TryFromOffsetDateTimeError::OutOfRange)?;
         let date_time = date_time_from_timestamp(timestamp);
-        Ok(Self::new(date_time, time_zone_offset))
+        Ok(Self::new(date_time, offset))
     }
 
     pub fn instant(&self) -> Instant {
@@ -54,8 +51,8 @@ impl OffsetDateTime {
         self.date_time
     }
 
-    pub fn time_zone_offset(&self) -> TimeZoneOffset {
-        self.time_zone_offset
+    pub fn offset(&self) -> TimeZoneOffset {
+        self.offset
     }
 }
 
@@ -65,10 +62,10 @@ impl std::fmt::Display for OffsetDateTime {
             f,
             "{}{}",
             self.date_time,
-            if self.time_zone_offset == TimeZoneOffset::utc() {
+            if self.offset == TimeZoneOffset::utc() {
                 "Z".to_string()
             } else {
-                self.time_zone_offset.to_string()
+                self.offset.to_string()
             }
         )
     }
@@ -83,7 +80,7 @@ impl std::str::FromStr for OffsetDateTime {
         }
         let date_time =
             DateTime::from_str(&s[0..19]).map_err(ParseOffsetDateTimeError::ParseDateTime)?;
-        let time_zone_offset = if s.len() == 25 {
+        let offset = if s.len() == 25 {
             TimeZoneOffset::from_str(&s[19..25])
                 .map_err(ParseOffsetDateTimeError::ParseTimeZoneOffset)
         } else if s.chars().nth(19) == Some('Z') {
@@ -94,7 +91,7 @@ impl std::str::FromStr for OffsetDateTime {
                 ParseTimeZoneOffsetError::InvalidFormat,
             ))
         }?;
-        Ok(Self::new(date_time, time_zone_offset))
+        Ok(Self::new(date_time, offset))
     }
 }
 
@@ -108,7 +105,7 @@ impl From<Instant> for OffsetDateTime {
 impl From<OffsetDateTime> for Instant {
     fn from(offset_date_time: OffsetDateTime) -> Self {
         let local_timestamp = timestamp_from_date_time(offset_date_time.date_time());
-        let offset_in_seconds = offset_date_time.time_zone_offset().offset_in_minutes() as i64 * 60;
+        let offset_in_seconds = offset_date_time.offset().offset_in_minutes() as i64 * 60;
         let utc_timestamp = local_timestamp - offset_in_seconds;
         Instant::try_from(utc_timestamp).expect("OffsetDateTime is broken")
     }
@@ -141,7 +138,7 @@ mod tests {
         let f = |s: &str, timestamp: u64| -> anyhow::Result<()> {
             let instant = Instant::try_from(timestamp)?;
             let offset_date_time = OffsetDateTime::from(instant);
-            assert_eq!(offset_date_time.time_zone_offset(), TimeZoneOffset::utc());
+            assert_eq!(offset_date_time.offset(), TimeZoneOffset::utc());
             assert_eq!(Instant::from(offset_date_time), instant);
             assert_eq!(offset_date_time.to_string(), s.to_string(),);
             Ok(())
@@ -152,61 +149,61 @@ mod tests {
 
         {
             let instant = Instant::min();
-            let time_zone_offset = TimeZoneOffset::from_str("-00:01")?;
-            assert!(OffsetDateTime::from_instant(instant, time_zone_offset).is_err());
+            let offset = TimeZoneOffset::from_str("-00:01")?;
+            assert!(OffsetDateTime::from_instant(instant, offset).is_err());
         }
 
         {
             let instant = Instant::min();
-            let time_zone_offset = TimeZoneOffset::utc();
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::utc();
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "1970-01-01T00:00:00Z");
             assert_eq!(offset_date_time.instant(), instant);
         }
         {
             let instant = Instant::min();
-            let time_zone_offset = TimeZoneOffset::from_str("+00:01")?;
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::from_str("+00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "1970-01-01T00:01:00+00:01");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
         {
             let instant = Instant::try_from(i64::from(Instant::min()) + 60)?;
-            let time_zone_offset = TimeZoneOffset::from_str("-00:01")?;
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::from_str("-00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "1970-01-01T00:00:00-00:01");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
         {
             let instant = Instant::try_from(i64::from(Instant::max()) - 60)?;
-            let time_zone_offset = TimeZoneOffset::from_str("+00:01")?;
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::from_str("+00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "9999-12-31T23:59:59+00:01");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
         {
             let instant = Instant::max();
-            let time_zone_offset = TimeZoneOffset::from_str("-00:01")?;
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::from_str("-00:01")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "9999-12-31T23:58:59-00:01");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
         {
             let instant = Instant::max();
-            let time_zone_offset = TimeZoneOffset::from_str("+00:00")?;
-            let offset_date_time = OffsetDateTime::from_instant(instant, time_zone_offset)?;
+            let offset = TimeZoneOffset::from_str("+00:00")?;
+            let offset_date_time = OffsetDateTime::from_instant(instant, offset)?;
             assert_eq!(offset_date_time.to_string(), "9999-12-31T23:59:59Z");
             assert_eq!(offset_date_time.instant(), instant);
         }
 
         {
             let instant = Instant::max();
-            let time_zone_offset = TimeZoneOffset::from_str("+00:01")?;
-            assert!(OffsetDateTime::from_instant(instant, time_zone_offset).is_err());
+            let offset = TimeZoneOffset::from_str("+00:01")?;
+            assert!(OffsetDateTime::from_instant(instant, offset).is_err());
         }
         Ok(())
     }
@@ -252,9 +249,9 @@ mod tests {
     }
 
     #[test]
-    fn time_zone_offset_test() -> anyhow::Result<()> {
+    fn offset_test() -> anyhow::Result<()> {
         let dt = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
-        assert_eq!(dt.time_zone_offset(), TimeZoneOffset::from_str("+07:00")?);
+        assert_eq!(dt.offset(), TimeZoneOffset::from_str("+07:00")?);
         Ok(())
     }
 }

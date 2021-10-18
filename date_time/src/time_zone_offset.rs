@@ -142,20 +142,20 @@ mod tests {
 
     #[test]
     fn constructor_test() -> anyhow::Result<()> {
-        let time_zone_offset = TimeZoneOffset::from_h(0)?;
-        assert_eq!(time_zone_offset.to_string(), "+00:00");
-        let time_zone_offset = TimeZoneOffset::from_h(23)?;
-        assert_eq!(time_zone_offset.to_string(), "+23:00");
-        let time_zone_offset = TimeZoneOffset::from_h(-23)?;
-        assert_eq!(time_zone_offset.to_string(), "-23:00");
-        let time_zone_offset = TimeZoneOffset::from_hm(23, 59)?;
-        assert_eq!(time_zone_offset.to_string(), "+23:59");
-        let time_zone_offset = TimeZoneOffset::from_hm(-23, -59)?;
-        assert_eq!(time_zone_offset.to_string(), "-23:59");
-        let time_zone_offset = TimeZoneOffset::from_hm(-23, 59)?;
-        assert_eq!(time_zone_offset.hour(), -22);
-        assert_eq!(time_zone_offset.minute(), -1);
-        assert_eq!(time_zone_offset.to_string(), "-22:01");
+        let offset = TimeZoneOffset::from_h(0)?;
+        assert_eq!(offset.to_string(), "+00:00");
+        let offset = TimeZoneOffset::from_h(23)?;
+        assert_eq!(offset.to_string(), "+23:00");
+        let offset = TimeZoneOffset::from_h(-23)?;
+        assert_eq!(offset.to_string(), "-23:00");
+        let offset = TimeZoneOffset::from_hm(23, 59)?;
+        assert_eq!(offset.to_string(), "+23:59");
+        let offset = TimeZoneOffset::from_hm(-23, -59)?;
+        assert_eq!(offset.to_string(), "-23:59");
+        let offset = TimeZoneOffset::from_hm(-23, 59)?;
+        assert_eq!(offset.hour(), -22);
+        assert_eq!(offset.minute(), -1);
+        assert_eq!(offset.to_string(), "-22:01");
         Ok(())
     }
 
