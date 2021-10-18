@@ -5,6 +5,16 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Instant(u64);
 
+impl Instant {
+    pub fn max() -> Self {
+        Self(253_402_300_799_u64)
+    }
+
+    pub fn min() -> Self {
+        Self(0_u64)
+    }
+}
+
 #[derive(Debug, Eq, Error, PartialEq)]
 pub enum ParseInstantError {
     #[error("invalid format")]
@@ -40,7 +50,7 @@ impl std::convert::TryFrom<i64> for Instant {
     type Error = TryFromInstantError;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        if (0..=253_402_300_799_i64).contains(&value) {
+        if (0..=i64::from(Instant::max())).contains(&value) {
             Ok(Self(value as u64))
         } else {
             Err(TryFromInstantError::OutOfRange)
@@ -52,10 +62,11 @@ impl std::convert::TryFrom<u64> for Instant {
     type Error = TryFromInstantError;
 
     fn try_from(value: u64) -> Result<Self, Self::Error> {
-        if value > 253_402_300_799_u64 {
-            return Err(TryFromInstantError::OutOfRange);
+        if (0..=u64::from(Instant::max())).contains(&value) {
+            Ok(Self(value))
+        } else {
+            Err(TryFromInstantError::OutOfRange)
         }
-        Ok(Self(value))
     }
 }
 
@@ -79,24 +90,18 @@ mod tests {
 
     #[test]
     fn i64_conversion_test() -> anyhow::Result<()> {
-        assert!(Instant::try_from(-1_i64).is_err());
-        assert_eq!(i64::from(Instant::try_from(0_i64)?), 0_i64);
-        assert_eq!(
-            i64::from(Instant::try_from(253_402_300_799_i64)?),
-            253_402_300_799_i64
-        );
-        assert!(Instant::try_from(253_402_300_799_i64 + 1).is_err());
+        assert!(Instant::try_from(i64::from(Instant::min()) - 1_i64).is_err());
+        assert_eq!(i64::from(Instant::min()), 0_i64);
+        assert_eq!(i64::from(Instant::max()), 253_402_300_799_i64);
+        assert!(Instant::try_from(i64::from(Instant::max()) + 1_i64).is_err());
         Ok(())
     }
 
     #[test]
     fn u64_conversion_test() -> anyhow::Result<()> {
-        assert_eq!(u64::from(Instant::try_from(0_u64)?), 0_u64);
-        assert_eq!(
-            u64::from(Instant::try_from(253_402_300_799_u64)?),
-            253_402_300_799_u64
-        );
-        assert!(Instant::try_from(253_402_300_799_u64 + 1).is_err());
+        assert_eq!(u64::from(Instant::min()), 0_u64);
+        assert_eq!(u64::from(Instant::max()), 253_402_300_799_u64);
+        assert!(Instant::try_from(u64::from(Instant::max()) + 1_u64).is_err());
         Ok(())
     }
 
