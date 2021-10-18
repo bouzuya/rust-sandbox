@@ -1,14 +1,12 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use crate::{
-    Instant, LocalDateTime, ParseLocalDateTimeError, ParseTimeZoneOffsetError, TimeZoneOffset,
-};
+use crate::{DateTime, Instant, ParseDateTimeError, ParseTimeZoneOffsetError, TimeZoneOffset};
 
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct OffsetDateTime {
-    local_date_time: LocalDateTime,
+    date_time: DateTime,
     time_zone_offset: TimeZoneOffset,
 }
 
@@ -16,8 +14,8 @@ pub struct OffsetDateTime {
 pub enum ParseOffsetDateTimeError {
     #[error("invalid length")]
     InvalidLength,
-    #[error("parse local date time")]
-    ParseLocalDateTime(ParseLocalDateTimeError),
+    #[error("parse date time")]
+    ParseDateTime(ParseDateTimeError),
     #[error("parse time zone offset")]
     ParseTimeZoneOffset(ParseTimeZoneOffsetError),
 }
@@ -29,10 +27,10 @@ pub enum TryFromOffsetDateTimeError {
 }
 
 impl OffsetDateTime {
-    pub fn new(local_date_time: LocalDateTime, time_zone_offset: TimeZoneOffset) -> Self {
+    pub fn new(date_time: DateTime, time_zone_offset: TimeZoneOffset) -> Self {
         // FIXME: (1970-01-01T00:00:00 & -00:01) or (9999-12-31T00:00:00 & +00:01)
         Self {
-            local_date_time,
+            date_time,
             time_zone_offset,
         }
     }
@@ -44,16 +42,16 @@ impl OffsetDateTime {
         let timestamp = i64::from(instant) + time_zone_offset.offset_in_minutes() as i64 * 60;
         // check range
         Instant::try_from(timestamp).map_err(|_| TryFromOffsetDateTimeError::OutOfRange)?;
-        let local_date_time = local_date_time_from_timestamp(timestamp);
-        Ok(Self::new(local_date_time, time_zone_offset))
+        let date_time = date_time_from_timestamp(timestamp);
+        Ok(Self::new(date_time, time_zone_offset))
     }
 
     pub fn instant(&self) -> Instant {
         Instant::from(*self)
     }
 
-    pub fn local_date_time(&self) -> LocalDateTime {
-        self.local_date_time
+    pub fn date_time(&self) -> DateTime {
+        self.date_time
     }
 
     pub fn time_zone_offset(&self) -> TimeZoneOffset {
@@ -66,7 +64,7 @@ impl std::fmt::Display for OffsetDateTime {
         write!(
             f,
             "{}{}",
-            self.local_date_time,
+            self.date_time,
             if self.time_zone_offset == TimeZoneOffset::utc() {
                 "Z".to_string()
             } else {
@@ -83,8 +81,8 @@ impl std::str::FromStr for OffsetDateTime {
         if s.len() != 25 && s.len() != 20 {
             return Err(Self::Err::InvalidLength);
         }
-        let local_date_time = LocalDateTime::from_str(&s[0..19])
-            .map_err(ParseOffsetDateTimeError::ParseLocalDateTime)?;
+        let date_time =
+            DateTime::from_str(&s[0..19]).map_err(ParseOffsetDateTimeError::ParseDateTime)?;
         let time_zone_offset = if s.len() == 25 {
             TimeZoneOffset::from_str(&s[19..25])
                 .map_err(ParseOffsetDateTimeError::ParseTimeZoneOffset)
@@ -96,38 +94,38 @@ impl std::str::FromStr for OffsetDateTime {
                 ParseTimeZoneOffsetError::InvalidFormat,
             ))
         }?;
-        Ok(Self::new(local_date_time, time_zone_offset))
+        Ok(Self::new(date_time, time_zone_offset))
     }
 }
 
 impl From<Instant> for OffsetDateTime {
     fn from(instant: Instant) -> Self {
-        let local_date_time = local_date_time_from_timestamp(i64::from(instant));
-        Self::new(local_date_time, TimeZoneOffset::utc())
+        let date_time = date_time_from_timestamp(i64::from(instant));
+        Self::new(date_time, TimeZoneOffset::utc())
     }
 }
 
 impl From<OffsetDateTime> for Instant {
     fn from(offset_date_time: OffsetDateTime) -> Self {
-        let local_timestamp = timestamp_from_local_date_time(offset_date_time.local_date_time());
+        let local_timestamp = timestamp_from_date_time(offset_date_time.date_time());
         let offset_in_seconds = offset_date_time.time_zone_offset().offset_in_minutes() as i64 * 60;
         let utc_timestamp = local_timestamp - offset_in_seconds;
         Instant::try_from(utc_timestamp).expect("OffsetDateTime is broken")
     }
 }
 
-fn local_date_time_from_timestamp(timestamp: i64) -> LocalDateTime {
+fn date_time_from_timestamp(timestamp: i64) -> DateTime {
     use chrono::NaiveDateTime;
 
     let naive_date_time = NaiveDateTime::from_timestamp(timestamp, 0);
-    LocalDateTime::from_str(&format!("{:?}", naive_date_time))
+    DateTime::from_str(&format!("{:?}", naive_date_time))
         .expect("unexpected NaiveDateTime debug format")
 }
 
-fn timestamp_from_local_date_time(local_date_time: LocalDateTime) -> i64 {
+fn timestamp_from_date_time(date_time: DateTime) -> i64 {
     use chrono::NaiveDateTime;
 
-    NaiveDateTime::from_str(&local_date_time.to_string())
+    NaiveDateTime::from_str(&date_time.to_string())
         .expect("unexpected NaiveDateTime::from_str")
         .timestamp()
 }
@@ -225,7 +223,7 @@ mod tests {
         ));
         assert!(matches!(
             f("2021+02-03T04:05:06+07:00"),
-            Err(E::ParseLocalDateTime(_))
+            Err(E::ParseDateTime(_))
         ));
         assert!(matches!(
             f("2021-02-03T04:05:06+07-00"),
@@ -247,12 +245,9 @@ mod tests {
     }
 
     #[test]
-    fn local_date_time_test() -> anyhow::Result<()> {
+    fn date_time_test() -> anyhow::Result<()> {
         let dt = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
-        assert_eq!(
-            dt.local_date_time(),
-            LocalDateTime::from_str("2021-02-03T04:05:06")?
-        );
+        assert_eq!(dt.date_time(), DateTime::from_str("2021-02-03T04:05:06")?);
         Ok(())
     }
 

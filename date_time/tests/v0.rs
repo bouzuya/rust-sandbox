@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use date_time::{Date, DayOfMonth, Instant, LocalDateTime, OffsetDateTime};
+use date_time::{Date, DateTime, DayOfMonth, Instant, OffsetDateTime};
 
 #[test]
 fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
@@ -35,18 +35,17 @@ fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
 fn use_case_offset_date_time_with_day_of_month() -> anyhow::Result<()> {
     let with_day_of_month =
         |offset_date_time: OffsetDateTime, day_of_month: u8| -> anyhow::Result<OffsetDateTime> {
-            let local_date_time = offset_date_time.local_date_time();
+            let date_time = offset_date_time.date_time();
             let time_zone_offset = offset_date_time.time_zone_offset();
-            let date = local_date_time.date();
-            let time = local_date_time.time();
+            let date = date_time.date();
+            let time = date_time.time();
 
             // TODO: day_of_month -> date -> date
             let day_of_month = DayOfMonth::try_from(day_of_month)?;
             let updated_date = Date::from_ymd(date.year(), date.month(), day_of_month)?;
 
-            let updated_local_date_time = LocalDateTime::from_dt(updated_date, time);
-            let updated_offset_date_time =
-                OffsetDateTime::new(updated_local_date_time, time_zone_offset);
+            let updated_date_time = DateTime::from_dt(updated_date, time);
+            let updated_offset_date_time = OffsetDateTime::new(updated_date_time, time_zone_offset);
             Ok(updated_offset_date_time)
         };
 
@@ -64,16 +63,15 @@ fn use_case_offset_date_time_with_day_of_month() -> anyhow::Result<()> {
 #[test]
 fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
     let next_date = |offset_date_time: OffsetDateTime| -> anyhow::Result<OffsetDateTime> {
-        let local_date_time = offset_date_time.local_date_time();
+        let date_time = offset_date_time.date_time();
         let time_zone_offset = offset_date_time.time_zone_offset();
-        let date = local_date_time.date();
-        let time = local_date_time.time();
+        let date = date_time.date();
+        let time = date_time.time();
         let updated_date = date
             .succ()
             .ok_or_else(|| anyhow::anyhow!("LocalDate out of range"))?;
-        let updated_local_date_time = LocalDateTime::from_dt(updated_date, time);
-        let updated_offset_date_time =
-            OffsetDateTime::new(updated_local_date_time, time_zone_offset);
+        let updated_date_time = DateTime::from_dt(updated_date, time);
+        let updated_offset_date_time = OffsetDateTime::new(updated_date_time, time_zone_offset);
         Ok(updated_offset_date_time)
     };
 
@@ -90,10 +88,10 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
 #[test]
 fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
     let next_month = |offset_date_time: OffsetDateTime| -> anyhow::Result<OffsetDateTime> {
-        let local_date_time = offset_date_time.local_date_time();
+        let date_time = offset_date_time.date_time();
         let time_zone_offset = offset_date_time.time_zone_offset();
-        let date = local_date_time.date();
-        let time = local_date_time.time();
+        let date = date_time.date();
+        let time = date_time.time();
         let next_year_month = date
             .year_month()
             .succ()
@@ -103,9 +101,8 @@ fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
             next_year_month.month(),
             date.day_of_month(),
         )?;
-        let updated_local_date_time = LocalDateTime::from_dt(updated_date, time);
-        let updated_offset_date_time =
-            OffsetDateTime::new(updated_local_date_time, time_zone_offset);
+        let updated_date_time = DateTime::from_dt(updated_date, time);
+        let updated_offset_date_time = OffsetDateTime::new(updated_date_time, time_zone_offset);
         Ok(updated_offset_date_time)
     };
 

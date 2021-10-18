@@ -3,13 +3,13 @@ use crate::{Date, ParseDateError, ParseTimeError, Time};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct LocalDateTime {
+pub struct DateTime {
     date: Date,
     time: Time,
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-pub enum ParseLocalDateTimeError {
+pub enum ParseDateTimeError {
     #[error("invalid format")]
     InvalidFormat,
     #[error("invalid length")]
@@ -20,7 +20,7 @@ pub enum ParseLocalDateTimeError {
     ParseTime(ParseTimeError),
 }
 
-impl LocalDateTime {
+impl DateTime {
     pub fn from_dt(date: Date, time: Time) -> Self {
         Self { date, time }
     }
@@ -34,25 +34,25 @@ impl LocalDateTime {
     }
 }
 
-impl std::fmt::Display for LocalDateTime {
+impl std::fmt::Display for DateTime {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}T{}", self.date, self.time)
     }
 }
 
-impl std::str::FromStr for LocalDateTime {
-    type Err = ParseLocalDateTimeError;
+impl std::str::FromStr for DateTime {
+    type Err = ParseDateTimeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 19 {
             return Err(Self::Err::InvalidLength);
         }
-        let date = Date::from_str(&s[0..10]).map_err(ParseLocalDateTimeError::ParseDate)?;
+        let date = Date::from_str(&s[0..10]).map_err(ParseDateTimeError::ParseDate)?;
         if s.as_bytes().get(10) != Some(&b'T') {
             return Err(Self::Err::InvalidFormat);
         }
-        let time = Time::from_str(&s[11..19]).map_err(ParseLocalDateTimeError::ParseTime)?;
-        Ok(LocalDateTime { date, time })
+        let time = Time::from_str(&s[11..19]).map_err(ParseDateTimeError::ParseTime)?;
+        Ok(DateTime { date, time })
     }
 }
 
@@ -67,16 +67,16 @@ mod tests {
         let date = Date::from_str("2021-02-03")?;
         let time = Time::from_str("04:05:06")?;
         assert_eq!(
-            LocalDateTime::from_dt(date, time),
-            LocalDateTime::from_str("2021-02-03T04:05:06")?
+            DateTime::from_dt(date, time),
+            DateTime::from_str("2021-02-03T04:05:06")?
         );
         Ok(())
     }
 
     #[test]
     fn str_conversion_test() {
-        type E = ParseLocalDateTimeError;
-        let f = |s: &str| LocalDateTime::from_str(s);
+        type E = ParseDateTimeError;
+        let f = |s: &str| DateTime::from_str(s);
 
         assert!(matches!(f("2021-02-03T04:05:06"), Ok(_)));
         assert!(matches!(f("20021-02-03T04:05:06"), Err(E::InvalidLength)));
@@ -91,14 +91,14 @@ mod tests {
 
     #[test]
     fn date_test() -> anyhow::Result<()> {
-        let dt = LocalDateTime::from_str("2021-02-03T04:05:06")?;
+        let dt = DateTime::from_str("2021-02-03T04:05:06")?;
         assert_eq!(dt.date(), Date::from_str("2021-02-03")?);
         Ok(())
     }
 
     #[test]
     fn time_test() -> anyhow::Result<()> {
-        let dt = LocalDateTime::from_str("2021-02-03T04:05:06")?;
+        let dt = DateTime::from_str("2021-02-03T04:05:06")?;
         assert_eq!(dt.time(), Time::from_str("04:05:06")?);
         Ok(())
     }
