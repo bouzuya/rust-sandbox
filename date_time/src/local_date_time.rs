@@ -1,11 +1,11 @@
-use crate::{Date, LocalTime, ParseDateError, ParseLocalTimeError};
+use crate::{Date, ParseDateError, ParseTimeError, Time};
 
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct LocalDateTime {
     date: Date,
-    time: LocalTime,
+    time: Time,
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
@@ -17,11 +17,11 @@ pub enum ParseLocalDateTimeError {
     #[error("parse date")]
     ParseDate(ParseDateError),
     #[error("parse time")]
-    ParseTime(ParseLocalTimeError),
+    ParseTime(ParseTimeError),
 }
 
 impl LocalDateTime {
-    pub fn from_dt(date: Date, time: LocalTime) -> Self {
+    pub fn from_dt(date: Date, time: Time) -> Self {
         Self { date, time }
     }
 
@@ -29,7 +29,7 @@ impl LocalDateTime {
         self.date
     }
 
-    pub fn time(&self) -> LocalTime {
+    pub fn time(&self) -> Time {
         self.time
     }
 }
@@ -51,7 +51,7 @@ impl std::str::FromStr for LocalDateTime {
         if s.as_bytes().get(10) != Some(&b'T') {
             return Err(Self::Err::InvalidFormat);
         }
-        let time = LocalTime::from_str(&s[11..19]).map_err(ParseLocalDateTimeError::ParseTime)?;
+        let time = Time::from_str(&s[11..19]).map_err(ParseLocalDateTimeError::ParseTime)?;
         Ok(LocalDateTime { date, time })
     }
 }
@@ -65,7 +65,7 @@ mod tests {
     #[test]
     fn from_dt_test() -> anyhow::Result<()> {
         let date = Date::from_str("2021-02-03")?;
-        let time = LocalTime::from_str("04:05:06")?;
+        let time = Time::from_str("04:05:06")?;
         assert_eq!(
             LocalDateTime::from_dt(date, time),
             LocalDateTime::from_str("2021-02-03T04:05:06")?
@@ -99,7 +99,7 @@ mod tests {
     #[test]
     fn time_test() -> anyhow::Result<()> {
         let dt = LocalDateTime::from_str("2021-02-03T04:05:06")?;
-        assert_eq!(dt.time(), LocalTime::from_str("04:05:06")?);
+        assert_eq!(dt.time(), Time::from_str("04:05:06")?);
         Ok(())
     }
 }

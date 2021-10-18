@@ -9,14 +9,14 @@ pub use self::second::*;
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct LocalTime {
+pub struct Time {
     hour: Hour,
     minute: Minute,
     second: Second,
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-pub enum ParseLocalTimeError {
+pub enum ParseTimeError {
     #[error("invalid format")]
     InvalidFormat,
     #[error("invalid length")]
@@ -31,9 +31,9 @@ pub enum ParseLocalTimeError {
 
 #[derive(Debug, Eq, Error, PartialEq)]
 #[error("invalid local date error")]
-pub struct InvalidLocalTimeError;
+pub struct InvalidTimeError;
 
-impl LocalTime {
+impl Time {
     pub fn from_hms(hour: Hour, minute: Minute, second: Second) -> Self {
         Self {
             hour,
@@ -55,14 +55,14 @@ impl LocalTime {
     }
 }
 
-impl std::fmt::Display for LocalTime {
+impl std::fmt::Display for Time {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}:{}:{}", self.hour, self.minute, self.second)
     }
 }
 
-impl std::str::FromStr for LocalTime {
-    type Err = ParseLocalTimeError;
+impl std::str::FromStr for Time {
+    type Err = ParseTimeError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 8 {
@@ -98,7 +98,7 @@ impl std::str::FromStr for LocalTime {
                 ParseSecondError::OutOfRange => return Err(Self::Err::ParseSecond(e)),
             },
         };
-        Ok(LocalTime {
+        Ok(Time {
             hour,
             minute,
             second,
@@ -115,20 +115,20 @@ mod tests {
     #[test]
     fn from_ymd_test() -> anyhow::Result<()> {
         assert_eq!(
-            LocalTime::from_hms(
+            Time::from_hms(
                 Hour::from_str("04")?,
                 Minute::from_str("05")?,
                 Second::from_str("06")?
             ),
-            LocalTime::from_str("04:05:06")?
+            Time::from_str("04:05:06")?
         );
         Ok(())
     }
 
     #[test]
     fn str_conversion_test() {
-        type E = ParseLocalTimeError;
-        let f = |s: &str| LocalTime::from_str(s);
+        type E = ParseTimeError;
+        let f = |s: &str| Time::from_str(s);
 
         assert!(matches!(f("04:05:06"), Ok(_)));
         assert!(matches!(f("004:05:06"), Err(E::InvalidLength)));
@@ -146,22 +146,22 @@ mod tests {
 
     #[test]
     fn hour_test() -> anyhow::Result<()> {
-        let local_time = LocalTime::from_str("04:05:06")?;
-        assert_eq!(local_time.hour(), Hour::from_str("04")?);
+        let time = Time::from_str("04:05:06")?;
+        assert_eq!(time.hour(), Hour::from_str("04")?);
         Ok(())
     }
 
     #[test]
     fn minute_test() -> anyhow::Result<()> {
-        let local_time = LocalTime::from_str("04:05:06")?;
-        assert_eq!(local_time.minute(), Minute::from_str("05")?);
+        let time = Time::from_str("04:05:06")?;
+        assert_eq!(time.minute(), Minute::from_str("05")?);
         Ok(())
     }
 
     #[test]
     fn second_test() -> anyhow::Result<()> {
-        let local_time = LocalTime::from_str("04:05:06")?;
-        assert_eq!(local_time.second(), Second::from_str("06")?);
+        let time = Time::from_str("04:05:06")?;
+        assert_eq!(time.second(), Second::from_str("06")?);
         Ok(())
     }
 }
