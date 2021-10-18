@@ -16,7 +16,7 @@ fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
             let updated_instant = Instant::try_from(updated_seconds)?;
 
             let updated_offset_date_time =
-                OffsetDateTime::from_instant(updated_instant, time_zone_offset);
+                OffsetDateTime::from_instant(updated_instant, time_zone_offset)?;
             Ok(updated_offset_date_time)
         };
 
