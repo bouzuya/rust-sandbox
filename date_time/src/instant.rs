@@ -36,6 +36,18 @@ impl std::str::FromStr for Instant {
     }
 }
 
+impl std::convert::TryFrom<i64> for Instant {
+    type Error = TryFromInstantError;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        if (0..=253_402_300_799_i64).contains(&value) {
+            Ok(Self(value as u64))
+        } else {
+            Err(TryFromInstantError::OutOfRange)
+        }
+    }
+}
+
 impl std::convert::TryFrom<u64> for Instant {
     type Error = TryFromInstantError;
 
@@ -44,6 +56,12 @@ impl std::convert::TryFrom<u64> for Instant {
             return Err(TryFromInstantError::OutOfRange);
         }
         Ok(Self(value))
+    }
+}
+
+impl From<Instant> for i64 {
+    fn from(instant: Instant) -> Self {
+        instant.0 as i64
     }
 }
 
@@ -58,6 +76,18 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn i64_conversion_test() -> anyhow::Result<()> {
+        assert!(Instant::try_from(-1_i64).is_err());
+        assert_eq!(i64::from(Instant::try_from(0_i64)?), 0_i64);
+        assert_eq!(
+            i64::from(Instant::try_from(253_402_300_799_i64)?),
+            253_402_300_799_i64
+        );
+        assert!(Instant::try_from(253_402_300_799_i64 + 1).is_err());
+        Ok(())
+    }
 
     #[test]
     fn u64_conversion_test() -> anyhow::Result<()> {
