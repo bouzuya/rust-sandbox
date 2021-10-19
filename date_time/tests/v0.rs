@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use date_time::{Date, DateTime, DayOfMonth, Instant, OffsetDateTime};
+use date_time::{Date, DateTime, DayOfMonth, Duration, OffsetDateTime};
 
 #[test]
 fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
@@ -9,12 +9,7 @@ fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
             // TODO: offset_date_time + duration
             let instant = offset_date_time.instant();
             let offset = offset_date_time.offset();
-
-            // TODO: instant + duration
-            let seconds = u64::from(instant);
-            let updated_seconds = seconds + days * 86400;
-            let updated_instant = Instant::try_from(updated_seconds)?;
-
+            let updated_instant = instant + Duration::from_seconds(days * 86400);
             let updated_offset_date_time = OffsetDateTime::from_instant(updated_instant, offset)?;
             Ok(updated_offset_date_time)
         };
