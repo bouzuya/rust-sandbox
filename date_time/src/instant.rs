@@ -1,6 +1,8 @@
-use std::convert::TryFrom;
+use std::{convert::TryFrom, ops::Add};
 
 use thiserror::Error;
+
+use crate::Duration;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Instant(u64);
@@ -91,6 +93,15 @@ impl From<Instant> for u64 {
     }
 }
 
+impl Add<Duration> for Instant {
+    type Output = Instant;
+
+    fn add(self, rhs: Duration) -> Self::Output {
+        // TODO: unwrap
+        Instant::try_from(self.0.checked_add(rhs.to_seconds()).unwrap()).unwrap()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -131,5 +142,18 @@ mod tests {
         assert!(matches!(f("253402300800"), Err(E::OutOfRange)));
 
         assert_eq!(f("0").map(|d| d.to_string()), Ok("0".to_string()));
+    }
+
+    #[test]
+    fn add_duration_test() -> anyhow::Result<()> {
+        assert_eq!(
+            Instant::try_from(1_u64)? + Duration::from_seconds(2_u64),
+            Instant::try_from(3_u64)?
+        );
+        assert_eq!(
+            Instant::try_from(0_u64)? + Duration::from_seconds(u64::from(Instant::max())),
+            Instant::max()
+        );
+        Ok(())
     }
 }
