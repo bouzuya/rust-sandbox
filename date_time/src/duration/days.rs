@@ -1,3 +1,5 @@
+use crate::Seconds;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Days(u32);
 
@@ -13,6 +15,12 @@ impl From<Days> for u32 {
     }
 }
 
+impl From<Days> for Seconds {
+    fn from(value: Days) -> Self {
+        Self::from(value.0 as u64 * 864_000_u64)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -21,5 +29,11 @@ mod tests {
     fn u32_conversion_test() {
         assert_eq!(u32::from(Days::from(0_u32)), 0_u32);
         assert_eq!(u32::from(Days::from(1_u32)), 1_u32);
+    }
+
+    #[test]
+    fn seconds_conversion_test() {
+        assert_eq!(Seconds::from(Days::from(0_u32)), Seconds::from(0_u64));
+        assert_eq!(Seconds::from(Days::from(1_u32)), Seconds::from(864_000_u64));
     }
 }
