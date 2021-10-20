@@ -9,7 +9,7 @@ fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
             // TODO: offset_date_time + duration
             let instant = offset_date_time.instant();
             let offset = offset_date_time.offset();
-            let updated_instant = instant + Seconds::from_seconds(days * 86400);
+            let updated_instant = instant + Seconds::from(days * 86400);
             let updated_offset_date_time = OffsetDateTime::from_instant(updated_instant, offset)?;
             Ok(updated_offset_date_time)
         };

@@ -98,7 +98,7 @@ impl Add<Seconds> for Instant {
 
     fn add(self, rhs: Seconds) -> Self::Output {
         // TODO: unwrap
-        Instant::try_from(self.0.checked_add(rhs.to_seconds()).unwrap()).unwrap()
+        Instant::try_from(self.0.checked_add(u64::from(rhs)).unwrap()).unwrap()
     }
 }
 
@@ -147,11 +147,11 @@ mod tests {
     #[test]
     fn add_duration_test() -> anyhow::Result<()> {
         assert_eq!(
-            Instant::try_from(1_u64)? + Seconds::from_seconds(2_u64),
+            Instant::try_from(1_u64)? + Seconds::from(2_u64),
             Instant::try_from(3_u64)?
         );
         assert_eq!(
-            Instant::try_from(0_u64)? + Seconds::from_seconds(u64::from(Instant::max())),
+            Instant::try_from(0_u64)? + Seconds::from(u64::from(Instant::max())),
             Instant::max()
         );
         Ok(())

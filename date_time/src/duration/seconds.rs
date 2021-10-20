@@ -1,13 +1,15 @@
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Seconds(u64);
 
-impl Seconds {
-    pub fn from_seconds(seconds: u64) -> Self {
-        Self(seconds)
+impl From<u64> for Seconds {
+    fn from(value: u64) -> Self {
+        Self(value)
     }
+}
 
-    pub fn to_seconds(&self) -> u64 {
-        self.0
+impl From<Seconds> for u64 {
+    fn from(value: Seconds) -> Self {
+        value.0
     }
 }
 
@@ -17,7 +19,7 @@ mod tests {
 
     #[test]
     fn u64_conversion_test() {
-        assert_eq!(Seconds::from_seconds(0_u64).to_seconds(), 0_u64);
-        assert_eq!(Seconds::from_seconds(1_u64).to_seconds(), 1_u64);
+        assert_eq!(u64::from(Seconds::from(0_u64)), 0_u64);
+        assert_eq!(u64::from(Seconds::from(1_u64)), 1_u64);
     }
 }
