@@ -1,24 +1,20 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use date_time::{Date, DateTime, DayOfMonth, Days, OffsetDateTime, Seconds};
+use date_time::{Date, DateTime, DayOfMonth, Days, OffsetDateTime};
 
 #[test]
 fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
     let plus_days =
-        |offset_date_time: OffsetDateTime, days: u32| -> anyhow::Result<OffsetDateTime> {
-            let days = Days::from(days);
-
-            // TODO: offset_date_time + duration
-            let instant = offset_date_time.instant();
-            let offset = offset_date_time.offset();
-            // TODO: instant + days
-            let updated_instant = instant + Seconds::from(days);
-            let updated_offset_date_time = OffsetDateTime::from_instant(updated_instant, offset)?;
+        |offset_date_time: OffsetDateTime, days: Days| -> anyhow::Result<OffsetDateTime> {
+            let updated_offset_date_time = OffsetDateTime::from_instant(
+                offset_date_time.instant() + days,
+                offset_date_time.offset(),
+            )?;
             Ok(updated_offset_date_time)
         };
 
     let offset_date_time = OffsetDateTime::from_str("2021-02-03T04:05:06+09:00")?;
-    let days = 2;
+    let days = Days::from(2);
     let updated_offset_date_time = plus_days(offset_date_time, days)?;
     assert_eq!(
         updated_offset_date_time.to_string(),

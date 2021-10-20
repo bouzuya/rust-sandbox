@@ -2,7 +2,7 @@ use std::{convert::TryFrom, ops::Add};
 
 use thiserror::Error;
 
-use crate::Seconds;
+use crate::{Days, Seconds};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Instant(u64);
@@ -93,6 +93,14 @@ impl From<Instant> for u64 {
     }
 }
 
+impl Add<Days> for Instant {
+    type Output = Instant;
+
+    fn add(self, rhs: Days) -> Self::Output {
+        self + Seconds::from(rhs)
+    }
+}
+
 impl Add<Seconds> for Instant {
     type Output = Instant;
 
@@ -145,7 +153,16 @@ mod tests {
     }
 
     #[test]
-    fn add_duration_test() -> anyhow::Result<()> {
+    fn add_days_test() -> anyhow::Result<()> {
+        assert_eq!(
+            Instant::try_from(1_u64)? + Days::from(1_u32),
+            Instant::try_from(864_001_u64)?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn add_seconds_test() -> anyhow::Result<()> {
         assert_eq!(
             Instant::try_from(1_u64)? + Seconds::from(2_u64),
             Instant::try_from(3_u64)?
