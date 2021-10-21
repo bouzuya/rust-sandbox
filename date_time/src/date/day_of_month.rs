@@ -1,6 +1,8 @@
 use std::convert::TryFrom;
 use thiserror::Error;
 
+use crate::Days;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DayOfMonth(u8);
 
@@ -80,6 +82,26 @@ impl std::convert::TryFrom<u8> for DayOfMonth {
     }
 }
 
+impl std::ops::Add<Days> for DayOfMonth {
+    type Output = DayOfMonth;
+
+    fn add(self, rhs: Days) -> Self::Output {
+        u32::from(self.0)
+            .checked_add(u32::from(rhs))
+            .and_then(|d| u8::try_from(d).ok())
+            .and_then(|d| DayOfMonth::try_from(d).ok())
+            .unwrap_or_else(|| panic!("overflow"))
+    }
+}
+
+impl std::ops::Add<DayOfMonth> for Days {
+    type Output = DayOfMonth;
+
+    fn add(self, rhs: DayOfMonth) -> Self::Output {
+        rhs + self
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -134,6 +156,22 @@ mod tests {
             Some(DayOfMonth::try_from(31)?)
         );
         assert_eq!(DayOfMonth::try_from(31)?.succ(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn add_days_test() -> anyhow::Result<()> {
+        let d1 = DayOfMonth::try_from(1)?;
+        let d2 = DayOfMonth::try_from(2)?;
+        let d31 = DayOfMonth::try_from(31)?;
+        assert_eq!(d1 + Days::from(0), d1);
+        assert_eq!(d1 + Days::from(1), d2);
+        assert_eq!(d1 + Days::from(30), d31);
+        // should_panic
+        // assert_eq!(d1 + Days::from(31), d31);
+        assert_eq!(Days::from(0) + d1, d1);
+        assert_eq!(Days::from(1) + d1, d2);
+        assert_eq!(Days::from(30) + d1, d31);
         Ok(())
     }
 }

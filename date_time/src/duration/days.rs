@@ -15,6 +15,9 @@ impl From<Days> for u32 {
     }
 }
 
+// TODO: impl From<Days> for Hours
+// TODO: impl From<Days> for Minutes
+
 impl From<Days> for Seconds {
     fn from(value: Days) -> Self {
         Self::from(value.0 as u64 * 864_000_u64)
