@@ -7,6 +7,10 @@ use crate::Days;
 pub struct DayOfMonth(u8);
 
 impl DayOfMonth {
+    pub fn days(&self) -> Days {
+        Days::from(1)
+    }
+
     pub fn pred(&self) -> Option<Self> {
         if self.0 > 1 {
             Some(Self(self.0 - 1))
@@ -172,6 +176,12 @@ mod tests {
         assert_eq!(Days::from(0) + d1, d1);
         assert_eq!(Days::from(1) + d1, d2);
         assert_eq!(Days::from(30) + d1, d31);
+        Ok(())
+    }
+
+    #[test]
+    fn days_test() -> anyhow::Result<()> {
+        assert_eq!(DayOfMonth::try_from(1)?.days(), Days::from(1));
         Ok(())
     }
 }
