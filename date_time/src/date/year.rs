@@ -1,10 +1,16 @@
 use std::convert::TryFrom;
 use thiserror::Error;
 
+use crate::Days;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Year(u16);
 
 impl Year {
+    pub fn days(&self) -> Days {
+        Days::from(if self.is_leap_year() { 366 } else { 365 })
+    }
+
     pub fn pred(&self) -> Option<Self> {
         if self.0 > 1970 {
             Some(Self(self.0 - 1))
@@ -135,6 +141,13 @@ mod tests {
         assert_eq!(Year::try_from(1970)?.succ(), Some(Year::try_from(1971)?));
         assert_eq!(Year::try_from(9998)?.succ(), Some(Year::try_from(9999)?));
         assert_eq!(Year::try_from(9999)?.succ(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn days_test() -> anyhow::Result<()> {
+        assert_eq!(Year::try_from(2000)?.days(), Days::from(366));
+        assert_eq!(Year::try_from(2001)?.days(), Days::from(365));
         Ok(())
     }
 }
