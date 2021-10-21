@@ -26,24 +26,23 @@ fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
 
 #[test]
 fn use_case_offset_date_time_with_day_of_month() -> anyhow::Result<()> {
-    let with_day_of_month =
-        |offset_date_time: OffsetDateTime, day_of_month: u8| -> anyhow::Result<OffsetDateTime> {
-            let date_time = offset_date_time.date_time();
-            let offset = offset_date_time.offset();
-            let date = date_time.date();
-            let time = date_time.time();
+    let with_day_of_month = |offset_date_time: OffsetDateTime,
+                             day_of_month: DayOfMonth|
+     -> anyhow::Result<OffsetDateTime> {
+        let date_time = offset_date_time.date_time();
+        let offset = offset_date_time.offset();
+        let date = date_time.date();
+        let time = date_time.time();
 
-            // TODO: day_of_month -> date -> date
-            let day_of_month = DayOfMonth::try_from(day_of_month)?;
-            let updated_date = Date::from_ymd(date.year(), date.month(), day_of_month)?;
+        let updated_date = Date::from_ymd(date.year(), date.month(), day_of_month)?;
 
-            let updated_date_time = DateTime::from_date_time(updated_date, time);
-            let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
-            Ok(updated_offset_date_time)
-        };
+        let updated_date_time = DateTime::from_date_time(updated_date, time);
+        let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
+        Ok(updated_offset_date_time)
+    };
 
     let offset_date_time = OffsetDateTime::from_str("2021-02-03T04:05:06+09:00")?;
-    let day_of_month = 14;
+    let day_of_month = DayOfMonth::try_from(14)?;
     let updated_offset_date_time = with_day_of_month(offset_date_time, day_of_month)?;
     assert_eq!(
         updated_offset_date_time.to_string(),
