@@ -1,6 +1,8 @@
 use std::convert::TryFrom;
 use thiserror::Error;
 
+use crate::Days;
+
 use super::{DayOfMonth, Month, ParseMonthError, ParseYearError, Year};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -24,6 +26,10 @@ pub enum ParseYearMonthError {
 impl YearMonth {
     pub fn new(year: Year, month: Month) -> Self {
         Self { year, month }
+    }
+
+    pub fn days(&self) -> Days {
+        Days::from(u32::from(u8::from(self.last_day_of_month())))
     }
 
     pub fn first_day_of_month(&self) -> DayOfMonth {
@@ -215,6 +221,15 @@ mod tests {
             Some(YearMonth::from_str("9999-12")?)
         );
         assert_eq!(YearMonth::from_str("9999-12")?.succ(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn days_test() -> anyhow::Result<()> {
+        assert_eq!(YearMonth::from_str("2000-01")?.days(), Days::from(31));
+        assert_eq!(YearMonth::from_str("2000-02")?.days(), Days::from(29));
+        assert_eq!(YearMonth::from_str("2001-02")?.days(), Days::from(28));
+        assert_eq!(YearMonth::from_str("2000-04")?.days(), Days::from(30));
         Ok(())
     }
 }
