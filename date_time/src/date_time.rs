@@ -21,7 +21,7 @@ pub enum ParseDateTimeError {
 }
 
 impl DateTime {
-    pub fn from_dt(date: Date, time: Time) -> Self {
+    pub fn from_date_time(date: Date, time: Time) -> Self {
         Self { date, time }
     }
 
@@ -63,11 +63,11 @@ mod tests {
     use super::*;
 
     #[test]
-    fn from_dt_test() -> anyhow::Result<()> {
+    fn from_date_time_test() -> anyhow::Result<()> {
         let date = Date::from_str("2021-02-03")?;
         let time = Time::from_str("04:05:06")?;
         assert_eq!(
-            DateTime::from_dt(date, time),
+            DateTime::from_date_time(date, time),
             DateTime::from_str("2021-02-03T04:05:06")?
         );
         Ok(())
@@ -91,15 +91,15 @@ mod tests {
 
     #[test]
     fn date_test() -> anyhow::Result<()> {
-        let dt = DateTime::from_str("2021-02-03T04:05:06")?;
-        assert_eq!(dt.date(), Date::from_str("2021-02-03")?);
+        let date_time = DateTime::from_str("2021-02-03T04:05:06")?;
+        assert_eq!(date_time.date(), Date::from_str("2021-02-03")?);
         Ok(())
     }
 
     #[test]
     fn time_test() -> anyhow::Result<()> {
-        let dt = DateTime::from_str("2021-02-03T04:05:06")?;
-        assert_eq!(dt.time(), Time::from_str("04:05:06")?);
+        let date_time = DateTime::from_str("2021-02-03T04:05:06")?;
+        assert_eq!(date_time.time(), Time::from_str("04:05:06")?);
         Ok(())
     }
 }

@@ -243,15 +243,21 @@ mod tests {
 
     #[test]
     fn date_time_test() -> anyhow::Result<()> {
-        let dt = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
-        assert_eq!(dt.date_time(), DateTime::from_str("2021-02-03T04:05:06")?);
+        let offset_date_time = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
+        assert_eq!(
+            offset_date_time.date_time(),
+            DateTime::from_str("2021-02-03T04:05:06")?
+        );
         Ok(())
     }
 
     #[test]
     fn offset_test() -> anyhow::Result<()> {
-        let dt = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
-        assert_eq!(dt.offset(), TimeZoneOffset::from_str("+07:00")?);
+        let offset_date_time = OffsetDateTime::from_str("2021-02-03T04:05:06+07:00")?;
+        assert_eq!(
+            offset_date_time.offset(),
+            TimeZoneOffset::from_str("+07:00")?
+        );
         Ok(())
     }
 }

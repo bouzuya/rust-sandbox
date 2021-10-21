@@ -37,7 +37,7 @@ fn use_case_offset_date_time_with_day_of_month() -> anyhow::Result<()> {
             let day_of_month = DayOfMonth::try_from(day_of_month)?;
             let updated_date = Date::from_ymd(date.year(), date.month(), day_of_month)?;
 
-            let updated_date_time = DateTime::from_dt(updated_date, time);
+            let updated_date_time = DateTime::from_date_time(updated_date, time);
             let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
             Ok(updated_offset_date_time)
         };
@@ -63,7 +63,7 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
         let updated_date = date
             .succ()
             .ok_or_else(|| anyhow::anyhow!("LocalDate out of range"))?;
-        let updated_date_time = DateTime::from_dt(updated_date, time);
+        let updated_date_time = DateTime::from_date_time(updated_date, time);
         let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
         Ok(updated_offset_date_time)
     };
@@ -94,7 +94,7 @@ fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
             next_year_month.month(),
             date.day_of_month(),
         )?;
-        let updated_date_time = DateTime::from_dt(updated_date, time);
+        let updated_date_time = DateTime::from_date_time(updated_date, time);
         let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
         Ok(updated_offset_date_time)
     };
