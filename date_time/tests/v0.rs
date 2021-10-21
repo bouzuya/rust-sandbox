@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use date_time::{Date, DateTime, DayOfMonth, Days, OffsetDateTime};
+use date_time::{Date, DateTime, DayOfMonth, Days, OffsetDateTime, Year, YearMonth};
 
 #[test]
 fn use_case_offset_date_time_plus_days() -> anyhow::Result<()> {
@@ -105,5 +105,17 @@ fn use_case_offset_date_time_next_month() -> anyhow::Result<()> {
         "2021-03-03T04:05:06+09:00"
     );
 
+    Ok(())
+}
+
+#[test]
+fn use_case_get_days() -> anyhow::Result<()> {
+    assert_eq!(DayOfMonth::from_str("03")?.days(), Days::from(1));
+    // Month::days is not supported
+    assert_eq!(YearMonth::from_str("2021-02")?.days(), Days::from(28));
+    assert_eq!(Year::from_str("2021")?.days(), Days::from(365));
+    // Date::days is not supported (yet?)
+
+    // TODO: date range -> days
     Ok(())
 }

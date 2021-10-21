@@ -47,4 +47,30 @@
       - 失敗しない、常に次の月を返せる
     - 次の年の 1 月なのでループしているわけではない？
   - n ヶ月後の取得をどう表現する
-
+- Days の利用場面を増やす - 期間として見て量 (日数) を返す
+  - DayOfMonth -> Days はあり
+    - 必要なさそうだけど 1 日だと思う
+  - Month -> Days はなし
+    - Year がついていないと日数は確定しない
+  - YearMonth -> Days はあり
+    - epoch からの日数などと誤読する？
+      - diff や range で提供すると良さそう
+    - ある年のある月の日数として読めそう
+  - Year -> Days はあり
+    - YearMonth -> Days と同様
+  - Hour -> Days はなし
+    - 端数
+  - Minute -> Days はなし
+    - Hour と同様
+  - Second -> Days はなし
+    - Hour と同様
+  - Date -> Days はひとまずなし
+    - 曖昧さがある
+    - 基本的には 1 日のような気がする
+    - 名前次第で Year::days, YearMonth::days のショートカットになる
+      - 代替: Date::year から Year::days
+      - 代替: Date::year_month から YearMonth::days
+    - ショートカットのようなメソッドを利便性のために追加すべきか？
+      - まだ提供していない
+      - 提供すると混雑しそう
+      - ひとまずなし
