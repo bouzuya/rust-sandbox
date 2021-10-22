@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 use thiserror::Error;
 
-use crate::Days;
+use crate::{Days, Months};
 
 use super::{DayOfMonth, Month, ParseMonthError, ParseYearError, Year};
 
@@ -85,6 +85,25 @@ impl YearMonth {
 impl std::fmt::Display for YearMonth {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}", self.year, self.month)
+    }
+}
+
+impl std::ops::Add<Months> for YearMonth {
+    type Output = YearMonth;
+
+    fn add(self, rhs: Months) -> Self::Output {
+        let y = u32::from(u16::from(self.year()));
+        let m = u32::from(u8::from(self.month()));
+        let ry = u32::from(rhs) / 12;
+        let rm = u32::from(rhs) % 12;
+        let ny = y + ry + (m + rm) / 12;
+        let nm = (m + rm) % 12;
+        // TODO: unwrap
+        let y = u16::try_from(ny).unwrap();
+        let m = u8::try_from(nm).unwrap();
+        // TODO: TryFrom<u32> for Year
+        // TODO: TryFrom<u32> for Month
+        Self::new(Year::try_from(y).unwrap(), Month::try_from(m).unwrap())
     }
 }
 
@@ -230,6 +249,29 @@ mod tests {
         assert_eq!(YearMonth::from_str("2000-02")?.days(), Days::from(29));
         assert_eq!(YearMonth::from_str("2001-02")?.days(), Days::from(28));
         assert_eq!(YearMonth::from_str("2000-04")?.days(), Days::from(30));
+        Ok(())
+    }
+
+    #[test]
+    fn add_months_test() -> anyhow::Result<()> {
+        assert_eq!(
+            YearMonth::from_str("2000-01")? + Months::from(1),
+            YearMonth::from_str("2000-02")?
+        );
+        assert_eq!(
+            YearMonth::from_str("2000-01")? + Months::from(2),
+            YearMonth::from_str("2000-03")?
+        );
+        assert_eq!(
+            YearMonth::from_str("2000-01")? + Months::from(12),
+            YearMonth::from_str("2001-01")?
+        );
+        assert_eq!(
+            YearMonth::from_str("2000-01")? + Months::from(13),
+            YearMonth::from_str("2001-02")?
+        );
+        // should panic
+        // YearMonth::from_str("9999-12")? + Months::from(1),
         Ok(())
     }
 }
