@@ -7,6 +7,22 @@ use crate::Days;
 pub struct DayOfYear(u16);
 
 impl DayOfYear {
+    pub fn max() -> DayOfYear {
+        Self::max_in_leap_year()
+    }
+
+    pub fn max_in_common_year() -> DayOfYear {
+        DayOfYear(365)
+    }
+
+    pub fn max_in_leap_year() -> DayOfYear {
+        DayOfYear(366)
+    }
+
+    pub fn min() -> DayOfYear {
+        DayOfYear(1)
+    }
+
     pub fn days(&self) -> Days {
         Days::from(1)
     }
@@ -134,6 +150,15 @@ mod tests {
         assert_eq!(f(1_u16).map(u16::from), Ok(1_u16));
         assert_eq!(f(366_u16).map(u16::from), Ok(366_u16));
         assert_eq!(f(367_u16), Err(E::OutOfRange));
+    }
+
+    #[test]
+    fn max_min_test() -> anyhow::Result<()> {
+        assert_eq!(DayOfYear::max(), DayOfYear::try_from(366)?);
+        assert_eq!(DayOfYear::max_in_common_year(), DayOfYear::try_from(365)?);
+        assert_eq!(DayOfYear::max_in_leap_year(), DayOfYear::try_from(366)?);
+        assert_eq!(DayOfYear::min(), DayOfYear::try_from(1)?);
+        Ok(())
     }
 
     #[test]
