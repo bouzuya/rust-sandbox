@@ -20,6 +20,10 @@ pub(crate) fn timestamp_from_date_time_string(
         .timestamp())
 }
 
+pub(crate) fn year_to_days_from_ce(y: i64) -> i64 {
+    y * 365 + y / 4 - y / 100 + y / 400
+}
+
 #[cfg(test)]
 mod tests {
     use crate::Instant;
@@ -47,6 +51,20 @@ mod tests {
         assert_eq!(f("1970-01-01T00:00:00")?, min_timestamp);
         assert_eq!(f("9999-12-31T23:59:59")?, max_timestamp);
         assert_eq!(f("+10000-01-01T00:00:00")?, max_timestamp + 1);
+        Ok(())
+    }
+
+    #[test]
+    fn year_to_days_from_ce_test() -> anyhow::Result<()> {
+        let f = year_to_days_from_ce;
+        let g = |y, m, d| {
+            i64::from(chrono::Datelike::num_days_from_ce(
+                &chrono::NaiveDate::from_ymd(y as i32, m, d),
+            ))
+        };
+        for y in 1..=9999 + 1 {
+            assert_eq!(f(y - 1) + 1, g(y, 1, 1));
+        }
         Ok(())
     }
 }
