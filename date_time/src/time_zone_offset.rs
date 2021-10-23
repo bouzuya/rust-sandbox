@@ -49,8 +49,7 @@ impl TimeZoneOffset {
     }
 
     pub fn utc() -> TimeZoneOffset {
-        TimeZoneOffset::from_offset_in_minutes(0)
-            .expect("TimeZoneOffset::from_offset_in_minutes is broken")
+        TimeZoneOffset(0)
     }
 
     pub fn hour(&self) -> i8 {
