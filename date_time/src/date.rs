@@ -1,9 +1,11 @@
 mod day_of_month;
+mod day_of_year;
 mod month;
 mod year;
 mod year_month;
 
 pub use self::day_of_month::{DayOfMonth, ParseDayOfMonthError};
+pub use self::day_of_year::*;
 pub use self::month::{Month, ParseMonthError};
 pub use self::year::{ParseYearError, Year};
 pub use self::year_month::{ParseYearMonthError, YearMonth};
