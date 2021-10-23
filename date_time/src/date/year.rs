@@ -1,12 +1,24 @@
 use std::convert::TryFrom;
 use thiserror::Error;
 
-use crate::Days;
+use crate::{DayOfYear, Days};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Year(u16);
 
 impl Year {
+    pub fn first_day_of_year(&self) -> DayOfYear {
+        DayOfYear::min()
+    }
+
+    pub fn last_day_of_year(&self) -> DayOfYear {
+        if self.is_leap_year() {
+            DayOfYear::max_in_leap_year()
+        } else {
+            DayOfYear::max_in_common_year()
+        }
+    }
+
     pub fn days(&self) -> Days {
         Days::from(if self.is_leap_year() { 366 } else { 365 })
     }
@@ -126,6 +138,24 @@ mod tests {
         assert_eq!(f(1970_u16).map(u16::from), Ok(1970_u16));
         assert_eq!(f(9999_u16).map(u16::from), Ok(9999_u16));
         assert_eq!(f(10000_u16), Err(E::OutOfRange));
+    }
+
+    #[test]
+    fn first_day_of_year_test() -> anyhow::Result<()> {
+        assert_eq!(Year::try_from(2000)?.first_day_of_year(), DayOfYear::min());
+        Ok(())
+    }
+
+    #[test]
+    fn last_day_of_year_test() -> anyhow::Result<()> {
+        let leap_year = Year::try_from(2000)?;
+        assert_eq!(leap_year.last_day_of_year(), DayOfYear::max_in_leap_year());
+        let common_year = Year::try_from(2001)?;
+        assert_eq!(
+            common_year.last_day_of_year(),
+            DayOfYear::max_in_common_year()
+        );
+        Ok(())
     }
 
     #[test]
