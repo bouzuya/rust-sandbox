@@ -1,6 +1,9 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use crate::{DateTime, Instant, ParseDateTimeError, ParseTimeZoneOffsetError, TimeZoneOffset};
+use crate::{
+    private::{date_time_string_from_timestamp, timestamp_from_date_time_string},
+    DateTime, Instant, ParseDateTimeError, ParseTimeZoneOffsetError, TimeZoneOffset,
+};
 
 use thiserror::Error;
 
@@ -97,14 +100,17 @@ impl std::str::FromStr for OffsetDateTime {
 
 impl From<Instant> for OffsetDateTime {
     fn from(instant: Instant) -> Self {
-        let date_time = date_time_from_timestamp(i64::from(instant));
+        let date_time = date_time_from_timestamp(u64::from(instant) as i64);
         Self::new(date_time, TimeZoneOffset::utc())
     }
 }
 
 impl From<OffsetDateTime> for Instant {
     fn from(offset_date_time: OffsetDateTime) -> Self {
-        let local_timestamp = timestamp_from_date_time(offset_date_time.date_time());
+        // FIXME:
+        let local_timestamp =
+            timestamp_from_date_time_string(offset_date_time.date_time().to_string().as_str())
+                .unwrap();
         let offset_in_seconds = offset_date_time.offset().offset_in_minutes() as i64 * 60;
         let utc_timestamp = local_timestamp - offset_in_seconds;
         Instant::try_from(utc_timestamp).expect("OffsetDateTime is broken")
@@ -112,19 +118,9 @@ impl From<OffsetDateTime> for Instant {
 }
 
 fn date_time_from_timestamp(timestamp: i64) -> DateTime {
-    use chrono::NaiveDateTime;
-
-    let naive_date_time = NaiveDateTime::from_timestamp(timestamp, 0);
-    DateTime::from_str(&format!("{:?}", naive_date_time))
-        .expect("unexpected NaiveDateTime debug format")
-}
-
-fn timestamp_from_date_time(date_time: DateTime) -> i64 {
-    use chrono::NaiveDateTime;
-
-    NaiveDateTime::from_str(&date_time.to_string())
-        .expect("unexpected NaiveDateTime::from_str")
-        .timestamp()
+    // FIXME:
+    DateTime::from_str(date_time_string_from_timestamp(timestamp).as_ref().unwrap())
+        .expect("date_time_string_from_timestamp")
 }
 
 #[cfg(test)]

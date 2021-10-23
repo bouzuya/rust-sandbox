@@ -3,6 +3,7 @@ mod date_time;
 mod duration;
 mod instant;
 mod offset_date_time;
+mod private;
 mod time;
 mod time_zone_offset;
 
