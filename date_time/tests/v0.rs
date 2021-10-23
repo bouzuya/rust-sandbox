@@ -61,7 +61,7 @@ fn use_case_offset_date_time_next_date() -> anyhow::Result<()> {
         let time = date_time.time();
         let updated_date = date
             .succ()
-            .ok_or_else(|| anyhow::anyhow!("LocalDate out of range"))?;
+            .ok_or_else(|| anyhow::anyhow!("Date out of range"))?;
         let updated_date_time = DateTime::from_date_time(updated_date, time);
         let updated_offset_date_time = OffsetDateTime::new(updated_date_time, offset);
         Ok(updated_offset_date_time)

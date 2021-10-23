@@ -35,7 +35,7 @@ pub enum ParseDateError {
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-#[error("invalid local date error")]
+#[error("invalid date error")]
 pub struct InvalidDateError;
 
 impl Date {

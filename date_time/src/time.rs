@@ -30,7 +30,7 @@ pub enum ParseTimeError {
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-#[error("invalid local date error")]
+#[error("invalid time error")]
 pub struct InvalidTimeError;
 
 impl Time {
