@@ -20,7 +20,7 @@ impl From<Days> for u32 {
 
 impl From<Days> for Seconds {
     fn from(value: Days) -> Self {
-        Self::from(value.0 as u64 * 864_000_u64)
+        Self::from(value.0 as u64 * 86_400_u64)
     }
 }
 
@@ -37,6 +37,6 @@ mod tests {
     #[test]
     fn seconds_conversion_test() {
         assert_eq!(Seconds::from(Days::from(0_u32)), Seconds::from(0_u64));
-        assert_eq!(Seconds::from(Days::from(1_u32)), Seconds::from(864_000_u64));
+        assert_eq!(Seconds::from(Days::from(1_u32)), Seconds::from(86_400_u64));
     }
 }

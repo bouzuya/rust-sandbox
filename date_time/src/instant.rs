@@ -154,9 +154,10 @@ mod tests {
 
     #[test]
     fn add_days_test() -> anyhow::Result<()> {
+        let seconds_per_day = 24_u64 * 60_u64 * 60_u64;
         assert_eq!(
             Instant::try_from(1_u64)? + Days::from(1_u32),
-            Instant::try_from(864_001_u64)?
+            Instant::try_from(1_u64 + seconds_per_day)?
         );
         Ok(())
     }
