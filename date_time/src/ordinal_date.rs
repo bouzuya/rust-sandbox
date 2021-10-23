@@ -107,9 +107,8 @@ impl From<Date> for OrdinalDate {
     fn from(date: Date) -> Self {
         let year = date.year();
         let mut days = 0_u16;
-        // TODO: Month::min()
         // TODO: impl Iterator for Range<Month>
-        for m in 1_u8..u8::from(date.month()) {
+        for m in u8::from(Month::january())..u8::from(date.month()) {
             let m = Month::try_from(m).unwrap();
             let year_month = YearMonth::new(year, m);
             days += u16::try_from(u32::from(year_month.days()))
@@ -127,9 +126,8 @@ impl From<OrdinalDate> for Date {
         let year = ordinal_date.year();
         let day_of_year = u16::from(ordinal_date.day_of_year());
         let mut days = 0_u16;
-        // TODO: Month::min()
         // TODO: impl Iterator for Range<Month>
-        for m in 1_u8..=12_u8 {
+        for m in u8::from(Month::january())..=u8::from(Month::december()) {
             let m = Month::try_from(m).unwrap();
             let year_month = YearMonth::new(year, m);
             let days_of_month = u16::try_from(u32::from(year_month.days()))
