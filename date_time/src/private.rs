@@ -57,13 +57,18 @@ mod tests {
     #[test]
     fn year_to_days_from_ce_test() -> anyhow::Result<()> {
         let f = year_to_days_from_ce;
-        let g = |y, m, d| {
-            i64::from(chrono::Datelike::num_days_from_ce(
-                &chrono::NaiveDate::from_ymd(y as i32, m, d),
-            ))
-        };
+        let g =
+            |y| chrono::Datelike::num_days_from_ce(&chrono::NaiveDate::from_ymd(y as i32, 1, 1));
+        assert_eq!(f(0), 0); // 0000-12-31 ... 0 d
+        assert_eq!(g(1), 1); // 0001-01-01 ... 1 d
+        assert_eq!(f(1), 365); // 0001-12-31 ... 365 d
+        assert_eq!(g(2), 366); // 0002-01-01 ... 366 d
+        assert_eq!(f(2), 730); // 0002-12-31 ... 730 d
+        assert_eq!(g(3), 731); // 0003-01-01 ... 731 d
+        assert_eq!(f(1969), 719162); // 1969-12-31 ... 719162 d
+        assert_eq!(g(1970), 719163); // 1970-01-01 ... 719163 d
         for y in 1..=9999 + 1 {
-            assert_eq!(f(y - 1) + 1, g(y, 1, 1));
+            assert_eq!(f(y - 1) + 1, i64::from(g(y)));
         }
         Ok(())
     }
