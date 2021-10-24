@@ -1,7 +1,8 @@
 use std::convert::TryFrom;
 
 use crate::{
-    Date, DayOfMonth, DayOfYear, Month, ParseDayOfYearError, ParseYearError, Year, YearMonth,
+    private::year_to_days_from_ce, Date, DayOfMonth, DayOfYear, Days, Month, ParseDayOfYearError,
+    ParseYearError, Year, YearMonth,
 };
 
 use thiserror::Error;
@@ -78,6 +79,13 @@ impl OrdinalDate {
                 .succ()
                 .and_then(|next_day_of_month| OrdinalDate::new(self.year(), next_day_of_month).ok())
         }
+    }
+
+    pub(crate) fn days_from_ce(self) -> Days {
+        Days::from(
+            (year_to_days_from_ce(i64::from(u16::from(self.year) - 1))
+                + i64::from(u16::from(self.day_of_year))) as u32,
+        )
     }
 }
 
@@ -270,6 +278,31 @@ mod tests {
             Some(OrdinalDate::from_str("9999-001")?)
         );
         assert_eq!(OrdinalDate::from_str("9999-365")?.succ(), None);
+        Ok(())
+    }
+
+    #[test]
+    fn pub_crate_days_from_ce() -> anyhow::Result<()> {
+        let f = |s| -> anyhow::Result<i64> {
+            // TODO: impl From<Days> for i64
+            Ok(i64::from(u32::from(
+                OrdinalDate::from_str(s)?.days_from_ce(),
+            )))
+        };
+        let g = |s| -> anyhow::Result<i64> {
+            Ok(i64::from(chrono::Datelike::num_days_from_ce(
+                &chrono::NaiveDate::from_str(s)?,
+            )))
+        };
+        assert_eq!(f("1970-001")?, g("1970-01-01")?);
+        assert_eq!(f("1970-002")?, g("1970-01-02")?);
+        assert_eq!(f("1970-032")?, g("1970-02-01")?);
+        assert_eq!(f("1970-365")?, g("1970-12-31")?);
+        assert_eq!(f("1971-001")?, g("1971-01-01")?);
+        assert_eq!(f("2000-001")?, g("2000-01-01")?);
+        assert_eq!(f("2000-061")?, g("2000-03-01")?);
+        assert_eq!(f("2001-001")?, g("2001-01-01")?);
+        assert_eq!(f("9999-365")?, g("9999-12-31")?);
         Ok(())
     }
 }
