@@ -263,8 +263,8 @@ checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 
 [[package]]
 name = "limited-date-time"
-version = "0.12.0"
-source = "git+https://github.com/bouzuya/rust-limited-date-time#2ffe52478659116760cac082d48f0a2355e30ddf"
+version = "0.13.0"
+source = "git+https://github.com/bouzuya/rust-limited-date-time#bfb82a0153956d8f301d517b5f787aba4b6e1385"
 dependencies = [
  "chrono",
  "thiserror",
