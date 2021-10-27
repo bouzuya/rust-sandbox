@@ -1,4 +1,4 @@
-use limited_date_time::{Instant, OffsetDateTime, TimeZoneOffset};
+use limited_date_time::{Instant, OffsetDateTime};
 use std::{convert::TryFrom, str::FromStr};
 use thiserror::Error;
 
@@ -11,13 +11,10 @@ pub struct BId(i64);
 
 impl std::fmt::Display for BId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let offset_date_time =
-            OffsetDateTime::from_instant(self.to_instant(), TimeZoneOffset::utc())
-                .map_err(|_| std::fmt::Error)?;
         write!(
             f,
             "{}",
-            b_id_string_from_date_time_string(offset_date_time.to_string())
+            b_id_string_from_date_time_string(self.to_instant().to_string())
         )
     }
 }
@@ -28,14 +25,12 @@ impl FromStr for BId {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.ends_with('Z') {
             let t = date_time_string_from_b_id_string(s).ok_or(ParseBIdError)?;
-            let offset_date_time =
-                OffsetDateTime::from_str(t.as_str()).map_err(|_| ParseBIdError)?;
-            let instant = offset_date_time.instant();
-            Ok(BId(timestamp_from_instant(instant)))
+            let instant = Instant::from_str(t.as_str()).map_err(|_| ParseBIdError)?;
+            Ok(BId(i64::from(instant)))
         } else {
             let offset_date_time = OffsetDateTime::from_str(s).map_err(|_| ParseBIdError)?;
             let instant = offset_date_time.instant();
-            Ok(BId(timestamp_from_instant(instant)))
+            Ok(BId(i64::from(instant)))
         }
     }
 }
@@ -43,7 +38,7 @@ impl FromStr for BId {
 impl BId {
     pub fn now() -> Self {
         let instant = Instant::now();
-        Self(timestamp_from_instant(instant))
+        Self(i64::from(instant))
     }
 
     pub fn from_timestamp(i: i64) -> Self {
@@ -51,12 +46,7 @@ impl BId {
     }
 
     pub fn from_timestamp_opt(i: i64) -> Option<Self> {
-        // 253402300799 = 9999-12-31T23:59:59Z
-        if (0..=253402300799).contains(&i) {
-            Some(Self(i))
-        } else {
-            None
-        }
+        Instant::try_from(i).map(i64::from).map(Self).ok()
     }
 
     pub fn to_timestamp(&self) -> i64 {
@@ -93,25 +83,11 @@ fn b_id_string_from_date_time_string(s: String) -> String {
         .collect::<String>()
 }
 
-// TODO: impl From<Instant> from i64
-fn timestamp_from_instant(instant: Instant) -> i64 {
-    u64::from(instant) as i64
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use limited_date_time::{Instant, OffsetDateTime};
-    use std::{convert::TryFrom, str::FromStr};
-
-    #[test]
-    fn instant_to_timestamp_test() -> anyhow::Result<()> {
-        let instant = Instant::try_from(0_u64)?;
-        assert_eq!(timestamp_from_instant(instant), 0_i64);
-        let instant = Instant::try_from(253402300799_u64)?;
-        assert_eq!(timestamp_from_instant(instant), 253402300799_i64);
-        Ok(())
-    }
+    use limited_date_time::Instant;
+    use std::str::FromStr;
 
     #[test]
     fn b_id_string_from_date_time_string_test() {
@@ -132,25 +108,25 @@ mod tests {
     #[test]
     fn timestamp_convert_test() -> anyhow::Result<()> {
         let now = BId::now();
-        let now1 = timestamp_from_instant(Instant::now());
+        let now1 = i64::from(Instant::now());
         assert_eq!(now.to_timestamp(), now1);
         assert_eq!(BId::from_timestamp(now1).to_timestamp(), now1);
 
-        let min_timestamp = 0;
-        let max_timestamp = 253402300799;
+        let min_timestamp = 0_i64;
+        let max_timestamp = 253402300799_i64;
         assert_eq!(
             min_timestamp,
-            timestamp_from_instant(OffsetDateTime::from_str("1970-01-01T00:00:00Z")?.instant()),
+            i64::from(Instant::from_str("1970-01-01T00:00:00Z")?),
         );
         assert_eq!(
             max_timestamp,
-            timestamp_from_instant(OffsetDateTime::from_str("9999-12-31T23:59:59Z")?.instant()),
+            i64::from(Instant::from_str("9999-12-31T23:59:59Z")?),
         );
 
-        assert!(!BId::from_timestamp_opt(min_timestamp - 1).is_some());
+        assert!(BId::from_timestamp_opt(min_timestamp - 1).is_none());
         assert!(BId::from_timestamp_opt(min_timestamp).is_some());
         assert!(BId::from_timestamp_opt(max_timestamp).is_some());
-        assert!(!BId::from_timestamp_opt(max_timestamp + 1).is_some());
+        assert!(BId::from_timestamp_opt(max_timestamp + 1).is_none());
         Ok(())
     }
 
