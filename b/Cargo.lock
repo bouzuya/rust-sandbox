@@ -404,7 +404,7 @@ name = "query"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "chrono",
+ "limited-date-time",
  "nom 7.0.0",
  "thiserror",
 ]

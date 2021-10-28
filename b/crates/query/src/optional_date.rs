@@ -1,4 +1,6 @@
-use chrono::{NaiveDate, NaiveDateTime};
+use std::{convert::TryFrom, str::FromStr};
+
+use limited_date_time::{Date, DateTime, DayOfMonth, Month, OrdinalDate, Time, Year, YearMonth};
 
 use crate::{Digit2, Digit4};
 
@@ -30,51 +32,58 @@ impl OptionalDate {
         self.2
     }
 
-    pub fn naive_date_time_range(&self) -> (NaiveDateTime, NaiveDateTime) {
+    pub fn naive_date_time_range(&self) -> (DateTime, DateTime) {
         let date_range = match (self.0, self.1, self.2) {
             (None, None, None) => unreachable!(),
             (None, None, Some(_)) => unreachable!(),
             (None, Some(_), None) => unreachable!(),
             (None, Some(_), Some(_)) => unreachable!(),
             (Some(yyyy), None, None) => {
-                let year = u16::from(yyyy) as i32;
-                let mn = NaiveDate::from_ymd(year, 1, 1);
-                let mx = NaiveDate::from_ymd(year, 12, 31);
+                // TODO: unwrap
+                let year = Year::try_from(u16::from(yyyy)).unwrap();
+                // TODO: Date::first_date_of_year(year)
+                // TODO: OrdinalDate::first_date_of_year(year)
+                let first_ordinal_date_of_year =
+                    OrdinalDate::new(year, year.first_day_of_year()).unwrap();
+                let mn = Date::from(first_ordinal_date_of_year);
+                // TODO: Date::last_date_of_year(year)
+                // TODO: OrdinalDate::last_date_of_year(year)
+                let last_ordinal_date_of_year =
+                    OrdinalDate::new(year, year.last_day_of_year()).unwrap();
+                let mx = Date::from(last_ordinal_date_of_year);
                 (mn, mx)
             }
             (Some(_), None, Some(_)) => unreachable!(),
             (Some(yyyy), Some(mm), None) => {
-                let year = u16::from(yyyy) as i32;
-                let month = u8::from(mm) as u32;
-                let mn = NaiveDate::from_ymd(year, month, 1);
-                let last_day_of_month = NaiveDate::from_ymd(
-                    match month {
-                        12 => year + 1,
-                        _ => year,
-                    },
-                    match month {
-                        12 => 1,
-                        _ => month + 1,
-                    },
-                    1,
-                )
-                .signed_duration_since(mn)
-                .num_days() as u32;
-                let mx = NaiveDate::from_ymd(year, month, last_day_of_month);
+                // TODO: unwrap
+                let year = Year::try_from(u16::from(yyyy)).unwrap();
+                // TODO: unwrap
+                let month = Month::try_from(u8::from(mm)).unwrap();
+                let year_month = YearMonth::new(year, month);
+                let mn = Date::first_date_of_month(year_month);
+                let mx = Date::last_date_of_month(year_month);
                 (mn, mx)
             }
             (Some(yyyy), Some(mm), Some(dd)) => {
-                let year = u16::from(yyyy) as i32;
-                let month = u8::from(mm) as u32;
-                let day_of_month = u8::from(dd) as u32;
-                let mn = NaiveDate::from_ymd(year, month, day_of_month);
+                // TODO: unwrap
+                let year = Year::try_from(u16::from(yyyy)).unwrap();
+                // TODO: unwrap
+                let month = Month::try_from(u8::from(mm)).unwrap();
+                // TODO: unwrap
+                let day_of_month = DayOfMonth::try_from(u8::from(dd)).unwrap();
+                // TODO: unwrap
+                let mn = Date::from_ymd(year, month, day_of_month).unwrap();
                 let mx = mn;
                 (mn, mx)
             }
         };
         (
-            date_range.0.and_hms(0, 0, 0),
-            date_range.1.and_hms(23, 59, 59),
+            // TODO: Time::min()
+            // TODO: unwrap
+            DateTime::from_date_time(date_range.0, Time::from_str("00:00:00").unwrap()),
+            // TODO: Time::max()
+            // TODO: unwrap
+            DateTime::from_date_time(date_range.1, Time::from_str("23:59:59").unwrap()),
         )
     }
 }
