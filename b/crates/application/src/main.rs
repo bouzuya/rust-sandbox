@@ -1,8 +1,8 @@
-use ::use_case::{HasBRepository, HasListUseCase, HasViewUseCase, TimeZoneOffset};
+use ::use_case::{HasBRepository, HasListUseCase, HasViewUseCase};
 use adapter_fs::FsBRepository;
-use anyhow::anyhow;
 use b::use_case;
 use entity::BId;
+use limited_date_time::TimeZoneOffset;
 use std::{io, path::PathBuf, str::FromStr};
 use structopt::{clap::Shell, StructOpt};
 
@@ -92,9 +92,11 @@ fn main() -> anyhow::Result<()> {
             time_zone_offset,
         } => {
             let time_zone_offset = match time_zone_offset {
-                Some(s) => TimeZoneOffset::from_str(s.as_str())
-                    .map_err(|_| anyhow!("invalid time_zone_offset"))?,
-                None => TimeZoneOffset::default(),
+                Some(s) => TimeZoneOffset::from_str(s.as_str())?,
+                None => {
+                    // TODO: TimeZoneOffset::system_default()
+                    TimeZoneOffset::from_str("+09:00")?
+                }
             };
             let app = App {
                 brepository: FsBRepository::new(data_dir, time_zone_offset),
@@ -106,7 +108,8 @@ fn main() -> anyhow::Result<()> {
             template,
         } => use_case::new(data_file, template),
         Subcommand::View { data_dir, id } => {
-            let time_zone_offset = TimeZoneOffset::default(); // TODO
+            // TODO: TimeZoneOffset::system_default()
+            let time_zone_offset = TimeZoneOffset::from_str("+09:00")?; // TODO
             let repository = FsBRepository::new(data_dir, time_zone_offset);
             let app = App {
                 brepository: repository,
@@ -119,7 +122,7 @@ fn main() -> anyhow::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ::use_case::{BRepository, ListUseCase, Query, TimeZoneOffset};
+    use ::use_case::{BRepository, ListUseCase, Query};
     use adapter_fs::FsBRepository;
     use std::{fs, str::FromStr};
     use tempfile::tempdir;

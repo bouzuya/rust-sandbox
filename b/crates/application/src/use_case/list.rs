@@ -1,7 +1,7 @@
 use anyhow::anyhow;
-use chrono::{Local, NaiveDateTime, TimeZone};
 use entity::BMeta;
-use std::{io, path::PathBuf, str::FromStr};
+use limited_date_time::{Instant, OffsetDateTime, TimeZoneOffset};
+use std::{convert::TryFrom, io, path::PathBuf, str::FromStr};
 use use_case::{BRepository, HasBRepository, HasListUseCase, ListUseCase, Query};
 
 #[derive(Debug, Eq, PartialEq, serde::Serialize)]
@@ -18,9 +18,16 @@ impl BOutput {
     fn from(bmeta: BMeta, repository: &impl BRepository) -> Self {
         BOutput {
             content_path: repository.to_content_path_buf(&bmeta.id),
-            created_at: Local
-                .from_utc_datetime(&NaiveDateTime::from_timestamp(bmeta.id.to_timestamp(), 0))
-                .to_rfc3339(),
+            // TODO: unwrap
+            created_at: OffsetDateTime::from_instant(
+                // TODO: unwrap
+                Instant::try_from(bmeta.id.to_timestamp() as u64).unwrap(),
+                // TODO: unwrap
+                // TODO: TimeZoneOffset::system_default()
+                TimeZoneOffset::from_str("+09:00").unwrap(),
+            )
+            .unwrap()
+            .to_string(),
             id: bmeta.id.to_string(),
             meta_path: repository.to_meta_path_buf(&bmeta.id),
             tags: bmeta.tags,
