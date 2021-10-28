@@ -24,8 +24,9 @@ pub struct Query(Vec<QueryParam>);
 
 impl Query {
     pub fn naive_date_time_range(&self) -> (DateTime, DateTime) {
-        let mut min = DateTime::from_str("1970-01-01T00:00:00").unwrap();
-        let mut max = DateTime::from_str("9999-12-31T23:59:59").unwrap();
+        // TODO: min, max
+        let mut min = DateTime::from_str("1970-01-02T00:00:00").unwrap();
+        let mut max = DateTime::from_str("9999-12-30T23:59:59").unwrap();
         let empty = (max, min);
         for query_param in self.clone().into_iter() {
             match query_param {
@@ -139,11 +140,12 @@ mod tests {
 
     #[test]
     fn naive_date_time_range() -> anyhow::Result<()> {
+        // FIXME:
         assert_eq!(
             Query::from_str("")?.naive_date_time_range(),
             (
-                DateTime::from_str("1970-01-01T00:00:00")?,
-                DateTime::from_str("9999-12-31T23:59:59")?,
+                DateTime::from_str("1970-01-02T00:00:00")?,
+                DateTime::from_str("9999-12-30T23:59:59")?,
             )
         );
         assert_eq!(

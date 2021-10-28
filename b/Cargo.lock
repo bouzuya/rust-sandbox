@@ -7,8 +7,8 @@ name = "adapter_fs"
 version = "0.0.0"
 dependencies = [
  "anyhow",
- "chrono",
  "entity",
+ "limited-date-time",
  "query",
  "serde",
  "serde_json",

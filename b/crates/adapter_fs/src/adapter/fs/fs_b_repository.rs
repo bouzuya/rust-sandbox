@@ -2,19 +2,19 @@ mod list_files;
 
 use self::list_files::ListFiles;
 use anyhow::{bail, Context};
-use chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 use entity::{BId, BMeta};
-use query::Query;
+use limited_date_time::{Date, DateTime, Instant, OffsetDateTime, Time, TimeZoneOffset};
 use std::{
+    convert::TryFrom,
     ffi::OsStr,
     fs::{self, File},
     io::{BufReader, Read},
     path::{Path, PathBuf},
     str::FromStr,
 };
-use use_case::{BRepository, TimeZoneOffset};
+use use_case::BRepository;
 
-type DateTimeRange = (DateTime<Utc>, DateTime<Utc>);
+type DateTimeRange = (Instant, Instant);
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct BMetaJson {
@@ -28,10 +28,14 @@ pub struct FsBRepository {
 }
 
 fn to_dir_components(id: &BId) -> Vec<String> {
-    let ndt = NaiveDateTime::from_timestamp(id.to_timestamp(), 0);
-    let yyyy = ndt.format("%Y").to_string();
-    let mm = ndt.format("%m").to_string();
-    let dd = ndt.format("%d").to_string();
+    // TODO: unwrap
+    let instant = Instant::try_from(id.to_timestamp() as u64).unwrap();
+    // TODO: unwrap
+    let offset_date_time = OffsetDateTime::from_instant(instant, TimeZoneOffset::utc()).unwrap();
+    let date = offset_date_time.date_time().date();
+    let yyyy = date.year().to_string();
+    let mm = date.month().to_string();
+    let dd = date.day_of_month().to_string();
     vec!["flow".to_string(), yyyy, mm, dd]
 }
 
@@ -85,8 +89,7 @@ impl BRepository for FsBRepository {
     fn find_ids(&self, date: &str) -> anyhow::Result<Vec<BId>> {
         let mut bids = vec![];
         let date_time_range = self.utc_date_time_range(date)?;
-        let timestamp_range =
-            date_time_range.0.naive_utc().timestamp()..=date_time_range.1.naive_utc().timestamp();
+        let timestamp_range = i64::from(date_time_range.0)..=i64::from(date_time_range.1);
         let dirs = self.dirs(&date_time_range);
         for dir in dirs {
             if !dir.exists() {
@@ -210,7 +213,12 @@ impl FsBRepository {
         dates
             .into_iter()
             .map(|date| {
-                let date_string = date.naive_utc().date().to_string();
+                // TODO: unwrap
+                let date_string = OffsetDateTime::from_instant(*date, TimeZoneOffset::utc())
+                    .unwrap()
+                    .date_time()
+                    .date()
+                    .to_string();
                 let ymd = date_string.split('-').collect::<Vec<&str>>();
                 let (y, m, d) = match ymd[..] {
                     [y, m, d] => (y, m, d),
@@ -222,19 +230,13 @@ impl FsBRepository {
     }
 
     fn utc_date_time_range(&self, date: &str) -> anyhow::Result<DateTimeRange> {
-        let date = NaiveDate::from_str(date)?;
-        let start = date.and_hms(0, 0, 0);
-        let end = date.and_hms(23, 59, 59);
-        let start = FixedOffset::from(self.time_zone_offset)
-            .from_local_datetime(&start)
-            .single()
-            .with_context(|| "invalid local datetime")?;
-        let end = FixedOffset::from(self.time_zone_offset)
-            .from_local_datetime(&end)
-            .single()
-            .with_context(|| "invalid local datetime")?;
-        let start = DateTime::<Utc>::from(start);
-        let end = DateTime::<Utc>::from(end);
+        let date = Date::from_str(date)?;
+        let start = DateTime::from_date_time(date, Time::from_str("00:00:00")?);
+        let end = DateTime::from_date_time(date, Time::from_str("23:59:59")?);
+        let start = OffsetDateTime::new(start, self.time_zone_offset);
+        let end = OffsetDateTime::new(end, self.time_zone_offset);
+        let start = start.instant();
+        let end = end.instant();
         Ok((start, end))
     }
 }
