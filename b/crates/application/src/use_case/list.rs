@@ -20,8 +20,7 @@ impl BOutput {
             content_path: repository.to_content_path_buf(&bmeta.id),
             // TODO: unwrap OffsetDateTime::from_instant
             created_at: OffsetDateTime::from_instant(
-                // TODO: unwrap BId -> Instant
-                Instant::try_from(bmeta.id.to_timestamp() as u64).unwrap(),
+                bmeta.id.to_instant(),
                 // TODO: unwrap TimeZoneOffset::system_default()
                 TimeZoneOffset::from_str("+09:00").unwrap(),
             )

@@ -53,7 +53,7 @@ impl BId {
         self.0
     }
 
-    fn to_instant(self) -> Instant {
+    pub fn to_instant(self) -> Instant {
         Instant::try_from(self.0).expect("BId i64 invalid")
     }
 }

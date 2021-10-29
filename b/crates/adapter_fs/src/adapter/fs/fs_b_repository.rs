@@ -5,7 +5,6 @@ use anyhow::{bail, Context};
 use entity::{BId, BMeta};
 use limited_date_time::{Date, DateTime, Instant, OffsetDateTime, Time, TimeZoneOffset};
 use std::{
-    convert::TryFrom,
     ffi::OsStr,
     fs::{self, File},
     io::{BufReader, Read},
@@ -28,10 +27,8 @@ pub struct FsBRepository {
 }
 
 fn to_dir_components(id: &BId) -> Vec<String> {
-    // TODO: unwrap BId -> Instant
-    let instant = Instant::try_from(id.to_timestamp() as u64).unwrap();
-    // TODO: unwrap Instant -> OffsetDateTime
-    let offset_date_time = OffsetDateTime::from_instant(instant, TimeZoneOffset::utc()).unwrap();
+    let instant = id.to_instant();
+    let offset_date_time = OffsetDateTime::from(instant);
     let date = offset_date_time.date_time().date();
     let yyyy = date.year().to_string();
     let mm = date.month().to_string();
@@ -213,12 +210,7 @@ impl FsBRepository {
         dates
             .into_iter()
             .map(|date| {
-                // TODO: unwrap Instant -> OffsetDateTime
-                let date_string = OffsetDateTime::from_instant(*date, TimeZoneOffset::utc())
-                    .unwrap()
-                    .date_time()
-                    .date()
-                    .to_string();
+                let date_string = OffsetDateTime::from(*date).date_time().date().to_string();
                 let ymd = date_string.split('-').collect::<Vec<&str>>();
                 let (y, m, d) = match ymd[..] {
                     [y, m, d] => (y, m, d),

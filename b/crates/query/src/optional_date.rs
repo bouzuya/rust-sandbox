@@ -59,8 +59,11 @@ impl OptionalDate {
             }
         };
         (
+            // TODO: DateTimeRange::from_date(Date)
+            // TODO: DateTime::first_date_time_of_date(Date)
             // TODO: unwrap Time::min()
             DateTime::from_date_time(date_range.0, Time::from_str("00:00:00").unwrap()),
+            // TODO: DateTime::last_date_time_of_date(Date)
             // TODO: unwrap Time::max()
             DateTime::from_date_time(date_range.1, Time::from_str("23:59:59").unwrap()),
         )

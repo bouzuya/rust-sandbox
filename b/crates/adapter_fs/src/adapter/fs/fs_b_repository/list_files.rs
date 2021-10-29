@@ -71,10 +71,8 @@ impl ListFiles {
             if let Some(s) = path.as_ref().file_stem().and_then(|s| s.to_str()) {
                 let out_of_range_bid = !BId::from_str(s)
                     .map(|bid| {
-                        (u64::from(query_since)..=u64::from(query_until)).contains(&u64::from(
-                            // TODO: unwrap BId -> Instant
-                            Instant::try_from(bid.to_timestamp() as u64).unwrap(),
-                        ))
+                        (u64::from(query_since)..=u64::from(query_until))
+                            .contains(&u64::from(bid.to_instant()))
                     })
                     .unwrap_or(false);
                 if out_of_range_bid {
