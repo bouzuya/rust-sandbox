@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use limited_date_time::Year;
+use limited_date_time::{Month, Year};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
@@ -63,7 +63,7 @@ impl std::convert::TryFrom<&str> for DateParam {
 // DateRangeDate
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DateRangeDate(Year, Digit2, Digit2);
+pub struct DateRangeDate(Year, Month, Digit2);
 
 impl std::fmt::Display for DateRangeDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,7 +88,7 @@ fn is_digit(c: char) -> bool {
 
 fn date_range_date(s: &str) -> IResult<&str, DateRangeDate> {
     map(
-        tuple((digit4, char('-'), digit2, char('-'), digit2)),
+        tuple((digit4, char('-'), month, char('-'), digit2)),
         |(y, _, m, _, d)| DateRangeDate(y, m, d),
     )(s)
 }
@@ -103,7 +103,7 @@ fn date_range(s: &str) -> IResult<&str, DateParamRange> {
 fn yyyymmdd(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = digit2(s)?;
+    let (s, m) = month(s)?;
     let (s, _) = char('-')(s)?;
     let (s, d) = digit2(s)?;
     Ok((s, OptionalDate::from_yyyymmdd(y, m, d)))
@@ -112,13 +112,17 @@ fn yyyymmdd(s: &str) -> IResult<&str, OptionalDate> {
 fn yyyymm(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, m) = digit2(s)?;
+    let (s, m) = month(s)?;
     Ok((s, OptionalDate::from_yyyymm(y, m)))
 }
 
 fn yyyy(s: &str) -> IResult<&str, OptionalDate> {
     let (s, y) = digit4(s)?;
     Ok((s, OptionalDate::from_yyyy(y)))
+}
+
+fn month(s: &str) -> IResult<&str, Month> {
+    map_res(take_while_m_n(2, 2, is_digit), Month::from_str)(s)
 }
 
 fn digit2(s: &str) -> IResult<&str, Digit2> {
@@ -160,7 +164,7 @@ mod tests {
     #[test]
     fn date_param_single_test() -> anyhow::Result<()> {
         let year = Year::try_from(2021)?;
-        let month = Digit2::try_from(2)?;
+        let month = Month::try_from(2)?;
         let day_of_month = Digit2::try_from(3)?;
         assert_eq!(
             DateParam::from_str("date:2021-02-03")?,

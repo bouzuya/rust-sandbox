@@ -5,18 +5,18 @@ use limited_date_time::{Date, DateTime, DayOfMonth, Month, Time, Year, YearMonth
 use crate::Digit2;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OptionalDate(Option<Year>, Option<Digit2>, Option<Digit2>);
+pub struct OptionalDate(Option<Year>, Option<Month>, Option<Digit2>);
 
 impl OptionalDate {
     pub fn from_yyyy(yyyy: Year) -> Self {
         Self(Some(yyyy), None, None)
     }
 
-    pub fn from_yyyymm(yyyy: Year, mm: Digit2) -> Self {
+    pub fn from_yyyymm(yyyy: Year, mm: Month) -> Self {
         Self(Some(yyyy), Some(mm), None)
     }
 
-    pub fn from_yyyymmdd(yyyy: Year, mm: Digit2, dd: Digit2) -> Self {
+    pub fn from_yyyymmdd(yyyy: Year, mm: Month, dd: Digit2) -> Self {
         Self(Some(yyyy), Some(mm), Some(dd))
     }
 
@@ -24,7 +24,7 @@ impl OptionalDate {
         self.0
     }
 
-    pub fn month(&self) -> Option<Digit2> {
+    pub fn month(&self) -> Option<Month> {
         self.1
     }
 
@@ -94,7 +94,7 @@ mod tests {
     #[test]
     fn test() -> anyhow::Result<()> {
         let yyyy = Year::try_from(2021)?;
-        let mm = Digit2::try_from(2)?;
+        let mm = Month::try_from(2)?;
         let dd = Digit2::try_from(3)?;
 
         {
