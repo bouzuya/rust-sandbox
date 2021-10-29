@@ -41,16 +41,9 @@ impl OptionalDate {
             (Some(yyyy), None, None) => {
                 // TODO: unwrap
                 let year = Year::try_from(u16::from(yyyy)).unwrap();
-                // TODO: Date::first_date_of_year(year)
-                // TODO: OrdinalDate::first_date_of_year(year)
-                let first_ordinal_date_of_year =
-                    OrdinalDate::new(year, year.first_day_of_year()).unwrap();
-                let mn = Date::from(first_ordinal_date_of_year);
-                // TODO: Date::last_date_of_year(year)
-                // TODO: OrdinalDate::last_date_of_year(year)
-                let last_ordinal_date_of_year =
-                    OrdinalDate::new(year, year.last_day_of_year()).unwrap();
-                let mx = Date::from(last_ordinal_date_of_year);
+                // TODO: DateRange::from_year(year)
+                let mn = Date::first_date_of_year(year);
+                let mx = Date::last_date_of_year(year);
                 (mn, mx)
             }
             (Some(_), None, Some(_)) => unreachable!(),
