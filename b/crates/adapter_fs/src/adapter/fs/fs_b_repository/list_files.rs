@@ -9,8 +9,8 @@ use std::{
 };
 
 use entity::BId;
-use limited_date_time::{Instant, OffsetDateTime, TimeZoneOffset};
-use query::{Digit2, Digit4, OptionalDate, Query};
+use limited_date_time::{Instant, OffsetDateTime, TimeZoneOffset, Year};
+use query::{Digit2, OptionalDate, Query};
 
 pub struct ListFiles {
     root_dir: PathBuf,
@@ -108,14 +108,14 @@ impl ListFiles {
     fn parse_path<P: AsRef<Path>>(
         &self,
         path: P,
-    ) -> anyhow::Result<(Option<Digit4>, Option<Digit2>, Option<Digit2>)> {
+    ) -> anyhow::Result<(Option<Year>, Option<Digit2>, Option<Digit2>)> {
         let relative = path.as_ref().strip_prefix(self.root_dir.as_path())?;
         let mut components = relative.components();
         Ok((
             components
                 .next()
                 .and_then(|c| c.as_os_str().to_str())
-                .map(|s| s.parse::<Digit4>())
+                .map(|s| s.parse::<Year>())
                 .transpose()?,
             components
                 .next()

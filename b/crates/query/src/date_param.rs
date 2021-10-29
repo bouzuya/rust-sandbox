@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use limited_date_time::Year;
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
@@ -10,7 +11,7 @@ use nom::{
 };
 use thiserror::Error;
 
-use crate::{Digit2, Digit4, OptionalDate};
+use crate::{Digit2, OptionalDate};
 
 // ParseQueryError
 
@@ -62,7 +63,7 @@ impl std::convert::TryFrom<&str> for DateParam {
 // DateRangeDate
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DateRangeDate(Digit4, Digit2, Digit2);
+pub struct DateRangeDate(Year, Digit2, Digit2);
 
 impl std::fmt::Display for DateRangeDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -124,8 +125,8 @@ fn digit2(s: &str) -> IResult<&str, Digit2> {
     map_res(take_while_m_n(2, 2, is_digit), Digit2::from_str)(s)
 }
 
-fn digit4(s: &str) -> IResult<&str, Digit4> {
-    map_res(take_while_m_n(4, 4, is_digit), Digit4::from_str)(s)
+fn digit4(s: &str) -> IResult<&str, Year> {
+    map_res(take_while_m_n(4, 4, is_digit), Year::from_str)(s)
 }
 
 pub fn parse(s: &str) -> IResult<&str, DateParam> {
@@ -158,7 +159,7 @@ mod tests {
 
     #[test]
     fn date_param_single_test() -> anyhow::Result<()> {
-        let year = Digit4::try_from(2021)?;
+        let year = Year::try_from(2021)?;
         let month = Digit2::try_from(2)?;
         let day_of_month = Digit2::try_from(3)?;
         assert_eq!(
