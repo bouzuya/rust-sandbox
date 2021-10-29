@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use limited_date_time::{Month, Year};
+use limited_date_time::{DayOfMonth, Month, Year};
 use nom::{
     branch::alt,
     bytes::complete::{tag, take_while_m_n},
@@ -11,7 +11,7 @@ use nom::{
 };
 use thiserror::Error;
 
-use crate::{Digit2, OptionalDate};
+use crate::OptionalDate;
 
 // ParseQueryError
 
@@ -63,7 +63,7 @@ impl std::convert::TryFrom<&str> for DateParam {
 // DateRangeDate
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DateRangeDate(Year, Month, Digit2);
+pub struct DateRangeDate(Year, Month, DayOfMonth);
 
 impl std::fmt::Display for DateRangeDate {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -88,7 +88,7 @@ fn is_digit(c: char) -> bool {
 
 fn date_range_date(s: &str) -> IResult<&str, DateRangeDate> {
     map(
-        tuple((digit4, char('-'), month, char('-'), digit2)),
+        tuple((year, char('-'), month, char('-'), day_of_month)),
         |(y, _, m, _, d)| DateRangeDate(y, m, d),
     )(s)
 }
@@ -101,23 +101,23 @@ fn date_range(s: &str) -> IResult<&str, DateParamRange> {
 }
 
 fn yyyymmdd(s: &str) -> IResult<&str, OptionalDate> {
-    let (s, y) = digit4(s)?;
+    let (s, y) = year(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = month(s)?;
     let (s, _) = char('-')(s)?;
-    let (s, d) = digit2(s)?;
+    let (s, d) = day_of_month(s)?;
     Ok((s, OptionalDate::from_yyyymmdd(y, m, d)))
 }
 
 fn yyyymm(s: &str) -> IResult<&str, OptionalDate> {
-    let (s, y) = digit4(s)?;
+    let (s, y) = year(s)?;
     let (s, _) = char('-')(s)?;
     let (s, m) = month(s)?;
     Ok((s, OptionalDate::from_yyyymm(y, m)))
 }
 
 fn yyyy(s: &str) -> IResult<&str, OptionalDate> {
-    let (s, y) = digit4(s)?;
+    let (s, y) = year(s)?;
     Ok((s, OptionalDate::from_yyyy(y)))
 }
 
@@ -125,11 +125,11 @@ fn month(s: &str) -> IResult<&str, Month> {
     map_res(take_while_m_n(2, 2, is_digit), Month::from_str)(s)
 }
 
-fn digit2(s: &str) -> IResult<&str, Digit2> {
-    map_res(take_while_m_n(2, 2, is_digit), Digit2::from_str)(s)
+fn day_of_month(s: &str) -> IResult<&str, DayOfMonth> {
+    map_res(take_while_m_n(2, 2, is_digit), DayOfMonth::from_str)(s)
 }
 
-fn digit4(s: &str) -> IResult<&str, Year> {
+fn year(s: &str) -> IResult<&str, Year> {
     map_res(take_while_m_n(4, 4, is_digit), Year::from_str)(s)
 }
 
@@ -145,6 +145,8 @@ pub fn parse(s: &str) -> IResult<&str, DateParam> {
 #[cfg(test)]
 mod tests {
     use std::convert::TryFrom;
+
+    use limited_date_time::DayOfMonth;
 
     use super::*;
 
@@ -165,7 +167,7 @@ mod tests {
     fn date_param_single_test() -> anyhow::Result<()> {
         let year = Year::try_from(2021)?;
         let month = Month::try_from(2)?;
-        let day_of_month = Digit2::try_from(3)?;
+        let day_of_month = DayOfMonth::try_from(3)?;
         assert_eq!(
             DateParam::from_str("date:2021-02-03")?,
             DateParam::Single(OptionalDate::from_yyyymmdd(year, month, day_of_month)),

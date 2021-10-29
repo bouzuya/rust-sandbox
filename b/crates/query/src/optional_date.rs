@@ -1,11 +1,9 @@
-use std::{convert::TryFrom, str::FromStr};
+use std::str::FromStr;
 
 use limited_date_time::{Date, DateTime, DayOfMonth, Month, Time, Year, YearMonth};
 
-use crate::Digit2;
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct OptionalDate(Option<Year>, Option<Month>, Option<Digit2>);
+pub struct OptionalDate(Option<Year>, Option<Month>, Option<DayOfMonth>);
 
 impl OptionalDate {
     pub fn from_yyyy(yyyy: Year) -> Self {
@@ -16,7 +14,7 @@ impl OptionalDate {
         Self(Some(yyyy), Some(mm), None)
     }
 
-    pub fn from_yyyymmdd(yyyy: Year, mm: Month, dd: Digit2) -> Self {
+    pub fn from_yyyymmdd(yyyy: Year, mm: Month, dd: DayOfMonth) -> Self {
         Self(Some(yyyy), Some(mm), Some(dd))
     }
 
@@ -28,7 +26,7 @@ impl OptionalDate {
         self.1
     }
 
-    pub fn day_of_month(&self) -> Option<Digit2> {
+    pub fn day_of_month(&self) -> Option<DayOfMonth> {
         self.2
     }
 
@@ -39,25 +37,21 @@ impl OptionalDate {
             (None, Some(_), None) => unreachable!(),
             (None, Some(_), Some(_)) => unreachable!(),
             (Some(year), None, None) => {
-                // TODO: DateRange::from_year(year)
+                // TODO: DateRange::from_year(Year)
                 let mn = Date::first_date_of_year(year);
                 let mx = Date::last_date_of_year(year);
                 (mn, mx)
             }
             (Some(_), None, Some(_)) => unreachable!(),
-            (Some(year), Some(mm), None) => {
-                // TODO: unwrap Digit2 -> Month
-                let month = Month::try_from(u8::from(mm)).unwrap();
+            (Some(year), Some(month), None) => {
                 let year_month = YearMonth::new(year, month);
+                // TODO: DateRange::from_year_month(YearMonth)
                 let mn = Date::first_date_of_month(year_month);
                 let mx = Date::last_date_of_month(year_month);
                 (mn, mx)
             }
-            (Some(year), Some(mm), Some(dd)) => {
-                // TODO: unwrap Digit2 -> Month
-                let month = Month::try_from(u8::from(mm)).unwrap();
-                // TODO: unwrap Digit2 -> DayOfMonth
-                let day_of_month = DayOfMonth::try_from(u8::from(dd)).unwrap();
+            (Some(year), Some(month), Some(day_of_month)) => {
+                // TODO: DateRange::from_date(Date)
                 // TODO: unwrap Year -> Month -> DayOfMonth -> Date
                 let mn = Date::from_ymd(year, month, day_of_month).unwrap();
                 let mx = mn;
@@ -95,7 +89,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let yyyy = Year::try_from(2021)?;
         let mm = Month::try_from(2)?;
-        let dd = Digit2::try_from(3)?;
+        let dd = DayOfMonth::try_from(3)?;
 
         {
             let d = OptionalDate::from_yyyy(yyyy);
