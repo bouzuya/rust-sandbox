@@ -28,9 +28,9 @@ pub struct FsBRepository {
 }
 
 fn to_dir_components(id: &BId) -> Vec<String> {
-    // TODO: unwrap
+    // TODO: unwrap BId -> Instant
     let instant = Instant::try_from(id.to_timestamp() as u64).unwrap();
-    // TODO: unwrap
+    // TODO: unwrap Instant -> OffsetDateTime
     let offset_date_time = OffsetDateTime::from_instant(instant, TimeZoneOffset::utc()).unwrap();
     let date = offset_date_time.date_time().date();
     let yyyy = date.year().to_string();
@@ -213,7 +213,7 @@ impl FsBRepository {
         dates
             .into_iter()
             .map(|date| {
-                // TODO: unwrap
+                // TODO: unwrap Instant -> OffsetDateTime
                 let date_string = OffsetDateTime::from_instant(*date, TimeZoneOffset::utc())
                     .unwrap()
                     .date_time()

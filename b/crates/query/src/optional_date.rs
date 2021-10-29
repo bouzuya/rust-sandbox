@@ -1,6 +1,6 @@
 use std::{convert::TryFrom, str::FromStr};
 
-use limited_date_time::{Date, DateTime, DayOfMonth, Month, OrdinalDate, Time, Year, YearMonth};
+use limited_date_time::{Date, DateTime, DayOfMonth, Month, Time, Year, YearMonth};
 
 use crate::{Digit2, Digit4};
 
@@ -39,7 +39,7 @@ impl OptionalDate {
             (None, Some(_), None) => unreachable!(),
             (None, Some(_), Some(_)) => unreachable!(),
             (Some(yyyy), None, None) => {
-                // TODO: unwrap
+                // TODO: unwrap Digit4 -> Year
                 let year = Year::try_from(u16::from(yyyy)).unwrap();
                 // TODO: DateRange::from_year(year)
                 let mn = Date::first_date_of_year(year);
@@ -48,9 +48,9 @@ impl OptionalDate {
             }
             (Some(_), None, Some(_)) => unreachable!(),
             (Some(yyyy), Some(mm), None) => {
-                // TODO: unwrap
+                // TODO: unwrap Digit4 -> Year
                 let year = Year::try_from(u16::from(yyyy)).unwrap();
-                // TODO: unwrap
+                // TODO: unwrap Digit2 -> Month
                 let month = Month::try_from(u8::from(mm)).unwrap();
                 let year_month = YearMonth::new(year, month);
                 let mn = Date::first_date_of_month(year_month);
@@ -58,24 +58,22 @@ impl OptionalDate {
                 (mn, mx)
             }
             (Some(yyyy), Some(mm), Some(dd)) => {
-                // TODO: unwrap
+                // TODO: unwrap Digit4 -> Year
                 let year = Year::try_from(u16::from(yyyy)).unwrap();
-                // TODO: unwrap
+                // TODO: unwrap Digit2 -> Month
                 let month = Month::try_from(u8::from(mm)).unwrap();
-                // TODO: unwrap
+                // TODO: unwrap Digit2 -> DayOfMonth
                 let day_of_month = DayOfMonth::try_from(u8::from(dd)).unwrap();
-                // TODO: unwrap
+                // TODO: unwrap Year -> Month -> DayOfMonth -> Date
                 let mn = Date::from_ymd(year, month, day_of_month).unwrap();
                 let mx = mn;
                 (mn, mx)
             }
         };
         (
-            // TODO: Time::min()
-            // TODO: unwrap
+            // TODO: unwrap Time::min()
             DateTime::from_date_time(date_range.0, Time::from_str("00:00:00").unwrap()),
-            // TODO: Time::max()
-            // TODO: unwrap
+            // TODO: unwrap Time::max()
             DateTime::from_date_time(date_range.1, Time::from_str("23:59:59").unwrap()),
         )
     }

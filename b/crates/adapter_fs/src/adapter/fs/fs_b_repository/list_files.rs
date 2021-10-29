@@ -71,8 +71,8 @@ impl ListFiles {
             if let Some(s) = path.as_ref().file_stem().and_then(|s| s.to_str()) {
                 let out_of_range_bid = !BId::from_str(s)
                     .map(|bid| {
-                        // TODO: unwrap
                         (u64::from(query_since)..=u64::from(query_until)).contains(&u64::from(
+                            // TODO: unwrap BId -> Instant
                             Instant::try_from(bid.to_timestamp() as u64).unwrap(),
                         ))
                     })
@@ -216,8 +216,7 @@ mod tests {
         let path_bufs = ListFiles::new(
             temp_dir.path().join("flow"),
             Query::default(),
-            // TODO: unwrap
-            // TODO: TimeZoneOffset::system_default()
+            // TODO: unwrap TimeZoneOffset::system_default()
             TimeZoneOffset::from_str("+09:00").unwrap(),
         )?
         .collect::<io::Result<Vec<PathBuf>>>()?;
