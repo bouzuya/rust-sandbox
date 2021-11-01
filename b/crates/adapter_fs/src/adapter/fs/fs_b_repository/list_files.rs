@@ -1,6 +1,5 @@
 use std::{
     collections::VecDeque,
-    convert::TryFrom,
     ffi::OsStr,
     fs::{self, DirEntry},
     io,
@@ -97,7 +96,7 @@ impl ListFiles {
             (Some(yyyy), Some(mm), Some(dd)) => OptionalDate::from_yyyymmdd(yyyy, mm, dd),
         };
 
-        let (since, until) = optional_date.naive_date_time_range();
+        let (since, until) = optional_date.date_time_range()?;
         let since = OffsetDateTime::new(since, self.query_time_zone_offset).instant();
         let until = OffsetDateTime::new(until, self.query_time_zone_offset).instant();
         Ok((since, until))

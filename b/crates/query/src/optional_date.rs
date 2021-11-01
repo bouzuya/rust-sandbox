@@ -1,6 +1,11 @@
-use std::str::FromStr;
-
 use limited_date_time::{Date, DateTime, DayOfMonth, Month, Time, Year, YearMonth};
+use thiserror::Error;
+
+use crate::DateRangeInclusive;
+
+#[derive(Debug, Error)]
+#[error("optional date error")]
+pub struct OptionalDateError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OptionalDate(Option<Year>, Option<Month>, Option<DayOfMonth>);
@@ -30,43 +35,29 @@ impl OptionalDate {
         self.2
     }
 
-    pub fn naive_date_time_range(&self) -> (DateTime, DateTime) {
+    pub fn date_time_range(&self) -> Result<(DateTime, DateTime), OptionalDateError> {
         let date_range = match (self.0, self.1, self.2) {
             (None, None, None) => unreachable!(),
             (None, None, Some(_)) => unreachable!(),
             (None, Some(_), None) => unreachable!(),
             (None, Some(_), Some(_)) => unreachable!(),
-            (Some(year), None, None) => {
-                // TODO: DateRange::from_year(Year)
-                let mn = Date::first_date_of_year(year);
-                let mx = Date::last_date_of_year(year);
-                (mn, mx)
-            }
+            (Some(year), None, None) => DateRangeInclusive::from_year(year).into_inner(),
             (Some(_), None, Some(_)) => unreachable!(),
             (Some(year), Some(month), None) => {
-                let year_month = YearMonth::new(year, month);
-                // TODO: DateRange::from_year_month(YearMonth)
-                let mn = Date::first_date_of_month(year_month);
-                let mx = Date::last_date_of_month(year_month);
-                (mn, mx)
+                DateRangeInclusive::from_year_month(YearMonth::new(year, month)).into_inner()
             }
-            (Some(year), Some(month), Some(day_of_month)) => {
-                // TODO: DateRange::from_date(Date)
-                // TODO: unwrap Year -> Month -> DayOfMonth -> Date
-                let mn = Date::from_ymd(year, month, day_of_month).unwrap();
-                let mx = mn;
-                (mn, mx)
-            }
+            (Some(year), Some(month), Some(day_of_month)) => DateRangeInclusive::from_date(
+                Date::from_ymd(year, month, day_of_month).map_err(|_| OptionalDateError)?,
+            )
+            .into_inner(),
         };
-        (
+        Ok((
             // TODO: DateTimeRange::from_date(Date)
             // TODO: DateTime::first_date_time_of_date(Date)
-            // TODO: unwrap Time::min()
-            DateTime::from_date_time(date_range.0, Time::from_str("00:00:00").unwrap()),
+            DateTime::from_date_time(date_range.0, Time::min()),
             // TODO: DateTime::last_date_time_of_date(Date)
-            // TODO: unwrap Time::max()
-            DateTime::from_date_time(date_range.1, Time::from_str("23:59:59").unwrap()),
-        )
+            DateTime::from_date_time(date_range.1, Time::max()),
+        ))
     }
 }
 

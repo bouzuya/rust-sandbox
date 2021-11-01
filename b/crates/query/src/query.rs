@@ -33,7 +33,8 @@ impl Query {
             match query_param {
                 QueryParam::Date(datea_param) => match datea_param {
                     crate::DateParam::Single(optional_date) => {
-                        let (mn, mx) = optional_date.naive_date_time_range();
+                        // TODO: unwrap OptionalDate::date_time_range
+                        let (mn, mx) = optional_date.date_time_range().unwrap();
                         if max < mn || mx < min {
                             return empty;
                         }
