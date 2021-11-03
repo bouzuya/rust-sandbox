@@ -1,10 +1,11 @@
-use ::use_case::{HasBRepository, HasListUseCase, HasViewUseCase};
+mod command;
+
 use adapter_fs::FsBRepository;
-use b::use_case;
 use entity::BId;
 use limited_date_time::TimeZoneOffset;
 use std::{io, path::PathBuf, str::FromStr};
 use structopt::{clap::Shell, StructOpt};
+use use_case::{HasBRepository, HasListUseCase, HasViewUseCase};
 
 #[derive(Debug, StructOpt)]
 struct Opt {
@@ -87,10 +88,8 @@ struct Config {
 fn build_app(config: Config) -> anyhow::Result<App> {
     let data_dir = config.data_dir;
     let time_zone_offset = TimeZoneOffset::from_str(config.time_zone_offset.as_str())?;
-    let repository = FsBRepository::new(data_dir, time_zone_offset);
-    let app = App {
-        brepository: repository,
-    };
+    let brepository = FsBRepository::new(data_dir, time_zone_offset);
+    let app = App { brepository };
     Ok(app)
 }
 
@@ -112,21 +111,21 @@ fn main() -> anyhow::Result<()> {
                 data_dir,
                 time_zone_offset: time_zone_offset.unwrap_or(default_time_zone_offset),
             })?;
-            use_case::list(&app, json, query, &mut io::stdout())
+            command::list(&app, json, query, &mut io::stdout())
         }
         Subcommand::New {
             data_file,
             template,
         } => {
             // TODO: use App
-            use_case::new(data_file, template)
+            command::new(data_file, template)
         }
         Subcommand::View { data_dir, id } => {
             let app = build_app(Config {
                 data_dir,
                 time_zone_offset: default_time_zone_offset,
             })?;
-            use_case::view(&app, id, &mut io::stdout())
+            command::view(&app, id, &mut io::stdout())
         }
     }
 }
@@ -205,7 +204,7 @@ mod tests {
         let app = App {
             brepository: repository,
         };
-        use_case::view(&app, bid, &mut output).unwrap();
+        command::view(&app, bid, &mut output).unwrap();
         assert_eq!(output, b"Hello, world!");
         Ok(())
     }
