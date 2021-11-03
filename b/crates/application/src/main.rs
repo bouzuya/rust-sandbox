@@ -78,7 +78,24 @@ impl HasViewUseCase for App {
     }
 }
 
+#[derive(Debug, Eq, PartialEq)]
+struct Config {
+    data_dir: PathBuf,
+    time_zone_offset: String,
+}
+
+fn build_app(config: Config) -> anyhow::Result<App> {
+    let data_dir = config.data_dir;
+    let time_zone_offset = TimeZoneOffset::from_str(config.time_zone_offset.as_str())?;
+    let repository = FsBRepository::new(data_dir, time_zone_offset);
+    let app = App {
+        brepository: repository,
+    };
+    Ok(app)
+}
+
 fn main() -> anyhow::Result<()> {
+    let default_time_zone_offset = "+09:00".to_string();
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => {
@@ -91,29 +108,24 @@ fn main() -> anyhow::Result<()> {
             query,
             time_zone_offset,
         } => {
-            let time_zone_offset = match time_zone_offset {
-                Some(s) => TimeZoneOffset::from_str(s.as_str())?,
-                None => {
-                    // TODO: TimeZoneOffset::system_default()
-                    TimeZoneOffset::from_str("+09:00")?
-                }
-            };
-            let app = App {
-                brepository: FsBRepository::new(data_dir, time_zone_offset),
-            };
+            let app = build_app(Config {
+                data_dir,
+                time_zone_offset: time_zone_offset.unwrap_or(default_time_zone_offset),
+            })?;
             use_case::list(&app, json, query, &mut io::stdout())
         }
         Subcommand::New {
             data_file,
             template,
-        } => use_case::new(data_file, template),
+        } => {
+            // TODO: use App
+            use_case::new(data_file, template)
+        }
         Subcommand::View { data_dir, id } => {
-            // TODO: TimeZoneOffset::system_default()
-            let time_zone_offset = TimeZoneOffset::from_str("+09:00")?; // TODO
-            let repository = FsBRepository::new(data_dir, time_zone_offset);
-            let app = App {
-                brepository: repository,
-            };
+            let app = build_app(Config {
+                data_dir,
+                time_zone_offset: default_time_zone_offset,
+            })?;
             use_case::view(&app, id, &mut io::stdout())
         }
     }
