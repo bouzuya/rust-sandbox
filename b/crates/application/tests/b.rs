@@ -1,6 +1,7 @@
+use anyhow::Context;
 use assert_cmd::Command;
 use predicates::str::contains;
-use std::fs;
+use std::{env, fs};
 
 #[test]
 fn completion_test() {
@@ -39,26 +40,39 @@ fn new_test() {
 }
 
 #[test]
-fn list_test() {
-    let dir = tempfile::tempdir().unwrap();
+fn list_test() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
     let b_dir = dir.path().join("flow").join("2021").join("02").join("03");
-    fs::create_dir_all(b_dir.as_path()).unwrap();
+    fs::create_dir_all(b_dir.as_path())?;
     let md = b_dir.join("20210203T000000Z.md");
-    fs::write(md.as_path(), "markdown").unwrap();
+    fs::write(md.as_path(), "markdown")?;
     let json = b_dir.join("20210203T000000Z.json");
     fs::write(
         json.as_path(),
         r#"{"created_at":"2021-02-03T09:00:00+09:00"}"#,
-    )
-    .unwrap();
+    )?;
+    let config_dir = dir.path().join("config");
+    fs::create_dir_all(config_dir.as_path())?;
+    fs::write(
+        config_dir.join("config.json"),
+        format!(
+            r#"{{"data_dir":"{}","time_zone_offset":"{}"}}"#,
+            dir.path().to_str().context("data_dir.to_str()")?,
+            "+09:00"
+        ),
+    )?;
+    env::set_var(
+        "B_TEST_CONFIG_DIR",
+        config_dir.to_str().context("config dir is not UTF-8")?,
+    );
 
     Command::cargo_bin("b")
         .unwrap()
         .arg("list")
-        .arg("--data-dir")
-        .arg(dir.path())
         .arg("2021-02-03")
         .assert()
         .stdout(contains(md.as_path().to_str().unwrap()))
         .success();
+
+    Ok(())
 }

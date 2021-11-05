@@ -24,13 +24,9 @@ enum Subcommand {
     },
     #[structopt(name = "list", about = "Lists b files")]
     List {
-        #[structopt(long = "data-dir")]
-        data_dir: PathBuf,
         #[structopt(long = "json")]
         json: bool,
         query: String,
-        #[structopt(long = "time-zone-offset")]
-        time_zone_offset: Option<String>,
     },
     #[structopt(name = "new", about = "Creates a new file")]
     New {
@@ -45,8 +41,6 @@ enum Subcommand {
     },
     #[structopt(name = "view", about = "Views the b file")]
     View {
-        #[structopt(long = "data-dir")]
-        data_dir: PathBuf,
         #[structopt(name = "BID")]
         id: BId,
     },
@@ -90,23 +84,15 @@ fn build_app(config: Config) -> anyhow::Result<App> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let default_time_zone_offset = "+09:00".to_string();
     let opt = Opt::from_args();
     match opt.subcommand {
         Subcommand::Completion { shell } => {
             Opt::clap().gen_completions_to("b", shell, &mut io::stdout());
             Ok(())
         }
-        Subcommand::List {
-            data_dir,
-            json,
-            query,
-            time_zone_offset,
-        } => {
-            let app = build_app(Config::new(
-                data_dir,
-                time_zone_offset.unwrap_or(default_time_zone_offset),
-            ))?;
+        Subcommand::List { json, query } => {
+            let config = ConfigRepository::new().load()?;
+            let app = build_app(config)?;
             command::list(&app, json, query, &mut io::stdout())
         }
         Subcommand::New {
@@ -116,8 +102,9 @@ fn main() -> anyhow::Result<()> {
             // TODO: use App
             command::new(data_file, template)
         }
-        Subcommand::View { data_dir, id } => {
-            let app = build_app(Config::new(data_dir, default_time_zone_offset))?;
+        Subcommand::View { id } => {
+            let config = ConfigRepository::new().load()?;
+            let app = build_app(config)?;
             command::view(&app, id, &mut io::stdout())
         }
     }
