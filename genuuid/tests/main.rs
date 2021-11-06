@@ -40,3 +40,14 @@ fn subcommand_help_test() -> anyhow::Result<()> {
         .success();
     Ok(())
 }
+
+#[test]
+fn subcommand_server_test() -> anyhow::Result<()> {
+    // TODO
+    Command::cargo_bin("genuuid")?
+        .arg("help")
+        .assert()
+        .stdout(contains("server"))
+        .success();
+    Ok(())
+}

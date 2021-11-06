@@ -1,5 +1,10 @@
+use axum::{
+    http::{header::LOCATION, HeaderMap, HeaderValue, StatusCode},
+    response::IntoResponse,
+    routing::get,
+    Router, Server,
+};
 use std::io;
-
 use structopt::{clap::Shell, StructOpt};
 use uuid::Uuid;
 
@@ -18,9 +23,33 @@ enum Subcommand {
     },
     #[structopt(name = "generate", about = "Generates UUID")]
     Generate,
+    #[structopt(name = "server", about = "Runs server")]
+    Server,
 }
 
-fn main() -> anyhow::Result<()> {
+async fn handler_root() -> impl IntoResponse {
+    let mut header_map = HeaderMap::new();
+    header_map.append(LOCATION, HeaderValue::from_static("/uuids.txt"));
+    (StatusCode::SEE_OTHER, header_map, ())
+}
+
+async fn handler_uuids() -> impl IntoResponse {
+    let uuid = Uuid::new_v4();
+    uuid.to_string()
+}
+
+async fn server() -> anyhow::Result<()> {
+    let addr = "0.0.0.0:3000".parse()?;
+    let router = Router::new()
+        .route("/", get(handler_root))
+        .route("/uuids.txt", get(handler_uuids));
+    Ok(Server::bind(&addr)
+        .serve(router.into_make_service())
+        .await?)
+}
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
     match opt.subcommand.unwrap_or(Subcommand::Generate) {
         Subcommand::Completion { shell } => {
@@ -32,5 +61,6 @@ fn main() -> anyhow::Result<()> {
             print!("{}", uuid);
             Ok(())
         }
+        Subcommand::Server => server().await,
     }
 }
