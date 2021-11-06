@@ -7,4 +7,9 @@ edition = "2018"
 
 [dependencies]
 anyhow = "1.0.45"
+structopt = "0.3.25"
 uuid = { version = "0.8.2", features = ["serde", "v4"] }
+
+[dev-dependencies]
+assert_cmd = "2.0.2"
+predicates = "2.0.3"
