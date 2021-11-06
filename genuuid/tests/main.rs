@@ -11,6 +11,17 @@ fn subcommand_default_test() -> anyhow::Result<()> {
 }
 
 #[test]
+fn subcommand_completion_test() -> anyhow::Result<()> {
+    Command::cargo_bin("genuuid")?
+        .arg("completion")
+        .arg("bash")
+        .assert()
+        .stdout(contains("complete "))
+        .success();
+    Ok(())
+}
+
+#[test]
 fn subcommand_generate_test() -> anyhow::Result<()> {
     Command::cargo_bin("genuuid")?
         .arg("generate")
