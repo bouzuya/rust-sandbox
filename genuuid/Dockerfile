@@ -10,5 +10,6 @@ COPY . .
 RUN cargo install --path .
 
 FROM debian:bullseye-slim
+ENV PORT=8080
 COPY --from=builder /usr/local/cargo/bin/genuuid /usr/local/bin/genuuid
 CMD ["genuuid"]
