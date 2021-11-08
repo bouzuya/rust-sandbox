@@ -1,10 +1,11 @@
 use axum::{
+    extract::Extension,
     http::{header::LOCATION, HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::get,
-    Router, Server,
+    AddExtensionLayer, Router, Server,
 };
-use std::io;
+use std::{io, sync::Arc};
 use structopt::{clap::Shell, StructOpt};
 use uuid::Uuid;
 
@@ -27,9 +28,12 @@ enum Subcommand {
     Server,
 }
 
-async fn handler_root() -> impl IntoResponse {
+async fn handler_root(Extension(state): Extension<Arc<State>>) -> impl IntoResponse {
     let mut header_map = HeaderMap::new();
-    header_map.append(LOCATION, HeaderValue::from_static("/uuids.txt"));
+    header_map.append(
+        LOCATION,
+        HeaderValue::from_str(&state.path("/uuids.txt")).expect("state contains not ascii"),
+    );
     (StatusCode::SEE_OTHER, header_map, ())
 }
 
@@ -38,15 +42,39 @@ async fn handler_uuids() -> impl IntoResponse {
     uuid.to_string()
 }
 
+struct State {
+    base_path: String,
+}
+
+impl State {
+    fn path(&self, s: &str) -> String {
+        format!("{}{}", self.base_path, s)
+    }
+}
+
 async fn server() -> anyhow::Result<()> {
+    let base_path = std::env::var("BASE_PATH").unwrap_or_else(|_| "".to_string());
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let host = "0.0.0.0";
     let addr = format!("{}:{}", host, port).parse()?;
+
+    let state = State {
+        base_path: base_path.clone(),
+    };
     let router = Router::new()
         .route("/", get(handler_root))
         .route("/uuids.txt", get(handler_uuids));
+    let wrapped_router = if base_path.is_empty() {
+        router
+    } else {
+        Router::new()
+            .route("/", get(handler_root))
+            .nest(base_path.as_str(), router)
+    }
+    .layer(AddExtensionLayer::new(Arc::new(state)));
+
     Ok(Server::bind(&addr)
-        .serve(router.into_make_service())
+        .serve(wrapped_router.into_make_service())
         .await?)
 }
 

@@ -64,4 +64,5 @@ jobs:
             --platform "managed" \
             --quiet \
             --region ${{ secrets.GENUUID_GCP_REGION }} \
-            --service-account ${{ secrets.GENUUID_GCP_SERVICE_ACCOUNT }}
+            --service-account ${{ secrets.GENUUID_GCP_SERVICE_ACCOUNT }} \
+            --set-env-vars "BASE_PATH=/lab/genuuid"
