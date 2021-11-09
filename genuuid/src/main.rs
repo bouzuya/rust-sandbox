@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 fn generate(count: Option<usize>) -> Vec<String> {
     let mut generated = vec![];
-    let count = count.unwrap_or(1).max(1).min(100);
+    let count = count.unwrap_or(1).clamp(1, 100);
     for _ in 0..count {
         let uuid = Uuid::new_v4();
         generated.push(uuid.to_string());
