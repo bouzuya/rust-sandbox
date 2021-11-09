@@ -1,11 +1,11 @@
 use axum::{
-    extract::Extension,
+    extract::{Extension, Query, RawQuery},
     http::{header::LOCATION, HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::get,
     AddExtensionLayer, Router, Server,
 };
-use std::{io, sync::Arc};
+use std::{collections::HashMap, io, sync::Arc};
 use structopt::{clap::Shell, StructOpt};
 use uuid::Uuid;
 
@@ -41,28 +41,33 @@ enum Subcommand {
     Server,
 }
 
-async fn handler_root(Extension(state): Extension<Arc<State>>) -> impl IntoResponse {
+async fn handler_root(
+    Extension(state): Extension<Arc<State>>,
+    RawQuery(query): RawQuery,
+) -> impl IntoResponse {
+    let location = format!(
+        "{}/uuids.txt{}",
+        state.base_path,
+        query.map(|q| format!("?{}", q)).unwrap_or_default()
+    );
     let mut header_map = HeaderMap::new();
     header_map.append(
         LOCATION,
-        HeaderValue::from_str(&state.path("/uuids.txt")).expect("state contains not ascii"),
+        HeaderValue::from_str(&location).expect("state contains not ascii"),
     );
     (StatusCode::SEE_OTHER, header_map, ())
 }
 
-async fn handler_uuids() -> impl IntoResponse {
-    let uuid = Uuid::new_v4();
-    uuid.to_string()
+async fn handler_uuids(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
+    let count = params
+        .get("count")
+        .and_then(|s| s.parse::<usize>().ok())
+        .map(|count| count.clamp(1, 100));
+    generate(count).join("\n")
 }
 
 struct State {
     base_path: String,
-}
-
-impl State {
-    fn path(&self, s: &str) -> String {
-        format!("{}{}", self.base_path, s)
-    }
 }
 
 async fn server() -> anyhow::Result<()> {
