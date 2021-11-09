@@ -9,6 +9,16 @@ use std::{io, sync::Arc};
 use structopt::{clap::Shell, StructOpt};
 use uuid::Uuid;
 
+fn generate(count: Option<usize>) -> Vec<String> {
+    let mut generated = vec![];
+    let count = count.unwrap_or(1).max(1).min(100);
+    for _ in 0..count {
+        let uuid = Uuid::new_v4();
+        generated.push(uuid.to_string());
+    }
+    generated
+}
+
 #[derive(Debug, StructOpt)]
 struct Opt {
     #[structopt(subcommand)]
@@ -23,7 +33,10 @@ enum Subcommand {
         shell: Shell,
     },
     #[structopt(name = "generate", about = "Generates UUID")]
-    Generate,
+    Generate {
+        #[structopt(long = "count", help = "the count")]
+        count: Option<usize>,
+    },
     #[structopt(name = "server", about = "Runs server")]
     Server,
 }
@@ -81,16 +94,47 @@ async fn server() -> anyhow::Result<()> {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    match opt.subcommand.unwrap_or(Subcommand::Generate) {
+    match opt
+        .subcommand
+        .unwrap_or(Subcommand::Generate { count: None })
+    {
         Subcommand::Completion { shell } => {
             Opt::clap().gen_completions_to("genuuid", shell, &mut io::stdout());
             Ok(())
         }
-        Subcommand::Generate => {
-            let uuid = Uuid::new_v4();
-            print!("{}", uuid);
+        Subcommand::Generate { count } => {
+            let generated = generate(count);
+            let message = generated.join("\n");
+            print!("{}", message);
             Ok(())
         }
         Subcommand::Server => server().await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashSet;
+
+    use super::*;
+
+    #[test]
+    fn generate_test() {
+        // count
+        assert_eq!(generate(None).len(), 1);
+        assert_eq!(generate(Some(0)).len(), 1);
+        assert_eq!(generate(Some(1)).len(), 1);
+        assert_eq!(generate(Some(2)).len(), 2);
+        assert_eq!(generate(Some(100)).len(), 100);
+        assert_eq!(generate(Some(101)).len(), 100);
+
+        // uniqueness
+        assert_eq!(
+            generate(Some(100))
+                .into_iter()
+                .collect::<HashSet<_>>()
+                .len(),
+            100
+        );
     }
 }
