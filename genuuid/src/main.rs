@@ -1,4 +1,5 @@
 mod command;
+mod count;
 
 use std::io;
 
