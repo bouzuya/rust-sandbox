@@ -3,6 +3,7 @@ mod count;
 
 use std::io;
 
+use count::Count;
 use structopt::{clap::Shell, StructOpt};
 
 #[derive(Debug, StructOpt)]
@@ -21,7 +22,7 @@ enum Subcommand {
     #[structopt(name = "generate", about = "Generates UUID")]
     Generate {
         #[structopt(long = "count", help = "the count")]
-        count: Option<usize>,
+        count: Option<Count>,
     },
     #[structopt(name = "server", about = "Runs server")]
     Server,

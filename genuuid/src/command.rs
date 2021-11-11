@@ -8,17 +8,19 @@ use axum::{
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
 
-fn generate_impl(count: Option<usize>) -> Vec<String> {
+use crate::count::Count;
+
+fn generate_impl(count: Option<Count>) -> Vec<String> {
     let mut generated = vec![];
-    let count = count.unwrap_or(1).clamp(1, 100);
-    for _ in 0..count {
+    let count = count.unwrap_or_default();
+    for _ in 0..usize::from(count) {
         let uuid = Uuid::new_v4();
         generated.push(uuid.to_string());
     }
     generated
 }
 
-pub fn generate(count: Option<usize>) -> anyhow::Result<()> {
+pub fn generate(count: Option<Count>) -> anyhow::Result<()> {
     let generated = generate_impl(count);
     let message = generated.join("\n");
     print!("{}", message);
@@ -43,10 +45,7 @@ async fn handler_root(
 }
 
 async fn handler_uuids(Query(params): Query<HashMap<String, String>>) -> impl IntoResponse {
-    let count = params
-        .get("count")
-        .and_then(|s| s.parse::<usize>().ok())
-        .map(|count| count.clamp(1, 100));
+    let count = params.get("count").and_then(|s| s.parse::<Count>().ok());
     generate_impl(count).join("\n")
 }
 
@@ -81,27 +80,26 @@ pub async fn server() -> anyhow::Result<()> {
 }
 #[cfg(test)]
 mod tests {
-    use std::collections::HashSet;
+    use std::{collections::HashSet, convert::TryFrom};
 
     use super::*;
 
     #[test]
-    fn generate_impl_test() {
+    fn generate_impl_test() -> anyhow::Result<()> {
         // count
         assert_eq!(generate_impl(None).len(), 1);
-        assert_eq!(generate_impl(Some(0)).len(), 1);
-        assert_eq!(generate_impl(Some(1)).len(), 1);
-        assert_eq!(generate_impl(Some(2)).len(), 2);
-        assert_eq!(generate_impl(Some(100)).len(), 100);
-        assert_eq!(generate_impl(Some(101)).len(), 100);
+        assert_eq!(generate_impl(Some(Count::try_from(1_usize)?)).len(), 1);
+        assert_eq!(generate_impl(Some(Count::try_from(100_usize)?)).len(), 100);
 
         // uniqueness
         assert_eq!(
-            generate_impl(Some(100))
+            generate_impl(Some(Count::try_from(100_usize)?))
                 .into_iter()
                 .collect::<HashSet<_>>()
                 .len(),
             100
         );
+
+        Ok(())
     }
 }
