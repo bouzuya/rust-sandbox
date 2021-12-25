@@ -79,7 +79,7 @@ checksum = "cdb031dd78e28731d87d56cc8ffef4a8f36ca26c38fe2de700543e627f8a464a"
 
 [[package]]
 name = "b"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "adapter_fs",
  "anyhow",
@@ -285,7 +285,7 @@ checksum = "18794a8ad5b29321f790b55d93dfba91e125cb1a9edbd4f8e3150acc771c1a5e"
 [[package]]
 name = "limited-date-time"
 version = "0.15.0"
-source = "git+https://github.com/bouzuya/rust-limited-date-time#b134f0f5f8bf3a79f8ce63cd3c1fe5fe77a4cd40"
+source = "git+https://github.com/bouzuya/rust-limited-date-time?tag=0.15.0#b134f0f5f8bf3a79f8ce63cd3c1fe5fe77a4cd40"
 dependencies = [
  "chrono",
  "thiserror",
