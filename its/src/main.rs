@@ -20,7 +20,22 @@ impl Issue {
     }
 }
 
+#[derive(Debug)]
+struct CreateIssue {}
+
+#[derive(Debug)]
+struct IssueCreated {
+    issue: Issue,
+}
+
+fn workflow1(_: CreateIssue) -> IssueCreated {
+    let issue_id = IssueId::new(Ulid::new());
+    let issue = Issue::new(issue_id);
+    IssueCreated { issue }
+}
+
 fn main() {
-    let issue = Issue::new(IssueId::new(Ulid::new()));
-    println!("issue created : {:?}", issue);
+    let command = CreateIssue {};
+    let event = workflow1(command);
+    println!("issue created : {:?}", event);
 }
