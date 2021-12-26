@@ -1,41 +1,10 @@
-use ulid::Ulid;
+use crate::workflow::{create_issue_workflow, CreateIssue};
 
-#[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
-struct IssueId(Ulid);
-
-impl IssueId {
-    pub fn new(id: Ulid) -> Self {
-        Self(id)
-    }
-}
-
-#[derive(Debug)]
-struct Issue {
-    id: IssueId,
-}
-
-impl Issue {
-    pub fn new(id: IssueId) -> Self {
-        Self { id }
-    }
-}
-
-#[derive(Debug)]
-struct CreateIssue {}
-
-#[derive(Debug)]
-struct IssueCreated {
-    issue: Issue,
-}
-
-fn workflow1(_: CreateIssue) -> IssueCreated {
-    let issue_id = IssueId::new(Ulid::new());
-    let issue = Issue::new(issue_id);
-    IssueCreated { issue }
-}
+mod entity;
+mod workflow;
 
 fn main() {
     let command = CreateIssue {};
-    let event = workflow1(command);
+    let event = create_issue_workflow(command);
     println!("issue created : {:?}", event);
 }
