@@ -11,29 +11,32 @@ use crate::{
     query::Query,
 };
 
-pub async fn upload(
-    date: Option<Date>,
-    draft: bool,
-    hatena_api_key: String,
-    hatena_blog_id: String,
-    hatena_id: String,
-    interactive: bool,
-) -> anyhow::Result<()> {
+pub async fn upload(date: Option<Date>, draft: bool, interactive: bool) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;
     let data_dir = config.data_dir().to_path_buf();
+    let credentials = config_repository.load_credentials().with_context(|| {
+        format!(
+            "The credential file does not found. {:?}",
+            config_repository.credential_file_path()
+        )
+    })?;
+
     let bbn_repository = BbnRepository::new(data_dir);
     let hatena_blog_data_file = config.hatena_blog_data_file().to_path_buf();
     let hatena_blog_repository = HatenaBlogRepository::new(hatena_blog_data_file).await?;
-    let hatena_blog_client =
-        HatenaBlogClient::new(hatena_id.clone(), hatena_blog_id, hatena_api_key);
+    let hatena_blog_client = HatenaBlogClient::new(
+        credentials.hatena_id().to_string(),
+        credentials.hatena_blog_id().to_string(),
+        credentials.hatena_api_key().to_string(),
+    );
     if let Some(date) = date {
         let (created, entry_id) = upload_entry(
             date,
             draft,
-            &hatena_id,
+            credentials.hatena_id(),
             &bbn_repository,
             &hatena_blog_repository,
             &hatena_blog_client,
@@ -92,7 +95,7 @@ pub async fn upload(
                 let (created, entry_id) = upload_entry(
                     date,
                     draft,
-                    hatena_id.as_str(),
+                    credentials.hatena_id(),
                     &bbn_repository,
                     &hatena_blog_repository,
                     &hatena_blog_client,

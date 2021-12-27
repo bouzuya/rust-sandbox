@@ -84,12 +84,6 @@ pub enum HatenaBlogSubcommand {
         data_file_only: bool,
         #[structopt(name = "DATE")]
         date: Option<Date>,
-        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
-        hatena_api_key: String,
-        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
-        hatena_blog_id: String,
-        #[structopt(long = "hatena-id", env = "HATENA_ID")]
-        hatena_id: String,
     },
     #[structopt(name = "list")]
     List,
@@ -99,12 +93,6 @@ pub enum HatenaBlogSubcommand {
         date: Option<Date>,
         #[structopt(long = "draft")]
         draft: bool,
-        #[structopt(long = "hatena-api-key", env = "HATENA_API_KEY")]
-        hatena_api_key: String,
-        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
-        hatena_blog_id: String,
-        #[structopt(long = "hatena-id", env = "HATENA_ID")]
-        hatena_id: String,
         #[structopt(long = "interactive")]
         interactive: bool,
     },
@@ -144,38 +132,13 @@ async fn main() -> anyhow::Result<()> {
             HatenaBlogSubcommand::Download {
                 date,
                 data_file_only,
-                hatena_api_key,
-                hatena_blog_id,
-                hatena_id,
-            } => {
-                command::hatena_blog::download(
-                    data_file_only,
-                    date,
-                    hatena_api_key,
-                    hatena_blog_id,
-                    hatena_id,
-                )
-                .await
-            }
+            } => command::hatena_blog::download(data_file_only, date).await,
             HatenaBlogSubcommand::List => command::hatena_blog::list().await,
             HatenaBlogSubcommand::Upload {
                 date,
                 draft,
-                hatena_api_key,
-                hatena_blog_id,
-                hatena_id,
                 interactive,
-            } => {
-                command::hatena_blog::upload(
-                    date,
-                    draft,
-                    hatena_api_key,
-                    hatena_blog_id,
-                    hatena_id,
-                    interactive,
-                )
-                .await
-            }
+            } => command::hatena_blog::upload(date, draft, interactive).await,
             HatenaBlogSubcommand::View {
                 content,
                 date,

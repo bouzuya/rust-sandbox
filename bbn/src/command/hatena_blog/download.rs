@@ -170,23 +170,23 @@ async fn download_impl(
     if let Some(d) = date {
         let entry_id = download_entry(
             d,
-            &bbn_repository,
-            &hatena_blog_repository,
-            &hatena_blog_client,
+            bbn_repository,
+            hatena_blog_repository,
+            hatena_blog_client,
         )
         .await?;
         println!("downloaded member id: {}", entry_id);
 
-        parse_entry(&hatena_blog_repository).await?;
+        parse_entry(hatena_blog_repository).await?;
 
         return if data_file_only {
             Ok(())
         } else {
-            update_bbn_entries(Some(entry_id), &bbn_repository, &hatena_blog_repository).await
+            update_bbn_entries(Some(entry_id), bbn_repository, hatena_blog_repository).await
         };
     }
 
-    let _indexing_id = indexing(&hatena_blog_repository, &hatena_blog_client).await?;
+    let _indexing_id = indexing(hatena_blog_repository, hatena_blog_client).await?;
 
     for member_request in hatena_blog_repository
         .find_incomplete_member_requests()
@@ -237,32 +237,36 @@ async fn download_impl(
         }
     }
 
-    parse_entry(&hatena_blog_repository).await?;
+    parse_entry(hatena_blog_repository).await?;
 
     if data_file_only {
         Ok(())
     } else {
-        update_bbn_entries(None, &bbn_repository, &hatena_blog_repository).await
+        update_bbn_entries(None, bbn_repository, hatena_blog_repository).await
     }
 }
 
-pub async fn download(
-    data_file_only: bool,
-    date: Option<Date>,
-    hatena_api_key: String,
-    hatena_blog_id: String,
-    hatena_id: String,
-) -> anyhow::Result<()> {
+pub async fn download(data_file_only: bool, date: Option<Date>) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;
     let data_file = config.hatena_blog_data_file().to_path_buf();
     let data_dir = config.data_dir().to_path_buf();
+    let credentials = config_repository.load_credentials().with_context(|| {
+        format!(
+            "The credential file does not found. {:?}",
+            config_repository.credential_file_path()
+        )
+    })?;
 
     let bbn_repository = BbnRepository::new(data_dir);
     let hatena_blog_repository = HatenaBlogRepository::new(data_file).await?;
-    let hatena_blog_client = HatenaBlogClient::new(hatena_id, hatena_blog_id, hatena_api_key);
+    let hatena_blog_client = HatenaBlogClient::new(
+        credentials.hatena_id().to_string(),
+        credentials.hatena_blog_id().to_string(),
+        credentials.hatena_api_key().to_string(),
+    );
     download_impl(
         data_file_only,
         date,
