@@ -2,6 +2,7 @@ mod bbn_date_range;
 mod bbn_repository;
 mod command;
 mod config_repository;
+mod credentials;
 mod data;
 mod hatena_blog;
 mod query;
