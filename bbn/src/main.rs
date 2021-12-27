@@ -1,6 +1,7 @@
 mod bbn_date_range;
 mod bbn_repository;
 mod command;
+mod config;
 mod config_repository;
 mod credentials;
 mod data;

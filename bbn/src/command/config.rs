@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 
-use crate::config_repository::{Config, ConfigRepository};
+use crate::{config::Config, config_repository::ConfigRepository};
 
 pub fn config(data_dir: PathBuf, hatena_blog_data_file: PathBuf) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new();
