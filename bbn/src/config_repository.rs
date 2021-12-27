@@ -4,7 +4,7 @@ use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use xdg::BaseDirectories;
 
-use crate::config::Config;
+use crate::{config::Config, credentials::Credentials};
 
 #[derive(Debug, Deserialize, Serialize)]
 struct ConfigJson {
@@ -21,8 +21,35 @@ impl From<ConfigJson> for Config {
 impl From<Config> for ConfigJson {
     fn from(config: Config) -> Self {
         Self {
-            data_dir: config.data_dir,
-            hatena_blog_data_file: config.hatena_blog_data_file,
+            data_dir: config.data_dir().to_path_buf(),
+            hatena_blog_data_file: config.hatena_blog_data_file().to_path_buf(),
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+struct CredentialsJson {
+    hatena_api_key: String,
+    hatena_blog_id: String,
+    hatena_id: String,
+}
+
+impl From<CredentialsJson> for Credentials {
+    fn from(credentials_json: CredentialsJson) -> Self {
+        Self::new(
+            credentials_json.hatena_api_key,
+            credentials_json.hatena_blog_id,
+            credentials_json.hatena_id,
+        )
+    }
+}
+
+impl From<Credentials> for CredentialsJson {
+    fn from(credentials: Credentials) -> Self {
+        Self {
+            hatena_api_key: credentials.hatena_api_key().to_string(),
+            hatena_blog_id: credentials.hatena_blog_id().to_string(),
+            hatena_id: credentials.hatena_id().to_string(),
         }
     }
 }
@@ -41,6 +68,19 @@ impl ConfigRepository {
         let config_json = serde_json::from_str::<'_, ConfigJson>(content.as_str())?;
         let config = Config::from(config_json);
         Ok(config)
+    }
+
+    pub fn load_credentials(&self) -> anyhow::Result<Credentials> {
+        let credential_file = ConfigRepository::credential_file()?;
+        let content = fs::read_to_string(credential_file.as_path())?;
+        let credentials_json = serde_json::from_str::<'_, CredentialsJson>(content.as_str())?;
+        let credentials = Credentials::from(credentials_json);
+        Ok(credentials)
+    }
+
+    // NOTE: The repository exposes its dependency on fs.
+    pub fn credential_file_path(&self) -> anyhow::Result<PathBuf> {
+        ConfigRepository::credential_file()
     }
 
     // NOTE: The repository exposes its dependency on fs.
@@ -70,12 +110,53 @@ impl ConfigRepository {
             None => BaseDirectories::with_prefix(prefix)?.get_config_home(),
         })
     }
+
+    fn credential_file() -> anyhow::Result<PathBuf> {
+        let config_dir = ConfigRepository::config_dir()?;
+        let credential_file = config_dir.join("credentials.json");
+        Ok(credential_file)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use tempfile::tempdir;
 
+    #[test]
+    fn load_credentials_test() -> anyhow::Result<()> {
+        let hatena_api_key = "hatena_api_key1";
+        let hatena_blog_id = "hatena_blog_id1";
+        let hatena_id = "hatena_id1";
+
+        let temp_dir = tempdir()?;
+        let config_dir = temp_dir.path().join("config");
+        fs::create_dir_all(config_dir.as_path())?;
+        let credential_file = config_dir.join("credentials.json");
+        fs::write(
+            credential_file.as_path(),
+            format!(
+                r#"{{"hatena_api_key":"{}","hatena_blog_id":"{}","hatena_id":"{}"}}"#,
+                hatena_api_key, hatena_blog_id, hatena_id,
+            ),
+        )?;
+        env::set_var(
+            "BBN_TEST_CONFIG_DIR",
+            config_dir.to_str().context("config dir is not UTF-8")?,
+        );
+
+        let credentials = Credentials::new(
+            hatena_api_key.to_string(),
+            hatena_blog_id.to_string(),
+            hatena_id.to_string(),
+        );
+
+        let repository = ConfigRepository::new();
+        let loaded = repository.load_credentials()?;
+        assert_eq!(loaded, credentials);
+
+        assert_eq!(repository.credential_file_path()?, credential_file);
+        Ok(())
+    }
     use super::*;
 
     #[test]
