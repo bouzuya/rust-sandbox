@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use hatena_blog::{Entry, ListEntriesResponse};
+use hatena_blog_api::{Entry, ListEntriesResponse};
 
 use crate::{
     data::{DateTime, Timestamp},

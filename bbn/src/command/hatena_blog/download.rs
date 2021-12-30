@@ -9,7 +9,7 @@ use crate::{
 use anyhow::Context;
 use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
-use hatena_blog::{Entry, GetEntryResponse};
+use hatena_blog_api::{Entry, GetEntryResponse};
 use std::{collections::BTreeSet, convert::TryFrom, str::FromStr, time::Duration};
 use tokio::time::sleep;
 

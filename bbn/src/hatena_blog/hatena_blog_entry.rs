@@ -1,4 +1,4 @@
-use hatena_blog::{Entry, EntryId, FixedDateTime};
+use hatena_blog_api::{Entry, EntryId, FixedDateTime};
 
 use crate::{data::DateTime, hatena_blog::HatenaBlogEntryId};
 

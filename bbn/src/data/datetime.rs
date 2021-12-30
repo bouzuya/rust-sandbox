@@ -1,5 +1,5 @@
 use chrono::{FixedOffset, Local, NaiveDateTime, TimeZone, Timelike};
-use hatena_blog::FixedDateTime;
+use hatena_blog_api::FixedDateTime;
 use thiserror::Error;
 
 use crate::data::Timestamp;

@@ -1,5 +1,5 @@
 use crate::hatena_blog::HatenaBlogEntryId;
-use hatena_blog::{
+use hatena_blog_api::{
     Client, Config, CreateEntryResponse, EntryId, EntryParams, GetEntryResponse,
     UpdateEntryResponse,
 };
@@ -41,13 +41,13 @@ impl HatenaBlogClient {
         Ok(match client.get_entry(&entry_id).await {
             Ok(response) => Ok(Some(response)),
             Err(err) => match err {
-                hatena_blog::ClientError::NotFound => Ok(None),
-                hatena_blog::ClientError::RequestError(_)
-                | hatena_blog::ClientError::BadRequest
-                | hatena_blog::ClientError::Unauthorized
-                | hatena_blog::ClientError::MethodNotAllowed
-                | hatena_blog::ClientError::InternalServerError
-                | hatena_blog::ClientError::UnknownStatusCode => Err(err),
+                hatena_blog_api::ClientError::NotFound => Ok(None),
+                hatena_blog_api::ClientError::RequestError(_)
+                | hatena_blog_api::ClientError::BadRequest
+                | hatena_blog_api::ClientError::Unauthorized
+                | hatena_blog_api::ClientError::MethodNotAllowed
+                | hatena_blog_api::ClientError::InternalServerError
+                | hatena_blog_api::ClientError::UnknownStatusCode => Err(err),
             },
         }?)
     }

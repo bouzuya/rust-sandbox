@@ -5,7 +5,7 @@ use crate::{
 };
 use anyhow::Context;
 use date_range::date::Date;
-use hatena_blog::EntryParams;
+use hatena_blog_api::EntryParams;
 use thiserror::Error;
 
 #[derive(Debug, Error, Eq, PartialEq)]

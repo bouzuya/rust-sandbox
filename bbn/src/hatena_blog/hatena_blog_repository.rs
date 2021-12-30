@@ -6,7 +6,7 @@ use crate::{
     },
 };
 use anyhow::Context as _;
-use hatena_blog::{Entry, EntryId, FixedDateTime};
+use hatena_blog_api::{Entry, EntryId, FixedDateTime};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
     Pool, Row, Sqlite,

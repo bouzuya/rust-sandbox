@@ -1,4 +1,4 @@
-use hatena_blog::EntryId;
+use hatena_blog_api::EntryId;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HatenaBlogEntryId(EntryId);
@@ -33,7 +33,7 @@ impl From<&HatenaBlogEntryId> for EntryId {
 mod tests {
     use std::str::FromStr;
 
-    use hatena_blog::EntryId;
+    use hatena_blog_api::EntryId;
 
     use super::*;
 
