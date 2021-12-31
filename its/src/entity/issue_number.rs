@@ -3,6 +3,12 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueNumber(usize);
 
+impl IssueNumber {
+    pub fn start_number() -> Self {
+        IssueNumber(1_usize)
+    }
+}
+
 #[derive(Debug, Eq, Error, PartialEq)]
 #[error("ParseIssueNumberError")]
 pub struct ParseIssueNumberError {}
@@ -45,9 +51,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn usize_conversion_test() -> anyhow::Result<()> {
-        assert!(IssueNumber::try_from(0_usize).is_err());
-        assert_eq!(usize::from(IssueNumber::try_from(1_usize)?), 1_usize);
+    fn start_number_test() -> anyhow::Result<()> {
+        assert_eq!(IssueNumber::start_number(), IssueNumber::try_from(1_usize)?);
         Ok(())
     }
 
@@ -56,6 +61,13 @@ mod tests {
         assert!(IssueNumber::from_str("a").is_err());
         assert!(IssueNumber::from_str("0").is_err());
         assert_eq!(IssueNumber::from_str("1")?, IssueNumber::try_from(1_usize)?);
+        Ok(())
+    }
+
+    #[test]
+    fn usize_conversion_test() -> anyhow::Result<()> {
+        assert!(IssueNumber::try_from(0_usize).is_err());
+        assert_eq!(usize::from(IssueNumber::try_from(1_usize)?), 1_usize);
         Ok(())
     }
 }
