@@ -5,7 +5,14 @@ pub struct IssueNumber(usize);
 
 impl IssueNumber {
     pub fn start_number() -> Self {
-        IssueNumber(1_usize)
+        Self(1_usize)
+    }
+
+    pub fn next_number(&self) -> Self {
+        if self.0 == std::usize::MAX {
+            panic!("issue_number is overflow")
+        }
+        Self(self.0 + 1)
     }
 }
 
@@ -49,6 +56,13 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn next_number_test() -> anyhow::Result<()> {
+        let number1 = IssueNumber::try_from(1_usize)?;
+        assert_eq!(number1.next_number(), IssueNumber::try_from(2_usize)?);
+        Ok(())
+    }
 
     #[test]
     fn start_number_test() -> anyhow::Result<()> {
