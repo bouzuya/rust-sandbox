@@ -1,3 +1,5 @@
+mod issue_number;
+
 use ulid::Ulid;
 
 #[derive(Debug, Clone, Copy, Eq, Ord, PartialEq, PartialOrd)]
