@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.15.0" }
 thiserror = "1.0.30"
 ulid = "0.5.0"
 
