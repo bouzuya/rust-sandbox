@@ -36,4 +36,20 @@ impl Issue {
     }
 }
 
-// TODO: tests
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let ulid = Ulid::new();
+        let number = IssueNumber::try_from(1_usize)?;
+        let title = IssueTitle::from_str("title1")?;
+        let issue = Issue::new(IssueId::new(ulid), number, title.clone());
+        assert_eq!(issue.number(), number);
+        assert_eq!(issue.title(), &title);
+        Ok(())
+    }
+}
