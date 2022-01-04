@@ -1,6 +1,5 @@
 use crate::entity::{Issue, IssueId, IssueNumber, IssueTitle};
 use limited_date_time::Instant;
-use ulid::Ulid;
 
 #[derive(Debug)]
 pub struct CreateIssue {
@@ -38,8 +37,8 @@ pub fn create_issue_workflow(create_issue: CreateIssue) -> IssueCreated {
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
     let issue_number = issue_repository.next_issue_number();
-    let issue_id = IssueId::new(Ulid::new());
-    let issue = Issue::new(issue_id, issue_number, create_issue.issue_title);
+    let issue_id = IssueId::new(issue_number);
+    let issue = Issue::new(issue_id, create_issue.issue_title);
     let at = Instant::now();
     IssueCreated { at, issue }
 }
