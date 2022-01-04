@@ -1,4 +1,5 @@
 mod issue_number;
+mod issue_status;
 mod issue_title;
 
 use ulid::Ulid;
