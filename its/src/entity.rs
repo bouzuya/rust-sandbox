@@ -8,7 +8,7 @@ pub use self::issue_number::IssueNumber;
 use self::issue_status::IssueStatus;
 pub use self::issue_title::IssueTitle;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Issue {
     id: IssueId,
     status: IssueStatus,

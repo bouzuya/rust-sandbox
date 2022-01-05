@@ -12,7 +12,7 @@ impl CreateIssue {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IssueCreated {
     at: Instant,
     issue: Issue,
@@ -31,14 +31,27 @@ impl IssueRepository {
             IssueNumber::start_number()
         }
     }
+
+    pub fn save(&self, _events: IssueCreated) -> anyhow::Result<()> {
+        // TODO
+        Ok(())
+    }
 }
 
-pub fn create_issue_workflow(create_issue: CreateIssue) -> IssueCreated {
+pub fn create_issue_workflow(create_issue: CreateIssue) -> anyhow::Result<IssueCreated> {
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
+    // io
     let issue_number = issue_repository.next_issue_number();
+    let at = Instant::now();
+
+    // pure
     let issue_id = IssueId::new(issue_number);
     let issue = Issue::new(issue_id, create_issue.issue_title);
-    let at = Instant::now();
-    IssueCreated { at, issue }
+    let event = IssueCreated { at, issue };
+
+    // io
+    issue_repository.save(event.clone())?;
+
+    Ok(event)
 }
