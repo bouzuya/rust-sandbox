@@ -1,10 +1,10 @@
 use crate::{
     entity::IssueTitle,
-    workflow::{create_issue_workflow, CreateIssue},
+    use_case::{create_issue_workflow, CreateIssue},
 };
 
 mod entity;
-mod workflow;
+mod use_case;
 
 #[argopt::subcmd(name = "issue-create")]
 fn issue_create(#[opt(long = "title")] title: Option<String>) {
