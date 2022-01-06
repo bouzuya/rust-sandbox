@@ -2,6 +2,7 @@ mod issue_id;
 mod issue_number;
 mod issue_status;
 mod issue_title;
+mod version;
 
 pub use self::issue_id::IssueId;
 pub use self::issue_number::IssueNumber;
