@@ -1,18 +1,21 @@
+use use_case::{issue_management_context_use_case, IssueManagementContextCommand};
+
 use crate::{
     entity::IssueTitle,
-    use_case::{create_issue_workflow, CreateIssue},
+    use_case::{create_issue_use_case, CreateIssue},
 };
 
 mod entity;
 mod use_case;
 
 #[argopt::subcmd(name = "issue-create")]
-fn issue_create(#[opt(long = "title")] title: Option<String>) {
-    let title = IssueTitle::try_from(title.unwrap_or_default()).unwrap();
-    let command = CreateIssue::new(title);
-    let event = create_issue_workflow(command);
+fn issue_create(#[opt(long = "title")] title: Option<String>) -> anyhow::Result<()> {
+    let issue_title = IssueTitle::try_from(title.unwrap_or_default()).unwrap();
+    let command = IssueManagementContextCommand::CreateIssue(CreateIssue { issue_title });
+    let event = issue_management_context_use_case(command)?;
     println!("issue created : {:?}", event);
+    Ok(())
 }
 
 #[argopt::cmd_group(commands = [issue_create])]
-fn main() {}
+fn main() -> anyhow::Result<()> {}

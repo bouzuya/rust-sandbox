@@ -1,21 +1,31 @@
-use crate::entity::{Issue, IssueId, IssueNumber, IssueTitle};
+use crate::entity::{
+    Issue, IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
+    IssueAggregateEvent, IssueCreated, IssueNumber, IssueTitle,
+};
 use limited_date_time::Instant;
+use thiserror::Error;
+
+#[derive(Debug)]
+pub enum IssueManagementContextCommand {
+    CreateIssue(CreateIssue),
+}
 
 #[derive(Debug)]
 pub struct CreateIssue {
-    issue_title: IssueTitle,
+    pub issue_title: IssueTitle,
 }
 
-impl CreateIssue {
-    pub fn new(issue_title: IssueTitle) -> Self {
-        Self { issue_title }
-    }
+#[derive(Debug)]
+pub enum IssueManagementContextEvent {
+    IssueCreated(IssueCreated),
 }
 
-#[derive(Clone, Debug)]
-pub struct IssueCreated {
-    at: Instant,
-    issue: Issue,
+#[derive(Debug, Error)]
+pub enum IssueManagementContextError {
+    #[error("IssueAggregate")]
+    IssueAggregate(IssueAggregateError),
+    #[error("Unknown")]
+    Unknown,
 }
 
 #[derive(Debug, Default)]
@@ -31,14 +41,22 @@ impl IssueRepository {
             IssueNumber::start_number()
         }
     }
+}
 
-    pub fn save(&self, _events: IssueCreated) -> anyhow::Result<()> {
-        // TODO
-        Ok(())
+pub fn issue_management_context_use_case(
+    command: IssueManagementContextCommand,
+) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
+    match command {
+        IssueManagementContextCommand::CreateIssue(command) => {
+            let event = create_issue_use_case(command)?;
+            Ok(IssueManagementContextEvent::IssueCreated(event))
+        }
     }
 }
 
-pub fn create_issue_workflow(create_issue: CreateIssue) -> anyhow::Result<IssueCreated> {
+pub fn create_issue_use_case(
+    command: CreateIssue,
+) -> Result<IssueCreated, IssueManagementContextError> {
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
     // io
@@ -46,12 +64,20 @@ pub fn create_issue_workflow(create_issue: CreateIssue) -> anyhow::Result<IssueC
     let at = Instant::now();
 
     // pure
-    let issue_id = IssueId::new(issue_number);
-    let issue = Issue::new(issue_id, create_issue.issue_title);
-    let event = IssueCreated { at, issue };
+    let event =
+        IssueAggregate::transaction(IssueAggregateCommand::Create(IssueAggregateCreateIssue {
+            issue_number,
+            issue_title: command.issue_title,
+            at,
+        }))
+        .map_err(IssueManagementContextError::IssueAggregate)?;
 
     // io
-    issue_repository.save(event.clone())?;
+    // TODO: save issue
 
-    Ok(event)
+    if let IssueAggregateEvent::Created(event) = event {
+        Ok(event)
+    } else {
+        unreachable!()
+    }
 }
