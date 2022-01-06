@@ -1,4 +1,4 @@
-use crate::entity::{
+use entity::{
     Issue, IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
     IssueAggregateEvent, IssueCreated, IssueNumber, IssueTitle,
 };

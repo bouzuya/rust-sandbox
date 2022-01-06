@@ -1,20 +1,13 @@
 [package]
-name = "application"
-version = "0.2.2"
+name = "entity"
+version = "0.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.52"
-argopt = "0.1.1"
-entity = { path = "../entity" }
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
-structopt = "0.3.25"
 thiserror = "1.0.30"
-ulid = "0.5.0"
 
 [dev-dependencies]
 anyhow = "1.0.52"
-assert_cmd = "2.0.2"
-predicates = "2.1.0"

@@ -1,11 +1,8 @@
 use use_case::{issue_management_context_use_case, IssueManagementContextCommand};
 
-use crate::{
-    entity::IssueTitle,
-    use_case::{create_issue_use_case, CreateIssue},
-};
+use crate::use_case::{create_issue_use_case, CreateIssue};
+use entity::IssueTitle;
 
-mod entity;
 mod use_case;
 
 #[argopt::subcmd(name = "issue-create")]
