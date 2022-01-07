@@ -9,6 +9,7 @@ pub use self::event::*;
 use self::transaction::*;
 use crate::entity::version::Version;
 use crate::entity::Issue;
+use crate::IssueId;
 
 #[derive(Clone, Debug)]
 pub struct IssueAggregate {
@@ -61,5 +62,13 @@ impl IssueAggregate {
             IssueAggregateCommand::Create(command) => create_issue(command),
             IssueAggregateCommand::Finish(command) => finish_issue(command),
         }
+    }
+
+    pub fn id(&self) -> &IssueId {
+        &self.issue.id
+    }
+
+    pub fn issue(&self) -> &Issue {
+        &self.issue
     }
 }
