@@ -1,9 +1,7 @@
-use use_case::{issue_management_context_use_case, IssueManagementContextCommand};
-
-use crate::use_case::{create_issue_use_case, CreateIssue};
-use entity::IssueTitle;
-
 mod use_case;
+
+use entity::IssueTitle;
+use use_case::{issue_management_context_use_case, CreateIssue, IssueManagementContextCommand};
 
 #[argopt::subcmd(name = "issue-create")]
 fn issue_create(#[opt(long = "title")] title: Option<String>) -> anyhow::Result<()> {

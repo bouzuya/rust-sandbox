@@ -18,22 +18,48 @@ pub struct IssueAggregate {
 
 impl IssueAggregate {
     pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self, IssueAggregateError> {
-        let mut issue = None;
-        for event in events {
-            match event {
-                IssueAggregateEvent::Created(IssueCreated { at: _, issue: i }) => {
-                    issue = Some(i);
+        if let Some(IssueAggregateEvent::Created(IssueCreated { at: _, issue: i })) = events.first()
+        {
+            let mut issue = i.clone();
+            for event in events.iter().skip(1) {
+                match event {
+                    IssueAggregateEvent::Created(_) => {
+                        return Err(IssueAggregateError::Unknown);
+                    }
+                    IssueAggregateEvent::Finished(IssueFinished {
+                        at: _,
+                        issue_id,
+                        version,
+                    }) => {
+                        if &issue.issue.id != issue_id {
+                            return Err(IssueAggregateError::Unknown);
+                        }
+                        if issue.version.next() != Some(*version) {
+                            return Err(IssueAggregateError::Unknown);
+                        }
+
+                        issue = IssueAggregate {
+                            issue: issue
+                                .issue
+                                .finish()
+                                .map_err(|_| IssueAggregateError::Unknown)?,
+                            version: *version,
+                        }
+                    }
                 }
             }
+            Ok(issue)
+        } else {
+            Err(IssueAggregateError::Unknown)
         }
-        Ok(issue.ok_or(IssueAggregateError::Unknown)?.clone())
     }
 
     pub fn transaction(
         command: IssueAggregateCommand,
-    ) -> Result<IssueAggregateEvent, IssueAggregateError> {
+    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
         match command {
             IssueAggregateCommand::Create(command) => create_issue(command),
+            IssueAggregateCommand::Finish(command) => finish_issue(command),
         }
     }
 }

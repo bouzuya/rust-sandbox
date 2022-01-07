@@ -64,7 +64,7 @@ pub fn create_issue_use_case(
     let at = Instant::now();
 
     // pure
-    let event =
+    let (_, event) =
         IssueAggregate::transaction(IssueAggregateCommand::Create(IssueAggregateCreateIssue {
             issue_number,
             issue_title: command.issue_title,
