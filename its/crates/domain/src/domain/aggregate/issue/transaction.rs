@@ -12,14 +12,15 @@ pub fn create_issue(
     command: IssueAggregateCreateIssue,
 ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
     let issue_id = IssueId::new(command.issue_number);
-    let issue = Issue::new(issue_id, command.issue_title);
-    let issue = IssueAggregate {
-        issue,
-        version: Version::from(1_u64),
-    };
+    let issue_title = command.issue_title;
+    let issue = Issue::new(issue_id.clone(), issue_title.clone());
+    let version = Version::from(1_u64);
+    let issue = IssueAggregate { issue, version };
     let event = IssueAggregateEvent::Created(IssueCreated {
         at: command.at,
-        issue: issue.clone(),
+        issue_id,
+        issue_title,
+        version,
     });
     Ok((issue, event))
 }

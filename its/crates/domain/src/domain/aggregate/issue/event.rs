@@ -1,8 +1,6 @@
 use limited_date_time::Instant;
 
-use crate::{IssueId, Version};
-
-use super::IssueAggregate;
+use crate::{IssueId, IssueTitle, Version};
 
 #[derive(Clone, Debug)]
 pub enum IssueAggregateEvent {
@@ -13,8 +11,9 @@ pub enum IssueAggregateEvent {
 #[derive(Clone, Debug)]
 pub struct IssueCreated {
     pub at: Instant,
-    // TODO: don't use aggregate
-    pub issue: IssueAggregate,
+    pub issue_id: IssueId,
+    pub issue_title: IssueTitle,
+    pub version: Version,
 }
 
 #[derive(Clone, Debug)]

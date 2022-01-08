@@ -19,9 +19,12 @@ pub struct IssueAggregate {
 
 impl IssueAggregate {
     pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self, IssueAggregateError> {
-        if let Some(IssueAggregateEvent::Created(IssueCreated { at: _, issue: i })) = events.first()
-        {
-            let mut issue = i.clone();
+        if let Some(IssueAggregateEvent::Created(event)) = events.first() {
+            let issue = Issue::from_event(event.clone());
+            let mut issue = IssueAggregate {
+                issue,
+                version: event.version,
+            };
             for event in events.iter().skip(1) {
                 match event {
                     IssueAggregateEvent::Created(_) => {
