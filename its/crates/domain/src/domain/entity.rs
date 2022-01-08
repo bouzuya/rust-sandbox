@@ -1,10 +1,7 @@
-mod aggregate;
-mod value_object;
-
 use thiserror::Error;
-pub use value_object::*;
 
-pub use self::aggregate::*;
+use crate::{IssueId, IssueNumber, IssueStatus, IssueTitle};
+
 #[derive(Debug, Error)]
 pub enum IssueError {
     #[error("AlreadyFinished")]
@@ -38,6 +35,10 @@ impl Issue {
         })
     }
 
+    pub fn id(&self) -> &IssueId {
+        &self.id
+    }
+
     pub fn number(&self) -> IssueNumber {
         self.id.issue_number()
     }
@@ -61,7 +62,9 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
-        let issue = Issue::new(IssueId::new(number), title.clone());
+        let id = IssueId::new(number);
+        let issue = Issue::new(id.clone(), title.clone());
+        assert_eq!(issue.id(), &id);
         assert_eq!(issue.number(), number);
         assert_eq!(issue.status(), IssueStatus::Todo);
         assert_eq!(issue.title(), &title);

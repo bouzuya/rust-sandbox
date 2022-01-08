@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.52"
 argopt = "0.1.1"
-entity = { path = "../entity" }
+domain = { path = "../domain" }
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
 structopt = "0.3.25"
 thiserror = "1.0.30"

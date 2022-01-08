@@ -1,5 +1,5 @@
 use crate::{
-    entity::{Issue, IssueId},
+    domain::{entity::Issue, IssueId},
     IssueAggregateFinishIssue, IssueFinished, Version,
 };
 
@@ -38,7 +38,7 @@ pub fn finish_issue(
         .ok_or(IssueAggregateError::Unknown)?;
     let event = IssueAggregateEvent::Finished(IssueFinished {
         at: command.at,
-        issue_id: aggregate.issue.id,
+        issue_id: aggregate.id().clone(),
         version: updated_version,
     });
     Ok((

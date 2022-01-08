@@ -1,7 +1,7 @@
 use limited_date_time::Instant;
 
 use crate::{
-    entity::{IssueNumber, IssueTitle},
+    domain::{IssueNumber, IssueTitle},
     IssueAggregate,
 };
 

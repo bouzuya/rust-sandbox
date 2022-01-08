@@ -7,7 +7,7 @@ pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
-use crate::entity::Issue;
+use crate::domain::entity::Issue;
 use crate::IssueId;
 use crate::Version;
 
@@ -32,7 +32,7 @@ impl IssueAggregate {
                         issue_id,
                         version,
                     }) => {
-                        if &issue.issue.id != issue_id {
+                        if issue.issue.id() != issue_id {
                             return Err(IssueAggregateError::Unknown);
                         }
                         if issue.version.next() != Some(*version) {
@@ -65,7 +65,7 @@ impl IssueAggregate {
     }
 
     pub fn id(&self) -> &IssueId {
-        &self.issue.id
+        self.issue.id()
     }
 
     pub fn issue(&self) -> &Issue {

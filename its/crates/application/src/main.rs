@@ -2,7 +2,7 @@ mod use_case;
 
 use std::str::FromStr;
 
-use entity::{IssueId, IssueNumber, IssueTitle};
+use domain::{IssueId, IssueNumber, IssueTitle};
 use use_case::{issue_management_context_use_case, CreateIssue, IssueManagementContextCommand};
 
 use crate::use_case::FinishIssue;
