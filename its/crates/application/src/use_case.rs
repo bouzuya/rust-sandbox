@@ -1,5 +1,14 @@
 mod event_dto;
 
+use self::event_dto::*;
+
+use std::{
+    fs::File,
+    io::{BufRead, BufReader},
+    path::PathBuf,
+    str::FromStr,
+};
+
 use domain::{
     IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
     IssueAggregateEvent, IssueAggregateFinishIssue, IssueCreated, IssueFinished, IssueId,
@@ -38,18 +47,62 @@ pub enum IssueManagementContextError {
     Unknown,
 }
 
+#[derive(Debug, Error)]
+pub enum RepositoryError {
+    #[error("IO")]
+    IO,
+}
+
 #[derive(Debug, Default)]
 pub struct IssueRepository {
     issues: Vec<IssueAggregate>,
 }
 
 impl IssueRepository {
-    // TODO: Result
-    pub fn find_by_id(&self, issue_id: IssueId) -> Option<IssueAggregate> {
-        self.issues
-            .iter()
-            .find(|issue| issue.id() == &issue_id)
-            .cloned()
+    pub fn find_by_id(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Option<IssueAggregate>, RepositoryError> {
+        let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
+        if !file_path.exists() {
+            return Ok(None);
+        }
+
+        let file = File::open(file_path.as_path()).map_err(|_| RepositoryError::IO)?;
+        let buf_reader = BufReader::new(file);
+        let mut events: Vec<IssueAggregateEvent> = vec![];
+        for line in buf_reader.lines() {
+            let line = line.map_err(|_| RepositoryError::IO)?;
+            let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
+                .map_err(|_| RepositoryError::IO)?;
+            let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
+            events.push(event);
+        }
+
+        let filtered = events
+            .into_iter()
+            .filter(|e| match e {
+                IssueAggregateEvent::Created(IssueCreated {
+                    at: _,
+                    issue_id: id,
+                    issue_title: _,
+                    version: _,
+                }) => id == issue_id,
+                IssueAggregateEvent::Finished(IssueFinished {
+                    at: _,
+                    issue_id: id,
+                    version: _,
+                }) => id == issue_id,
+            })
+            .collect::<Vec<IssueAggregateEvent>>();
+
+        if filtered.is_empty() {
+            Ok(None)
+        } else {
+            IssueAggregate::from_events(&filtered)
+                .map(Some)
+                .map_err(|_| RepositoryError::IO)
+        }
     }
 
     pub fn next_issue_number(&self) -> IssueNumber {
@@ -110,7 +163,9 @@ pub fn finish_issue_use_case(
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
     // io
-    let issue = issue_repository.find_by_id(command.issue_id);
+    let issue = issue_repository
+        .find_by_id(&command.issue_id)
+        .map_err(|_| IssueManagementContextError::Unknown)?;
     // TODO: fix error
     let issue = issue.ok_or(IssueManagementContextError::Unknown)?;
     let at = Instant::now();
