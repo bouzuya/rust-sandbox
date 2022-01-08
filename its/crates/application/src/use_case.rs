@@ -1,3 +1,5 @@
+mod event_dto;
+
 use domain::{
     IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
     IssueAggregateEvent, IssueAggregateFinishIssue, IssueCreated, IssueFinished, IssueId,
