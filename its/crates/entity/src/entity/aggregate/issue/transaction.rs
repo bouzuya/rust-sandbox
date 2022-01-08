@@ -1,6 +1,6 @@
 use crate::{
-    entity::{version::Version, Issue, IssueId},
-    IssueAggregateFinishIssue, IssueFinished,
+    entity::{Issue, IssueId},
+    IssueAggregateFinishIssue, IssueFinished, Version,
 };
 
 use super::{

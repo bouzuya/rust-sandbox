@@ -1,17 +1,10 @@
 mod aggregate;
-mod issue_id;
-mod issue_number;
-mod issue_status;
-mod issue_title;
-mod version;
+mod value_object;
+
+use thiserror::Error;
+pub use value_object::*;
 
 pub use self::aggregate::*;
-pub use self::issue_id::IssueId;
-pub use self::issue_number::IssueNumber;
-use self::issue_status::IssueStatus;
-pub use self::issue_title::IssueTitle;
-use thiserror::Error;
-
 #[derive(Debug, Error)]
 pub enum IssueError {
     #[error("AlreadyFinished")]

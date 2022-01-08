@@ -1,6 +1,6 @@
 use limited_date_time::Instant;
 
-use crate::{entity::version::Version, IssueId};
+use crate::{IssueId, Version};
 
 use super::IssueAggregate;
 

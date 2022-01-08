@@ -7,9 +7,9 @@ pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
-use crate::entity::version::Version;
 use crate::entity::Issue;
 use crate::IssueId;
+use crate::Version;
 
 #[derive(Clone, Debug)]
 pub struct IssueAggregate {
