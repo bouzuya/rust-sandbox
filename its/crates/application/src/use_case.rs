@@ -5,7 +5,7 @@ use self::event_dto::*;
 use std::{
     fs::File,
     io::{BufRead, BufReader, BufWriter, Write},
-    path::PathBuf,
+    path::{Path, PathBuf},
     str::FromStr,
 };
 
@@ -54,9 +54,7 @@ pub enum RepositoryError {
 }
 
 #[derive(Debug, Default)]
-pub struct IssueRepository {
-    issues: Vec<IssueAggregate>,
-}
+pub struct IssueRepository {}
 
 impl IssueRepository {
     pub fn find_by_id(
@@ -107,21 +105,7 @@ impl IssueRepository {
 
     pub fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
-        let mut events = if file_path.exists() {
-            let file = File::open(file_path.as_path()).map_err(|_| RepositoryError::IO)?;
-            let buf_reader = BufReader::new(file);
-            let mut events: Vec<IssueAggregateEvent> = vec![];
-            for line in buf_reader.lines() {
-                let line = line.map_err(|_| RepositoryError::IO)?;
-                let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
-                    .map_err(|_| RepositoryError::IO)?;
-                let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
-                events.push(event);
-            }
-            events
-        } else {
-            vec![]
-        };
+        let mut events = self.events(file_path.as_path())?;
 
         events.push(event);
 
@@ -140,12 +124,42 @@ impl IssueRepository {
         Ok(())
     }
 
-    pub fn next_issue_number(&self) -> IssueNumber {
-        if let Some(last_issue) = self.issues.last() {
-            last_issue.issue().number().next_number()
-        } else {
-            IssueNumber::start_number()
+    pub fn next_issue_number(&self) -> Result<IssueNumber, RepositoryError> {
+        let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
+        let events = self.events(file_path.as_path())?;
+        let mut max: Option<IssueId> = None;
+        for event in events {
+            match event {
+                IssueAggregateEvent::Created(IssueCreated {
+                    at: _,
+                    issue_id,
+                    issue_title: _,
+                    version: _,
+                }) => max = Some(max.unwrap_or_else(|| issue_id.clone()).max(issue_id)),
+                IssueAggregateEvent::Finished(_) => {}
+            }
         }
+        Ok(max
+            .map(|id| id.issue_number().next_number())
+            .unwrap_or_else(|| IssueNumber::start_number()))
+    }
+
+    fn events(&self, file_path: &Path) -> Result<Vec<IssueAggregateEvent>, RepositoryError> {
+        Ok(if file_path.exists() {
+            let file = File::open(file_path).map_err(|_| RepositoryError::IO)?;
+            let buf_reader = BufReader::new(file);
+            let mut events: Vec<IssueAggregateEvent> = vec![];
+            for line in buf_reader.lines() {
+                let line = line.map_err(|_| RepositoryError::IO)?;
+                let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
+                    .map_err(|_| RepositoryError::IO)?;
+                let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
+                events.push(event);
+            }
+            events
+        } else {
+            vec![]
+        })
     }
 }
 
@@ -170,7 +184,9 @@ pub fn create_issue_use_case(
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
     // io
-    let issue_number = issue_repository.next_issue_number();
+    let issue_number = issue_repository
+        .next_issue_number()
+        .map_err(|_| IssueManagementContextError::Unknown)?;
     let at = Instant::now();
 
     // pure
