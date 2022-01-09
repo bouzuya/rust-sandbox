@@ -4,7 +4,7 @@ use self::event_dto::*;
 
 use std::{
     fs::File,
-    io::{BufRead, BufReader},
+    io::{BufRead, BufReader, BufWriter, Write},
     path::PathBuf,
     str::FromStr,
 };
@@ -105,6 +105,41 @@ impl IssueRepository {
         }
     }
 
+    pub fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
+        let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
+        let mut events = if file_path.exists() {
+            let file = File::open(file_path.as_path()).map_err(|_| RepositoryError::IO)?;
+            let buf_reader = BufReader::new(file);
+            let mut events: Vec<IssueAggregateEvent> = vec![];
+            for line in buf_reader.lines() {
+                let line = line.map_err(|_| RepositoryError::IO)?;
+                let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
+                    .map_err(|_| RepositoryError::IO)?;
+                let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
+                events.push(event);
+            }
+            events
+        } else {
+            vec![]
+        };
+
+        events.push(event);
+
+        let file = File::create(file_path.as_path()).map_err(|_| RepositoryError::IO)?;
+        let mut buf_writer = BufWriter::new(file);
+        for event in events {
+            let dto = EventDto::from(event);
+            let line = serde_json::to_string(&dto).map_err(|_| RepositoryError::IO)?;
+            buf_writer
+                .write(line.as_bytes())
+                .map_err(|_| RepositoryError::IO)?;
+            buf_writer
+                .write("\n".as_bytes())
+                .map_err(|_| RepositoryError::IO)?;
+        }
+        Ok(())
+    }
+
     pub fn next_issue_number(&self) -> IssueNumber {
         if let Some(last_issue) = self.issues.last() {
             last_issue.issue().number().next_number()
@@ -148,7 +183,9 @@ pub fn create_issue_use_case(
         .map_err(IssueManagementContextError::IssueAggregate)?;
 
     // io
-    // TODO: save issue
+    issue_repository
+        .save(event.clone())
+        .map_err(|_| IssueManagementContextError::Unknown)?;
 
     if let IssueAggregateEvent::Created(event) = event {
         Ok(event)
@@ -179,7 +216,9 @@ pub fn finish_issue_use_case(
         .map_err(IssueManagementContextError::IssueAggregate)?;
 
     // io
-    // TODO: save issue
+    issue_repository
+        .save(event.clone())
+        .map_err(|_| IssueManagementContextError::Unknown)?;
 
     if let IssueAggregateEvent::Finished(event) = event {
         Ok(event)
