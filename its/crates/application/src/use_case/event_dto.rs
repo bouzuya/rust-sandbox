@@ -42,16 +42,11 @@ pub enum EventDto {
 impl From<IssueAggregateEvent> for EventDto {
     fn from(event: IssueAggregateEvent) -> Self {
         match event {
-            IssueAggregateEvent::Created(IssueCreated {
-                at,
-                issue_id,
-                issue_title,
-                version,
-            }) => EventDto::IssueCreated {
-                at: at.to_string(),
-                issue_id: issue_id.to_string(),
-                issue_title: issue_title.to_string(),
-                version: u64::from(version),
+            IssueAggregateEvent::Created(event) => EventDto::IssueCreated {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                issue_title: event.issue_title().to_string(),
+                version: u64::from(event.version()),
             },
             IssueAggregateEvent::Finished(IssueFinished {
                 at,
@@ -77,12 +72,14 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                 issue_id,
                 issue_title,
                 version,
-            } => Ok(IssueAggregateEvent::Created(IssueCreated {
-                at: Instant::from_str(at.as_str())?,
-                issue_id: IssueId::from_str(issue_id.as_str())?,
-                issue_title: IssueTitle::try_from(issue_title)?,
-                version: Version::from(version),
-            })),
+            } => Ok(IssueAggregateEvent::Created(
+                IssueCreated::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueId::from_str(issue_id.as_str())?,
+                    IssueTitle::try_from(issue_title)?,
+                    Version::from(version),
+                ),
+            )),
             EventDto::IssueFinished {
                 at,
                 issue_id,
@@ -107,12 +104,12 @@ mod tests {
 
     #[test]
     fn issue_created_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::Created(IssueCreated {
-            at: Instant::from_str("2021-02-03T04:05:06Z")?,
-            issue_id: IssueId::new(IssueNumber::try_from(2_usize)?),
-            issue_title: IssueTitle::from_str("title1")?,
-            version: Version::from(1_u64),
-        });
+        let event = IssueAggregateEvent::Created(IssueCreated::from_trusted_data(
+            Instant::from_str("2021-02-03T04:05:06Z")?,
+            IssueId::new(IssueNumber::try_from(2_usize)?),
+            IssueTitle::from_str("title1")?,
+            Version::from(1_u64),
+        ));
         let dto = EventDto::IssueCreated {
             at: "2021-02-03T04:05:06Z".to_string(),
             issue_id: "2".to_string(),

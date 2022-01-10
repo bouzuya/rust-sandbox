@@ -80,12 +80,7 @@ impl IssueRepository {
         let filtered = events
             .into_iter()
             .filter(|e| match e {
-                IssueAggregateEvent::Created(IssueCreated {
-                    at: _,
-                    issue_id: id,
-                    issue_title: _,
-                    version: _,
-                }) => id == issue_id,
+                IssueAggregateEvent::Created(event) => event.issue_id() == issue_id,
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
                     issue_id: id,
@@ -130,12 +125,12 @@ impl IssueRepository {
         let mut max: Option<IssueId> = None;
         for event in events {
             match event {
-                IssueAggregateEvent::Created(IssueCreated {
-                    at: _,
-                    issue_id,
-                    issue_title: _,
-                    version: _,
-                }) => max = Some(max.unwrap_or_else(|| issue_id.clone()).max(issue_id)),
+                IssueAggregateEvent::Created(event) => {
+                    max = Some(
+                        max.unwrap_or_else(|| event.issue_id().clone())
+                            .max(event.issue_id().clone()),
+                    )
+                }
                 IssueAggregateEvent::Finished(_) => {}
             }
         }
