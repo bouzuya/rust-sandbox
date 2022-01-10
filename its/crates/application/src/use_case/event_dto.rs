@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use domain::{
-    IssueAggregateEvent, IssueCreated, IssueFinished, IssueId, IssueNumber, IssueTitle,
+    IssueAggregateEvent, IssueCreated, IssueFinished, IssueId, IssueTitle, ParseIssueIdError,
     ParseIssueNumberError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
@@ -12,6 +12,8 @@ use thiserror::Error;
 pub enum TryFromEventDtoError {
     #[error("Instant")]
     Instant(#[from] ParseInstantError),
+    #[error("IssueId")]
+    IssueId(#[from] ParseIssueIdError),
     #[error("IssueNumber")]
     IssueNumber(#[from] ParseIssueNumberError),
     #[error("IssueTitle")]
@@ -45,27 +47,21 @@ impl From<IssueAggregateEvent> for EventDto {
                 issue_id,
                 issue_title,
                 version,
-            }) => {
-                EventDto::IssueCreated {
-                    at: at.to_string(),
-                    // TODO: IssueId::to_string
-                    issue_id: usize::from(issue_id.issue_number()).to_string(),
-                    issue_title: issue_title.to_string(),
-                    version: u64::from(version),
-                }
-            }
+            }) => EventDto::IssueCreated {
+                at: at.to_string(),
+                issue_id: issue_id.to_string(),
+                issue_title: issue_title.to_string(),
+                version: u64::from(version),
+            },
             IssueAggregateEvent::Finished(IssueFinished {
                 at,
                 issue_id,
                 version,
-            }) => {
-                EventDto::IssueFinished {
-                    at: at.to_string(),
-                    // TODO: IssueId::to_string
-                    issue_id: usize::from(issue_id.issue_number()).to_string(),
-                    version: u64::from(version),
-                }
-            }
+            }) => EventDto::IssueFinished {
+                at: at.to_string(),
+                issue_id: issue_id.to_string(),
+                version: u64::from(version),
+            },
         }
     }
 }
@@ -81,27 +77,21 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                 issue_id,
                 issue_title,
                 version,
-            } => {
-                Ok(IssueAggregateEvent::Created(IssueCreated {
-                    at: Instant::from_str(at.as_str())?,
-                    // TODO: IssueId::from_str
-                    issue_id: IssueId::new(IssueNumber::from_str(issue_id.as_str())?),
-                    issue_title: IssueTitle::try_from(issue_title)?,
-                    version: Version::from(version),
-                }))
-            }
+            } => Ok(IssueAggregateEvent::Created(IssueCreated {
+                at: Instant::from_str(at.as_str())?,
+                issue_id: IssueId::from_str(issue_id.as_str())?,
+                issue_title: IssueTitle::try_from(issue_title)?,
+                version: Version::from(version),
+            })),
             EventDto::IssueFinished {
                 at,
                 issue_id,
                 version,
-            } => {
-                Ok(IssueAggregateEvent::Finished(IssueFinished {
-                    at: Instant::from_str(at.as_str())?,
-                    // TODO: IssueId::from_str
-                    issue_id: IssueId::new(IssueNumber::from_str(issue_id.as_str())?),
-                    version: Version::from(version),
-                }))
-            }
+            } => Ok(IssueAggregateEvent::Finished(IssueFinished {
+                at: Instant::from_str(at.as_str())?,
+                issue_id: IssueId::from_str(issue_id.as_str())?,
+                version: Version::from(version),
+            })),
         }
     }
 }

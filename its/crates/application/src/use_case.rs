@@ -141,7 +141,7 @@ impl IssueRepository {
         }
         Ok(max
             .map(|id| id.issue_number().next_number())
-            .unwrap_or_else(|| IssueNumber::start_number()))
+            .unwrap_or_else(IssueNumber::start_number))
     }
 
     fn events(&self, file_path: &Path) -> Result<Vec<IssueAggregateEvent>, RepositoryError> {
