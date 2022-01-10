@@ -19,6 +19,12 @@ impl IssueId {
 #[error("ParseIssueIdError")]
 pub struct ParseIssueIdError {}
 
+impl std::fmt::Display for IssueId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl std::str::FromStr for IssueId {
     type Err = ParseIssueIdError;
 
@@ -42,6 +48,7 @@ mod tests {
             IssueId::from_str("1")?,
             IssueId::new(IssueNumber::from_str("1")?)
         );
+        assert_eq!(IssueId::from_str("1")?.to_string(), "1");
         Ok(())
     }
 }
