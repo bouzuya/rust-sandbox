@@ -3,6 +3,12 @@ use thiserror::Error;
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueNumber(usize);
 
+impl std::fmt::Display for IssueNumber {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
 impl IssueNumber {
     pub fn start_number() -> Self {
         Self(1_usize)
@@ -75,6 +81,7 @@ mod tests {
         assert!(IssueNumber::from_str("a").is_err());
         assert!(IssueNumber::from_str("0").is_err());
         assert_eq!(IssueNumber::from_str("1")?, IssueNumber::try_from(1_usize)?);
+        assert_eq!(IssueNumber::from_str("1")?.to_string(), "1");
         Ok(())
     }
 
