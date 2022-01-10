@@ -7,9 +7,10 @@ pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
-use crate::domain::entity::Issue;
-use crate::IssueId;
-use crate::Version;
+use crate::{
+    domain::{entity::Issue, event::IssueFinished},
+    IssueId, Version,
+};
 
 #[derive(Clone, Debug)]
 pub struct IssueAggregate {

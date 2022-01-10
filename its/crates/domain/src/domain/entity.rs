@@ -1,6 +1,8 @@
 use thiserror::Error;
 
-use crate::{IssueCreated, IssueId, IssueNumber, IssueStatus, IssueTitle};
+use crate::{IssueId, IssueNumber, IssueStatus, IssueTitle};
+
+use super::event::IssueCreated;
 
 #[derive(Debug, Error)]
 pub enum IssueError {
