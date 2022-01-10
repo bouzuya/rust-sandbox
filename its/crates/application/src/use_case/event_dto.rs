@@ -48,14 +48,10 @@ impl From<IssueAggregateEvent> for EventDto {
                 issue_title: event.issue_title().to_string(),
                 version: u64::from(event.version()),
             },
-            IssueAggregateEvent::Finished(IssueFinished {
-                at,
-                issue_id,
-                version,
-            }) => EventDto::IssueFinished {
-                at: at.to_string(),
-                issue_id: issue_id.to_string(),
-                version: u64::from(version),
+            IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                version: u64::from(event.version()),
             },
         }
     }
@@ -84,11 +80,13 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                 at,
                 issue_id,
                 version,
-            } => Ok(IssueAggregateEvent::Finished(IssueFinished {
-                at: Instant::from_str(at.as_str())?,
-                issue_id: IssueId::from_str(issue_id.as_str())?,
-                version: Version::from(version),
-            })),
+            } => Ok(IssueAggregateEvent::Finished(
+                IssueFinished::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueId::from_str(issue_id.as_str())?,
+                    Version::from(version),
+                ),
+            )),
         }
     }
 }
@@ -129,11 +127,11 @@ mod tests {
 
     #[test]
     fn issue_finished_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::Finished(IssueFinished {
-            at: Instant::from_str("2021-02-03T04:05:06Z")?,
-            issue_id: IssueId::new(IssueNumber::try_from(2_usize)?),
-            version: Version::from(1_u64),
-        });
+        let event = IssueAggregateEvent::Finished(IssueFinished::from_trusted_data(
+            Instant::from_str("2021-02-03T04:05:06Z")?,
+            IssueId::new(IssueNumber::try_from(2_usize)?),
+            Version::from(1_u64),
+        ));
         let dto = EventDto::IssueFinished {
             at: "2021-02-03T04:05:06Z".to_string(),
             issue_id: "2".to_string(),

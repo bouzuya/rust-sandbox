@@ -81,11 +81,7 @@ impl IssueRepository {
             .into_iter()
             .filter(|e| match e {
                 IssueAggregateEvent::Created(event) => event.issue_id() == issue_id,
-                IssueAggregateEvent::Finished(IssueFinished {
-                    at: _,
-                    issue_id: id,
-                    version: _,
-                }) => id == issue_id,
+                IssueAggregateEvent::Finished(event) => event.issue_id() == issue_id,
             })
             .collect::<Vec<IssueAggregateEvent>>();
 
