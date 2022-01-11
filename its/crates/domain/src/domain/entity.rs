@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::{IssueId, IssueNumber, IssueStatus, IssueTitle};
+use crate::{IssueDue, IssueId, IssueNumber, IssueStatus, IssueTitle};
 
 use super::event::IssueCreated;
 
@@ -15,6 +15,7 @@ pub struct Issue {
     id: IssueId,
     status: IssueStatus,
     title: IssueTitle,
+    due: Option<IssueDue>,
 }
 
 impl Issue {
@@ -23,6 +24,7 @@ impl Issue {
             id: event.issue_id,
             status: IssueStatus::Todo,
             title: event.issue_title,
+            due: None, // TODO:
         }
     }
 
@@ -31,6 +33,7 @@ impl Issue {
             id,
             status: IssueStatus::Todo,
             title,
+            due: None, // TODO:
         }
     }
 
@@ -42,6 +45,7 @@ impl Issue {
             id: self.id.clone(),
             status: IssueStatus::Done,
             title: self.title.clone(),
+            due: None, // TODO:
         })
     }
 
@@ -59,6 +63,10 @@ impl Issue {
 
     pub fn title(&self) -> &IssueTitle {
         &self.title
+    }
+
+    pub fn due(&self) -> Option<IssueDue> {
+        self.due
     }
 }
 
@@ -78,6 +86,7 @@ mod tests {
         assert_eq!(issue.number(), number);
         assert_eq!(issue.status(), IssueStatus::Todo);
         assert_eq!(issue.title(), &title);
+        assert_eq!(issue.due(), None);
         Ok(())
     }
 
