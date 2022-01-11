@@ -28,12 +28,12 @@ impl Issue {
         }
     }
 
-    pub fn new(id: IssueId, title: IssueTitle) -> Self {
+    pub fn new(id: IssueId, title: IssueTitle, due: Option<IssueDue>) -> Self {
         Self {
             id,
             status: IssueStatus::Todo,
             title,
-            due: None, // TODO:
+            due,
         }
     }
 
@@ -81,12 +81,13 @@ mod tests {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
         let id = IssueId::new(number);
-        let issue = Issue::new(id.clone(), title.clone());
+        let due = IssueDue::from_str("2021-02-03T04:05:06Z")?;
+        let issue = Issue::new(id.clone(), title.clone(), Some(due));
         assert_eq!(issue.id(), &id);
         assert_eq!(issue.number(), number);
         assert_eq!(issue.status(), IssueStatus::Todo);
         assert_eq!(issue.title(), &title);
-        assert_eq!(issue.due(), None);
+        assert_eq!(issue.due(), Some(due));
         Ok(())
     }
 
@@ -94,7 +95,7 @@ mod tests {
     fn finish_test() -> anyhow::Result<()> {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
-        let issue = Issue::new(IssueId::new(number), title);
+        let issue = Issue::new(IssueId::new(number), title, None);
         let updated = issue.finish()?;
         assert_eq!(updated.status(), IssueStatus::Done);
         Ok(())

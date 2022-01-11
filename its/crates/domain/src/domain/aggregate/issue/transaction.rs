@@ -14,7 +14,7 @@ pub fn create_issue(
 ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
     let issue_id = IssueId::new(command.issue_number);
     let issue_title = command.issue_title;
-    let issue = Issue::new(issue_id.clone(), issue_title.clone());
+    let issue = Issue::new(issue_id.clone(), issue_title.clone(), None); // TODO:
     let version = Version::from(1_u64);
     let issue = IssueAggregate { issue, version };
     let event = IssueAggregateEvent::Created(IssueCreated {
