@@ -51,7 +51,7 @@ fn main() -> Result<()> {
         {
             commit_li.push(format!(
                 "  - [{}]({})",
-                commit.commit.message.split('\n').nth(0).unwrap(),
+                commit.commit.message.split('\n').next().unwrap(),
                 commit.html_url
             ));
         }
@@ -72,7 +72,7 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn print_formatted(formatted: &Vec<(String, Vec<String>)>) {
+fn print_formatted(formatted: &[(String, Vec<String>)]) {
     for repo in formatted {
         println!("{}", repo.0);
         for commit in repo.1.iter() {
@@ -126,7 +126,7 @@ fn get_repos(owner: &str, sort: &GetReposSort) -> Result<Vec<RepoResponse>> {
 
 fn build_range(s: &str) -> Result<RangeInclusive<DateTime<Utc>>> {
     let today = NaiveDate::parse_from_str(s, "%Y-%m-%d")?;
-    let offset = Local::now().offset().clone();
+    let offset = *Local::now().offset();
     let today = Date::<Local>::from_utc(today, offset);
     let today_start = today.and_hms(0, 0, 0);
     let today_end = today.and_hms(23, 59, 59);
