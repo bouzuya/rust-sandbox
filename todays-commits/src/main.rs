@@ -8,6 +8,7 @@ use serde::Deserialize;
 struct RepoResponse {
     name: String,
     html_url: String,
+    pushed_at: DateTime<Utc>,
     updated_at: DateTime<Utc>,
 }
 
@@ -31,11 +32,17 @@ struct Committer {
 
 fn main() -> Result<()> {
     let owner = "bouzuya";
-    let repos = get_repos(owner)?;
+    let sort = GetReposSort::Pushed;
+    let repos = get_repos(owner, &sort)?;
     let today = Local::today().format("%Y-%m-%d").to_string();
     let range = build_range(&today)?;
     let mut repo_li = vec![];
-    for repo in repos.iter().filter(|repo| range.contains(&repo.updated_at)) {
+    for repo in repos.iter().filter(|repo| {
+        range.contains(&match sort {
+            GetReposSort::Pushed => repo.pushed_at,
+            GetReposSort::Updated => repo.updated_at,
+        })
+    }) {
         let mut commit_li = vec![];
         let commits = get_commits(owner, &repo.name)?;
         for commit in commits
@@ -86,8 +93,27 @@ fn get_commits(owner: &str, repo: &str) -> Result<Vec<CommitResponse>> {
     Ok(repos)
 }
 
-fn get_repos(owner: &str) -> Result<Vec<RepoResponse>> {
-    let url = format!("https://api.github.com/users/{}/repos?sort=updated", owner);
+#[derive(Debug, Eq, PartialEq)]
+enum GetReposSort {
+    Pushed,
+    Updated,
+}
+
+impl std::fmt::Display for GetReposSort {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                GetReposSort::Pushed => "pushed",
+                GetReposSort::Updated => "updated",
+            }
+        )
+    }
+}
+
+fn get_repos(owner: &str, sort: &GetReposSort) -> Result<Vec<RepoResponse>> {
+    let url = format!("https://api.github.com/users/{}/repos?sort={}", owner, sort);
     let client = reqwest::blocking::Client::new();
     let request = client
         .get(&url)
