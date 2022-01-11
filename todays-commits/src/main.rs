@@ -1,34 +1,11 @@
+mod github_api;
+
 use std::ops::RangeInclusive;
 
 use anyhow::Result;
 use chrono::{Date, DateTime, Local, NaiveDate, Utc};
-use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-struct RepoResponse {
-    name: String,
-    html_url: String,
-    pushed_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Deserialize)]
-struct CommitResponse {
-    sha: String,
-    html_url: String,
-    commit: Commit,
-}
-
-#[derive(Debug, Deserialize)]
-struct Commit {
-    message: String,
-    committer: Committer,
-}
-
-#[derive(Debug, Deserialize)]
-struct Committer {
-    date: DateTime<Utc>,
-}
+use crate::github_api::{get_commits, get_repos, GetReposSort};
 
 fn main() -> Result<()> {
     let owner = "bouzuya";
@@ -79,49 +56,6 @@ fn print_formatted(formatted: &[(String, Vec<String>)]) {
             println!("{}", commit);
         }
     }
-}
-
-fn get_commits(owner: &str, repo: &str) -> Result<Vec<CommitResponse>> {
-    let url = format!("https://api.github.com/repos/{}/{}/commits", owner, repo);
-    let client = reqwest::blocking::Client::new();
-    let request = client
-        .get(&url)
-        .header("User-Agent", "todays-commits")
-        .build()?;
-    let response = client.execute(request)?;
-    let repos = response.json()?;
-    Ok(repos)
-}
-
-#[derive(Debug, Eq, PartialEq)]
-enum GetReposSort {
-    Pushed,
-    Updated,
-}
-
-impl std::fmt::Display for GetReposSort {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                GetReposSort::Pushed => "pushed",
-                GetReposSort::Updated => "updated",
-            }
-        )
-    }
-}
-
-fn get_repos(owner: &str, sort: &GetReposSort) -> Result<Vec<RepoResponse>> {
-    let url = format!("https://api.github.com/users/{}/repos?sort={}", owner, sort);
-    let client = reqwest::blocking::Client::new();
-    let request = client
-        .get(&url)
-        .header("User-Agent", "todays-commits")
-        .build()?;
-    let response = client.execute(request)?;
-    let repos = response.json()?;
-    Ok(repos)
 }
 
 fn build_range(s: &str) -> Result<RangeInclusive<DateTime<Utc>>> {
