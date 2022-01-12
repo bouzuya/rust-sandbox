@@ -3,6 +3,7 @@ mod github_api;
 use std::ops::RangeInclusive;
 
 use anyhow::Result;
+use argopt::cmd;
 use chrono::{Date, DateTime, Local, NaiveDate, Utc};
 use github_api::RepoResponse;
 
@@ -56,10 +57,11 @@ fn format(repo_and_commits: Vec<RepoAndCommits>) -> String {
     formatted
 }
 
-fn main() -> Result<()> {
+#[cmd]
+fn main(#[opt(long = "sort", default_value = "pushed")] sort: GetReposSort) -> Result<()> {
     let today = Local::today().format("%Y-%m-%d").to_string();
     let range = build_range(&today)?;
-    let repo_and_commits = fetch("bouzuya", GetReposSort::Pushed, range)?;
+    let repo_and_commits = fetch("bouzuya", sort, range)?;
     let formatted = format(repo_and_commits);
     println!("{}", formatted);
     Ok(())

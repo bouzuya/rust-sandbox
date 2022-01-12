@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
+use thiserror::Error;
 
 #[derive(Debug, Deserialize)]
 pub struct CommitResponse {
@@ -27,6 +28,10 @@ pub struct RepoResponse {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Error)]
+#[error("ParseGetReposSortError")]
+pub struct ParseGetReposSortError {}
+
 #[derive(Debug, Eq, PartialEq)]
 pub enum GetReposSort {
     Pushed,
@@ -43,6 +48,18 @@ impl std::fmt::Display for GetReposSort {
                 GetReposSort::Updated => "updated",
             }
         )
+    }
+}
+
+impl std::str::FromStr for GetReposSort {
+    type Err = ParseGetReposSortError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "pushed" => Ok(GetReposSort::Pushed),
+            "updated" => Ok(GetReposSort::Updated),
+            _ => Err(ParseGetReposSortError {}),
+        }
     }
 }
 
