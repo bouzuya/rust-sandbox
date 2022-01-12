@@ -4,58 +4,65 @@ use std::ops::RangeInclusive;
 
 use anyhow::Result;
 use chrono::{Date, DateTime, Local, NaiveDate, Utc};
+use github_api::RepoResponse;
 
-use crate::github_api::{get_commits, get_repos, GetReposSort};
+use crate::github_api::{get_commits, get_repos, CommitResponse, GetReposSort};
 
-fn main() -> Result<()> {
-    let owner = "bouzuya";
-    let sort = GetReposSort::Pushed;
+type RepoAndCommits = (RepoResponse, Vec<CommitResponse>);
+
+fn fetch(
+    owner: &str,
+    sort: GetReposSort,
+    range: RangeInclusive<DateTime<Utc>>,
+) -> Result<Vec<RepoAndCommits>> {
     let repos = get_repos(owner, &sort)?;
-    let today = Local::today().format("%Y-%m-%d").to_string();
-    let range = build_range(&today)?;
-    let mut repo_li = vec![];
-    for repo in repos.iter().filter(|repo| {
+    let mut repo_and_commits = vec![];
+    for repo in repos.into_iter().filter(|repo| {
         range.contains(&match sort {
             GetReposSort::Pushed => repo.pushed_at,
             GetReposSort::Updated => repo.updated_at,
         })
     }) {
-        let mut commit_li = vec![];
         let commits = get_commits(owner, &repo.name)?;
-        for commit in commits
-            .iter()
+        let filtered = commits
+            .into_iter()
             .filter(|commit| range.contains(&commit.commit.committer.date))
-        {
+            .collect::<Vec<CommitResponse>>();
+        repo_and_commits.push((repo, filtered));
+    }
+    Ok(repo_and_commits)
+}
+
+fn format(repo_and_commits: Vec<RepoAndCommits>) -> String {
+    let mut formatted = String::new();
+    for (repo, commits) in repo_and_commits {
+        let mut commit_li = vec![];
+        for commit in commits {
             commit_li.push(format!(
                 "  - [{}]({})",
                 commit.commit.message.split('\n').next().unwrap(),
                 commit.html_url
             ));
         }
-        repo_li.push((
-            format!(
-                "- [{}]({}) {} commit{}",
-                repo.name,
-                repo.html_url,
-                commit_li.len(),
-                if commit_li.len() > 1 { "s" } else { "" }
-            ),
-            commit_li,
+        formatted.push_str(&format!(
+            "- [{}]({}) {} commit{}\n{}\n",
+            repo.name,
+            repo.html_url,
+            commit_li.len(),
+            if commit_li.len() > 1 { "s" } else { "" },
+            commit_li.join("\n"),
         ));
     }
-
-    print_formatted(&repo_li);
-
-    Ok(())
+    formatted
 }
 
-fn print_formatted(formatted: &[(String, Vec<String>)]) {
-    for repo in formatted {
-        println!("{}", repo.0);
-        for commit in repo.1.iter() {
-            println!("{}", commit);
-        }
-    }
+fn main() -> Result<()> {
+    let today = Local::today().format("%Y-%m-%d").to_string();
+    let range = build_range(&today)?;
+    let repo_and_commits = fetch("bouzuya", GetReposSort::Pushed, range)?;
+    let formatted = format(repo_and_commits);
+    println!("{}", formatted);
+    Ok(())
 }
 
 fn build_range(s: &str) -> Result<RangeInclusive<DateTime<Utc>>> {
