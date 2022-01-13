@@ -72,6 +72,7 @@ pub fn create_issue_use_case(
         IssueAggregate::transaction(IssueAggregateCommand::Create(IssueAggregateCreateIssue {
             issue_number,
             issue_title: command.issue_title,
+            issue_due: None, // TODO:
             at,
         }))
         .map_err(IssueManagementContextError::IssueAggregate)?;

@@ -2,7 +2,7 @@ use limited_date_time::Instant;
 
 use crate::{
     domain::{IssueNumber, IssueTitle},
-    IssueAggregate,
+    IssueAggregate, IssueDue,
 };
 
 #[derive(Debug)]
@@ -15,6 +15,7 @@ pub enum IssueAggregateCommand {
 pub struct IssueAggregateCreateIssue {
     pub issue_number: IssueNumber,
     pub issue_title: IssueTitle,
+    pub issue_due: Option<IssueDue>,
     pub at: Instant,
 }
 

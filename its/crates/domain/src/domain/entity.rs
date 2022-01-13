@@ -1,8 +1,6 @@
 use thiserror::Error;
 
-use crate::{IssueDue, IssueId, IssueNumber, IssueStatus, IssueTitle};
-
-use super::event::IssueCreated;
+use crate::{IssueCreatedV2, IssueDue, IssueId, IssueNumber, IssueStatus, IssueTitle};
 
 #[derive(Debug, Error)]
 pub enum IssueError {
@@ -19,12 +17,12 @@ pub struct Issue {
 }
 
 impl Issue {
-    pub fn from_event(event: IssueCreated) -> Self {
+    pub fn from_event(event: IssueCreatedV2) -> Self {
         Self {
             id: event.issue_id,
             status: IssueStatus::Todo,
             title: event.issue_title,
-            due: None, // TODO:
+            due: event.issue_due,
         }
     }
 

@@ -44,6 +44,7 @@ impl IssueRepository {
             .into_iter()
             .filter(|e| match e {
                 IssueAggregateEvent::Created(event) => event.issue_id() == issue_id,
+                IssueAggregateEvent::CreatedV2(event) => event.issue_id() == issue_id,
                 IssueAggregateEvent::Finished(event) => event.issue_id() == issue_id,
             })
             .collect::<Vec<IssueAggregateEvent>>();
@@ -85,6 +86,12 @@ impl IssueRepository {
         for event in events {
             match event {
                 IssueAggregateEvent::Created(event) => {
+                    max = Some(
+                        max.unwrap_or_else(|| event.issue_id().clone())
+                            .max(event.issue_id().clone()),
+                    )
+                }
+                IssueAggregateEvent::CreatedV2(event) => {
                     max = Some(
                         max.unwrap_or_else(|| event.issue_id().clone())
                             .max(event.issue_id().clone()),

@@ -7,6 +7,7 @@ pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
+use crate::IssueCreatedV2;
 use crate::{
     domain::{entity::Issue, event::IssueFinished},
     IssueId, Version,
@@ -20,43 +21,48 @@ pub struct IssueAggregate {
 
 impl IssueAggregate {
     pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self, IssueAggregateError> {
-        if let Some(IssueAggregateEvent::Created(event)) = events.first() {
-            let issue = Issue::from_event(event.clone());
-            let mut issue = IssueAggregate {
-                issue,
-                version: event.version,
-            };
-            for event in events.iter().skip(1) {
-                match event {
-                    IssueAggregateEvent::Created(_) => {
+        let first_event = match events.first() {
+            Some(event) => match event {
+                IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
+                IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
+                IssueAggregateEvent::Finished(_) => Err(IssueAggregateError::Unknown),
+            },
+            None => Err(IssueAggregateError::Unknown),
+        }?;
+        let version = first_event.version;
+        let issue = Issue::from_event(first_event);
+        let mut issue = IssueAggregate { issue, version };
+        for event in events.iter().skip(1) {
+            match event {
+                IssueAggregateEvent::Created(_) => {
+                    return Err(IssueAggregateError::Unknown);
+                }
+                IssueAggregateEvent::CreatedV2(_) => {
+                    return Err(IssueAggregateError::Unknown);
+                }
+                IssueAggregateEvent::Finished(IssueFinished {
+                    at: _,
+                    issue_id,
+                    version,
+                }) => {
+                    if issue.issue.id() != issue_id {
                         return Err(IssueAggregateError::Unknown);
                     }
-                    IssueAggregateEvent::Finished(IssueFinished {
-                        at: _,
-                        issue_id,
-                        version,
-                    }) => {
-                        if issue.issue.id() != issue_id {
-                            return Err(IssueAggregateError::Unknown);
-                        }
-                        if issue.version.next() != Some(*version) {
-                            return Err(IssueAggregateError::Unknown);
-                        }
+                    if issue.version.next() != Some(*version) {
+                        return Err(IssueAggregateError::Unknown);
+                    }
 
-                        issue = IssueAggregate {
-                            issue: issue
-                                .issue
-                                .finish()
-                                .map_err(|_| IssueAggregateError::Unknown)?,
-                            version: *version,
-                        }
+                    issue = IssueAggregate {
+                        issue: issue
+                            .issue
+                            .finish()
+                            .map_err(|_| IssueAggregateError::Unknown)?,
+                        version: *version,
                     }
                 }
             }
-            Ok(issue)
-        } else {
-            Err(IssueAggregateError::Unknown)
         }
+        Ok(issue)
     }
 
     pub fn transaction(
