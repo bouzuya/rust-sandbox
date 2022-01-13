@@ -5,8 +5,8 @@ pub use self::issue_repository::*;
 
 use domain::{
     IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
-    IssueAggregateEvent, IssueAggregateFinishIssue, IssueCreated, IssueFinished, IssueId,
-    IssueTitle,
+    IssueAggregateEvent, IssueAggregateFinishIssue, IssueCreatedV2, IssueDue, IssueFinished,
+    IssueId, IssueTitle,
 };
 use limited_date_time::Instant;
 use thiserror::Error;
@@ -20,6 +20,7 @@ pub enum IssueManagementContextCommand {
 #[derive(Debug)]
 pub struct CreateIssue {
     pub issue_title: IssueTitle,
+    pub issue_due: Option<IssueDue>,
 }
 
 #[derive(Debug)]
@@ -29,7 +30,7 @@ pub struct FinishIssue {
 
 #[derive(Debug)]
 pub enum IssueManagementContextEvent {
-    IssueCreated(IssueCreated),
+    IssueCreated(IssueCreatedV2),
     IssueFinished(IssueFinished),
 }
 
@@ -58,7 +59,7 @@ pub fn issue_management_context_use_case(
 
 pub fn create_issue_use_case(
     command: CreateIssue,
-) -> Result<IssueCreated, IssueManagementContextError> {
+) -> Result<IssueCreatedV2, IssueManagementContextError> {
     let issue_repository = IssueRepository::default(); // TODO: dependency
 
     // io
@@ -72,7 +73,7 @@ pub fn create_issue_use_case(
         IssueAggregate::transaction(IssueAggregateCommand::Create(IssueAggregateCreateIssue {
             issue_number,
             issue_title: command.issue_title,
-            issue_due: None, // TODO:
+            issue_due: command.issue_due,
             at,
         }))
         .map_err(IssueManagementContextError::IssueAggregate)?;
@@ -82,7 +83,7 @@ pub fn create_issue_use_case(
         .save(event.clone())
         .map_err(|_| IssueManagementContextError::Unknown)?;
 
-    if let IssueAggregateEvent::Created(event) = event {
+    if let IssueAggregateEvent::CreatedV2(event) = event {
         Ok(event)
     } else {
         unreachable!()

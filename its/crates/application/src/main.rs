@@ -2,16 +2,27 @@ mod use_case;
 
 use std::str::FromStr;
 
-use domain::{IssueId, IssueTitle};
+use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{issue_management_context_use_case, CreateIssue, IssueManagementContextCommand};
 
 use crate::use_case::FinishIssue;
 
 #[argopt::subcmd(name = "issue-create")]
-fn issue_create(#[opt(long = "title")] title: Option<String>) -> anyhow::Result<()> {
+fn issue_create(
+    #[opt(long = "title")] title: Option<String>,
+    #[opt(long = "due")] due: Option<String>,
+) -> anyhow::Result<()> {
     // TODO: unwrap
     let issue_title = IssueTitle::try_from(title.unwrap_or_default()).unwrap();
-    let command = IssueManagementContextCommand::CreateIssue(CreateIssue { issue_title });
+    // TODO: unwrap
+    let issue_due = due
+        .map(|s| IssueDue::from_str(s.as_str()))
+        .transpose()
+        .unwrap();
+    let command = IssueManagementContextCommand::CreateIssue(CreateIssue {
+        issue_title,
+        issue_due,
+    });
     let event = issue_management_context_use_case(command)?;
     println!("issue created : {:?}", event);
     Ok(())
