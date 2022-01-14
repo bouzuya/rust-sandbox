@@ -1,9 +1,12 @@
 use crate::{
     domain::{entity::Issue, event::IssueFinished, IssueId},
-    IssueAggregateFinishIssue, IssueCreatedV2, Version,
+    IssueCreatedV2, Version,
 };
 
-use super::{IssueAggregate, IssueAggregateCreateIssue, IssueAggregateError, IssueAggregateEvent};
+use super::{
+    IssueAggregate, IssueAggregateCreateIssue, IssueAggregateError, IssueAggregateEvent,
+    IssueAggregateFinishIssue,
+};
 
 pub fn create_issue(
     command: IssueAggregateCreateIssue,

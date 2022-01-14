@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use domain::{
-    IssueAggregateEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
+    aggregate::IssueAggregateEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
     ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};

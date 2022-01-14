@@ -4,9 +4,11 @@ mod issue_repository;
 pub use self::issue_repository::*;
 
 use domain::{
-    IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
-    IssueAggregateEvent, IssueAggregateFinishIssue, IssueCreatedV2, IssueDue, IssueFinished,
-    IssueId, IssueTitle,
+    aggregate::{
+        IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
+        IssueAggregateEvent, IssueAggregateFinishIssue,
+    },
+    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
 };
 use limited_date_time::Instant;
 use thiserror::Error;

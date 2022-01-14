@@ -1,8 +1,9 @@
 use limited_date_time::Instant;
 
+use super::IssueAggregate;
 use crate::{
     domain::{IssueNumber, IssueTitle},
-    IssueAggregate, IssueDue,
+    IssueDue,
 };
 
 #[derive(Debug)]

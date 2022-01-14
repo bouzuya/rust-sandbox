@@ -5,7 +5,10 @@ use std::{
     str::FromStr,
 };
 
-use domain::{IssueAggregate, IssueAggregateEvent, IssueId, IssueNumber};
+use domain::{
+    aggregate::{IssueAggregate, IssueAggregateEvent},
+    IssueId, IssueNumber,
+};
 use thiserror::Error;
 
 use crate::use_case::event_dto::EventDto;
