@@ -43,8 +43,17 @@ impl Issue {
             id: self.id.clone(),
             status: IssueStatus::Done,
             title: self.title.clone(),
-            due: None, // TODO:
+            due: self.due,
         })
+    }
+
+    pub fn change_due(&self, due: Option<IssueDue>) -> Self {
+        Self {
+            id: self.id.clone(),
+            status: self.status,
+            title: self.title.clone(),
+            due,
+        }
     }
 
     pub fn id(&self) -> &IssueId {
@@ -87,6 +96,11 @@ mod tests {
         assert_eq!(issue.title(), &title);
         assert_eq!(issue.due(), Some(due));
         Ok(())
+    }
+
+    #[test]
+    fn change_due() {
+        // TODO:
     }
 
     #[test]
