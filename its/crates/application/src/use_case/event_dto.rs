@@ -60,6 +60,7 @@ impl From<IssueAggregateEvent> for EventDto {
                 issue_id: event.issue_id().to_string(),
                 version: u64::from(event.version()),
             },
+            IssueAggregateEvent::Updated(_) => todo!(),
         }
     }
 }

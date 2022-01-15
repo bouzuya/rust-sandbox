@@ -8,6 +8,7 @@ pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
 use crate::IssueCreatedV2;
+use crate::IssueUpdated;
 use crate::{
     domain::{entity::Issue, event::IssueFinished},
     IssueId, Version,
@@ -26,6 +27,7 @@ impl IssueAggregate {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
                 IssueAggregateEvent::Finished(_) => Err(IssueAggregateError::Unknown),
+                IssueAggregateEvent::Updated(_) => Err(IssueAggregateError::Unknown),
             },
             None => Err(IssueAggregateError::Unknown),
         }?;
@@ -60,6 +62,24 @@ impl IssueAggregate {
                         version: *version,
                     }
                 }
+                IssueAggregateEvent::Updated(IssueUpdated {
+                    at: _,
+                    issue_id,
+                    issue_due,
+                    version,
+                }) => {
+                    if issue.issue.id() != issue_id {
+                        return Err(IssueAggregateError::Unknown);
+                    }
+                    if issue.version.next() != Some(*version) {
+                        return Err(IssueAggregateError::Unknown);
+                    }
+
+                    issue = IssueAggregate {
+                        issue: issue.issue.change_due(*issue_due),
+                        version: *version,
+                    }
+                }
             }
         }
         Ok(issue)
@@ -71,6 +91,7 @@ impl IssueAggregate {
         match command {
             IssueAggregateCommand::Create(command) => create_issue(command),
             IssueAggregateCommand::Finish(command) => finish_issue(command),
+            IssueAggregateCommand::Update(command) => update_issue(command),
         }
     }
 

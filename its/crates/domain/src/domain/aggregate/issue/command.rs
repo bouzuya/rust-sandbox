@@ -10,6 +10,7 @@ use crate::{
 pub enum IssueAggregateCommand {
     Create(IssueAggregateCreateIssue),
     Finish(IssueAggregateFinishIssue),
+    Update(IssueAggregateUpdateIssue),
 }
 
 #[derive(Debug)]
@@ -23,5 +24,12 @@ pub struct IssueAggregateCreateIssue {
 #[derive(Debug)]
 pub struct IssueAggregateFinishIssue {
     pub issue: IssueAggregate,
+    pub at: Instant,
+}
+
+#[derive(Debug)]
+pub struct IssueAggregateUpdateIssue {
+    pub issue: IssueAggregate,
+    pub issue_due: Option<IssueDue>,
     pub at: Instant,
 }

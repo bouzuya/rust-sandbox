@@ -49,6 +49,7 @@ impl IssueRepository {
                 IssueAggregateEvent::Created(event) => event.issue_id() == issue_id,
                 IssueAggregateEvent::CreatedV2(event) => event.issue_id() == issue_id,
                 IssueAggregateEvent::Finished(event) => event.issue_id() == issue_id,
+                IssueAggregateEvent::Updated(event) => event.issue_id() == issue_id,
             })
             .collect::<Vec<IssueAggregateEvent>>();
 
@@ -101,6 +102,7 @@ impl IssueRepository {
                     )
                 }
                 IssueAggregateEvent::Finished(_) => {}
+                IssueAggregateEvent::Updated(_) => {}
             }
         }
         Ok(max
