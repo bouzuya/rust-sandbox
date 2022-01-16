@@ -8,7 +8,7 @@ use domain::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
         IssueAggregateEvent, IssueAggregateFinishIssue,
     },
-    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
+    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber, IssueTitle,
 };
 use limited_date_time::Instant;
 use thiserror::Error;
@@ -66,8 +66,11 @@ pub fn create_issue_use_case(
 
     // io
     let issue_number = issue_repository
-        .next_issue_number()
-        .map_err(|_| IssueManagementContextError::Unknown)?;
+        .last_created()
+        .map_err(|_| IssueManagementContextError::Unknown)?
+        .map(|issue| issue.id().issue_number())
+        .unwrap_or_else(IssueNumber::start_number)
+        .next_number();
     let at = Instant::now();
 
     // pure

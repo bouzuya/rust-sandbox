@@ -7,7 +7,7 @@ use std::{
 
 use domain::{
     aggregate::{IssueAggregate, IssueAggregateEvent},
-    IssueId, IssueNumber,
+    IssueId,
 };
 use thiserror::Error;
 
@@ -83,7 +83,31 @@ impl IssueRepository {
         Ok(())
     }
 
-    pub fn next_issue_number(&self) -> Result<IssueNumber, RepositoryError> {
+    pub fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
+        self.max_issue_id()?
+            .and_then(|issue_id| self.find_by_id(&issue_id).transpose())
+            .transpose()
+    }
+
+    fn events(&self, file_path: &Path) -> Result<Vec<IssueAggregateEvent>, RepositoryError> {
+        Ok(if file_path.exists() {
+            let file = File::open(file_path).map_err(|_| RepositoryError::IO)?;
+            let buf_reader = BufReader::new(file);
+            let mut events: Vec<IssueAggregateEvent> = vec![];
+            for line in buf_reader.lines() {
+                let line = line.map_err(|_| RepositoryError::IO)?;
+                let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
+                    .map_err(|_| RepositoryError::IO)?;
+                let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
+                events.push(event);
+            }
+            events
+        } else {
+            vec![]
+        })
+    }
+
+    fn max_issue_id(&self) -> Result<Option<IssueId>, RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
         let events = self.events(file_path.as_path())?;
         let mut max: Option<IssueId> = None;
@@ -105,26 +129,6 @@ impl IssueRepository {
                 IssueAggregateEvent::Updated(_) => {}
             }
         }
-        Ok(max
-            .map(|id| id.issue_number().next_number())
-            .unwrap_or_else(IssueNumber::start_number))
-    }
-
-    fn events(&self, file_path: &Path) -> Result<Vec<IssueAggregateEvent>, RepositoryError> {
-        Ok(if file_path.exists() {
-            let file = File::open(file_path).map_err(|_| RepositoryError::IO)?;
-            let buf_reader = BufReader::new(file);
-            let mut events: Vec<IssueAggregateEvent> = vec![];
-            for line in buf_reader.lines() {
-                let line = line.map_err(|_| RepositoryError::IO)?;
-                let dto = serde_json::from_str::<'_, EventDto>(line.as_str())
-                    .map_err(|_| RepositoryError::IO)?;
-                let event = IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?;
-                events.push(event);
-            }
-            events
-        } else {
-            vec![]
-        })
+        Ok(max)
     }
 }
