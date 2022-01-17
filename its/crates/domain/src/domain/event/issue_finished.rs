@@ -35,4 +35,21 @@ impl IssueFinished {
     }
 }
 
-// TODO: tests
+#[cfg(test)]
+mod tests {
+    use crate::IssueNumber;
+
+    use super::*;
+
+    #[test]
+    fn test() {
+        let at = Instant::now();
+        let issue_id = IssueId::new(IssueNumber::start_number());
+        let version = Version::from(2_u64);
+        let issue_finished = IssueFinished::from_trusted_data(at, issue_id.clone(), version);
+        // TODO: new
+        assert_eq!(issue_finished.at(), at);
+        assert_eq!(issue_finished.issue_id(), &issue_id);
+        assert_eq!(issue_finished.version(), version);
+    }
+}
