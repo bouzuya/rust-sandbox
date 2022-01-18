@@ -12,13 +12,8 @@ fn issue_create(
     #[opt(long = "title")] title: Option<String>,
     #[opt(long = "due")] due: Option<String>,
 ) -> anyhow::Result<()> {
-    // TODO: unwrap
-    let issue_title = IssueTitle::try_from(title.unwrap_or_default()).unwrap();
-    // TODO: unwrap
-    let issue_due = due
-        .map(|s| IssueDue::from_str(s.as_str()))
-        .transpose()
-        .unwrap();
+    let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
+    let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
     let command = IssueManagementContextCommand::CreateIssue(CreateIssue {
         issue_title,
         issue_due,
