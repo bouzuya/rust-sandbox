@@ -51,4 +51,25 @@ impl IssueCreated {
     }
 }
 
-// TODO: tests
+#[cfg(test)]
+mod tests {
+    use crate::IssueNumber;
+
+    use super::*;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_id = IssueId::new(IssueNumber::start_number());
+        let issue_title = IssueTitle::try_from("title".to_string())?;
+        let version = Version::from(2_u64);
+        let issue_updated =
+            IssueCreated::from_trusted_data(at, issue_id.clone(), issue_title.clone(), version);
+        // TODO: new
+        assert_eq!(issue_updated.at(), at);
+        assert_eq!(issue_updated.issue_id(), &issue_id);
+        assert_eq!(issue_updated.issue_title(), &issue_title);
+        assert_eq!(issue_updated.version(), version);
+        Ok(())
+    }
+}
