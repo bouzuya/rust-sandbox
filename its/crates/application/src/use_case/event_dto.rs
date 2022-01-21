@@ -2,7 +2,8 @@ use std::str::FromStr;
 
 use domain::{
     aggregate::IssueAggregateEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
-    ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
+    IssueUpdated, ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError,
+    TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -39,6 +40,13 @@ pub enum EventDto {
         issue_id: String,
         version: u64,
     },
+    #[serde(rename = "issue_updated")]
+    IssueUpdated {
+        at: String,
+        issue_id: String,
+        issue_due: Option<String>,
+        version: u64,
+    },
 }
 
 // TODO: DomainEvent -> EventDto
@@ -60,7 +68,12 @@ impl From<IssueAggregateEvent> for EventDto {
                 issue_id: event.issue_id().to_string(),
                 version: u64::from(event.version()),
             },
-            IssueAggregateEvent::Updated(_) => todo!(),
+            IssueAggregateEvent::Updated(event) => EventDto::IssueUpdated {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                issue_due: event.issue_due().map(|d| d.to_string()),
+                version: u64::from(event.version()),
+            },
         }
     }
 }
@@ -96,6 +109,21 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                 IssueFinished::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
+                    Version::from(version),
+                ),
+            )),
+            EventDto::IssueUpdated {
+                at,
+                issue_id,
+                issue_due,
+                version,
+            } => Ok(IssueAggregateEvent::Updated(
+                IssueUpdated::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueId::from_str(issue_id.as_str())?,
+                    issue_due
+                        .map(|s| IssueDue::from_str(s.as_str()))
+                        .transpose()?,
                     Version::from(version),
                 ),
             )),
@@ -179,6 +207,31 @@ mod tests {
         };
         let serialized =
             r#"{"type":"issue_finished","at":"2021-02-03T04:05:06Z","issue_id":"2","version":1}"#;
+        assert_eq!(EventDto::from(event.clone()), dto);
+        assert_eq!(
+            IssueAggregateEvent::try_from(EventDto::from(event.clone()))?,
+            event
+        );
+        assert_eq!(serde_json::to_string(&dto)?, serialized);
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
+        Ok(())
+    }
+
+    #[test]
+    fn issue_updated_conversion_test() -> anyhow::Result<()> {
+        let event = IssueAggregateEvent::Updated(IssueUpdated::from_trusted_data(
+            Instant::from_str("2021-02-03T04:05:06Z")?,
+            IssueId::new(IssueNumber::try_from(2_usize)?),
+            Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
+            Version::from(1_u64),
+        ));
+        let dto = EventDto::IssueUpdated {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            issue_due: Some("2021-02-03T04:05:07Z".to_string()),
+            version: 1_u64,
+        };
+        let serialized = r#"{"type":"issue_updated","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_due":"2021-02-03T04:05:07Z","version":1}"#;
         assert_eq!(EventDto::from(event.clone()), dto);
         assert_eq!(
             IssueAggregateEvent::try_from(EventDto::from(event.clone()))?,
