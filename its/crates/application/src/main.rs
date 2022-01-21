@@ -5,7 +5,7 @@ use std::str::FromStr;
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{issue_management_context_use_case, CreateIssue, IssueManagementContextCommand};
 
-use crate::use_case::FinishIssue;
+use crate::use_case::{FinishIssue, UpdateIssue};
 
 #[argopt::subcmd(name = "issue-create")]
 fn issue_create(
@@ -32,5 +32,18 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[argopt::cmd_group(commands = [issue_create, issue_finish])]
+#[argopt::subcmd(name = "issue-update")]
+fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> anyhow::Result<()> {
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
+    let command = IssueManagementContextCommand::UpdateIssue(UpdateIssue {
+        issue_id,
+        issue_due,
+    });
+    let event = issue_management_context_use_case(command)?;
+    println!("issue updated : {:?}", event);
+    Ok(())
+}
+
+#[argopt::cmd_group(commands = [issue_create, issue_finish, issue_update])]
 fn main() -> anyhow::Result<()> {}

@@ -6,9 +6,9 @@ pub use self::issue_repository::*;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
-        IssueAggregateEvent, IssueAggregateFinishIssue,
+        IssueAggregateEvent, IssueAggregateFinishIssue, IssueAggregateUpdateIssue,
     },
-    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber, IssueTitle,
+    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber, IssueTitle, IssueUpdated,
 };
 use limited_date_time::Instant;
 use thiserror::Error;
@@ -17,6 +17,7 @@ use thiserror::Error;
 pub enum IssueManagementContextCommand {
     CreateIssue(CreateIssue),
     FinishIssue(FinishIssue),
+    UpdateIssue(UpdateIssue),
 }
 
 #[derive(Debug)]
@@ -31,9 +32,16 @@ pub struct FinishIssue {
 }
 
 #[derive(Debug)]
+pub struct UpdateIssue {
+    pub issue_id: IssueId,
+    pub issue_due: Option<IssueDue>,
+}
+
+#[derive(Debug)]
 pub enum IssueManagementContextEvent {
     IssueCreated(IssueCreatedV2),
     IssueFinished(IssueFinished),
+    IssueUpdated(IssueUpdated),
 }
 
 #[derive(Debug, Error)]
@@ -55,6 +63,10 @@ pub fn issue_management_context_use_case(
         IssueManagementContextCommand::FinishIssue(command) => {
             let event = finish_issue_use_case(command)?;
             Ok(IssueManagementContextEvent::IssueFinished(event))
+        }
+        IssueManagementContextCommand::UpdateIssue(command) => {
+            let event = update_issue_use_case(command)?;
+            Ok(IssueManagementContextEvent::IssueUpdated(event))
         }
     }
 }
@@ -122,6 +134,41 @@ pub fn finish_issue_use_case(
         .map_err(|_| IssueManagementContextError::Unknown)?;
 
     if let IssueAggregateEvent::Finished(event) = event {
+        Ok(event)
+    } else {
+        unreachable!()
+    }
+}
+
+pub fn update_issue_use_case(
+    command: UpdateIssue,
+) -> Result<IssueUpdated, IssueManagementContextError> {
+    let issue_repository = IssueRepository::default(); // TODO: dependency
+
+    // io
+    let issue = issue_repository
+        .find_by_id(&command.issue_id)
+        .map_err(|_| IssueManagementContextError::Unknown)?;
+    // TODO: fix error
+    let issue = issue.ok_or(IssueManagementContextError::Unknown)?;
+    let issue_due = command.issue_due;
+    let at = Instant::now();
+
+    // pure
+    let (_, event) =
+        IssueAggregate::transaction(IssueAggregateCommand::Update(IssueAggregateUpdateIssue {
+            issue,
+            issue_due,
+            at,
+        }))
+        .map_err(IssueManagementContextError::IssueAggregate)?;
+
+    // io
+    issue_repository
+        .save(event.clone())
+        .map_err(|_| IssueManagementContextError::Unknown)?;
+
+    if let IssueAggregateEvent::Updated(event) = event {
         Ok(event)
     } else {
         unreachable!()
