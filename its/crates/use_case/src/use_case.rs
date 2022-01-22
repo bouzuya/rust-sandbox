@@ -1,8 +1,6 @@
-mod event_dto;
 mod issue_repository;
 
 pub use self::issue_repository::*;
-
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
@@ -12,6 +10,9 @@ use domain::{
 };
 use limited_date_time::Instant;
 use thiserror::Error;
+
+// TODO: remove
+use crate::FsIssueRepository;
 
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
