@@ -1,11 +1,10 @@
-mod use_case;
-
 use std::str::FromStr;
 
 use domain::{IssueDue, IssueId, IssueTitle};
-use use_case::{issue_management_context_use_case, CreateIssue, IssueManagementContextCommand};
-
-use crate::use_case::{FinishIssue, UpdateIssue};
+use use_case::{
+    issue_management_context_use_case, CreateIssue, FinishIssue, IssueManagementContextCommand,
+    UpdateIssue,
+};
 
 #[argopt::subcmd(name = "issue-create")]
 fn issue_create(
