@@ -19,14 +19,19 @@ pub enum RepositoryError {
     IO,
 }
 
-#[derive(Debug, Default)]
-pub struct IssueRepository {}
+pub trait IssueRepository {
+    fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>, RepositoryError>;
 
-impl IssueRepository {
-    pub fn find_by_id(
-        &self,
-        issue_id: &IssueId,
-    ) -> Result<Option<IssueAggregate>, RepositoryError> {
+    fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError>;
+
+    fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError>;
+}
+
+#[derive(Debug, Default)]
+pub struct FsIssueRepository {}
+
+impl IssueRepository for FsIssueRepository {
+    fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>, RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
         if !file_path.exists() {
             return Ok(None);
@@ -62,7 +67,13 @@ impl IssueRepository {
         }
     }
 
-    pub fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
+    fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
+        self.max_issue_id()?
+            .and_then(|issue_id| self.find_by_id(&issue_id).transpose())
+            .transpose()
+    }
+
+    fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
         let mut events = self.events(file_path.as_path())?;
 
@@ -82,13 +93,9 @@ impl IssueRepository {
         }
         Ok(())
     }
+}
 
-    pub fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
-        self.max_issue_id()?
-            .and_then(|issue_id| self.find_by_id(&issue_id).transpose())
-            .transpose()
-    }
-
+impl FsIssueRepository {
     fn events(&self, file_path: &Path) -> Result<Vec<IssueAggregateEvent>, RepositoryError> {
         Ok(if file_path.exists() {
             let file = File::open(file_path).map_err(|_| RepositoryError::IO)?;

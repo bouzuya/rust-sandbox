@@ -74,7 +74,7 @@ pub fn issue_management_context_use_case(
 pub fn create_issue_use_case(
     command: CreateIssue,
 ) -> Result<IssueCreatedV2, IssueManagementContextError> {
-    let issue_repository = IssueRepository::default(); // TODO: dependency
+    let issue_repository = FsIssueRepository::default(); // TODO: dependency
 
     // io
     let issue_number = issue_repository
@@ -110,7 +110,7 @@ pub fn create_issue_use_case(
 pub fn finish_issue_use_case(
     command: FinishIssue,
 ) -> Result<IssueFinished, IssueManagementContextError> {
-    let issue_repository = IssueRepository::default(); // TODO: dependency
+    let issue_repository = FsIssueRepository::default(); // TODO: dependency
 
     // io
     let issue = issue_repository
@@ -143,7 +143,7 @@ pub fn finish_issue_use_case(
 pub fn update_issue_use_case(
     command: UpdateIssue,
 ) -> Result<IssueUpdated, IssueManagementContextError> {
-    let issue_repository = IssueRepository::default(); // TODO: dependency
+    let issue_repository = FsIssueRepository::default(); // TODO: dependency
 
     // io
     let issue = issue_repository
