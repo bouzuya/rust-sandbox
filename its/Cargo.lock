@@ -3,6 +3,19 @@
 version = 3
 
 [[package]]
+name = "adapter_fs"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "domain",
+ "limited-date-time",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "use_case",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "0.7.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -30,6 +43,7 @@ checksum = "84450d0b4a8bd1ba4144ce8ce718fbc5d071358b1e5384bace6536b3d1f2d5b3"
 name = "application"
 version = "0.6.1"
 dependencies = [
+ "adapter_fs",
  "anyhow",
  "argopt",
  "assert_cmd",
@@ -519,8 +533,6 @@ dependencies = [
  "anyhow",
  "domain",
  "limited-date-time",
- "serde",
- "serde_json",
  "thiserror",
 ]
 

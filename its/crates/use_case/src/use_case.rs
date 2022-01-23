@@ -11,9 +11,6 @@ use domain::{
 use limited_date_time::Instant;
 use thiserror::Error;
 
-// TODO: remove
-use crate::FsIssueRepository;
-
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
     CreateIssue(CreateIssue),
@@ -54,29 +51,29 @@ pub enum IssueManagementContextError {
 }
 
 pub fn issue_management_context_use_case(
+    issue_repository: impl IssueRepository,
     command: IssueManagementContextCommand,
 ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
     match command {
         IssueManagementContextCommand::CreateIssue(command) => {
-            let event = create_issue_use_case(command)?;
+            let event = create_issue_use_case(issue_repository, command)?;
             Ok(IssueManagementContextEvent::IssueCreated(event))
         }
         IssueManagementContextCommand::FinishIssue(command) => {
-            let event = finish_issue_use_case(command)?;
+            let event = finish_issue_use_case(issue_repository, command)?;
             Ok(IssueManagementContextEvent::IssueFinished(event))
         }
         IssueManagementContextCommand::UpdateIssue(command) => {
-            let event = update_issue_use_case(command)?;
+            let event = update_issue_use_case(issue_repository, command)?;
             Ok(IssueManagementContextEvent::IssueUpdated(event))
         }
     }
 }
 
 pub fn create_issue_use_case(
+    issue_repository: impl IssueRepository,
     command: CreateIssue,
 ) -> Result<IssueCreatedV2, IssueManagementContextError> {
-    let issue_repository = FsIssueRepository::default(); // TODO: dependency
-
     // io
     let issue_number = issue_repository
         .last_created()
@@ -109,10 +106,9 @@ pub fn create_issue_use_case(
 }
 
 pub fn finish_issue_use_case(
+    issue_repository: impl IssueRepository,
     command: FinishIssue,
 ) -> Result<IssueFinished, IssueManagementContextError> {
-    let issue_repository = FsIssueRepository::default(); // TODO: dependency
-
     // io
     let issue = issue_repository
         .find_by_id(&command.issue_id)
@@ -142,10 +138,9 @@ pub fn finish_issue_use_case(
 }
 
 pub fn update_issue_use_case(
+    issue_repository: impl IssueRepository,
     command: UpdateIssue,
 ) -> Result<IssueUpdated, IssueManagementContextError> {
-    let issue_repository = FsIssueRepository::default(); // TODO: dependency
-
     // io
     let issue = issue_repository
         .find_by_id(&command.issue_id)

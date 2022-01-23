@@ -8,8 +8,9 @@ use std::{
     path::{Path, PathBuf},
     str::FromStr,
 };
+use use_case::{IssueRepository, RepositoryError};
 
-use crate::{event_dto::EventDto, IssueRepository, RepositoryError};
+use crate::event_dto::EventDto;
 
 #[derive(Debug, Default)]
 pub struct FsIssueRepository {}

@@ -1,5 +1,5 @@
 [package]
-name = "use_case"
+name = "adapter_fs"
 version = "0.0.0"
 edition = "2021"
 
@@ -9,4 +9,7 @@ edition = "2021"
 anyhow = "1.0.52"
 domain = { path = "../domain" }
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.74"
 thiserror = "1.0.30"
+use_case = { path = "../use_case" }
