@@ -50,28 +50,37 @@ pub enum IssueManagementContextError {
     Unknown,
 }
 
-pub fn issue_management_context_use_case(
-    issue_repository: impl IssueRepository,
-    command: IssueManagementContextCommand,
-) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
-    match command {
-        IssueManagementContextCommand::CreateIssue(command) => {
-            let event = create_issue_use_case(issue_repository, command)?;
-            Ok(IssueManagementContextEvent::IssueCreated(event))
-        }
-        IssueManagementContextCommand::FinishIssue(command) => {
-            let event = finish_issue_use_case(issue_repository, command)?;
-            Ok(IssueManagementContextEvent::IssueFinished(event))
-        }
-        IssueManagementContextCommand::UpdateIssue(command) => {
-            let event = update_issue_use_case(issue_repository, command)?;
-            Ok(IssueManagementContextEvent::IssueUpdated(event))
+pub trait IssueManagementContextUseCase: HasIssueRepository {
+    fn handle(
+        &self,
+        command: IssueManagementContextCommand,
+    ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
+        match command {
+            IssueManagementContextCommand::CreateIssue(command) => {
+                let event = create_issue_use_case(self.issue_repository(), command)?;
+                Ok(IssueManagementContextEvent::IssueCreated(event))
+            }
+            IssueManagementContextCommand::FinishIssue(command) => {
+                let event = finish_issue_use_case(self.issue_repository(), command)?;
+                Ok(IssueManagementContextEvent::IssueFinished(event))
+            }
+            IssueManagementContextCommand::UpdateIssue(command) => {
+                let event = update_issue_use_case(self.issue_repository(), command)?;
+                Ok(IssueManagementContextEvent::IssueUpdated(event))
+            }
         }
     }
 }
 
-pub fn create_issue_use_case(
-    issue_repository: impl IssueRepository,
+impl<T: HasIssueRepository> IssueManagementContextUseCase for T {}
+
+pub trait HasIssueManagementContextUseCase {
+    type IssueManagementContextUseCase: IssueManagementContextUseCase;
+    fn issue_management_context_use_case(&self) -> &Self::IssueManagementContextUseCase;
+}
+
+fn create_issue_use_case(
+    issue_repository: &dyn IssueRepository,
     command: CreateIssue,
 ) -> Result<IssueCreatedV2, IssueManagementContextError> {
     // io
@@ -105,8 +114,8 @@ pub fn create_issue_use_case(
     }
 }
 
-pub fn finish_issue_use_case(
-    issue_repository: impl IssueRepository,
+fn finish_issue_use_case(
+    issue_repository: &dyn IssueRepository,
     command: FinishIssue,
 ) -> Result<IssueFinished, IssueManagementContextError> {
     // io
@@ -137,8 +146,8 @@ pub fn finish_issue_use_case(
     }
 }
 
-pub fn update_issue_use_case(
-    issue_repository: impl IssueRepository,
+fn update_issue_use_case(
+    issue_repository: &dyn IssueRepository,
     command: UpdateIssue,
 ) -> Result<IssueUpdated, IssueManagementContextError> {
     // io

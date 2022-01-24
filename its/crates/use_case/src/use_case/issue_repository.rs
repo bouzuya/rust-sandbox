@@ -17,3 +17,9 @@ pub trait IssueRepository {
 
     fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError>;
 }
+
+pub trait HasIssueRepository {
+    type IssueRepository: IssueRepository;
+
+    fn issue_repository(&self) -> &Self::IssueRepository;
+}
