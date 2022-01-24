@@ -8,9 +8,8 @@ edition = "2021"
 [dependencies]
 adapter_fs = { path = "../adapter_fs" }
 anyhow = "1.0.52"
-argopt = "0.1.1"
+argopt = "0.2.0"
 domain = { path = "../domain" }
-structopt = "0.3.25"
 use_case = { path = "../use_case" }
 
 [dev-dependencies]
