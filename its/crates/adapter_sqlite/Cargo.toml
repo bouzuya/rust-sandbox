@@ -1,0 +1,16 @@
+[package]
+name = "adapter_sqlite"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.52"
+domain = { path = "../domain" }
+limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0.74"
+sqlx = { version = "0.5.10", features = ["runtime-tokio-rustls", "sqlite"] }
+thiserror = "1.0.30"
+use_case = { path = "../use_case" }
