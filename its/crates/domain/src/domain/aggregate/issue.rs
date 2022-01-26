@@ -26,10 +26,10 @@ impl IssueAggregate {
             Some(event) => match event {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
-                IssueAggregateEvent::Finished(_) => Err(IssueAggregateError::Unknown),
-                IssueAggregateEvent::Updated(_) => Err(IssueAggregateError::Unknown),
+                IssueAggregateEvent::Finished(_) => Err(IssueAggregateError::InvalidEventSequence),
+                IssueAggregateEvent::Updated(_) => Err(IssueAggregateError::InvalidEventSequence),
             },
-            None => Err(IssueAggregateError::Unknown),
+            None => Err(IssueAggregateError::InvalidEventSequence),
         }?;
         let version = first_event.version;
         let issue = Issue::from_event(first_event);
@@ -37,10 +37,10 @@ impl IssueAggregate {
         for event in events.iter().skip(1) {
             match event {
                 IssueAggregateEvent::Created(_) => {
-                    return Err(IssueAggregateError::Unknown);
+                    return Err(IssueAggregateError::InvalidEventSequence);
                 }
                 IssueAggregateEvent::CreatedV2(_) => {
-                    return Err(IssueAggregateError::Unknown);
+                    return Err(IssueAggregateError::InvalidEventSequence);
                 }
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
@@ -48,17 +48,17 @@ impl IssueAggregate {
                     version,
                 }) => {
                     if issue.issue.id() != issue_id {
-                        return Err(IssueAggregateError::Unknown);
+                        return Err(IssueAggregateError::InvalidEventSequence);
                     }
                     if issue.version.next() != Some(*version) {
-                        return Err(IssueAggregateError::Unknown);
+                        return Err(IssueAggregateError::InvalidEventSequence);
                     }
 
                     issue = IssueAggregate {
                         issue: issue
                             .issue
                             .finish()
-                            .map_err(|_| IssueAggregateError::Unknown)?,
+                            .map_err(|_| IssueAggregateError::InvalidEventSequence)?,
                         version: *version,
                     }
                 }
@@ -69,10 +69,10 @@ impl IssueAggregate {
                     version,
                 }) => {
                     if issue.issue.id() != issue_id {
-                        return Err(IssueAggregateError::Unknown);
+                        return Err(IssueAggregateError::InvalidEventSequence);
                     }
                     if issue.version.next() != Some(*version) {
-                        return Err(IssueAggregateError::Unknown);
+                        return Err(IssueAggregateError::InvalidEventSequence);
                     }
 
                     issue = IssueAggregate {
