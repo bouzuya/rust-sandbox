@@ -1,0 +1,6 @@
+CREATE TABLE aggregates (
+  id BLOB NOT NULL,
+  version INTEGER NOT NULL DEFAULT 0,
+  type VARCHAR NOT NULL,
+  CONSTRAINT aggregates_pk PRIMARY KEY (id)
+)
