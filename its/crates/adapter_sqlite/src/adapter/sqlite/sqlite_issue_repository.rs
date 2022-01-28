@@ -82,6 +82,28 @@ mod tests {
             .await?;
 
         assert!(result.is_empty());
+
+        struct EventRow {
+            aggregate_id: Vec<u8>,
+            data: Vec<u8>,
+            version: u64,
+        }
+        let result = sqlx::query(include_str!("../../../sql/select_events.sql"))
+            .try_map(|row: SqliteRow| {
+                let data: Vec<u8> = row.get("data");
+                let version_as_i64: i64 = row.get("version");
+                let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+                let aggregate_id: Vec<u8> = row.get("aggregate_id"); // TODO
+                Ok(EventRow {
+                    aggregate_id,
+                    data,
+                    version,
+                })
+            })
+            .fetch_all(&mut conn)
+            .await?;
+        assert!(result.is_empty());
+
         Ok(())
     }
 }
