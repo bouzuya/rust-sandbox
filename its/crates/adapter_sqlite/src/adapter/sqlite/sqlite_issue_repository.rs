@@ -45,7 +45,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use sqlx::{sqlite::SqliteRow, Row};
+    use sqlx::{sqlite::SqliteRow, Acquire, Connection, Row};
     use tempfile::tempdir;
     use ulid::Ulid;
 
@@ -78,6 +78,32 @@ mod tests {
                 .await?;
 
             Ok(Self { connection: conn })
+        }
+
+        async fn create(
+            &mut self,
+            aggregate_id: Ulid,
+            r#type: String,
+            version: u64,
+            data: String,
+        ) -> anyhow::Result<()> {
+            // TODO: transaction
+
+            sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
+                .bind(aggregate_id.to_string())
+                .bind(i64::from_be_bytes(version.to_be_bytes()))
+                .bind(r#type)
+                .fetch_all(&mut self.connection)
+                .await?;
+
+            sqlx::query(include_str!("../../../sql/insert_event.sql"))
+                .bind(aggregate_id.to_string())
+                .bind(i64::from_be_bytes(version.to_be_bytes()))
+                .bind(data)
+                .fetch_all(&mut self.connection)
+                .await?;
+
+            Ok(())
         }
 
         async fn find_aggregates(&mut self) -> anyhow::Result<Vec<AggregateRow>> {
@@ -129,6 +155,20 @@ mod tests {
 
         let events = event_store.find_events().await?;
         assert!(events.is_empty());
+
+        let aggregate_id = Ulid::new();
+        let r#type = "Issue".to_string();
+        let version = 1;
+        let data = r#"{"type":"issue_created"}"#.to_string();
+        event_store
+            .create(aggregate_id, r#type, version, data)
+            .await?;
+
+        // TODO: improve
+        let aggregates = event_store.find_aggregates().await?;
+        assert!(!aggregates.is_empty());
+        let events = event_store.find_events().await?;
+        assert!(!events.is_empty());
 
         Ok(())
     }
