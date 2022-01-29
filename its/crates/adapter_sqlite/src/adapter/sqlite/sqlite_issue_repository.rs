@@ -42,67 +42,93 @@ async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Sqlite>> {
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::*;
     use sqlx::{sqlite::SqliteRow, Row};
     use tempfile::tempdir;
+    use ulid::Ulid;
+
+    struct AggregateRow {
+        id: Ulid,
+        version: u64,
+        r#type: String,
+    }
+
+    struct EventRow {
+        aggregate_id: Ulid,
+        data: String,
+        version: u64,
+    }
+
+    struct EventStore {
+        connection: PoolConnection<Sqlite>,
+    }
+
+    impl EventStore {
+        async fn new(path_buf: PathBuf) -> anyhow::Result<Self> {
+            let mut conn = connection(path_buf.as_path()).await?;
+
+            // migrate
+            sqlx::query(include_str!("../../../sql/create_aggregates.sql"))
+                .execute(&mut conn)
+                .await?;
+            sqlx::query(include_str!("../../../sql/create_events.sql"))
+                .execute(&mut conn)
+                .await?;
+
+            Ok(Self { connection: conn })
+        }
+
+        async fn find_aggregates(&mut self) -> anyhow::Result<Vec<AggregateRow>> {
+            Ok(
+                sqlx::query(include_str!("../../../sql/select_aggregates.sql"))
+                    .try_map(|row: SqliteRow| {
+                        let r#type: String = row.get("type");
+                        let version_as_i64: i64 = row.get("version");
+                        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+                        let id: String = row.get("id");
+                        let id = Ulid::from_str(id.as_str()).unwrap();
+                        Ok(AggregateRow {
+                            id,
+                            version,
+                            r#type,
+                        })
+                    })
+                    .fetch_all(&mut self.connection)
+                    .await?,
+            )
+        }
+
+        async fn find_events(&mut self) -> anyhow::Result<Vec<EventRow>> {
+            Ok(sqlx::query(include_str!("../../../sql/select_events.sql"))
+                .try_map(|row: SqliteRow| {
+                    let data: String = row.get("data");
+                    let version_as_i64: i64 = row.get("version");
+                    let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+                    let aggregate_id: String = row.get("aggregate_id");
+                    let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
+                    Ok(EventRow {
+                        aggregate_id,
+                        data,
+                        version,
+                    })
+                })
+                .fetch_all(&mut self.connection)
+                .await?)
+        }
+    }
 
     #[tokio::test]
     async fn read_and_write_test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
-        let sqlite = temp_dir.path().join("its.sqlite");
+        let mut event_store = EventStore::new(temp_dir.path().join("its.sqlite")).await?;
 
-        let mut conn = connection(sqlite.as_path()).await?;
+        let aggregates = event_store.find_aggregates().await?;
+        assert!(aggregates.is_empty());
 
-        // migrate
-        sqlx::query(include_str!("../../../sql/create_aggregates.sql"))
-            .execute(&mut conn)
-            .await?;
-        sqlx::query(include_str!("../../../sql/create_events.sql"))
-            .execute(&mut conn)
-            .await?;
-
-        struct AggregateRow {
-            id: Vec<u8>,
-            version: u64,
-            r#type: String,
-        }
-        let result = sqlx::query(include_str!("../../../sql/select_aggregates.sql"))
-            .try_map(|row: SqliteRow| {
-                let r#type: String = row.get("type");
-                let version_as_i64: i64 = row.get("version");
-                let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-                let id: Vec<u8> = row.get("id"); // TODO
-                Ok(AggregateRow {
-                    id,
-                    version,
-                    r#type,
-                })
-            })
-            .fetch_all(&mut conn)
-            .await?;
-
-        assert!(result.is_empty());
-
-        struct EventRow {
-            aggregate_id: Vec<u8>,
-            data: Vec<u8>,
-            version: u64,
-        }
-        let result = sqlx::query(include_str!("../../../sql/select_events.sql"))
-            .try_map(|row: SqliteRow| {
-                let data: Vec<u8> = row.get("data");
-                let version_as_i64: i64 = row.get("version");
-                let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-                let aggregate_id: Vec<u8> = row.get("aggregate_id"); // TODO
-                Ok(EventRow {
-                    aggregate_id,
-                    data,
-                    version,
-                })
-            })
-            .fetch_all(&mut conn)
-            .await?;
-        assert!(result.is_empty());
+        let events = event_store.find_events().await?;
+        assert!(events.is_empty());
 
         Ok(())
     }

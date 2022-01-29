@@ -1,5 +1,5 @@
 CREATE TABLE aggregates (
-  id BLOB NOT NULL,
+  id CHAR(26) NOT NULL,
   version INTEGER NOT NULL DEFAULT 0,
   type VARCHAR NOT NULL,
   CONSTRAINT aggregates_pk PRIMARY KEY (id)
