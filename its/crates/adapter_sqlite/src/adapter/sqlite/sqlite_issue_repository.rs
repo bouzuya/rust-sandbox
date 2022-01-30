@@ -65,6 +65,32 @@ mod tests {
         connection: PoolConnection<Sqlite>,
     }
 
+    fn row_to_aggregate_row(row: SqliteRow) -> sqlx::Result<AggregateRow> {
+        let r#type: String = row.get("type");
+        let version_as_i64: i64 = row.get("version");
+        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+        let id: String = row.get("id");
+        let id = Ulid::from_str(id.as_str()).unwrap();
+        Ok(AggregateRow {
+            id,
+            version,
+            r#type,
+        })
+    }
+
+    fn row_to_event_row(row: SqliteRow) -> sqlx::Result<EventRow> {
+        let data: String = row.get("data");
+        let version_as_i64: i64 = row.get("version");
+        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+        let aggregate_id: String = row.get("aggregate_id");
+        let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
+        Ok(EventRow {
+            aggregate_id,
+            data,
+            version,
+        })
+    }
+
     impl EventStore {
         async fn new(path_buf: PathBuf) -> anyhow::Result<Self> {
             let mut conn = connection(path_buf.as_path()).await?;
@@ -109,18 +135,7 @@ mod tests {
         async fn find_aggregates(&mut self) -> anyhow::Result<Vec<AggregateRow>> {
             Ok(
                 sqlx::query(include_str!("../../../sql/select_aggregates.sql"))
-                    .try_map(|row: SqliteRow| {
-                        let r#type: String = row.get("type");
-                        let version_as_i64: i64 = row.get("version");
-                        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-                        let id: String = row.get("id");
-                        let id = Ulid::from_str(id.as_str()).unwrap();
-                        Ok(AggregateRow {
-                            id,
-                            version,
-                            r#type,
-                        })
-                    })
+                    .try_map(row_to_aggregate_row)
                     .fetch_all(&mut self.connection)
                     .await?,
             )
@@ -128,20 +143,22 @@ mod tests {
 
         async fn find_events(&mut self) -> anyhow::Result<Vec<EventRow>> {
             Ok(sqlx::query(include_str!("../../../sql/select_events.sql"))
-                .try_map(|row: SqliteRow| {
-                    let data: String = row.get("data");
-                    let version_as_i64: i64 = row.get("version");
-                    let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-                    let aggregate_id: String = row.get("aggregate_id");
-                    let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
-                    Ok(EventRow {
-                        aggregate_id,
-                        data,
-                        version,
-                    })
-                })
+                .try_map(row_to_event_row)
                 .fetch_all(&mut self.connection)
                 .await?)
+        }
+
+        async fn find_events_by_aggregate_id(
+            &mut self,
+            aggregate_id: Ulid,
+        ) -> anyhow::Result<Vec<EventRow>> {
+            Ok(sqlx::query(include_str!(
+                "../../../sql/select_events_by_aggregate_id.sql"
+            ))
+            .bind(aggregate_id.to_string())
+            .try_map(row_to_event_row)
+            .fetch_all(&mut self.connection)
+            .await?)
         }
     }
 
@@ -169,6 +186,13 @@ mod tests {
         assert!(!aggregates.is_empty());
         let events = event_store.find_events().await?;
         assert!(!events.is_empty());
+
+        let aggregates = event_store
+            .find_events_by_aggregate_id(aggregate_id)
+            .await?;
+        assert!(!aggregates.is_empty());
+        let aggregates = event_store.find_events_by_aggregate_id(Ulid::new()).await?;
+        assert!(aggregates.is_empty());
 
         Ok(())
     }
