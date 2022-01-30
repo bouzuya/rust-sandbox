@@ -45,14 +45,13 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use sqlx::{sqlite::SqliteRow, Acquire, Connection, Row};
+    use sqlx::{sqlite::SqliteRow, Row};
     use tempfile::tempdir;
     use ulid::Ulid;
 
     struct AggregateRow {
         id: Ulid,
         version: u64,
-        r#type: String,
     }
 
     struct EventRow {
@@ -66,16 +65,11 @@ mod tests {
     }
 
     fn row_to_aggregate_row(row: SqliteRow) -> sqlx::Result<AggregateRow> {
-        let r#type: String = row.get("type");
         let version_as_i64: i64 = row.get("version");
         let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
         let id: String = row.get("id");
         let id = Ulid::from_str(id.as_str()).unwrap();
-        Ok(AggregateRow {
-            id,
-            version,
-            r#type,
-        })
+        Ok(AggregateRow { id, version })
     }
 
     fn row_to_event_row(row: SqliteRow) -> sqlx::Result<EventRow> {
@@ -106,26 +100,19 @@ mod tests {
             Ok(Self { connection: conn })
         }
 
-        async fn create(
-            &mut self,
-            aggregate_id: Ulid,
-            r#type: String,
-            version: u64,
-            data: String,
-        ) -> anyhow::Result<()> {
+        async fn create(&mut self, event: EventRow) -> anyhow::Result<()> {
             // TODO: transaction
 
             sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
-                .bind(aggregate_id.to_string())
-                .bind(i64::from_be_bytes(version.to_be_bytes()))
-                .bind(r#type)
+                .bind(event.aggregate_id.to_string())
+                .bind(i64::from_be_bytes(event.version.to_be_bytes()))
                 .fetch_all(&mut self.connection)
                 .await?;
 
             sqlx::query(include_str!("../../../sql/insert_event.sql"))
-                .bind(aggregate_id.to_string())
-                .bind(i64::from_be_bytes(version.to_be_bytes()))
-                .bind(data)
+                .bind(event.aggregate_id.to_string())
+                .bind(i64::from_be_bytes(event.version.to_be_bytes()))
+                .bind(event.data)
                 .fetch_all(&mut self.connection)
                 .await?;
 
@@ -174,12 +161,14 @@ mod tests {
         assert!(events.is_empty());
 
         let aggregate_id = Ulid::new();
-        let r#type = "Issue".to_string();
         let version = 1;
         let data = r#"{"type":"issue_created"}"#.to_string();
-        event_store
-            .create(aggregate_id, r#type, version, data)
-            .await?;
+        let event_row = EventRow {
+            aggregate_id,
+            data,
+            version,
+        };
+        event_store.create(event_row).await?;
 
         // TODO: improve
         let aggregates = event_store.find_aggregates().await?;

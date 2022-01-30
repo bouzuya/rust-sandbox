@@ -1,4 +1,3 @@
 SELECT aggregates.id AS id,
-  aggregates.version AS version,
-  aggregates.type AS type
+  aggregates.version AS version
 FROM aggregates
