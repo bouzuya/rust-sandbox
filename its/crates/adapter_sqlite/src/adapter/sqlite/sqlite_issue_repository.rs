@@ -45,7 +45,10 @@ mod tests {
     use std::path::PathBuf;
 
     use super::*;
-    use sqlx::{sqlite::SqliteRow, Row};
+    use sqlx::{
+        sqlite::{SqliteArguments, SqliteRow},
+        Arguments, Executor, Row,
+    };
     use tempfile::tempdir;
     use ulid::Ulid;
 
@@ -101,20 +104,52 @@ mod tests {
         }
 
         async fn create(&mut self, event: EventRow) -> anyhow::Result<()> {
-            // TODO: transaction
+            let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
+                let mut args = SqliteArguments::default();
+                args.add(event.aggregate_id.to_string());
+                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                args
+            })
+            .execute(&mut self.connection)
+            .await?;
+            anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
 
-            sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
-                .bind(event.aggregate_id.to_string())
-                .bind(i64::from_be_bytes(event.version.to_be_bytes()))
-                .fetch_all(&mut self.connection)
-                .await?;
+            let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
+                let mut args = SqliteArguments::default();
+                args.add(event.aggregate_id.to_string());
+                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                args.add(event.data);
+                args
+            })
+            .execute(&mut self.connection)
+            .await?;
+            anyhow::ensure!(result.rows_affected() > 0, "insert event failed");
 
-            sqlx::query(include_str!("../../../sql/insert_event.sql"))
-                .bind(event.aggregate_id.to_string())
-                .bind(i64::from_be_bytes(event.version.to_be_bytes()))
-                .bind(event.data)
-                .fetch_all(&mut self.connection)
-                .await?;
+            Ok(())
+        }
+
+        async fn update(&mut self, current_version: u64, event: EventRow) -> anyhow::Result<()> {
+            let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
+                let mut args = SqliteArguments::default();
+                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                args.add(event.aggregate_id.to_string());
+                args.add(i64::from_be_bytes(current_version.to_be_bytes()));
+                args
+            })
+            .execute(&mut self.connection)
+            .await?;
+            anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
+
+            let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
+                let mut args = SqliteArguments::default();
+                args.add(event.aggregate_id.to_string());
+                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                args.add(event.data);
+                args
+            })
+            .execute(&mut self.connection)
+            .await?;
+            anyhow::ensure!(result.rows_affected() > 0, "insert event failed");
 
             Ok(())
         }
@@ -173,15 +208,23 @@ mod tests {
         // TODO: improve
         let aggregates = event_store.find_aggregates().await?;
         assert!(!aggregates.is_empty());
-        let events = event_store.find_events().await?;
-        assert!(!events.is_empty());
+        assert_eq!(event_store.find_events().await?.len(), 1);
 
+        // TODO: improve
         let aggregates = event_store
             .find_events_by_aggregate_id(aggregate_id)
             .await?;
         assert!(!aggregates.is_empty());
         let aggregates = event_store.find_events_by_aggregate_id(Ulid::new()).await?;
         assert!(aggregates.is_empty());
+
+        let event_row = EventRow {
+            aggregate_id,
+            data: r#"{"type":"issue_updated"}"#.to_string(),
+            version: 2,
+        };
+        event_store.update(1, event_row).await?;
+        assert_eq!(event_store.find_events().await?.len(), 2);
 
         Ok(())
     }
