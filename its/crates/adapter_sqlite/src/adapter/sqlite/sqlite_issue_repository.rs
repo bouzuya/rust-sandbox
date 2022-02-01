@@ -50,10 +50,33 @@ mod tests {
     use sqlx::{
         any::{AnyArguments, AnyRow},
         query::Query,
-        Any, Arguments, FromRow, Row,
+        Any, FromRow, Row,
     };
     use tempfile::tempdir;
+    use thiserror::Error;
     use ulid::Ulid;
+
+    #[derive(Debug, Error)]
+    pub enum EventStoreError {
+        #[error("InsertAggregate")]
+        InsertAggregate,
+        #[error("InsertEvent")]
+        InsertEvent,
+        #[error("InvalidAggregateId")]
+        InvalidAggregateId,
+        #[error("InvalidAggregateVersion")]
+        InvalidAggregateVersion,
+        #[error("IO")]
+        IO,
+        #[error("MigrateCreateAggregateTable")]
+        MigrateCreateAggregateTable,
+        #[error("MigrateCreateEventTable")]
+        MigrateCreateEventTable,
+        #[error("UpdateAggregate")]
+        UpdateAggregate,
+        #[error("Unknown")]
+        Unknown,
+    }
 
     #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
     pub struct AggregateId(Ulid);
@@ -71,10 +94,10 @@ mod tests {
     }
 
     impl FromStr for AggregateId {
-        type Err = anyhow::Error;
+        type Err = EventStoreError;
 
         fn from_str(s: &str) -> Result<Self, Self::Err> {
-            let ulid = Ulid::from_str(s)?;
+            let ulid = Ulid::from_str(s).map_err(|_| EventStoreError::InvalidAggregateId)?;
             Ok(Self(ulid))
         }
     }
@@ -95,10 +118,11 @@ mod tests {
     }
 
     impl TryFrom<i64> for AggregateVersion {
-        type Error = anyhow::Error;
+        type Error = EventStoreError;
 
         fn try_from(value: i64) -> Result<Self, Self::Error> {
-            let value = u32::try_from(value)?;
+            let value =
+                u32::try_from(value).map_err(|_| EventStoreError::InvalidAggregateVersion)?;
             Ok(Self(value))
         }
     }
@@ -158,16 +182,20 @@ mod tests {
     }
 
     impl EventStore {
-        async fn new(path_buf: PathBuf) -> anyhow::Result<Self> {
-            let mut conn = connection(path_buf.as_path()).await?;
+        async fn new(path_buf: PathBuf) -> Result<Self, EventStoreError> {
+            let mut conn = connection(path_buf.as_path())
+                .await
+                .map_err(|_| EventStoreError::IO)?;
 
             // migrate
             sqlx::query(include_str!("../../../sql/create_aggregates.sql"))
                 .execute(&mut conn)
-                .await?;
+                .await
+                .map_err(|_| EventStoreError::MigrateCreateAggregateTable)?;
             sqlx::query(include_str!("../../../sql/create_events.sql"))
                 .execute(&mut conn)
-                .await?;
+                .await
+                .map_err(|_| EventStoreError::MigrateCreateEventTable)?;
 
             Ok(Self { connection: conn })
         }
@@ -176,22 +204,32 @@ mod tests {
             &mut self,
             current_version: Option<AggregateVersion>,
             event: Event,
-        ) -> anyhow::Result<()> {
+        ) -> Result<(), EventStoreError> {
             if let Some(current_version) = current_version {
                 let query: Query<Any, AnyArguments> =
                     sqlx::query(include_str!("../../../sql/update_aggregate.sql"))
                         .bind(i64::from(event.version))
                         .bind(event.aggregate_id.to_string())
                         .bind(i64::from(current_version));
-                let result = query.execute(&mut self.connection).await?;
-                anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
+                let result = query
+                    .execute(&mut self.connection)
+                    .await
+                    .map_err(|_| EventStoreError::IO)?;
+                if result.rows_affected() == 0 {
+                    return Err(EventStoreError::UpdateAggregate);
+                }
             } else {
                 let query: Query<Any, AnyArguments> =
                     sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
                         .bind(event.aggregate_id.to_string())
                         .bind(i64::from(event.version));
-                let result = query.execute(&mut self.connection).await?;
-                anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
+                let result = query
+                    .execute(&mut self.connection)
+                    .await
+                    .map_err(|_| EventStoreError::IO)?;
+                if result.rows_affected() == 0 {
+                    return Err(EventStoreError::InsertAggregate);
+                }
             }
 
             let query: Query<Any, AnyArguments> =
@@ -199,41 +237,49 @@ mod tests {
                     .bind(event.aggregate_id.to_string())
                     .bind(i64::from(event.version))
                     .bind(event.data);
-            let result = query.execute(&mut self.connection).await?;
-            anyhow::ensure!(result.rows_affected() > 0, "insert event failed");
+            let result = query
+                .execute(&mut self.connection)
+                .await
+                .map_err(|_| EventStoreError::IO)?;
+            if result.rows_affected() == 0 {
+                return Err(EventStoreError::InsertEvent);
+            }
 
             Ok(())
         }
 
-        async fn find_aggregate_ids(&mut self) -> anyhow::Result<Vec<AggregateId>> {
+        async fn find_aggregate_ids(&mut self) -> Result<Vec<AggregateId>, EventStoreError> {
             let aggregate_rows: Vec<AggregateRow> =
                 sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
                     .fetch_all(&mut self.connection)
-                    .await?;
+                    .await
+                    .map_err(|_| EventStoreError::IO)?;
             aggregate_rows
                 .into_iter()
-                .map(|row| AggregateId::from_str(row.id.as_str()).map_err(anyhow::Error::from))
+                .map(|row| AggregateId::from_str(row.id.as_str()))
                 .collect()
         }
 
-        async fn find_events(&mut self) -> anyhow::Result<Vec<Event>> {
+        async fn find_events(&mut self) -> Result<Vec<Event>, EventStoreError> {
             let event_rows: Vec<EventRow> =
                 sqlx::query_as(include_str!("../../../sql/select_events.sql"))
                     .fetch_all(&mut self.connection)
-                    .await?;
+                    .await
+                    .map_err(|_| EventStoreError::IO)?;
             Ok(event_rows.into_iter().map(Event::from).collect())
         }
 
         async fn find_events_by_aggregate_id(
             &mut self,
             aggregate_id: AggregateId,
-        ) -> anyhow::Result<Vec<Event>> {
+        ) -> Result<Vec<Event>, EventStoreError> {
             let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
                 "../../../sql/select_events_by_aggregate_id.sql"
             ))
             .bind(aggregate_id.to_string())
             .fetch_all(&mut self.connection)
-            .await?;
+            .await
+            .map_err(|_| EventStoreError::IO)?;
             Ok(event_rows.into_iter().map(Event::from).collect())
         }
     }
@@ -251,10 +297,9 @@ mod tests {
 
         let aggregate_id = AggregateId::generate();
         let version = AggregateVersion::from(1_u32);
-        let data = r#"{"type":"issue_created"}"#.to_string();
         let create_event = Event {
             aggregate_id,
-            data,
+            data: r#"{"type":"issue_created"}"#.to_string(),
             version,
         };
         event_store.save(None, create_event).await?;
