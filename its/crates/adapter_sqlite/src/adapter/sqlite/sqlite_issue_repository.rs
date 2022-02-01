@@ -49,6 +49,7 @@ mod tests {
     use super::*;
     use sqlx::{
         any::{AnyArguments, AnyRow},
+        query::Query,
         Any, Arguments, FromRow, Row,
     };
     use tempfile::tempdir;
@@ -177,37 +178,28 @@ mod tests {
             event: Event,
         ) -> anyhow::Result<()> {
             if let Some(current_version) = current_version {
-                let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
-                    let mut args = AnyArguments::default();
-                    args.add(i64::from(event.version));
-                    args.add(event.aggregate_id.to_string());
-                    args.add(i64::from(current_version));
-                    args
-                })
-                .execute(&mut self.connection)
-                .await?;
+                let query: Query<Any, AnyArguments> =
+                    sqlx::query(include_str!("../../../sql/update_aggregate.sql"))
+                        .bind(i64::from(event.version))
+                        .bind(event.aggregate_id.to_string())
+                        .bind(i64::from(current_version));
+                let result = query.execute(&mut self.connection).await?;
                 anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
             } else {
-                let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
-                    let mut args = AnyArguments::default();
-                    args.add(event.aggregate_id.to_string());
-                    args.add(i64::from(event.version));
-                    args
-                })
-                .execute(&mut self.connection)
-                .await?;
+                let query: Query<Any, AnyArguments> =
+                    sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
+                        .bind(event.aggregate_id.to_string())
+                        .bind(i64::from(event.version));
+                let result = query.execute(&mut self.connection).await?;
                 anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
             }
 
-            let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
-                let mut args = AnyArguments::default();
-                args.add(event.aggregate_id.to_string());
-                args.add(i64::from(event.version));
-                args.add(event.data);
-                args
-            })
-            .execute(&mut self.connection)
-            .await?;
+            let query: Query<Any, AnyArguments> =
+                sqlx::query(include_str!("../../../sql/insert_event.sql"))
+                    .bind(event.aggregate_id.to_string())
+                    .bind(i64::from(event.version))
+                    .bind(event.data);
+            let result = query.execute(&mut self.connection).await?;
             anyhow::ensure!(result.rows_affected() > 0, "insert event failed");
 
             Ok(())
