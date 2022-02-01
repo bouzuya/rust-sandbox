@@ -44,7 +44,7 @@ async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
 
 #[cfg(test)]
 mod tests {
-    use std::path::PathBuf;
+    use std::{fmt::Display, path::PathBuf};
 
     use super::*;
     use sqlx::{
@@ -53,6 +53,30 @@ mod tests {
     };
     use tempfile::tempdir;
     use ulid::Ulid;
+
+    #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    pub struct AggregateId(Ulid);
+
+    impl AggregateId {
+        pub fn generate() -> Self {
+            Self(Ulid::new())
+        }
+    }
+
+    impl Display for AggregateId {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", self.0)
+        }
+    }
+
+    impl FromStr for AggregateId {
+        type Err = anyhow::Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let ulid = Ulid::from_str(s)?;
+            Ok(Self(ulid))
+        }
+    }
 
     #[derive(Debug)]
     struct AggregateRow {
@@ -171,7 +195,7 @@ mod tests {
 
         async fn find_events_by_aggregate_id(
             &mut self,
-            aggregate_id: Ulid,
+            aggregate_id: AggregateId,
         ) -> anyhow::Result<Vec<EventRow>> {
             Ok(sqlx::query_as(include_str!(
                 "../../../sql/select_events_by_aggregate_id.sql"
@@ -193,11 +217,11 @@ mod tests {
         let events = event_store.find_events().await?;
         assert!(events.is_empty());
 
-        let aggregate_id = Ulid::new();
+        let aggregate_id = AggregateId::generate();
         let version = 1;
         let data = r#"{"type":"issue_created"}"#.to_string();
         let event_row = EventRow {
-            aggregate_id,
+            aggregate_id: Ulid::from_str(aggregate_id.to_string().as_str())?,
             data,
             version,
         };
@@ -213,11 +237,13 @@ mod tests {
             .find_events_by_aggregate_id(aggregate_id)
             .await?;
         assert!(!aggregates.is_empty());
-        let aggregates = event_store.find_events_by_aggregate_id(Ulid::new()).await?;
+        let aggregates = event_store
+            .find_events_by_aggregate_id(AggregateId::generate())
+            .await?;
         assert!(aggregates.is_empty());
 
         let event_row = EventRow {
-            aggregate_id,
+            aggregate_id: Ulid::from_str(aggregate_id.to_string().as_str())?,
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: 2,
         };
