@@ -6,9 +6,10 @@ use domain::{
     IssueId,
 };
 use sqlx::{
+    any::AnyConnectOptions,
     pool::PoolConnection,
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    Sqlite, SqlitePool,
+    Any, AnyPool,
 };
 use use_case::{IssueRepository, RepositoryError};
 
@@ -29,13 +30,14 @@ impl IssueRepository for SqliteIssueRepository {
     }
 }
 
-async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Sqlite>> {
+async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
     let options = SqliteConnectOptions::from_str(&format!(
         "sqlite:{}?mode=rwc",
         path.to_str().with_context(|| "invalid path")?
     ))?
     .journal_mode(SqliteJournalMode::Delete);
-    let pool = SqlitePool::connect_with(options).await?;
+    let options = AnyConnectOptions::from(options);
+    let pool = AnyPool::connect_with(options).await?;
     let conn = pool.acquire().await?;
     Ok(conn)
 }
@@ -46,8 +48,8 @@ mod tests {
 
     use super::*;
     use sqlx::{
-        sqlite::{SqliteArguments, SqliteRow},
-        Arguments, Executor, Row,
+        any::{AnyArguments, AnyRow},
+        Any, Arguments, Row,
     };
     use tempfile::tempdir;
     use ulid::Ulid;
@@ -64,10 +66,10 @@ mod tests {
     }
 
     struct EventStore {
-        connection: PoolConnection<Sqlite>,
+        connection: PoolConnection<Any>,
     }
 
-    fn row_to_aggregate_row(row: SqliteRow) -> sqlx::Result<AggregateRow> {
+    fn row_to_aggregate_row(row: AnyRow) -> sqlx::Result<AggregateRow> {
         let version_as_i64: i64 = row.get("version");
         let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
         let id: String = row.get("id");
@@ -75,7 +77,7 @@ mod tests {
         Ok(AggregateRow { id, version })
     }
 
-    fn row_to_event_row(row: SqliteRow) -> sqlx::Result<EventRow> {
+    fn row_to_event_row(row: AnyRow) -> sqlx::Result<EventRow> {
         let data: String = row.get("data");
         let version_as_i64: i64 = row.get("version");
         let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
@@ -105,7 +107,7 @@ mod tests {
 
         async fn create(&mut self, event: EventRow) -> anyhow::Result<()> {
             let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
-                let mut args = SqliteArguments::default();
+                let mut args = AnyArguments::default();
                 args.add(event.aggregate_id.to_string());
                 args.add(i64::from_be_bytes(event.version.to_be_bytes()));
                 args
@@ -115,7 +117,7 @@ mod tests {
             anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
 
             let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
-                let mut args = SqliteArguments::default();
+                let mut args = AnyArguments::default();
                 args.add(event.aggregate_id.to_string());
                 args.add(i64::from_be_bytes(event.version.to_be_bytes()));
                 args.add(event.data);
@@ -130,7 +132,7 @@ mod tests {
 
         async fn update(&mut self, current_version: u64, event: EventRow) -> anyhow::Result<()> {
             let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
-                let mut args = SqliteArguments::default();
+                let mut args = AnyArguments::default();
                 args.add(i64::from_be_bytes(event.version.to_be_bytes()));
                 args.add(event.aggregate_id.to_string());
                 args.add(i64::from_be_bytes(current_version.to_be_bytes()));
@@ -141,7 +143,7 @@ mod tests {
             anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
 
             let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
-                let mut args = SqliteArguments::default();
+                let mut args = AnyArguments::default();
                 args.add(event.aggregate_id.to_string());
                 args.add(i64::from_be_bytes(event.version.to_be_bytes()));
                 args.add(event.data);
