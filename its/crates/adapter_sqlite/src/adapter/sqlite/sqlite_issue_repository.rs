@@ -205,12 +205,15 @@ mod tests {
             Ok(())
         }
 
-        async fn find_aggregates(&mut self) -> anyhow::Result<Vec<AggregateRow>> {
-            Ok(
+        async fn find_aggregate_ids(&mut self) -> anyhow::Result<Vec<AggregateId>> {
+            let aggregate_rows: Vec<AggregateRow> =
                 sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
                     .fetch_all(&mut self.connection)
-                    .await?,
-            )
+                    .await?;
+            aggregate_rows
+                .into_iter()
+                .map(|row| AggregateId::from_str(row.id.as_str()).map_err(anyhow::Error::from))
+                .collect()
         }
 
         async fn find_events(&mut self) -> anyhow::Result<Vec<Event>> {
@@ -240,7 +243,7 @@ mod tests {
         let temp_dir = tempdir()?;
         let mut event_store = EventStore::new(temp_dir.path().join("its.sqlite")).await?;
 
-        let aggregates = event_store.find_aggregates().await?;
+        let aggregates = event_store.find_aggregate_ids().await?;
         assert!(aggregates.is_empty());
 
         let events = event_store.find_events().await?;
@@ -257,7 +260,7 @@ mod tests {
         event_store.save(None, create_event).await?;
 
         // TODO: improve
-        let aggregates = event_store.find_aggregates().await?;
+        let aggregates = event_store.find_aggregate_ids().await?;
         assert!(!aggregates.is_empty());
         assert_eq!(event_store.find_events().await?.len(), 1);
 
