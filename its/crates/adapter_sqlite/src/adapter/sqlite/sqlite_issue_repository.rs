@@ -104,38 +104,32 @@ mod tests {
 
     #[derive(Debug)]
     struct AggregateRow {
-        id: Ulid,
-        version: u64,
+        id: String,
+        version: i64,
     }
 
     impl<'r> FromRow<'r, AnyRow> for AggregateRow {
         fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-            let version_as_i64: i64 = row.get("version");
-            let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-            let id: String = row.get("id");
-            let id = Ulid::from_str(id.as_str()).unwrap();
-            Ok(AggregateRow { id, version })
+            Ok(Self {
+                id: row.get("id"),
+                version: row.get("version"),
+            })
         }
     }
 
     #[derive(Debug)]
     struct EventRow {
-        aggregate_id: Ulid,
+        aggregate_id: String,
         data: String,
-        version: u64,
+        version: i64,
     }
 
     impl<'r> FromRow<'r, AnyRow> for EventRow {
         fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-            let data: String = row.get("data");
-            let version_as_i64: i64 = row.get("version");
-            let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-            let aggregate_id: String = row.get("aggregate_id");
-            let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
-            Ok(EventRow {
-                aggregate_id,
-                data,
-                version,
+            Ok(Self {
+                aggregate_id: row.get("aggregate_id"),
+                data: row.get("data"),
+                version: row.get("version"),
             })
         }
     }
@@ -245,9 +239,9 @@ mod tests {
         let version = AggregateVersion::from(1_u32);
         let data = r#"{"type":"issue_created"}"#.to_string();
         let event_row = EventRow {
-            aggregate_id: Ulid::from_str(aggregate_id.to_string().as_str())?,
+            aggregate_id: aggregate_id.to_string(),
             data,
-            version: u64::try_from(i64::from(version))?,
+            version: i64::from(version),
         };
         event_store.save(None, event_row).await?;
 
@@ -267,7 +261,7 @@ mod tests {
         assert!(aggregates.is_empty());
 
         let event_row = EventRow {
-            aggregate_id: Ulid::from_str(aggregate_id.to_string().as_str())?,
+            aggregate_id: aggregate_id.to_string(),
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: 2,
         };
