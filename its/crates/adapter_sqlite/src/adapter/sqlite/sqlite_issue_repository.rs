@@ -134,6 +134,24 @@ mod tests {
         }
     }
 
+    #[derive(Debug)]
+    struct Event {
+        aggregate_id: AggregateId,
+        data: String,
+        version: AggregateVersion,
+    }
+
+    impl From<EventRow> for Event {
+        fn from(row: EventRow) -> Self {
+            Self {
+                aggregate_id: AggregateId::from_str(row.aggregate_id.as_str())
+                    .expect("invalid aggregate_id"),
+                data: row.data,
+                version: AggregateVersion::try_from(row.version).expect("invalid version"),
+            }
+        }
+    }
+
     struct EventStore {
         connection: PoolConnection<Any>,
     }
@@ -156,12 +174,12 @@ mod tests {
         async fn save(
             &mut self,
             current_version: Option<AggregateVersion>,
-            event: EventRow,
+            event: Event,
         ) -> anyhow::Result<()> {
             if let Some(current_version) = current_version {
                 let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
                     let mut args = AnyArguments::default();
-                    args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                    args.add(i64::from(event.version));
                     args.add(event.aggregate_id.to_string());
                     args.add(i64::from(current_version));
                     args
@@ -173,7 +191,7 @@ mod tests {
                 let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
                     let mut args = AnyArguments::default();
                     args.add(event.aggregate_id.to_string());
-                    args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                    args.add(i64::from(event.version));
                     args
                 })
                 .execute(&mut self.connection)
@@ -184,7 +202,7 @@ mod tests {
             let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
                 let mut args = AnyArguments::default();
                 args.add(event.aggregate_id.to_string());
-                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                args.add(i64::from(event.version));
                 args.add(event.data);
                 args
             })
@@ -203,24 +221,25 @@ mod tests {
             )
         }
 
-        async fn find_events(&mut self) -> anyhow::Result<Vec<EventRow>> {
-            Ok(
+        async fn find_events(&mut self) -> anyhow::Result<Vec<Event>> {
+            let event_rows: Vec<EventRow> =
                 sqlx::query_as(include_str!("../../../sql/select_events.sql"))
                     .fetch_all(&mut self.connection)
-                    .await?,
-            )
+                    .await?;
+            Ok(event_rows.into_iter().map(Event::from).collect())
         }
 
         async fn find_events_by_aggregate_id(
             &mut self,
             aggregate_id: AggregateId,
-        ) -> anyhow::Result<Vec<EventRow>> {
-            Ok(sqlx::query_as(include_str!(
+        ) -> anyhow::Result<Vec<Event>> {
+            let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
                 "../../../sql/select_events_by_aggregate_id.sql"
             ))
             .bind(aggregate_id.to_string())
             .fetch_all(&mut self.connection)
-            .await?)
+            .await?;
+            Ok(event_rows.into_iter().map(Event::from).collect())
         }
     }
 
@@ -238,12 +257,12 @@ mod tests {
         let aggregate_id = AggregateId::generate();
         let version = AggregateVersion::from(1_u32);
         let data = r#"{"type":"issue_created"}"#.to_string();
-        let event_row = EventRow {
-            aggregate_id: aggregate_id.to_string(),
+        let create_event = Event {
+            aggregate_id,
             data,
-            version: i64::from(version),
+            version,
         };
-        event_store.save(None, event_row).await?;
+        event_store.save(None, create_event).await?;
 
         // TODO: improve
         let aggregates = event_store.find_aggregates().await?;
@@ -260,12 +279,12 @@ mod tests {
             .await?;
         assert!(aggregates.is_empty());
 
-        let event_row = EventRow {
-            aggregate_id: aggregate_id.to_string(),
+        let update_event = Event {
+            aggregate_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
-            version: 2,
+            version: AggregateVersion::from(2_u32),
         };
-        event_store.save(Some(version), event_row).await?;
+        event_store.save(Some(version), update_event).await?;
         assert_eq!(event_store.find_events().await?.len(), 2);
 
         Ok(())
