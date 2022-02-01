@@ -105,42 +105,33 @@ mod tests {
             Ok(Self { connection: conn })
         }
 
-        async fn create(&mut self, event: EventRow) -> anyhow::Result<()> {
-            let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
-                let mut args = AnyArguments::default();
-                args.add(event.aggregate_id.to_string());
-                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
-                args
-            })
-            .execute(&mut self.connection)
-            .await?;
-            anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
-
-            let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
-                let mut args = AnyArguments::default();
-                args.add(event.aggregate_id.to_string());
-                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
-                args.add(event.data);
-                args
-            })
-            .execute(&mut self.connection)
-            .await?;
-            anyhow::ensure!(result.rows_affected() > 0, "insert event failed");
-
-            Ok(())
-        }
-
-        async fn update(&mut self, current_version: u64, event: EventRow) -> anyhow::Result<()> {
-            let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
-                let mut args = AnyArguments::default();
-                args.add(i64::from_be_bytes(event.version.to_be_bytes()));
-                args.add(event.aggregate_id.to_string());
-                args.add(i64::from_be_bytes(current_version.to_be_bytes()));
-                args
-            })
-            .execute(&mut self.connection)
-            .await?;
-            anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
+        async fn save(
+            &mut self,
+            current_version: Option<u64>,
+            event: EventRow,
+        ) -> anyhow::Result<()> {
+            if let Some(current_version) = current_version {
+                let result = sqlx::query_with(include_str!("../../../sql/update_aggregate.sql"), {
+                    let mut args = AnyArguments::default();
+                    args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                    args.add(event.aggregate_id.to_string());
+                    args.add(i64::from_be_bytes(current_version.to_be_bytes()));
+                    args
+                })
+                .execute(&mut self.connection)
+                .await?;
+                anyhow::ensure!(result.rows_affected() > 0, "update aggregate failed");
+            } else {
+                let result = sqlx::query_with(include_str!("../../../sql/insert_aggregate.sql"), {
+                    let mut args = AnyArguments::default();
+                    args.add(event.aggregate_id.to_string());
+                    args.add(i64::from_be_bytes(event.version.to_be_bytes()));
+                    args
+                })
+                .execute(&mut self.connection)
+                .await?;
+                anyhow::ensure!(result.rows_affected() > 0, "insert aggregate failed");
+            }
 
             let result = sqlx::query_with(include_str!("../../../sql/insert_event.sql"), {
                 let mut args = AnyArguments::default();
@@ -205,7 +196,7 @@ mod tests {
             data,
             version,
         };
-        event_store.create(event_row).await?;
+        event_store.save(None, event_row).await?;
 
         // TODO: improve
         let aggregates = event_store.find_aggregates().await?;
@@ -225,7 +216,7 @@ mod tests {
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: 2,
         };
-        event_store.update(1, event_row).await?;
+        event_store.save(Some(1), event_row).await?;
         assert_eq!(event_store.find_events().await?.len(), 2);
 
         Ok(())
