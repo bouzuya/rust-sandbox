@@ -49,45 +49,51 @@ mod tests {
     use super::*;
     use sqlx::{
         any::{AnyArguments, AnyRow},
-        Any, Arguments, Row,
+        Any, Arguments, FromRow, Row,
     };
     use tempfile::tempdir;
     use ulid::Ulid;
 
+    #[derive(Debug)]
     struct AggregateRow {
         id: Ulid,
         version: u64,
     }
 
+    impl<'r> FromRow<'r, AnyRow> for AggregateRow {
+        fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
+            let version_as_i64: i64 = row.get("version");
+            let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+            let id: String = row.get("id");
+            let id = Ulid::from_str(id.as_str()).unwrap();
+            Ok(AggregateRow { id, version })
+        }
+    }
+
+    #[derive(Debug)]
     struct EventRow {
         aggregate_id: Ulid,
         data: String,
         version: u64,
     }
 
+    impl<'r> FromRow<'r, AnyRow> for EventRow {
+        fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
+            let data: String = row.get("data");
+            let version_as_i64: i64 = row.get("version");
+            let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
+            let aggregate_id: String = row.get("aggregate_id");
+            let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
+            Ok(EventRow {
+                aggregate_id,
+                data,
+                version,
+            })
+        }
+    }
+
     struct EventStore {
         connection: PoolConnection<Any>,
-    }
-
-    fn row_to_aggregate_row(row: AnyRow) -> sqlx::Result<AggregateRow> {
-        let version_as_i64: i64 = row.get("version");
-        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-        let id: String = row.get("id");
-        let id = Ulid::from_str(id.as_str()).unwrap();
-        Ok(AggregateRow { id, version })
-    }
-
-    fn row_to_event_row(row: AnyRow) -> sqlx::Result<EventRow> {
-        let data: String = row.get("data");
-        let version_as_i64: i64 = row.get("version");
-        let version = u64::from_be_bytes(version_as_i64.to_be_bytes());
-        let aggregate_id: String = row.get("aggregate_id");
-        let aggregate_id = Ulid::from_str(aggregate_id.as_str()).unwrap();
-        Ok(EventRow {
-            aggregate_id,
-            data,
-            version,
-        })
     }
 
     impl EventStore {
@@ -149,29 +155,28 @@ mod tests {
 
         async fn find_aggregates(&mut self) -> anyhow::Result<Vec<AggregateRow>> {
             Ok(
-                sqlx::query(include_str!("../../../sql/select_aggregates.sql"))
-                    .try_map(row_to_aggregate_row)
+                sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
                     .fetch_all(&mut self.connection)
                     .await?,
             )
         }
 
         async fn find_events(&mut self) -> anyhow::Result<Vec<EventRow>> {
-            Ok(sqlx::query(include_str!("../../../sql/select_events.sql"))
-                .try_map(row_to_event_row)
-                .fetch_all(&mut self.connection)
-                .await?)
+            Ok(
+                sqlx::query_as(include_str!("../../../sql/select_events.sql"))
+                    .fetch_all(&mut self.connection)
+                    .await?,
+            )
         }
 
         async fn find_events_by_aggregate_id(
             &mut self,
             aggregate_id: Ulid,
         ) -> anyhow::Result<Vec<EventRow>> {
-            Ok(sqlx::query(include_str!(
+            Ok(sqlx::query_as(include_str!(
                 "../../../sql/select_events_by_aggregate_id.sql"
             ))
             .bind(aggregate_id.to_string())
-            .try_map(row_to_event_row)
             .fetch_all(&mut self.connection)
             .await?)
         }
