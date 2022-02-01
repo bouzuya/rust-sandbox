@@ -78,6 +78,30 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+    pub struct AggregateVersion(u32);
+
+    impl From<AggregateVersion> for i64 {
+        fn from(version: AggregateVersion) -> Self {
+            i64::from(version.0)
+        }
+    }
+
+    impl From<u32> for AggregateVersion {
+        fn from(value: u32) -> Self {
+            Self(value)
+        }
+    }
+
+    impl TryFrom<i64> for AggregateVersion {
+        type Error = anyhow::Error;
+
+        fn try_from(value: i64) -> Result<Self, Self::Error> {
+            let value = u32::try_from(value)?;
+            Ok(Self(value))
+        }
+    }
+
     #[derive(Debug)]
     struct AggregateRow {
         id: Ulid,
@@ -137,7 +161,7 @@ mod tests {
 
         async fn save(
             &mut self,
-            current_version: Option<u64>,
+            current_version: Option<AggregateVersion>,
             event: EventRow,
         ) -> anyhow::Result<()> {
             if let Some(current_version) = current_version {
@@ -145,7 +169,7 @@ mod tests {
                     let mut args = AnyArguments::default();
                     args.add(i64::from_be_bytes(event.version.to_be_bytes()));
                     args.add(event.aggregate_id.to_string());
-                    args.add(i64::from_be_bytes(current_version.to_be_bytes()));
+                    args.add(i64::from(current_version));
                     args
                 })
                 .execute(&mut self.connection)
@@ -218,12 +242,12 @@ mod tests {
         assert!(events.is_empty());
 
         let aggregate_id = AggregateId::generate();
-        let version = 1;
+        let version = AggregateVersion::from(1_u32);
         let data = r#"{"type":"issue_created"}"#.to_string();
         let event_row = EventRow {
             aggregate_id: Ulid::from_str(aggregate_id.to_string().as_str())?,
             data,
-            version,
+            version: u64::try_from(i64::from(version))?,
         };
         event_store.save(None, event_row).await?;
 
@@ -247,7 +271,7 @@ mod tests {
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: 2,
         };
-        event_store.save(Some(1), event_row).await?;
+        event_store.save(Some(version), event_row).await?;
         assert_eq!(event_store.find_events().await?.len(), 2);
 
         Ok(())
