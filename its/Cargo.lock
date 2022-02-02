@@ -7,6 +7,7 @@ name = "adapter_fs"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "domain",
  "limited-date-time",
  "serde",
@@ -20,6 +21,7 @@ name = "adapter_sqlite"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "domain",
  "limited-date-time",
  "serde",
@@ -68,6 +70,7 @@ dependencies = [
  "assert_cmd",
  "domain",
  "predicates",
+ "tokio",
  "use_case",
 ]
 
@@ -106,6 +109,17 @@ dependencies = [
  "predicates-core",
  "predicates-tree",
  "wait-timeout",
+]
+
+[[package]]
+name = "async-trait"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "061a7acccaa286c011ddc30970520b98fa40e00c9d644633fb26b5fc63a265e3"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -1346,9 +1360,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.15.0"
+version = "1.16.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbbf1c778ec206785635ce8ad57fe52b3009ae9e0c9f574a728f3049d3e55838"
+checksum = "0c27a64b625de6d309e8c57716ba93021dccf1b3b5c97edd6d3dd2d2135afc0a"
 dependencies = [
  "bytes",
  "libc",
@@ -1468,6 +1482,7 @@ name = "use_case"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "domain",
  "limited-date-time",
  "thiserror",

@@ -10,6 +10,7 @@ adapter_fs = { path = "../adapter_fs" }
 anyhow = "1.0.52"
 argopt = "0.2.0"
 domain = { path = "../domain" }
+tokio = { version = "1.15.0", features = ["full"] }
 use_case = { path = "../use_case" }
 
 [dev-dependencies]

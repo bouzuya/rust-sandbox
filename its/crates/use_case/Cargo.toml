@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.52"
+async-trait = "0.1.52"
 domain = { path = "../domain" }
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
 thiserror = "1.0.30"

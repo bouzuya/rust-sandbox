@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use domain::{
     aggregate::{IssueAggregate, IssueAggregateEvent},
     IssueId,
@@ -15,8 +16,12 @@ use crate::event_dto::EventDto;
 #[derive(Debug, Default)]
 pub struct FsIssueRepository {}
 
+#[async_trait]
 impl IssueRepository for FsIssueRepository {
-    fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>, RepositoryError> {
+    async fn find_by_id(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Option<IssueAggregate>, RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
         if !file_path.exists() {
             return Ok(None);
@@ -52,13 +57,14 @@ impl IssueRepository for FsIssueRepository {
         }
     }
 
-    fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
-        self.max_issue_id()?
-            .and_then(|issue_id| self.find_by_id(&issue_id).transpose())
-            .transpose()
+    async fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
+        match self.max_issue_id()? {
+            Some(issue_id) => self.find_by_id(&issue_id).await,
+            None => Ok(None),
+        }
     }
 
-    fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
+    async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
         let file_path = PathBuf::from_str("its.jsonl").map_err(|_| RepositoryError::IO)?;
         let mut events = self.events(file_path.as_path())?;
 
