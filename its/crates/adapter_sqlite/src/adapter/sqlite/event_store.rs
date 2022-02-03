@@ -3,9 +3,9 @@ mod aggregate_version;
 mod event;
 mod event_store_error;
 
-use self::aggregate_id::*;
-use self::aggregate_version::*;
-use self::event::*;
+pub use self::aggregate_id::*;
+pub use self::aggregate_version::*;
+pub use self::event::Event;
 use self::event_store_error::EventStoreError;
 use std::path::PathBuf;
 use std::{path::Path, str::FromStr};

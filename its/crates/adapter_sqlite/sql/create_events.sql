@@ -1,4 +1,4 @@
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   aggregate_id CHAR(26) NOT NULL,
   version BIGINT NOT NULL,
   data TEXT NOT NULL,
