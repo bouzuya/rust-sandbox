@@ -1,7 +1,6 @@
 use std::{
     path::{Path, PathBuf},
     str::FromStr,
-    sync::{Arc, Mutex},
 };
 
 use anyhow::Context;
@@ -13,9 +12,8 @@ use domain::{
 
 use sqlx::{
     any::{AnyConnectOptions, AnyRow},
-    pool::PoolConnection,
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    Any, AnyPool, FromRow, Row,
+    AnyPool, FromRow, Row,
 };
 use use_case::{IssueRepository, RepositoryError};
 
@@ -28,7 +26,7 @@ use super::event_store::{AggregateId, EventStore};
 
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
-    connection: Arc<Mutex<PoolConnection<Any>>>,
+    pool: AnyPool,
 }
 
 struct IssueIdRow {
@@ -46,7 +44,7 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
 }
 
 impl SqliteIssueRepository {
-    async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
+    async fn connection(path: &Path) -> anyhow::Result<AnyPool> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
             path.to_str().with_context(|| "invalid path")?
@@ -54,14 +52,14 @@ impl SqliteIssueRepository {
         .journal_mode(SqliteJournalMode::Delete);
         let options = AnyConnectOptions::from(options);
         let pool = AnyPool::connect_with(options).await?;
-        let conn = pool.acquire().await?;
-        Ok(conn)
+        Ok(pool)
     }
 
     pub async fn new(path_buf: PathBuf) -> Result<Self, RepositoryError> {
-        let mut conn = Self::connection(path_buf.as_path())
+        let pool = Self::connection(path_buf.as_path())
             .await
             .map_err(|_| RepositoryError::IO)?;
+        let mut conn = pool.acquire().await.map_err(|_| RepositoryError::IO)?;
 
         // migrate
         sqlx::query(include_str!("../../../sql/create_issue_ids.sql"))
@@ -69,16 +67,23 @@ impl SqliteIssueRepository {
             .await
             .map_err(|_| RepositoryError::IO)?;
 
-        Ok(Self {
-            connection: Arc::new(Mutex::new(conn)),
-        })
+        Ok(Self { pool })
     }
 
     async fn find_aggregate_id_by_issue_id(
         &self,
-        _issue_id: &IssueId,
+        issue_id: &IssueId,
     ) -> Result<Option<AggregateId>, RepositoryError> {
-        todo!()
+        let mut tx = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+
+        let issue_id_row: Option<IssueIdRow> =
+            sqlx::query_as(include_str!("../../../sql/select_issue_id_by_issue_id.sql"))
+                .bind(issue_id.to_string())
+                .fetch_optional(&mut tx)
+                .await
+                .map_err(|_| RepositoryError::IO)?;
+
+        Ok(issue_id_row.map(|row| AggregateId::from_str(row.aggregate_id.as_str()).unwrap()))
     }
 }
 
