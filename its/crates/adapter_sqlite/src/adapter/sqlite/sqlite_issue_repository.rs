@@ -11,9 +11,10 @@ use domain::{
 };
 
 use sqlx::{
-    any::{AnyConnectOptions, AnyRow},
+    any::{AnyArguments, AnyConnectOptions, AnyRow},
+    query::Query,
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    AnyPool, FromRow, Row,
+    Any, AnyPool, FromRow, Row, Transaction,
 };
 use use_case::{IssueRepository, RepositoryError};
 
@@ -72,18 +73,38 @@ impl SqliteIssueRepository {
 
     async fn find_aggregate_id_by_issue_id(
         &self,
+        transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
     ) -> Result<Option<AggregateId>, RepositoryError> {
-        let mut tx = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
-
         let issue_id_row: Option<IssueIdRow> =
             sqlx::query_as(include_str!("../../../sql/select_issue_id_by_issue_id.sql"))
                 .bind(issue_id.to_string())
-                .fetch_optional(&mut tx)
+                .fetch_optional(transaction)
                 .await
                 .map_err(|_| RepositoryError::IO)?;
 
         Ok(issue_id_row.map(|row| AggregateId::from_str(row.aggregate_id.as_str()).unwrap()))
+    }
+
+    async fn insert_issue_id(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+        issue_id: &IssueId,
+        aggregate_id: AggregateId,
+    ) -> Result<(), RepositoryError> {
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/insert_issue_id.sql"))
+                .bind(issue_id.to_string())
+                .bind(aggregate_id.to_string());
+        let result = query
+            .execute(transaction)
+            .await
+            .map_err(|_| RepositoryError::IO)?;
+        if result.rows_affected() != 1 {
+            return Err(RepositoryError::IO);
+        }
+
+        Ok(())
     }
 }
 
@@ -101,29 +122,59 @@ impl IssueRepository for SqliteIssueRepository {
     }
 
     async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
+        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+
         let path_buf = PathBuf::from("its.sqlite");
         let mut event_store = EventStore::new(path_buf)
             .await
             .map_err(|_| RepositoryError::IO)?;
 
         let issue_id = event.issue_id();
-        let aggregate_id = self
-            .find_aggregate_id_by_issue_id(issue_id)
+        if let Some(aggregate_id) = self
+            .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
             .await?
-            .unwrap_or_else(AggregateId::generate);
-        let version = event.version();
-        event_store
-            .save(
-                None,
-                Event {
-                    aggregate_id,
-                    data: serde_json::to_string(&EventDto::from(event))
-                        .map_err(|_| RepositoryError::IO)?,
-                    version: AggregateVersion::from(
-                        u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
-                    ),
-                },
-            )
+        {
+            // update
+            let version = event.version();
+            event_store
+                .save(
+                    None, // FIXME
+                    Event {
+                        aggregate_id,
+                        data: serde_json::to_string(&EventDto::from(event))
+                            .map_err(|_| RepositoryError::IO)?,
+                        version: AggregateVersion::from(
+                            u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                        ),
+                    },
+                )
+                .await
+                .map_err(|_| RepositoryError::IO)?;
+        } else {
+            // create
+            let aggregate_id = AggregateId::generate();
+            self.insert_issue_id(&mut transaction, issue_id, aggregate_id)
+                .await?;
+
+            let version = event.version();
+            event_store
+                .save(
+                    None,
+                    Event {
+                        aggregate_id,
+                        data: serde_json::to_string(&EventDto::from(event))
+                            .map_err(|_| RepositoryError::IO)?,
+                        version: AggregateVersion::from(
+                            u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                        ),
+                    },
+                )
+                .await
+                .map_err(|_| RepositoryError::IO)?;
+        }
+
+        transaction
+            .commit()
             .await
             .map_err(|_| RepositoryError::IO)?;
         Ok(())
