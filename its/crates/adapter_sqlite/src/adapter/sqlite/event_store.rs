@@ -11,6 +11,7 @@ use std::path::PathBuf;
 use std::{path::Path, str::FromStr};
 
 use anyhow::Context;
+use sqlx::Transaction;
 use sqlx::{
     any::{AnyArguments, AnyRow},
     query::Query,
@@ -91,7 +92,7 @@ impl EventStore {
     }
 
     pub async fn save(
-        &mut self,
+        transaction: &mut Transaction<'_, Any>,
         current_version: Option<AggregateVersion>,
         event: Event,
     ) -> Result<(), EventStoreError> {
@@ -102,7 +103,7 @@ impl EventStore {
                     .bind(event.aggregate_id.to_string())
                     .bind(i64::from(current_version));
             let result = query
-                .execute(&mut self.connection)
+                .execute(&mut *transaction)
                 .await
                 .map_err(|_| EventStoreError::IO)?;
             if result.rows_affected() == 0 {
@@ -114,7 +115,7 @@ impl EventStore {
                     .bind(event.aggregate_id.to_string())
                     .bind(i64::from(event.version));
             let result = query
-                .execute(&mut self.connection)
+                .execute(&mut *transaction)
                 .await
                 .map_err(|_| EventStoreError::IO)?;
             if result.rows_affected() == 0 {
@@ -128,7 +129,7 @@ impl EventStore {
                 .bind(i64::from(event.version))
                 .bind(event.data);
         let result = query
-            .execute(&mut self.connection)
+            .execute(&mut *transaction)
             .await
             .map_err(|_| EventStoreError::IO)?;
         if result.rows_affected() == 0 {
@@ -195,7 +196,18 @@ mod tests {
     #[tokio::test]
     async fn read_and_write_test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
-        let mut event_store = EventStore::new(temp_dir.path().join("its.sqlite")).await?;
+        let sqlite_path = temp_dir.path().join("its.sqlite");
+        let mut event_store = EventStore::new(sqlite_path.clone()).await?;
+
+        let path = sqlite_path.as_path();
+        let options = SqliteConnectOptions::from_str(&format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().with_context(|| "invalid path")?
+        ))?
+        .journal_mode(SqliteJournalMode::Delete);
+        let options = AnyConnectOptions::from(options);
+        let pool = AnyPool::connect_with(options).await?;
+        let mut transaction = pool.begin().await?;
 
         let aggregates = event_store.find_aggregate_ids().await?;
         assert!(aggregates.is_empty());
@@ -210,7 +222,10 @@ mod tests {
             data: r#"{"type":"issue_created"}"#.to_string(),
             version,
         };
-        event_store.save(None, create_event).await?;
+        EventStore::save(&mut transaction, None, create_event).await?;
+
+        transaction.commit().await?;
+        let mut transaction = pool.begin().await?;
 
         // TODO: improve
         let aggregates = event_store.find_aggregate_ids().await?;
@@ -232,7 +247,8 @@ mod tests {
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: AggregateVersion::from(2_u32),
         };
-        event_store.save(Some(version), update_event).await?;
+        EventStore::save(&mut transaction, Some(version), update_event).await?;
+        transaction.commit().await?;
         assert_eq!(event_store.find_events().await?.len(), 2);
 
         Ok(())

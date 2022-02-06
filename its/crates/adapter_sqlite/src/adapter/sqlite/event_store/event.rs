@@ -1,6 +1,6 @@
 use super::{aggregate_id::AggregateId, aggregate_version::AggregateVersion};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Event {
     pub aggregate_id: AggregateId,
     pub data: String,

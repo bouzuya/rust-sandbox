@@ -124,11 +124,6 @@ impl IssueRepository for SqliteIssueRepository {
     async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
         let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
 
-        let path_buf = PathBuf::from("its.sqlite");
-        let mut event_store = EventStore::new(path_buf)
-            .await
-            .map_err(|_| RepositoryError::IO)?;
-
         let issue_id = event.issue_id();
         if let Some(aggregate_id) = self
             .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
@@ -136,20 +131,20 @@ impl IssueRepository for SqliteIssueRepository {
         {
             // update
             let version = event.version();
-            event_store
-                .save(
-                    None, // FIXME
-                    Event {
-                        aggregate_id,
-                        data: serde_json::to_string(&EventDto::from(event))
-                            .map_err(|_| RepositoryError::IO)?,
-                        version: AggregateVersion::from(
-                            u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
-                        ),
-                    },
-                )
-                .await
-                .map_err(|_| RepositoryError::IO)?;
+            EventStore::save(
+                &mut transaction,
+                None, // FIXME
+                Event {
+                    aggregate_id,
+                    data: serde_json::to_string(&EventDto::from(event))
+                        .map_err(|_| RepositoryError::IO)?,
+                    version: AggregateVersion::from(
+                        u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                    ),
+                },
+            )
+            .await
+            .map_err(|_| RepositoryError::IO)?;
         } else {
             // create
             let aggregate_id = AggregateId::generate();
@@ -157,20 +152,20 @@ impl IssueRepository for SqliteIssueRepository {
                 .await?;
 
             let version = event.version();
-            event_store
-                .save(
-                    None,
-                    Event {
-                        aggregate_id,
-                        data: serde_json::to_string(&EventDto::from(event))
-                            .map_err(|_| RepositoryError::IO)?,
-                        version: AggregateVersion::from(
-                            u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
-                        ),
-                    },
-                )
-                .await
-                .map_err(|_| RepositoryError::IO)?;
+            EventStore::save(
+                &mut transaction,
+                None,
+                Event {
+                    aggregate_id,
+                    data: serde_json::to_string(&EventDto::from(event))
+                        .map_err(|_| RepositoryError::IO)?,
+                    version: AggregateVersion::from(
+                        u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                    ),
+                },
+            )
+            .await
+            .map_err(|_| RepositoryError::IO)?;
         }
 
         transaction
