@@ -133,7 +133,12 @@ impl IssueRepository for SqliteIssueRepository {
             let version = event.version();
             EventStore::save(
                 &mut transaction,
-                None, // FIXME
+                version.prev().map(|version| {
+                    u32::try_from(u64::from(version))
+                        .map(AggregateVersion::from)
+                        .map_err(|_| RepositoryError::IO)
+                        .expect("parse aggregate version")
+                }),
                 Event {
                     aggregate_id,
                     data: serde_json::to_string(&EventDto::from(event))
