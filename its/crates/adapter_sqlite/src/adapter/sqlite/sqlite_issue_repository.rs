@@ -112,9 +112,32 @@ impl SqliteIssueRepository {
 impl IssueRepository for SqliteIssueRepository {
     async fn find_by_id(
         &self,
-        _issue_id: &IssueId,
+        issue_id: &IssueId,
     ) -> Result<Option<IssueAggregate>, RepositoryError> {
-        todo!()
+        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+        match self
+            .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
+            .await?
+        {
+            Some(aggregate_id) => {
+                let events =
+                    EventStore::find_events_by_aggregate_id(&mut transaction, aggregate_id)
+                        .await
+                        .map_err(|_| RepositoryError::IO)?;
+                let mut issue_aggregate_events = vec![];
+                for event in events {
+                    let dto = serde_json::from_str::<'_, EventDto>(event.data.as_str())
+                        .map_err(|_| RepositoryError::IO)?;
+                    // TODO: check dto.version and aggregate_id
+                    issue_aggregate_events
+                        .push(IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?);
+                }
+                IssueAggregate::from_events(&issue_aggregate_events)
+                    .map(Some)
+                    .map_err(|_| RepositoryError::IO)
+            }
+            None => Ok(None),
+        }
     }
 
     async fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {

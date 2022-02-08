@@ -161,14 +161,14 @@ impl EventStore {
     }
 
     pub async fn find_events_by_aggregate_id(
-        &mut self,
+        transaction: &mut Transaction<'_, Any>,
         aggregate_id: AggregateId,
     ) -> Result<Vec<Event>, EventStoreError> {
         let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
             "../../../sql/select_events_by_aggregate_id.sql"
         ))
         .bind(aggregate_id.to_string())
-        .fetch_all(&mut self.connection)
+        .fetch_all(&mut *transaction)
         .await
         .map_err(|_| EventStoreError::IO)?;
         Ok(event_rows.into_iter().map(Event::from).collect())
@@ -233,13 +233,12 @@ mod tests {
         assert_eq!(event_store.find_events().await?.len(), 1);
 
         // TODO: improve
-        let aggregates = event_store
-            .find_events_by_aggregate_id(aggregate_id)
-            .await?;
+        let aggregates =
+            EventStore::find_events_by_aggregate_id(&mut transaction, aggregate_id).await?;
         assert!(!aggregates.is_empty());
-        let aggregates = event_store
-            .find_events_by_aggregate_id(AggregateId::generate())
-            .await?;
+        let aggregates =
+            EventStore::find_events_by_aggregate_id(&mut transaction, AggregateId::generate())
+                .await?;
         assert!(aggregates.is_empty());
 
         let update_event = Event {
