@@ -68,6 +68,68 @@ impl From<EventRow> for Event {
     }
 }
 
+pub async fn find_events_by_aggregate_id(
+    transaction: &mut Transaction<'_, Any>,
+    aggregate_id: AggregateId,
+) -> Result<Vec<Event>, EventStoreError> {
+    let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
+        "../../../sql/select_events_by_aggregate_id.sql"
+    ))
+    .bind(aggregate_id.to_string())
+    .fetch_all(&mut *transaction)
+    .await
+    .map_err(|_| EventStoreError::IO)?;
+    Ok(event_rows.into_iter().map(Event::from).collect())
+}
+
+pub async fn save(
+    transaction: &mut Transaction<'_, Any>,
+    current_version: Option<AggregateVersion>,
+    event: Event,
+) -> Result<(), EventStoreError> {
+    if let Some(current_version) = current_version {
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/update_aggregate.sql"))
+                .bind(i64::from(event.version))
+                .bind(event.aggregate_id.to_string())
+                .bind(i64::from(current_version));
+        let result = query
+            .execute(&mut *transaction)
+            .await
+            .map_err(|_| EventStoreError::IO)?;
+        if result.rows_affected() == 0 {
+            return Err(EventStoreError::UpdateAggregate);
+        }
+    } else {
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
+                .bind(event.aggregate_id.to_string())
+                .bind(i64::from(event.version));
+        let result = query
+            .execute(&mut *transaction)
+            .await
+            .map_err(|_| EventStoreError::IO)?;
+        if result.rows_affected() == 0 {
+            return Err(EventStoreError::InsertAggregate);
+        }
+    }
+
+    let query: Query<Any, AnyArguments> =
+        sqlx::query(include_str!("../../../sql/insert_event.sql"))
+            .bind(event.aggregate_id.to_string())
+            .bind(i64::from(event.version))
+            .bind(event.data);
+    let result = query
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| EventStoreError::IO)?;
+    if result.rows_affected() == 0 {
+        return Err(EventStoreError::InsertEvent);
+    }
+
+    Ok(())
+}
+
 pub struct EventStore {
     connection: PoolConnection<Any>,
 }
@@ -91,54 +153,6 @@ impl EventStore {
         Ok(Self { connection: conn })
     }
 
-    pub async fn save(
-        transaction: &mut Transaction<'_, Any>,
-        current_version: Option<AggregateVersion>,
-        event: Event,
-    ) -> Result<(), EventStoreError> {
-        if let Some(current_version) = current_version {
-            let query: Query<Any, AnyArguments> =
-                sqlx::query(include_str!("../../../sql/update_aggregate.sql"))
-                    .bind(i64::from(event.version))
-                    .bind(event.aggregate_id.to_string())
-                    .bind(i64::from(current_version));
-            let result = query
-                .execute(&mut *transaction)
-                .await
-                .map_err(|_| EventStoreError::IO)?;
-            if result.rows_affected() == 0 {
-                return Err(EventStoreError::UpdateAggregate);
-            }
-        } else {
-            let query: Query<Any, AnyArguments> =
-                sqlx::query(include_str!("../../../sql/insert_aggregate.sql"))
-                    .bind(event.aggregate_id.to_string())
-                    .bind(i64::from(event.version));
-            let result = query
-                .execute(&mut *transaction)
-                .await
-                .map_err(|_| EventStoreError::IO)?;
-            if result.rows_affected() == 0 {
-                return Err(EventStoreError::InsertAggregate);
-            }
-        }
-
-        let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/insert_event.sql"))
-                .bind(event.aggregate_id.to_string())
-                .bind(i64::from(event.version))
-                .bind(event.data);
-        let result = query
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| EventStoreError::IO)?;
-        if result.rows_affected() == 0 {
-            return Err(EventStoreError::InsertEvent);
-        }
-
-        Ok(())
-    }
-
     pub async fn find_aggregate_ids(&mut self) -> Result<Vec<AggregateId>, EventStoreError> {
         let aggregate_rows: Vec<AggregateRow> =
             sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
@@ -157,20 +171,6 @@ impl EventStore {
                 .fetch_all(&mut self.connection)
                 .await
                 .map_err(|_| EventStoreError::IO)?;
-        Ok(event_rows.into_iter().map(Event::from).collect())
-    }
-
-    pub async fn find_events_by_aggregate_id(
-        transaction: &mut Transaction<'_, Any>,
-        aggregate_id: AggregateId,
-    ) -> Result<Vec<Event>, EventStoreError> {
-        let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
-            "../../../sql/select_events_by_aggregate_id.sql"
-        ))
-        .bind(aggregate_id.to_string())
-        .fetch_all(&mut *transaction)
-        .await
-        .map_err(|_| EventStoreError::IO)?;
         Ok(event_rows.into_iter().map(Event::from).collect())
     }
 
@@ -222,7 +222,7 @@ mod tests {
             data: r#"{"type":"issue_created"}"#.to_string(),
             version,
         };
-        EventStore::save(&mut transaction, None, create_event).await?;
+        save(&mut transaction, None, create_event).await?;
 
         transaction.commit().await?;
         let mut transaction = pool.begin().await?;
@@ -233,12 +233,10 @@ mod tests {
         assert_eq!(event_store.find_events().await?.len(), 1);
 
         // TODO: improve
-        let aggregates =
-            EventStore::find_events_by_aggregate_id(&mut transaction, aggregate_id).await?;
+        let aggregates = find_events_by_aggregate_id(&mut transaction, aggregate_id).await?;
         assert!(!aggregates.is_empty());
         let aggregates =
-            EventStore::find_events_by_aggregate_id(&mut transaction, AggregateId::generate())
-                .await?;
+            find_events_by_aggregate_id(&mut transaction, AggregateId::generate()).await?;
         assert!(aggregates.is_empty());
 
         let update_event = Event {
@@ -246,7 +244,7 @@ mod tests {
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: AggregateVersion::from(2_u32),
         };
-        EventStore::save(&mut transaction, Some(version), update_event).await?;
+        save(&mut transaction, Some(version), update_event).await?;
         transaction.commit().await?;
         assert_eq!(event_store.find_events().await?.len(), 2);
 

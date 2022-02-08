@@ -23,7 +23,7 @@ use crate::{
     event_dto::EventDto,
 };
 
-use super::event_store::{AggregateId, EventStore};
+use super::event_store::{self, AggregateId};
 
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
@@ -121,7 +121,7 @@ impl IssueRepository for SqliteIssueRepository {
         {
             Some(aggregate_id) => {
                 let events =
-                    EventStore::find_events_by_aggregate_id(&mut transaction, aggregate_id)
+                    event_store::find_events_by_aggregate_id(&mut transaction, aggregate_id)
                         .await
                         .map_err(|_| RepositoryError::IO)?;
                 let mut issue_aggregate_events = vec![];
@@ -154,7 +154,7 @@ impl IssueRepository for SqliteIssueRepository {
         {
             // update
             let version = event.version();
-            EventStore::save(
+            event_store::save(
                 &mut transaction,
                 version.prev().map(|version| {
                     u32::try_from(u64::from(version))
@@ -180,7 +180,7 @@ impl IssueRepository for SqliteIssueRepository {
                 .await?;
 
             let version = event.version();
-            EventStore::save(
+            event_store::save(
                 &mut transaction,
                 None,
                 Event {
