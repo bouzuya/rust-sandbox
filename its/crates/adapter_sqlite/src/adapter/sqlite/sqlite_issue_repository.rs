@@ -35,6 +35,16 @@ struct IssueIdRow {
     aggregate_id: String,
 }
 
+impl IssueIdRow {
+    fn issue_id(&self) -> IssueId {
+        IssueId::from_str(self.issue_id.as_str()).unwrap()
+    }
+
+    fn aggregate_id(&self) -> AggregateId {
+        AggregateId::from_str(self.aggregate_id.as_str()).unwrap()
+    }
+}
+
 impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
     fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
@@ -83,7 +93,19 @@ impl SqliteIssueRepository {
                 .await
                 .map_err(|_| RepositoryError::IO)?;
 
-        Ok(issue_id_row.map(|row| AggregateId::from_str(row.aggregate_id.as_str()).unwrap()))
+        Ok(issue_id_row.map(|row| row.aggregate_id()))
+    }
+
+    async fn find_max_issue_id(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+    ) -> Result<Option<IssueId>, RepositoryError> {
+        let issue_id_row: Option<IssueIdRow> =
+            sqlx::query_as(include_str!("../../../sql/select_max_issue_id.sql"))
+                .fetch_optional(transaction)
+                .await
+                .map_err(|_| RepositoryError::IO)?;
+        Ok(issue_id_row.map(|row| row.issue_id()))
     }
 
     async fn insert_issue_id(
@@ -141,7 +163,11 @@ impl IssueRepository for SqliteIssueRepository {
     }
 
     async fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
-        todo!()
+        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+        Ok(match self.find_max_issue_id(&mut transaction).await? {
+            Some(issue_id) => self.find_by_id(&issue_id).await?,
+            None => None,
+        })
     }
 
     async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
