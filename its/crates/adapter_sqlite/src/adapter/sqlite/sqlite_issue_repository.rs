@@ -173,9 +173,9 @@ impl IssueRepository for SqliteIssueRepository {
     async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
         let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
 
-        let issue_id = event.issue_id();
+        let issue_id = event.issue_id().clone();
         if let Some(aggregate_id) = self
-            .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
+            .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
             .await?
         {
             // update
@@ -202,9 +202,6 @@ impl IssueRepository for SqliteIssueRepository {
         } else {
             // create
             let aggregate_id = AggregateId::generate();
-            self.insert_issue_id(&mut transaction, issue_id, aggregate_id)
-                .await?;
-
             let version = event.version();
             event_store::save(
                 &mut transaction,
@@ -220,12 +217,58 @@ impl IssueRepository for SqliteIssueRepository {
             )
             .await
             .map_err(|_| RepositoryError::IO)?;
+
+            self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
+                .await?;
         }
 
         transaction
             .commit()
             .await
             .map_err(|_| RepositoryError::IO)?;
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use domain::aggregate::{IssueAggregateCommand, IssueAggregateCreateIssue};
+    use limited_date_time::Instant;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let (_, issue_aggregate_event) = IssueAggregate::transaction(
+            IssueAggregateCommand::Create(IssueAggregateCreateIssue {
+                issue_number: "123".parse()?,
+                issue_title: "title".parse()?,
+                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
+                at: Instant::now(),
+            }),
+        )?;
+
+        let temp_dir = tempdir()?;
+
+        // TODO: migrate
+        let sqlite_path = temp_dir.path().join("its.sqlite");
+        let path = sqlite_path.as_path();
+        let options = SqliteConnectOptions::from_str(&format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().with_context(|| "invalid path")?
+        ))?
+        .journal_mode(SqliteJournalMode::Delete);
+        let options = AnyConnectOptions::from(options);
+        let pool = AnyPool::connect_with(options).await?;
+        let mut transaction = pool.begin().await?;
+        event_store::migrate(&mut transaction).await?;
+        transaction.commit().await?;
+
+        let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
+
+        issue_repository.save(issue_aggregate_event).await?;
+
         Ok(())
     }
 }
