@@ -7,7 +7,6 @@ pub use self::aggregate_id::*;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_store_error::EventStoreError;
-use std::path::PathBuf;
 use std::{path::Path, str::FromStr};
 
 use anyhow::Context;
@@ -130,61 +129,52 @@ pub async fn save(
     Ok(())
 }
 
-pub struct EventStore {
-    connection: PoolConnection<Any>,
+pub async fn migrate(transaction: &mut Transaction<'_, Any>) -> Result<(), EventStoreError> {
+    sqlx::query(include_str!("../../../sql/create_aggregates.sql"))
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| EventStoreError::MigrateCreateAggregateTable)?;
+    sqlx::query(include_str!("../../../sql/create_events.sql"))
+        .execute(&mut *transaction)
+        .await
+        .map_err(|_| EventStoreError::MigrateCreateEventTable)?;
+    Ok(())
 }
 
-impl EventStore {
-    pub async fn new(path_buf: PathBuf) -> Result<Self, EventStoreError> {
-        let mut conn = Self::connection(path_buf.as_path())
+pub async fn find_aggregate_ids(
+    transaction: &mut Transaction<'_, Any>,
+) -> Result<Vec<AggregateId>, EventStoreError> {
+    let aggregate_rows: Vec<AggregateRow> =
+        sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
+            .fetch_all(&mut *transaction)
             .await
             .map_err(|_| EventStoreError::IO)?;
+    aggregate_rows
+        .into_iter()
+        .map(|row| AggregateId::from_str(row.id.as_str()))
+        .collect()
+}
 
-        // migrate
-        sqlx::query(include_str!("../../../sql/create_aggregates.sql"))
-            .execute(&mut conn)
-            .await
-            .map_err(|_| EventStoreError::MigrateCreateAggregateTable)?;
-        sqlx::query(include_str!("../../../sql/create_events.sql"))
-            .execute(&mut conn)
-            .await
-            .map_err(|_| EventStoreError::MigrateCreateEventTable)?;
+pub async fn find_events(
+    transaction: &mut Transaction<'_, Any>,
+) -> Result<Vec<Event>, EventStoreError> {
+    let event_rows: Vec<EventRow> = sqlx::query_as(include_str!("../../../sql/select_events.sql"))
+        .fetch_all(&mut *transaction)
+        .await
+        .map_err(|_| EventStoreError::IO)?;
+    Ok(event_rows.into_iter().map(Event::from).collect())
+}
 
-        Ok(Self { connection: conn })
-    }
-
-    pub async fn find_aggregate_ids(&mut self) -> Result<Vec<AggregateId>, EventStoreError> {
-        let aggregate_rows: Vec<AggregateRow> =
-            sqlx::query_as(include_str!("../../../sql/select_aggregates.sql"))
-                .fetch_all(&mut self.connection)
-                .await
-                .map_err(|_| EventStoreError::IO)?;
-        aggregate_rows
-            .into_iter()
-            .map(|row| AggregateId::from_str(row.id.as_str()))
-            .collect()
-    }
-
-    pub async fn find_events(&mut self) -> Result<Vec<Event>, EventStoreError> {
-        let event_rows: Vec<EventRow> =
-            sqlx::query_as(include_str!("../../../sql/select_events.sql"))
-                .fetch_all(&mut self.connection)
-                .await
-                .map_err(|_| EventStoreError::IO)?;
-        Ok(event_rows.into_iter().map(Event::from).collect())
-    }
-
-    async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().with_context(|| "invalid path")?
-        ))?
-        .journal_mode(SqliteJournalMode::Delete);
-        let options = AnyConnectOptions::from(options);
-        let pool = AnyPool::connect_with(options).await?;
-        let conn = pool.acquire().await?;
-        Ok(conn)
-    }
+async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
+    let options = SqliteConnectOptions::from_str(&format!(
+        "sqlite:{}?mode=rwc",
+        path.to_str().with_context(|| "invalid path")?
+    ))?
+    .journal_mode(SqliteJournalMode::Delete);
+    let options = AnyConnectOptions::from(options);
+    let pool = AnyPool::connect_with(options).await?;
+    let conn = pool.acquire().await?;
+    Ok(conn)
 }
 
 #[cfg(test)]
@@ -197,8 +187,6 @@ mod tests {
     async fn read_and_write_test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
         let sqlite_path = temp_dir.path().join("its.sqlite");
-        let mut event_store = EventStore::new(sqlite_path.clone()).await?;
-
         let path = sqlite_path.as_path();
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
@@ -209,10 +197,12 @@ mod tests {
         let pool = AnyPool::connect_with(options).await?;
         let mut transaction = pool.begin().await?;
 
-        let aggregates = event_store.find_aggregate_ids().await?;
+        migrate(&mut transaction).await?;
+
+        let aggregates = find_aggregate_ids(&mut transaction).await?;
         assert!(aggregates.is_empty());
 
-        let events = event_store.find_events().await?;
+        let events = find_events(&mut transaction).await?;
         assert!(events.is_empty());
 
         let aggregate_id = AggregateId::generate();
@@ -228,9 +218,9 @@ mod tests {
         let mut transaction = pool.begin().await?;
 
         // TODO: improve
-        let aggregates = event_store.find_aggregate_ids().await?;
+        let aggregates = find_aggregate_ids(&mut transaction).await?;
         assert!(!aggregates.is_empty());
-        assert_eq!(event_store.find_events().await?.len(), 1);
+        assert_eq!(find_events(&mut transaction).await?.len(), 1);
 
         // TODO: improve
         let aggregates = find_events_by_aggregate_id(&mut transaction, aggregate_id).await?;
@@ -246,7 +236,9 @@ mod tests {
         };
         save(&mut transaction, Some(version), update_event).await?;
         transaction.commit().await?;
-        assert_eq!(event_store.find_events().await?.len(), 2);
+
+        let mut transaction = pool.begin().await?;
+        assert_eq!(find_events(&mut transaction).await?.len(), 2);
 
         Ok(())
     }
