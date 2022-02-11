@@ -232,28 +232,16 @@ impl IssueRepository for SqliteIssueRepository {
 
 #[cfg(test)]
 mod tests {
-    use domain::aggregate::{IssueAggregateCommand, IssueAggregateCreateIssue};
+    use domain::aggregate::{
+        IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateFinishIssue,
+    };
     use limited_date_time::Instant;
     use tempfile::tempdir;
 
     use super::*;
 
-    #[tokio::test]
-    async fn test() -> anyhow::Result<()> {
-        let (issue, issue_aggregate_event) = IssueAggregate::transaction(
-            IssueAggregateCommand::Create(IssueAggregateCreateIssue {
-                issue_number: "123".parse()?,
-                issue_title: "title".parse()?,
-                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
-                at: Instant::now(),
-            }),
-        )?;
-
-        let temp_dir = tempdir()?;
-
-        // TODO: migrate
-        let sqlite_path = temp_dir.path().join("its.sqlite");
-        let path = sqlite_path.as_path();
+    // TODO:
+    async fn migrate(path: &Path) -> anyhow::Result<()> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
             path.to_str().with_context(|| "invalid path")?
@@ -264,13 +252,49 @@ mod tests {
         let mut transaction = pool.begin().await?;
         event_store::migrate(&mut transaction).await?;
         transaction.commit().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+
+        let sqlite_path = temp_dir.path().join("its.sqlite");
+        migrate(sqlite_path.as_path()).await?;
 
         let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
 
-        issue_repository.save(issue_aggregate_event).await?;
+        // create
+        let (created, created_event) = IssueAggregate::transaction(IssueAggregateCommand::Create(
+            IssueAggregateCreateIssue {
+                issue_number: "123".parse()?,
+                issue_title: "title".parse()?,
+                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
+                at: Instant::now(),
+            },
+        ))?;
+        issue_repository.save(created_event).await?;
 
+        // last_created
         let last_created = issue_repository.last_created().await?;
-        assert_eq!(Some(issue), last_created);
+        assert_eq!(Some(created.clone()), last_created);
+
+        // find_by_id
+        let found = issue_repository.find_by_id(created.id()).await?;
+        assert_eq!(Some(created), found);
+        let found = found.ok_or(anyhow::anyhow!("found is not Some"))?;
+
+        // update
+        let (updated, updated_event) = IssueAggregate::transaction(IssueAggregateCommand::Finish(
+            IssueAggregateFinishIssue {
+                issue: found,
+                at: Instant::now(),
+            },
+        ))?;
+        issue_repository.save(updated_event).await?;
+
+        let found = issue_repository.find_by_id(updated.id()).await?;
+        assert_eq!(Some(updated), found);
 
         Ok(())
     }
