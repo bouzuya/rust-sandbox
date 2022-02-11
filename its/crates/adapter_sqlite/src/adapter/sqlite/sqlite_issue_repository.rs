@@ -240,7 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let (_, issue_aggregate_event) = IssueAggregate::transaction(
+        let (issue, issue_aggregate_event) = IssueAggregate::transaction(
             IssueAggregateCommand::Create(IssueAggregateCreateIssue {
                 issue_number: "123".parse()?,
                 issue_title: "title".parse()?,
@@ -268,6 +268,9 @@ mod tests {
         let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
 
         issue_repository.save(issue_aggregate_event).await?;
+
+        let last_created = issue_repository.last_created().await?;
+        assert_eq!(Some(issue), last_created);
 
         Ok(())
     }

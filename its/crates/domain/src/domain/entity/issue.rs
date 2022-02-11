@@ -8,7 +8,7 @@ pub enum IssueError {
     AlreadyFinished,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Issue {
     id: IssueId,
     status: IssueStatus,

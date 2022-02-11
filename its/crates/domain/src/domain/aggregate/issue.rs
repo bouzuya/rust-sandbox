@@ -14,7 +14,7 @@ use crate::{
     IssueId, Version,
 };
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueAggregate {
     issue: Issue,
     version: Version,
