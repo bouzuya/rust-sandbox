@@ -13,8 +13,8 @@ struct App {
 
 impl App {
     async fn new() -> anyhow::Result<Self> {
-        let file_path = PathBuf::from_str("its.sqlite")?;
-        let issue_repository = SqliteIssueRepository::new(file_path).await?;
+        let data_dir = PathBuf::from_str("its")?;
+        let issue_repository = SqliteIssueRepository::new(data_dir).await?;
         Ok(Self { issue_repository })
     }
 }

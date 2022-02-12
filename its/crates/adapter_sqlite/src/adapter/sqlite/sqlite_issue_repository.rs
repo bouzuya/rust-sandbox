@@ -1,4 +1,5 @@
 use std::{
+    fs,
     path::{Path, PathBuf},
     str::FromStr,
 };
@@ -66,8 +67,11 @@ impl SqliteIssueRepository {
         Ok(pool)
     }
 
-    pub async fn new(path_buf: PathBuf) -> Result<Self, RepositoryError> {
-        let pool = Self::connection(path_buf.as_path())
+    pub async fn new(data_dir: PathBuf) -> Result<Self, RepositoryError> {
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path()).map_err(|_| RepositoryError::IO)?;
+        }
+        let pool = Self::connection(data_dir.join("command.sqlite").as_path())
             .await
             .map_err(|_| RepositoryError::IO)?;
 
@@ -258,7 +262,7 @@ mod tests {
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
 
-        let sqlite_path = temp_dir.path().join("its.sqlite");
+        let sqlite_path = temp_dir.path().join("its");
         let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
 
         // create

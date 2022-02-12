@@ -186,7 +186,7 @@ mod tests {
     #[tokio::test]
     async fn read_and_write_test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
-        let sqlite_path = temp_dir.path().join("its.sqlite");
+        let sqlite_path = temp_dir.path().join("command.sqlite");
         let path = sqlite_path.as_path();
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
