@@ -70,11 +70,25 @@ impl SqliteIssueRepository {
         let pool = Self::connection(path_buf.as_path())
             .await
             .map_err(|_| RepositoryError::IO)?;
-        let mut conn = pool.acquire().await.map_err(|_| RepositoryError::IO)?;
+
+        // FIXME
+        let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
+        event_store::migrate(&mut transaction)
+            .await
+            .map_err(|_| RepositoryError::IO)?;
+        transaction
+            .commit()
+            .await
+            .map_err(|_| RepositoryError::IO)?;
 
         // migrate
+        let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
         sqlx::query(include_str!("../../../sql/create_issue_ids.sql"))
-            .execute(&mut conn)
+            .execute(&mut transaction)
+            .await
+            .map_err(|_| RepositoryError::IO)?;
+        transaction
+            .commit()
             .await
             .map_err(|_| RepositoryError::IO)?;
 
@@ -240,28 +254,11 @@ mod tests {
 
     use super::*;
 
-    // TODO:
-    async fn migrate(path: &Path) -> anyhow::Result<()> {
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().with_context(|| "invalid path")?
-        ))?
-        .journal_mode(SqliteJournalMode::Delete);
-        let options = AnyConnectOptions::from(options);
-        let pool = AnyPool::connect_with(options).await?;
-        let mut transaction = pool.begin().await?;
-        event_store::migrate(&mut transaction).await?;
-        transaction.commit().await?;
-        Ok(())
-    }
-
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
 
         let sqlite_path = temp_dir.path().join("its.sqlite");
-        migrate(sqlite_path.as_path()).await?;
-
         let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
 
         // create

@@ -1,6 +1,6 @@
-use std::str::FromStr;
+use std::{path::PathBuf, str::FromStr};
 
-use adapter_fs::FsIssueRepository;
+use adapter_sqlite::SqliteIssueRepository;
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{
     CreateIssue, FinishIssue, HasIssueManagementContextUseCase, HasIssueRepository,
@@ -8,19 +8,19 @@ use use_case::{
 };
 
 struct App {
-    issue_repository: FsIssueRepository,
+    issue_repository: SqliteIssueRepository,
 }
 
 impl App {
-    fn new() -> Self {
-        Self {
-            issue_repository: FsIssueRepository::default(),
-        }
+    async fn new() -> anyhow::Result<Self> {
+        let file_path = PathBuf::from_str("its.sqlite")?;
+        let issue_repository = SqliteIssueRepository::new(file_path).await?;
+        Ok(Self { issue_repository })
     }
 }
 
 impl HasIssueRepository for App {
-    type IssueRepository = FsIssueRepository;
+    type IssueRepository = SqliteIssueRepository;
 
     fn issue_repository(&self) -> &Self::IssueRepository {
         &self.issue_repository
@@ -45,7 +45,7 @@ fn issue_create(
         .build()
         .unwrap()
         .block_on(async {
-            let app = App::new();
+            let app = App::new().await?;
 
             let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
@@ -69,7 +69,7 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
         .build()
         .unwrap()
         .block_on(async {
-            let app = App::new();
+            let app = App::new().await?;
 
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let command = IssueManagementContextCommand::FinishIssue(FinishIssue { issue_id });
@@ -89,7 +89,7 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
         .build()
         .unwrap()
         .block_on(async {
-            let app = App::new();
+            let app = App::new().await?;
 
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
