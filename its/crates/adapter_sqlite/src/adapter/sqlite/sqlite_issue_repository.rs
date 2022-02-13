@@ -56,6 +56,7 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
 }
 
 impl SqliteIssueRepository {
+    // TODO: anyhow::Result
     async fn connection(path: &Path) -> anyhow::Result<AnyPool> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
@@ -200,12 +201,14 @@ impl IssueRepository for SqliteIssueRepository {
             let version = event.version();
             event_store::save(
                 &mut transaction,
-                version.prev().map(|version| {
-                    u32::try_from(u64::from(version))
-                        .map(AggregateVersion::from)
-                        .map_err(|_| RepositoryError::IO)
-                        .expect("parse aggregate version")
-                }),
+                version
+                    .prev()
+                    .map(|version| {
+                        u32::try_from(u64::from(version))
+                            .map(AggregateVersion::from)
+                            .map_err(|_| RepositoryError::IO)
+                    })
+                    .transpose()?,
                 Event {
                     aggregate_id,
                     data: serde_json::to_string(&EventDto::from(event))
