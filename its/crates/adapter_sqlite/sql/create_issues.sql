@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS issues (
+  id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  title TEXT NOT NULL,
+  due INTEGER,
+  CONSTRAINT issues_pk PRIMARY KEY (id)
+)
