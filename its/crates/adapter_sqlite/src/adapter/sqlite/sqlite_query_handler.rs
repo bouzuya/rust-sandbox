@@ -1,9 +1,11 @@
 use std::{fs, path::Path, str::FromStr};
 
+use domain::aggregate::IssueAggregate;
 use sqlx::{
-    any::AnyConnectOptions,
+    any::{AnyArguments, AnyConnectOptions},
+    query::Query,
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    AnyPool,
+    Any, AnyPool, Executor,
 };
 use thiserror::Error;
 
@@ -66,6 +68,29 @@ impl SqliteQueryHandler {
         Ok(Self { pool })
     }
 
+    pub async fn save_issue(&self, issue: IssueAggregate) -> anyhow::Result<()> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/query/insert_issue.sql"))
+                .bind(issue.issue().id().to_string())
+                .bind(issue.issue().status().to_string())
+                .bind(issue.issue().title().to_string())
+                .bind(issue.issue().due().map(|d| d.to_string()));
+        query
+            .execute(&mut transaction)
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+        transaction
+            .commit()
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+        Ok(())
+    }
+
     pub async fn issue_list(&self) -> anyhow::Result<Vec<QueryIssue>> {
         Ok(vec![QueryIssue {
             id: "123".to_string(),
@@ -78,15 +103,30 @@ impl SqliteQueryHandler {
 
 #[cfg(test)]
 mod tests {
+    use domain::aggregate::{IssueAggregateCommand, IssueAggregateCreateIssue};
+    use limited_date_time::Instant;
+
     use super::*;
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
 
+        let (issue, _) = IssueAggregate::transaction(IssueAggregateCommand::Create(
+            IssueAggregateCreateIssue {
+                issue_number: "123".parse()?,
+                issue_title: "title".parse()?,
+                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
+                at: Instant::now(),
+            },
+        ))?;
+
         // TODO: create command db
         // TODO: update query db
         let query_handler = SqliteQueryHandler::new(temp_dir.path()).await?;
+
+        query_handler.save_issue(issue).await?;
+
         let issues = query_handler.issue_list().await?;
         assert_eq!(1, issues.len());
         let issue = issues[0].clone();
