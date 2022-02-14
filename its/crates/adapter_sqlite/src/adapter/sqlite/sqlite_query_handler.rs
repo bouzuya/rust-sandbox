@@ -75,6 +75,13 @@ impl SqliteQueryHandler {
             .await
             .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
         let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/query/delete_issue.sql"))
+                .bind(issue.issue().id().to_string());
+        query
+            .execute(&mut transaction)
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+        let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/insert_issue.sql"))
                 .bind(issue.issue().id().to_string())
                 .bind(issue.issue().status().to_string())
@@ -121,10 +128,9 @@ mod tests {
             },
         ))?;
 
-        // TODO: create command db
-        // TODO: update query db
         let query_handler = SqliteQueryHandler::new(temp_dir.path()).await?;
 
+        query_handler.save_issue(issue.clone()).await?;
         query_handler.save_issue(issue).await?;
 
         let issues = query_handler.issue_list().await?;
