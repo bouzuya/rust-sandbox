@@ -22,6 +22,7 @@ use use_case::{IssueRepository, RepositoryError};
 use crate::{
     adapter::sqlite::event_store::{AggregateVersion, Event},
     event_dto::EventDto,
+    SqliteQueryHandler,
 };
 
 use super::event_store::{self, AggregateId};
@@ -29,6 +30,8 @@ use super::event_store::{self, AggregateId};
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
     pool: AnyPool,
+    // update query db
+    query_handler: SqliteQueryHandler,
 }
 
 struct IssueIdRow {
@@ -76,6 +79,10 @@ impl SqliteIssueRepository {
             .await
             .map_err(|_| RepositoryError::IO)?;
 
+        let query_handler = SqliteQueryHandler::new(data_dir.as_path())
+            .await
+            .map_err(|_| RepositoryError::IO)?;
+
         // FIXME
         let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
         event_store::migrate(&mut transaction)
@@ -97,7 +104,10 @@ impl SqliteIssueRepository {
             .await
             .map_err(|_| RepositoryError::IO)?;
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            query_handler,
+        })
     }
 
     async fn find_aggregate_id_by_issue_id(
@@ -247,6 +257,19 @@ impl IssueRepository for SqliteIssueRepository {
             .commit()
             .await
             .map_err(|_| RepositoryError::IO)?;
+
+        {
+            // update query db
+            let issue = self
+                .find_by_id(&issue_id)
+                .await?
+                .ok_or(RepositoryError::IO)?;
+            self.query_handler
+                .save_issue(issue)
+                .await
+                .map_err(|_| RepositoryError::IO)?;
+        }
+
         Ok(())
     }
 }
