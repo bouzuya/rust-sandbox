@@ -3,15 +3,15 @@ use std::{fs, path::Path, str::FromStr};
 use domain::aggregate::IssueAggregate;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
-    query::Query,
+    query::{Query, QueryAs},
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    Any, AnyPool, Executor,
+    Any, AnyPool, Executor, FromRow,
 };
 use thiserror::Error;
 
 // QueryIssue
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, FromRow)]
 struct QueryIssue {
     id: String,
     status: String,
@@ -99,12 +99,16 @@ impl SqliteQueryHandler {
     }
 
     pub async fn issue_list(&self) -> anyhow::Result<Vec<QueryIssue>> {
-        Ok(vec![QueryIssue {
-            id: "123".to_string(),
-            status: "todo".to_string(),
-            title: "title".to_string(),
-            due: Some("2021-02-03T04:05:06Z".to_string()),
-        }])
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+        let issues: Vec<QueryIssue> =
+            sqlx::query_as(include_str!("../../../sql/query/select_issues.sql"))
+                .fetch_all(&mut transaction)
+                .await?;
+        Ok(issues)
     }
 }
 
