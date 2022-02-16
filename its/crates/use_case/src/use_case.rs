@@ -83,9 +83,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             .last_created()
             .await
             .map_err(|_| IssueManagementContextError::Unknown)?
-            .map(|issue| issue.id().issue_number())
-            .unwrap_or_else(IssueNumber::start_number)
-            .next_number();
+            .map(|issue| issue.id().issue_number().next_number())
+            .unwrap_or_else(IssueNumber::start_number);
         let at = Instant::now();
 
         // pure
