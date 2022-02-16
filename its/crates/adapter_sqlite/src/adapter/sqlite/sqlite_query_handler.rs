@@ -1,6 +1,7 @@
 use std::{fs, path::Path, str::FromStr};
 
 use domain::aggregate::IssueAggregate;
+use serde::Serialize;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
     query::Query,
@@ -11,7 +12,7 @@ use thiserror::Error;
 
 // QueryIssue
 
-#[derive(Clone, Debug, FromRow)]
+#[derive(Clone, Debug, FromRow, Serialize)]
 pub struct QueryIssue {
     pub id: String,
     pub status: String,

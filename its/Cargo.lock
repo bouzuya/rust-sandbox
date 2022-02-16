@@ -70,6 +70,7 @@ dependencies = [
  "assert_cmd",
  "domain",
  "predicates",
+ "serde_json",
  "tokio",
  "use_case",
 ]

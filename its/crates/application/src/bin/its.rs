@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use adapter_sqlite::SqliteIssueRepository;
+use adapter_sqlite::{SqliteIssueRepository, SqliteQueryHandler};
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{
     CreateIssue, FinishIssue, HasIssueManagementContextUseCase, HasIssueRepository,
@@ -9,13 +9,18 @@ use use_case::{
 
 struct App {
     issue_repository: SqliteIssueRepository,
+    query_handler: SqliteQueryHandler,
 }
 
 impl App {
     async fn new() -> anyhow::Result<Self> {
         let data_dir = PathBuf::from_str("its")?;
+        let query_handler = SqliteQueryHandler::new(data_dir.as_path()).await?;
         let issue_repository = SqliteIssueRepository::new(data_dir).await?;
-        Ok(Self { issue_repository })
+        Ok(Self {
+            issue_repository,
+            query_handler,
+        })
     }
 }
 
@@ -42,8 +47,7 @@ fn issue_create(
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             let app = App::new().await?;
 
@@ -66,8 +70,7 @@ fn issue_create(
 fn issue_finish(issue_id: String) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             let app = App::new().await?;
 
@@ -82,12 +85,25 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
         })
 }
 
+#[argopt::subcmd(name = "issue-list")]
+fn issue_list() -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let app = App::new().await?;
+
+            let issues = app.query_handler.issue_list().await?;
+            println!("{}", serde_json::to_string(&issues)?);
+            Ok(())
+        })
+}
+
 #[argopt::subcmd(name = "issue-update")]
 fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
-        .build()
-        .unwrap()
+        .build()?
         .block_on(async {
             let app = App::new().await?;
 
@@ -106,5 +122,5 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
         })
 }
 
-#[argopt::cmd_group(commands = [issue_create, issue_finish, issue_update])]
+#[argopt::cmd_group(commands = [issue_create, issue_finish, issue_list, issue_update])]
 fn main() -> anyhow::Result<()> {}
