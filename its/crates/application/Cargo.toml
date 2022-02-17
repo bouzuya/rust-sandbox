@@ -13,8 +13,10 @@ domain = { path = "../domain" }
 serde_json = "1.0.74"
 tokio = { version = "1.15.0", features = ["full"] }
 use_case = { path = "../use_case" }
+xdg = "2.4.0"
 
 [dev-dependencies]
 anyhow = "1.0.52"
 assert_cmd = "2.0.2"
 predicates = "2.1.0"
+tempfile = "3.3.0"

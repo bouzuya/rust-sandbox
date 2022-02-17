@@ -6,6 +6,7 @@ use use_case::{
     CreateIssue, FinishIssue, HasIssueManagementContextUseCase, HasIssueRepository,
     IssueManagementContextCommand, IssueManagementContextUseCase, UpdateIssue,
 };
+use xdg::BaseDirectories;
 
 struct App {
     issue_repository: SqliteIssueRepository,
@@ -14,13 +15,20 @@ struct App {
 
 impl App {
     async fn new() -> anyhow::Result<Self> {
-        let data_dir = PathBuf::from_str("its")?;
+        let data_dir = Self::state_dir()?;
         let query_handler = SqliteQueryHandler::new(data_dir.as_path()).await?;
         let issue_repository = SqliteIssueRepository::new(data_dir).await?;
         Ok(Self {
             issue_repository,
             query_handler,
         })
+    }
+
+    fn state_dir() -> anyhow::Result<PathBuf> {
+        // $XDG_STATE_HOME/$prefix
+        // $HOME/.local/state/$prefix
+        let prefix = "net.bouzuya.rust-sandbox.its";
+        Ok(BaseDirectories::with_prefix(prefix)?.get_state_home())
     }
 }
 
