@@ -14,4 +14,7 @@ its: issue tracking system
   - 完了状況 (未完了・完了)
   - 期限
 - feature: issue link
-- メモ: 2022-02-17T06:24:29+09:00
+- ☐ command: ある issue が block している issue を指定して issue link を作成する
+- ☐ command: ある issue link を削除する
+- ☐ query: ある issue が block している issue の一覧を取得する
+- ☐ query: ある issue を block している issue の一覧を取得する
