@@ -19,6 +19,24 @@ pub enum IssueManagementContextCommand {
     UpdateIssue(UpdateIssue),
 }
 
+impl From<CreateIssue> for IssueManagementContextCommand {
+    fn from(command: CreateIssue) -> Self {
+        Self::CreateIssue(command)
+    }
+}
+
+impl From<FinishIssue> for IssueManagementContextCommand {
+    fn from(command: FinishIssue) -> Self {
+        Self::FinishIssue(command)
+    }
+}
+
+impl From<UpdateIssue> for IssueManagementContextCommand {
+    fn from(command: UpdateIssue) -> Self {
+        Self::UpdateIssue(command)
+    }
+}
+
 #[derive(Debug)]
 pub struct CreateIssue {
     pub issue_title: IssueTitle,
@@ -59,21 +77,39 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
     ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
         match command {
             IssueManagementContextCommand::CreateIssue(command) => {
-                let event = self.create_issue_use_case(command).await?;
+                let event = self.handle_create_issue(command).await?;
                 Ok(IssueManagementContextEvent::IssueCreated(event))
             }
             IssueManagementContextCommand::FinishIssue(command) => {
-                let event = self.finish_issue_use_case(command).await?;
+                let event = self.handle_finish_issue(command).await?;
                 Ok(IssueManagementContextEvent::IssueFinished(event))
             }
             IssueManagementContextCommand::UpdateIssue(command) => {
-                let event = self.update_issue_use_case(command).await?;
+                let event = self.handle_update_issue(command).await?;
                 Ok(IssueManagementContextEvent::IssueUpdated(event))
             }
         }
     }
 
-    async fn create_issue_use_case(
+    fn create_issue(&self, issue_title: IssueTitle, issue_due: Option<IssueDue>) -> CreateIssue {
+        CreateIssue {
+            issue_title,
+            issue_due,
+        }
+    }
+
+    fn finish_issue(&self, issue_id: IssueId) -> FinishIssue {
+        FinishIssue { issue_id }
+    }
+
+    fn update_issue(&self, issue_id: IssueId, issue_due: Option<IssueDue>) -> UpdateIssue {
+        UpdateIssue {
+            issue_id,
+            issue_due,
+        }
+    }
+
+    async fn handle_create_issue(
         &self,
         command: CreateIssue,
     ) -> Result<IssueCreatedV2, IssueManagementContextError> {
@@ -110,7 +146,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         }
     }
 
-    async fn finish_issue_use_case(
+    async fn handle_finish_issue(
         &self,
         command: FinishIssue,
     ) -> Result<IssueFinished, IssueManagementContextError> {
@@ -145,7 +181,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         }
     }
 
-    async fn update_issue_use_case(
+    async fn handle_update_issue(
         &self,
         command: UpdateIssue,
     ) -> Result<IssueUpdated, IssueManagementContextError> {

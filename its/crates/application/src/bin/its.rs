@@ -3,8 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use adapter_sqlite::{SqliteIssueRepository, SqliteQueryHandler};
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{
-    CreateIssue, FinishIssue, HasIssueManagementContextUseCase, HasIssueRepository,
-    IssueManagementContextCommand, IssueManagementContextUseCase, UpdateIssue,
+    HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
 };
 use xdg::BaseDirectories;
 
@@ -58,17 +57,11 @@ fn issue_create(
         .build()?
         .block_on(async {
             let app = App::new().await?;
-
+            let use_case = app.issue_management_context_use_case();
             let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-            let command = IssueManagementContextCommand::CreateIssue(CreateIssue {
-                issue_title,
-                issue_due,
-            });
-            let event = app
-                .issue_management_context_use_case()
-                .handle(command)
-                .await?;
+            let command = use_case.create_issue(issue_title, issue_due).into();
+            let event = use_case.handle(command).await?;
             println!("issue created : {:?}", event);
             Ok(())
         })
@@ -81,13 +74,10 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
         .build()?
         .block_on(async {
             let app = App::new().await?;
-
+            let use_case = app.issue_management_context_use_case();
             let issue_id = IssueId::from_str(issue_id.as_str())?;
-            let command = IssueManagementContextCommand::FinishIssue(FinishIssue { issue_id });
-            let event = app
-                .issue_management_context_use_case()
-                .handle(command)
-                .await?;
+            let command = use_case.finish_issue(issue_id).into();
+            let event = use_case.handle(command).await?;
             println!("issue finished : {:?}", event);
             Ok(())
         })
@@ -114,13 +104,10 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
         .build()?
         .block_on(async {
             let app = App::new().await?;
-
+            let use_case = app.issue_management_context_use_case();
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-            let command = IssueManagementContextCommand::UpdateIssue(UpdateIssue {
-                issue_id,
-                issue_due,
-            });
+            let command = use_case.update_issue(issue_id, issue_due).into();
             let event = app
                 .issue_management_context_use_case()
                 .handle(command)
