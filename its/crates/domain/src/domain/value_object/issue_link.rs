@@ -16,7 +16,7 @@ mod tests {
     #[test]
     fn test() -> anyhow::Result<()> {
         let issue_id1 = "1".parse()?;
-        let issue_id2 = "1".parse()?;
+        let issue_id2 = "2".parse()?;
         let _ = IssueLink::new(issue_id1, issue_id2);
         Ok(())
     }
