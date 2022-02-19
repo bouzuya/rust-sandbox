@@ -2,9 +2,16 @@ use domain::{IssueDue, IssueId, IssueTitle};
 
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
+    BlockIssue(BlockIssue),
     CreateIssue(CreateIssue),
     FinishIssue(FinishIssue),
     UpdateIssue(UpdateIssue),
+}
+
+impl From<BlockIssue> for IssueManagementContextCommand {
+    fn from(command: BlockIssue) -> Self {
+        Self::BlockIssue(command)
+    }
 }
 
 impl From<CreateIssue> for IssueManagementContextCommand {
@@ -23,6 +30,12 @@ impl From<UpdateIssue> for IssueManagementContextCommand {
     fn from(command: UpdateIssue) -> Self {
         Self::UpdateIssue(command)
     }
+}
+
+#[derive(Debug)]
+pub struct BlockIssue {
+    pub issue_id: IssueId,
+    pub blocked_issue_id: IssueId,
 }
 
 #[derive(Debug)]

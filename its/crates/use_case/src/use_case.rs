@@ -36,6 +36,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         command: IssueManagementContextCommand,
     ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
         match command {
+            IssueManagementContextCommand::BlockIssue(_) => {
+                todo!()
+            }
             IssueManagementContextCommand::CreateIssue(command) => {
                 let event = self.handle_create_issue(command).await?;
                 Ok(IssueManagementContextEvent::IssueCreated(event))
@@ -48,6 +51,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
                 let event = self.handle_update_issue(command).await?;
                 Ok(IssueManagementContextEvent::IssueUpdated(event))
             }
+        }
+    }
+
+    fn block_issue(&self, issue_id: IssueId, blocked_issue_id: IssueId) -> BlockIssue {
+        BlockIssue {
+            issue_id,
+            blocked_issue_id,
         }
     }
 
