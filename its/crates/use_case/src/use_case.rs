@@ -1,7 +1,9 @@
 mod command;
+mod event;
 mod issue_repository;
 
 pub use self::command::*;
+pub use self::event::IssueManagementContextEvent;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::{
@@ -13,13 +15,6 @@ use domain::{
 };
 use limited_date_time::Instant;
 use thiserror::Error;
-
-#[derive(Debug)]
-pub enum IssueManagementContextEvent {
-    IssueCreated(IssueCreatedV2),
-    IssueFinished(IssueFinished),
-    IssueUpdated(IssueUpdated),
-}
 
 #[derive(Debug, Error)]
 pub enum IssueManagementContextError {
