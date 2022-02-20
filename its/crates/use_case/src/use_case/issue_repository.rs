@@ -3,13 +3,8 @@ use domain::{
     aggregate::{IssueAggregate, IssueAggregateEvent},
     IssueId,
 };
-use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum RepositoryError {
-    #[error("IO")]
-    IO,
-}
+use super::repository_error::RepositoryError;
 
 #[async_trait]
 pub trait IssueRepository {
