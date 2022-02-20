@@ -17,13 +17,14 @@ pub fn create_issue(
     let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
     let version = Version::from(1_u64);
     let issue = IssueAggregate { issue, version };
-    let event = IssueAggregateEvent::CreatedV2(IssueCreatedV2 {
+    let event = IssueCreatedV2 {
         at: command.at,
         issue_id,
         issue_title,
         issue_due,
         version,
-    });
+    }
+    .into();
     Ok((issue, event))
 }
 
@@ -39,11 +40,12 @@ pub fn finish_issue(
         .version
         .next()
         .ok_or(IssueAggregateError::Unknown)?;
-    let event = IssueAggregateEvent::Finished(IssueFinished {
+    let event = IssueFinished {
         at: command.at,
         issue_id: aggregate.id().clone(),
         version: updated_version,
-    });
+    }
+    .into();
     Ok((
         IssueAggregate {
             issue: updated_issue,
@@ -62,12 +64,13 @@ pub fn update_issue(
         .version
         .next()
         .ok_or(IssueAggregateError::Unknown)?;
-    let event = IssueAggregateEvent::Updated(IssueUpdated {
+    let event = IssueUpdated {
         at: command.at,
         issue_id: aggregate.id().clone(),
         issue_due: updated_issue.due(),
         version: updated_version,
-    });
+    }
+    .into();
     Ok((
         IssueAggregate {
             issue: updated_issue,

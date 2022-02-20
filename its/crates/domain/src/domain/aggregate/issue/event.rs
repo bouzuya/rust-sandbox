@@ -11,6 +11,30 @@ pub enum IssueAggregateEvent {
     Updated(IssueUpdated),
 }
 
+impl From<IssueCreated> for IssueAggregateEvent {
+    fn from(event: IssueCreated) -> Self {
+        Self::Created(event)
+    }
+}
+
+impl From<IssueCreatedV2> for IssueAggregateEvent {
+    fn from(event: IssueCreatedV2) -> Self {
+        Self::CreatedV2(event)
+    }
+}
+
+impl From<IssueFinished> for IssueAggregateEvent {
+    fn from(event: IssueFinished) -> Self {
+        Self::Finished(event)
+    }
+}
+
+impl From<IssueUpdated> for IssueAggregateEvent {
+    fn from(event: IssueUpdated) -> Self {
+        Self::Updated(event)
+    }
+}
+
 impl IssueAggregateEvent {
     pub fn issue_id(&self) -> &IssueId {
         match self {
