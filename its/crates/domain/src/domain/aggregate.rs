@@ -35,5 +35,7 @@
 //!   - entity は変更履歴ではなく現在の状態のみに集中する
 //!   - 集約は command と event による API を提供する
 mod issue;
+mod issue_block_link;
 
 pub use self::issue::*;
+pub use self::issue_block_link::*;
