@@ -1,9 +1,9 @@
 use crate::IssueId;
 
 #[derive(Clone, Debug)]
-pub struct IssueBlockLink(IssueId, IssueId);
+pub struct IssueBlockLinkId(IssueId, IssueId);
 
-impl IssueBlockLink {
+impl IssueBlockLinkId {
     pub fn new(issue_id1: IssueId, issue_id2: IssueId) -> Self {
         Self(issue_id1, issue_id2)
     }
@@ -17,7 +17,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let issue_id1 = "1".parse()?;
         let issue_id2 = "2".parse()?;
-        let _ = IssueBlockLink::new(issue_id1, issue_id2);
+        let _ = IssueBlockLinkId::new(issue_id1, issue_id2);
         Ok(())
     }
 }
