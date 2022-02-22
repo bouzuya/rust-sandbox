@@ -49,6 +49,14 @@ impl IssueBlockLinkId {
         }
         Ok(Self(issue_id, blocked_issue_id))
     }
+
+    pub fn issue_id(&self) -> &IssueId {
+        &self.0
+    }
+
+    pub fn blocked_issue_id(&self) -> &IssueId {
+        &self.1
+    }
 }
 
 #[cfg(test)]
@@ -57,10 +65,12 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let issue_id1 = "1".parse()?;
-        let issue_id2 = "2".parse()?;
-        let issue_block_link = IssueBlockLinkId::new(issue_id1, issue_id2)?;
+        let issue_id = IssueId::from_str("1")?;
+        let blocked_issue_id = IssueId::from_str("2")?;
+        let issue_block_link = IssueBlockLinkId::new(issue_id.clone(), blocked_issue_id.clone())?;
         assert_eq!(issue_block_link.to_string(), "1 -> 2");
+        assert_eq!(issue_block_link.issue_id(), &issue_id);
+        assert_eq!(issue_block_link.blocked_issue_id(), &blocked_issue_id);
         let parsed = IssueBlockLinkId::from_str("1 -> 2")?;
         assert_eq!(issue_block_link, parsed);
 
