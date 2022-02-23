@@ -58,7 +58,7 @@ impl SqliteQueryHandler {
         let pool = AnyPool::connect_with(options).await?;
 
         let mut transaction = pool.begin().await?;
-        sqlx::query(include_str!("../../../sql/create_issues.sql"))
+        sqlx::query(include_str!("../../../sql/query/create_issues.sql"))
             .execute(&mut *transaction)
             .await?;
         transaction.commit().await?;

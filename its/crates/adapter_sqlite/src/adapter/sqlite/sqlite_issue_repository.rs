@@ -96,7 +96,7 @@ impl SqliteIssueRepository {
 
         // migrate
         let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
-        sqlx::query(include_str!("../../../sql/create_issue_ids.sql"))
+        sqlx::query(include_str!("../../../sql/command/create_issue_ids.sql"))
             .execute(&mut transaction)
             .await
             .map_err(|_| RepositoryError::IO)?;
@@ -116,12 +116,13 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
     ) -> Result<Option<AggregateId>, RepositoryError> {
-        let issue_id_row: Option<IssueIdRow> =
-            sqlx::query_as(include_str!("../../../sql/select_issue_id_by_issue_id.sql"))
-                .bind(issue_id.to_string())
-                .fetch_optional(transaction)
-                .await
-                .map_err(|_| RepositoryError::IO)?;
+        let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
+            "../../../sql/command/select_issue_id_by_issue_id.sql"
+        ))
+        .bind(issue_id.to_string())
+        .fetch_optional(transaction)
+        .await
+        .map_err(|_| RepositoryError::IO)?;
 
         Ok(issue_id_row.map(|row| row.aggregate_id()))
     }
@@ -131,7 +132,7 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
     ) -> Result<Option<IssueId>, RepositoryError> {
         let issue_id_row: Option<IssueIdRow> =
-            sqlx::query_as(include_str!("../../../sql/select_max_issue_id.sql"))
+            sqlx::query_as(include_str!("../../../sql/command/select_max_issue_id.sql"))
                 .fetch_optional(transaction)
                 .await
                 .map_err(|_| RepositoryError::IO)?;
@@ -145,7 +146,7 @@ impl SqliteIssueRepository {
         aggregate_id: AggregateId,
     ) -> Result<(), RepositoryError> {
         let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/insert_issue_id.sql"))
+            sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
                 .bind(issue_id.to_string())
                 .bind(aggregate_id.to_string());
         let result = query
