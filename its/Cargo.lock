@@ -62,7 +62,7 @@ checksum = "94a45b455c14666b85fc40a019e8ab9eb75e3a124e05494f5397122bc9eb06e0"
 
 [[package]]
 name = "application"
-version = "0.7.6"
+version = "0.7.7"
 dependencies = [
  "adapter_sqlite",
  "anyhow",
