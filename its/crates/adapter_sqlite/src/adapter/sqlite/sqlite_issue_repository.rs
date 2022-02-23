@@ -4,7 +4,6 @@ use std::{
     str::FromStr,
 };
 
-use anyhow::Context;
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueAggregate, IssueAggregateEvent},
@@ -59,15 +58,17 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
 }
 
 impl SqliteIssueRepository {
-    // TODO: anyhow::Result
-    async fn connection(path: &Path) -> anyhow::Result<AnyPool> {
+    async fn connection(path: &Path) -> Result<AnyPool, RepositoryError> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
-            path.to_str().with_context(|| "invalid path")?
-        ))?
+            path.to_str().ok_or(RepositoryError::IO)?
+        ))
+        .map_err(|_| RepositoryError::IO)?
         .journal_mode(SqliteJournalMode::Delete);
         let options = AnyConnectOptions::from(options);
-        let pool = AnyPool::connect_with(options).await?;
+        let pool = AnyPool::connect_with(options)
+            .await
+            .map_err(|_| RepositoryError::IO)?;
         Ok(pool)
     }
 

@@ -7,21 +7,13 @@ pub use self::aggregate_id::*;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_store_error::EventStoreError;
-use std::{path::Path, str::FromStr};
+use std::str::FromStr;
 
-use anyhow::Context;
 use sqlx::Transaction;
 use sqlx::{
     any::{AnyArguments, AnyRow},
     query::Query,
     Any, FromRow, Row,
-};
-
-use sqlx::{
-    any::AnyConnectOptions,
-    pool::PoolConnection,
-    sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    AnyPool,
 };
 
 #[derive(Debug)]
@@ -165,20 +157,14 @@ pub async fn find_events(
     Ok(event_rows.into_iter().map(Event::from).collect())
 }
 
-async fn connection(path: &Path) -> anyhow::Result<PoolConnection<Any>> {
-    let options = SqliteConnectOptions::from_str(&format!(
-        "sqlite:{}?mode=rwc",
-        path.to_str().with_context(|| "invalid path")?
-    ))?
-    .journal_mode(SqliteJournalMode::Delete);
-    let options = AnyConnectOptions::from(options);
-    let pool = AnyPool::connect_with(options).await?;
-    let conn = pool.acquire().await?;
-    Ok(conn)
-}
-
 #[cfg(test)]
 mod tests {
+    use anyhow::Context;
+    use sqlx::{
+        any::AnyConnectOptions,
+        sqlite::{SqliteConnectOptions, SqliteJournalMode},
+        AnyPool,
+    };
     use tempfile::tempdir;
 
     use super::*;
