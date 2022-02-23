@@ -121,18 +121,6 @@ pub async fn save(
     Ok(())
 }
 
-pub async fn migrate(transaction: &mut Transaction<'_, Any>) -> Result<(), EventStoreError> {
-    sqlx::query(include_str!("../../../sql/command/create_aggregates.sql"))
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| EventStoreError::MigrateCreateAggregateTable)?;
-    sqlx::query(include_str!("../../../sql/command/create_events.sql"))
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| EventStoreError::MigrateCreateEventTable)?;
-    Ok(())
-}
-
 pub async fn find_aggregate_ids(
     transaction: &mut Transaction<'_, Any>,
 ) -> Result<Vec<AggregateId>, EventStoreError> {
@@ -163,10 +151,13 @@ mod tests {
     use anyhow::Context;
     use sqlx::{
         any::AnyConnectOptions,
+        migrate::Migrator,
         sqlite::{SqliteConnectOptions, SqliteJournalMode},
         AnyPool,
     };
     use tempfile::tempdir;
+
+    use crate::adapter::sqlite::command_migration_source::CommandMigrationSource;
 
     use super::*;
 
@@ -182,9 +173,11 @@ mod tests {
         .journal_mode(SqliteJournalMode::Delete);
         let options = AnyConnectOptions::from(options);
         let pool = AnyPool::connect_with(options).await?;
-        let mut transaction = pool.begin().await?;
 
-        migrate(&mut transaction).await?;
+        let migrator = Migrator::new(CommandMigrationSource::default()).await?;
+        migrator.run(&pool).await?;
+
+        let mut transaction = pool.begin().await?;
 
         let aggregates = find_aggregate_ids(&mut transaction).await?;
         assert!(aggregates.is_empty());

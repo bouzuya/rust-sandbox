@@ -12,6 +12,7 @@ use domain::{
 
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions, AnyRow},
+    migrate::Migrator,
     query::Query,
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
     Any, AnyPool, FromRow, Row, Transaction,
@@ -24,7 +25,10 @@ use crate::{
     SqliteQueryHandler,
 };
 
-use super::event_store::{self, AggregateId};
+use super::{
+    command_migration_source::CommandMigrationSource,
+    event_store::{self, AggregateId},
+};
 
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
@@ -84,26 +88,10 @@ impl SqliteIssueRepository {
             .await
             .map_err(|_| RepositoryError::IO)?;
 
-        // FIXME
-        let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
-        event_store::migrate(&mut transaction)
+        let migrator = Migrator::new(CommandMigrationSource::default())
             .await
             .map_err(|_| RepositoryError::IO)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| RepositoryError::IO)?;
-
-        // migrate
-        let mut transaction = pool.begin().await.map_err(|_| RepositoryError::IO)?;
-        sqlx::query(include_str!("../../../sql/command/create_issue_ids.sql"))
-            .execute(&mut transaction)
-            .await
-            .map_err(|_| RepositoryError::IO)?;
-        transaction
-            .commit()
-            .await
-            .map_err(|_| RepositoryError::IO)?;
+        migrator.run(&pool).await.map_err(|_| RepositoryError::IO)?;
 
         Ok(Self {
             pool,
