@@ -4,6 +4,6 @@ use thiserror::Error;
 pub enum RepositoryError {
     #[error("IO")]
     IO,
-    #[error("Unknown")]
+    #[error("Unknown: {0}")]
     Unknown(String),
 }

@@ -38,13 +38,13 @@ pub struct SqliteIssueRepository {
 }
 
 struct IssueIdRow {
-    issue_id: String,
+    issue_number: String,
     aggregate_id: String,
 }
 
 impl IssueIdRow {
     fn issue_id(&self) -> IssueId {
-        IssueId::from_str(self.issue_id.as_str()).unwrap()
+        IssueId::from_str(self.issue_number.as_str()).unwrap()
     }
 
     fn aggregate_id(&self) -> AggregateId {
@@ -55,7 +55,7 @@ impl IssueIdRow {
 impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
     fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            issue_id: row.get("issue_id"),
+            issue_number: row.get("issue_number"),
             aggregate_id: row.get("aggregate_id"),
         })
     }
@@ -107,10 +107,14 @@ impl SqliteIssueRepository {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
-        .bind(issue_id.to_string())
+        .bind(
+            i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
+                RepositoryError::Unknown("Failed to convert issue_number to i64".to_string())
+            })?,
+        )
         .fetch_optional(transaction)
         .await
-        .map_err(|_| RepositoryError::IO)?;
+        .map_err(|e| RepositoryError::Unknown(e.to_string()))?;
 
         Ok(issue_id_row.map(|row| row.aggregate_id()))
     }
@@ -135,7 +139,13 @@ impl SqliteIssueRepository {
     ) -> Result<(), RepositoryError> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
-                .bind(issue_id.to_string())
+                .bind(
+                    i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
+                        RepositoryError::Unknown(
+                            "Failed to convert issue_number to i64".to_string(),
+                        )
+                    })?,
+                )
                 .bind(aggregate_id.to_string());
         let result = query
             .execute(transaction)

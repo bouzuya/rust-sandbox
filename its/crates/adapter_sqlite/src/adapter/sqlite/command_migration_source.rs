@@ -38,6 +38,14 @@ impl MigrationSource<'static> for CommandMigrationSource {
                         "../../../sql/command/migrations/20220224000003_create_issue_ids.sql"
                     )),
                 ),
+                Migration::new(
+                  20210225000000,
+                    Cow::from("alter issue_ids add issue_number"),
+                    MigrationType::Simple,
+                    Cow::from(include_str!(
+                        "../../../sql/command/migrations/20220225000000_alter_issue_ids_add_issue_number.sql"
+                    )),
+                )
             ];
             Ok(migrations)
         })
