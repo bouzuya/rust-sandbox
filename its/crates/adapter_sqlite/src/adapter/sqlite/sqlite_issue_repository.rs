@@ -37,14 +37,15 @@ pub struct SqliteIssueRepository {
     query_handler: SqliteQueryHandler,
 }
 
+#[derive(Debug)]
 struct IssueIdRow {
-    issue_number: String,
+    issue_number: i64,
     aggregate_id: String,
 }
 
 impl IssueIdRow {
     fn issue_id(&self) -> IssueId {
-        IssueId::from_str(self.issue_number.as_str()).unwrap()
+        IssueId::from_str(self.issue_number.to_string().as_str()).unwrap()
     }
 
     fn aggregate_id(&self) -> AggregateId {
@@ -112,7 +113,7 @@ impl SqliteIssueRepository {
                 RepositoryError::Unknown("Failed to convert issue_number to i64".to_string())
             })?,
         )
-        .fetch_optional(transaction)
+        .fetch_optional(&mut *transaction)
         .await
         .map_err(|e| RepositoryError::Unknown(e.to_string()))?;
 
