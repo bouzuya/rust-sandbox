@@ -148,11 +148,12 @@ impl SqliteIssueRepository {
                     })?,
                 )
                 .bind(aggregate_id.to_string());
-        let result = query
+        let rows_affected = query
             .execute(transaction)
             .await
-            .map_err(|_| RepositoryError::IO)?;
-        if result.rows_affected() != 1 {
+            .map_err(|_| RepositoryError::IO)?
+            .rows_affected();
+        if rows_affected != 1 {
             return Err(RepositoryError::IO);
         }
 
