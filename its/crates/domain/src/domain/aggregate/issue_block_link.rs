@@ -1,30 +1,24 @@
-use thiserror::Error;
+mod error;
 
 use crate::{domain::entity::IssueBlockLink, IssueBlockLinkId, IssueId, Version};
 
+pub use self::error::IssueBlockLinkAggregateError;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
-struct IssueBlockLinkAggregate {
+pub struct IssueBlockLinkAggregate {
     issue_block_link: IssueBlockLink,
     version: Version,
 }
 
-#[derive(Clone, Debug, Error)]
-enum IssueBlockLinkAggregateError {
-    #[error("Block")]
-    Block,
-    #[error("NextVersion")]
-    NoNextVersion,
-}
-
 #[derive(Clone, Debug, Eq, PartialEq)]
-enum IssueBlockLinkAggregateEvent {
+pub enum IssueBlockLinkAggregateEvent {
     // TODO: Id
     Blocked,
     // TODO: Id
     Unblocked,
 }
 
-type IssueBlockLinkAggregateResult =
+pub type IssueBlockLinkAggregateResult =
     Result<(IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent), IssueBlockLinkAggregateError>;
 
 impl IssueBlockLinkAggregate {
