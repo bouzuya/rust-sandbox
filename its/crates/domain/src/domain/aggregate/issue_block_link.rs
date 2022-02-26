@@ -1,6 +1,9 @@
 mod error;
 mod event;
 
+use limited_date_time::Instant;
+
+use crate::IssueBlocked;
 use crate::{domain::entity::IssueBlockLink, IssueBlockLinkId, IssueId, Version};
 
 pub use self::error::IssueBlockLinkAggregateError;
@@ -19,13 +22,18 @@ impl IssueBlockLinkAggregate {
     pub fn block(issue_id: IssueId, blocked_issue_id: IssueId) -> IssueBlockLinkAggregateResult {
         let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)
             .map_err(|_| IssueBlockLinkAggregateError::Block)?;
-        let issue_block_link = IssueBlockLink::new(id);
+        let issue_block_link = IssueBlockLink::new(id.clone());
+        let version = Version::from(1_u64);
         Ok((
             Self {
                 issue_block_link,
-                version: Version::from(1_u64),
+                version,
             },
-            IssueBlockLinkAggregateEvent::Blocked,
+            IssueBlockLinkAggregateEvent::Blocked(IssueBlocked {
+                at: Instant::now(), // FIXME
+                issue_block_link_id: id,
+                version,
+            }),
         ))
     }
 
