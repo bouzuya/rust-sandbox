@@ -1,21 +1,15 @@
 mod error;
+mod event;
 
 use crate::{domain::entity::IssueBlockLink, IssueBlockLinkId, IssueId, Version};
 
 pub use self::error::IssueBlockLinkAggregateError;
+pub use self::event::IssueBlockLinkAggregateEvent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueBlockLinkAggregate {
     issue_block_link: IssueBlockLink,
     version: Version,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum IssueBlockLinkAggregateEvent {
-    // TODO: Id
-    Blocked,
-    // TODO: Id
-    Unblocked,
 }
 
 pub type IssueBlockLinkAggregateResult =
