@@ -8,7 +8,9 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_repository::*;
 pub use self::repository_error::*;
 use async_trait::async_trait;
+use domain::aggregate::IssueBlockLinkAggregateEvent;
 use domain::DomainEvent;
+use domain::IssueBlocked;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
@@ -34,8 +36,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         command: IssueManagementContextCommand,
     ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
         match command {
-            IssueManagementContextCommand::BlockIssue(_) => {
-                todo!()
+            IssueManagementContextCommand::BlockIssue(command) => {
+                let event = self.handle_block_issue(command).await?;
+                Ok(IssueManagementContextEvent::from(
+                    DomainEvent::IssueBlockLink(IssueBlockLinkAggregateEvent::from(event)),
+                ))
             }
             IssueManagementContextCommand::CreateIssue(command) => {
                 let event = self.handle_create_issue(command).await?;
@@ -81,6 +86,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             issue_id,
             issue_due,
         }
+    }
+
+    async fn handle_block_issue(
+        &self,
+        _command: BlockIssue,
+    ) -> Result<IssueBlocked, IssueManagementContextError> {
+        todo!()
     }
 
     async fn handle_create_issue(
