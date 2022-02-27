@@ -8,6 +8,7 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_repository::*;
 pub use self::repository_error::*;
 use async_trait::async_trait;
+use domain::DomainEvent;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
@@ -38,15 +39,21 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             }
             IssueManagementContextCommand::CreateIssue(command) => {
                 let event = self.handle_create_issue(command).await?;
-                Ok(IssueManagementContextEvent::IssueCreated(event))
+                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
+                    IssueAggregateEvent::from(event),
+                )))
             }
             IssueManagementContextCommand::FinishIssue(command) => {
                 let event = self.handle_finish_issue(command).await?;
-                Ok(IssueManagementContextEvent::IssueFinished(event))
+                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
+                    IssueAggregateEvent::from(event),
+                )))
             }
             IssueManagementContextCommand::UpdateIssue(command) => {
                 let event = self.handle_update_issue(command).await?;
-                Ok(IssueManagementContextEvent::IssueUpdated(event))
+                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
+                    IssueAggregateEvent::from(event),
+                )))
             }
         }
     }

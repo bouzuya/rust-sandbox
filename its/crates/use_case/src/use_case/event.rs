@@ -1,8 +1,16 @@
-use domain::{IssueCreatedV2, IssueFinished, IssueUpdated};
+use domain::DomainEvent;
 
 #[derive(Debug)]
-pub enum IssueManagementContextEvent {
-    IssueCreated(IssueCreatedV2),
-    IssueFinished(IssueFinished),
-    IssueUpdated(IssueUpdated),
+pub struct IssueManagementContextEvent(DomainEvent);
+
+impl From<DomainEvent> for IssueManagementContextEvent {
+    fn from(event: DomainEvent) -> Self {
+        IssueManagementContextEvent(event)
+    }
+}
+
+impl From<IssueManagementContextEvent> for DomainEvent {
+    fn from(event: IssueManagementContextEvent) -> Self {
+        event.0
+    }
 }
