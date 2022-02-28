@@ -3,17 +3,27 @@ use domain::{
     aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
     IssueId,
 };
+use thiserror::Error;
 
-use super::repository_error::RepositoryError;
+#[derive(Debug, Error)]
+pub enum IssueBlockLinkRepositoryError {
+    #[error("IO")]
+    IO,
+    #[error("Unknown: {0}")]
+    Unknown(String),
+}
 
 #[async_trait]
 pub trait IssueBlockLinkRepository {
     async fn find_by_id(
         &self,
         issue_id: &IssueId,
-    ) -> Result<Option<IssueBlockLinkAggregate>, RepositoryError>;
+    ) -> Result<Option<IssueBlockLinkAggregate>, IssueBlockLinkRepositoryError>;
 
-    async fn save(&self, event: IssueBlockLinkAggregateEvent) -> Result<(), RepositoryError>;
+    async fn save(
+        &self,
+        event: IssueBlockLinkAggregateEvent,
+    ) -> Result<(), IssueBlockLinkRepositoryError>;
 }
 
 pub trait HasIssueBlockLinkRepository {
