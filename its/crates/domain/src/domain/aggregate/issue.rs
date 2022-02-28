@@ -14,6 +14,9 @@ use crate::{
     IssueId, Version,
 };
 
+use super::IssueBlockLinkAggregate;
+use super::IssueBlockLinkAggregateResult;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueAggregate {
     issue: Issue,
@@ -101,5 +104,9 @@ impl IssueAggregate {
 
     pub fn issue(&self) -> &Issue {
         &self.issue
+    }
+
+    pub fn block(&self, blocked_issue: IssueAggregate) -> IssueBlockLinkAggregateResult {
+        IssueBlockLinkAggregate::block(self.id().clone(), blocked_issue.id().clone())
     }
 }
