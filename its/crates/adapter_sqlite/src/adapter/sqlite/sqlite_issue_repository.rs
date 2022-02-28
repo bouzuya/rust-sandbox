@@ -17,7 +17,7 @@ use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode},
     Any, AnyPool, FromRow, Row, Transaction,
 };
-use use_case::{IssueRepository, RepositoryError};
+use use_case::{IssueRepository, IssueRepositoryError};
 
 use crate::{
     adapter::sqlite::event_store::{AggregateVersion, Event},
@@ -63,36 +63,39 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
 }
 
 impl SqliteIssueRepository {
-    async fn connection(path: &Path) -> Result<AnyPool, RepositoryError> {
+    async fn connection(path: &Path) -> Result<AnyPool, IssueRepositoryError> {
         let options = SqliteConnectOptions::from_str(&format!(
             "sqlite:{}?mode=rwc",
-            path.to_str().ok_or(RepositoryError::IO)?
+            path.to_str().ok_or(IssueRepositoryError::IO)?
         ))
-        .map_err(|_| RepositoryError::IO)?
+        .map_err(|_| IssueRepositoryError::IO)?
         .journal_mode(SqliteJournalMode::Delete);
         let options = AnyConnectOptions::from(options);
         let pool = AnyPool::connect_with(options)
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
         Ok(pool)
     }
 
-    pub async fn new(data_dir: PathBuf) -> Result<Self, RepositoryError> {
+    pub async fn new(data_dir: PathBuf) -> Result<Self, IssueRepositoryError> {
         if !data_dir.exists() {
-            fs::create_dir_all(data_dir.as_path()).map_err(|_| RepositoryError::IO)?;
+            fs::create_dir_all(data_dir.as_path()).map_err(|_| IssueRepositoryError::IO)?;
         }
         let pool = Self::connection(data_dir.join("command.sqlite").as_path())
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         let query_handler = SqliteQueryHandler::new(data_dir.as_path())
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         let migrator = Migrator::new(CommandMigrationSource::default())
             .await
-            .map_err(|_| RepositoryError::IO)?;
-        migrator.run(&pool).await.map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
+        migrator
+            .run(&pool)
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         Ok(Self {
             pool,
@@ -104,18 +107,18 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-    ) -> Result<Option<AggregateId>, RepositoryError> {
+    ) -> Result<Option<AggregateId>, IssueRepositoryError> {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
         .bind(
             i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
-                RepositoryError::Unknown("Failed to convert issue_number to i64".to_string())
+                IssueRepositoryError::Unknown("Failed to convert issue_number to i64".to_string())
             })?,
         )
         .fetch_optional(&mut *transaction)
         .await
-        .map_err(|e| RepositoryError::Unknown(e.to_string()))?;
+        .map_err(|e| IssueRepositoryError::Unknown(e.to_string()))?;
 
         Ok(issue_id_row.map(|row| row.aggregate_id()))
     }
@@ -123,12 +126,12 @@ impl SqliteIssueRepository {
     async fn find_max_issue_id(
         &self,
         transaction: &mut Transaction<'_, Any>,
-    ) -> Result<Option<IssueId>, RepositoryError> {
+    ) -> Result<Option<IssueId>, IssueRepositoryError> {
         let issue_id_row: Option<IssueIdRow> =
             sqlx::query_as(include_str!("../../../sql/command/select_max_issue_id.sql"))
                 .fetch_optional(transaction)
                 .await
-                .map_err(|_| RepositoryError::IO)?;
+                .map_err(|_| IssueRepositoryError::IO)?;
         Ok(issue_id_row.map(|row| row.issue_id()))
     }
 
@@ -137,12 +140,12 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
         aggregate_id: AggregateId,
-    ) -> Result<(), RepositoryError> {
+    ) -> Result<(), IssueRepositoryError> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
                 .bind(
                     i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
-                        RepositoryError::Unknown(
+                        IssueRepositoryError::Unknown(
                             "Failed to convert issue_number to i64".to_string(),
                         )
                     })?,
@@ -151,10 +154,10 @@ impl SqliteIssueRepository {
         let rows_affected = query
             .execute(transaction)
             .await
-            .map_err(|_| RepositoryError::IO)?
+            .map_err(|_| IssueRepositoryError::IO)?
             .rows_affected();
         if rows_affected != 1 {
-            return Err(RepositoryError::IO);
+            return Err(IssueRepositoryError::IO);
         }
 
         Ok(())
@@ -166,8 +169,12 @@ impl IssueRepository for SqliteIssueRepository {
     async fn find_by_id(
         &self,
         issue_id: &IssueId,
-    ) -> Result<Option<IssueAggregate>, RepositoryError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
         match self
             .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
             .await?
@@ -176,33 +183,42 @@ impl IssueRepository for SqliteIssueRepository {
                 let events =
                     event_store::find_events_by_aggregate_id(&mut transaction, aggregate_id)
                         .await
-                        .map_err(|_| RepositoryError::IO)?;
+                        .map_err(|_| IssueRepositoryError::IO)?;
                 let mut issue_aggregate_events = vec![];
                 for event in events {
                     let dto = serde_json::from_str::<'_, EventDto>(event.data.as_str())
-                        .map_err(|_| RepositoryError::IO)?;
+                        .map_err(|_| IssueRepositoryError::IO)?;
                     // TODO: check dto.version and aggregate_id
-                    issue_aggregate_events
-                        .push(IssueAggregateEvent::try_from(dto).map_err(|_| RepositoryError::IO)?);
+                    issue_aggregate_events.push(
+                        IssueAggregateEvent::try_from(dto).map_err(|_| IssueRepositoryError::IO)?,
+                    );
                 }
                 IssueAggregate::from_events(&issue_aggregate_events)
                     .map(Some)
-                    .map_err(|_| RepositoryError::IO)
+                    .map_err(|_| IssueRepositoryError::IO)
             }
             None => Ok(None),
         }
     }
 
-    async fn last_created(&self) -> Result<Option<IssueAggregate>, RepositoryError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+    async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
         Ok(match self.find_max_issue_id(&mut transaction).await? {
             Some(issue_id) => self.find_by_id(&issue_id).await?,
             None => None,
         })
     }
 
-    async fn save(&self, event: IssueAggregateEvent) -> Result<(), RepositoryError> {
-        let mut transaction = self.pool.begin().await.map_err(|_| RepositoryError::IO)?;
+    async fn save(&self, event: IssueAggregateEvent) -> Result<(), IssueRepositoryError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         let issue_id = event.issue_id().clone();
         if let Some(aggregate_id) = self
@@ -218,20 +234,20 @@ impl IssueRepository for SqliteIssueRepository {
                     .map(|version| {
                         u32::try_from(u64::from(version))
                             .map(AggregateVersion::from)
-                            .map_err(|_| RepositoryError::IO)
+                            .map_err(|_| IssueRepositoryError::IO)
                     })
                     .transpose()?,
                 Event {
                     aggregate_id,
                     data: serde_json::to_string(&EventDto::from(event))
-                        .map_err(|_| RepositoryError::IO)?,
+                        .map_err(|_| IssueRepositoryError::IO)?,
                     version: AggregateVersion::from(
-                        u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                        u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
                     ),
                 },
             )
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
         } else {
             // create
             let aggregate_id = AggregateId::generate();
@@ -242,14 +258,14 @@ impl IssueRepository for SqliteIssueRepository {
                 Event {
                     aggregate_id,
                     data: serde_json::to_string(&EventDto::from(event))
-                        .map_err(|_| RepositoryError::IO)?,
+                        .map_err(|_| IssueRepositoryError::IO)?,
                     version: AggregateVersion::from(
-                        u32::try_from(u64::from(version)).map_err(|_| RepositoryError::IO)?,
+                        u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
                     ),
                 },
             )
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
 
             self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
                 .await?;
@@ -258,18 +274,18 @@ impl IssueRepository for SqliteIssueRepository {
         transaction
             .commit()
             .await
-            .map_err(|_| RepositoryError::IO)?;
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         {
             // update query db
             let issue = self
                 .find_by_id(&issue_id)
                 .await?
-                .ok_or(RepositoryError::IO)?;
+                .ok_or(IssueRepositoryError::IO)?;
             self.query_handler
                 .save_issue(issue)
                 .await
-                .map_err(|_| RepositoryError::IO)?;
+                .map_err(|_| IssueRepositoryError::IO)?;
         }
 
         Ok(())
