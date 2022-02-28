@@ -9,6 +9,7 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_repository::*;
 pub use self::repository_error::*;
 use async_trait::async_trait;
+use domain::aggregate::IssueBlockLinkAggregateError;
 use domain::aggregate::IssueBlockLinkAggregateEvent;
 use domain::DomainEvent;
 use domain::IssueBlocked;
@@ -25,7 +26,9 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum IssueManagementContextError {
     #[error("IssueAggregate")]
-    IssueAggregate(IssueAggregateError),
+    IssueAggregate(#[from] IssueAggregateError),
+    #[error("IssueBlockLinkAggregate")]
+    IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
     #[error("Unknown")]
     Unknown,
 }
@@ -111,14 +114,14 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let at = Instant::now();
 
         // pure
-        let (_, event) =
-            IssueAggregate::transaction(IssueAggregateCommand::Create(IssueAggregateCreateIssue {
+        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Create(
+            IssueAggregateCreateIssue {
                 issue_number,
                 issue_title: command.issue_title,
                 issue_due: command.issue_due,
                 at,
-            }))
-            .map_err(IssueManagementContextError::IssueAggregate)?;
+            },
+        ))?;
 
         // io
         self.issue_repository()
@@ -148,12 +151,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let at = Instant::now();
 
         // pure
-        let (_, event) =
-            IssueAggregate::transaction(IssueAggregateCommand::Finish(IssueAggregateFinishIssue {
-                issue,
-                at,
-            }))
-            .map_err(IssueManagementContextError::IssueAggregate)?;
+        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Finish(
+            IssueAggregateFinishIssue { issue, at },
+        ))?;
 
         // io
         self.issue_repository()
@@ -184,13 +184,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let at = Instant::now();
 
         // pure
-        let (_, event) =
-            IssueAggregate::transaction(IssueAggregateCommand::Update(IssueAggregateUpdateIssue {
+        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Update(
+            IssueAggregateUpdateIssue {
                 issue,
                 issue_due,
                 at,
-            }))
-            .map_err(IssueManagementContextError::IssueAggregate)?;
+            },
+        ))?;
 
         // io
         self.issue_repository()
