@@ -31,6 +31,8 @@ pub enum IssueManagementContextError {
     IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
     #[error("IssueNotFound")]
     IssueNotFound(IssueId),
+    #[error("IssueRepository")]
+    IssueRepository(#[from] IssueRepositoryError),
     #[error("Unknown")]
     Unknown,
 }
@@ -109,8 +111,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let issue_number = self
             .issue_repository()
             .last_created()
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?
+            .await?
             .map(|issue| issue.id().issue_number().next_number())
             .unwrap_or_else(IssueNumber::start_number);
         let at = Instant::now();
@@ -126,10 +127,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         ))?;
 
         // io
-        self.issue_repository()
-            .save(event.clone())
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?;
+        self.issue_repository().save(event.clone()).await?;
 
         if let IssueAggregateEvent::CreatedV2(event) = event {
             Ok(event)
@@ -146,8 +144,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let issue = self
             .issue_repository()
             .find_by_id(&command.issue_id)
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?
+            .await?
             .ok_or_else(|| IssueManagementContextError::IssueNotFound(command.issue_id))?;
         let at = Instant::now();
 
@@ -157,10 +154,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         ))?;
 
         // io
-        self.issue_repository()
-            .save(event.clone())
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?;
+        self.issue_repository().save(event.clone()).await?;
 
         if let IssueAggregateEvent::Finished(event) = event {
             Ok(event)
@@ -177,8 +171,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         let issue = self
             .issue_repository()
             .find_by_id(&command.issue_id)
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?;
+            .await?;
         // TODO: fix error
         let issue = issue.ok_or(IssueManagementContextError::Unknown)?;
         let issue_due = command.issue_due;
@@ -194,10 +187,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
         ))?;
 
         // io
-        self.issue_repository()
-            .save(event.clone())
-            .await
-            .map_err(|_| IssueManagementContextError::Unknown)?;
+        self.issue_repository().save(event.clone()).await?;
 
         if let IssueAggregateEvent::Updated(event) = event {
             Ok(event)
