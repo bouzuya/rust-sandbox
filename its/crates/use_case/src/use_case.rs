@@ -1,5 +1,6 @@
 mod command;
 mod event;
+mod issue_block_link_repository;
 mod issue_repository;
 mod repository_error;
 
