@@ -2,12 +2,10 @@ mod command;
 mod event;
 mod issue_block_link_repository;
 mod issue_repository;
-mod repository_error;
 
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
 pub use self::issue_repository::*;
-pub use self::repository_error::*;
 use async_trait::async_trait;
 use domain::aggregate::IssueBlockLinkAggregateError;
 use domain::aggregate::IssueBlockLinkAggregateEvent;
