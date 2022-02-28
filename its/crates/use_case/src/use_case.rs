@@ -29,6 +29,8 @@ pub enum IssueManagementContextError {
     IssueAggregate(#[from] IssueAggregateError),
     #[error("IssueBlockLinkAggregate")]
     IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    #[error("IssueNotFound")]
+    IssueNotFound(IssueId),
     #[error("Unknown")]
     Unknown,
 }
@@ -145,9 +147,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             .issue_repository()
             .find_by_id(&command.issue_id)
             .await
-            .map_err(|_| IssueManagementContextError::Unknown)?;
-        // TODO: fix error
-        let issue = issue.ok_or(IssueManagementContextError::Unknown)?;
+            .map_err(|_| IssueManagementContextError::Unknown)?
+            .ok_or_else(|| IssueManagementContextError::IssueNotFound(command.issue_id))?;
         let at = Instant::now();
 
         // pure
