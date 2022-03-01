@@ -167,7 +167,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             .issue_repository()
             .find_by_id(&command.issue_id)
             .await?
-            .ok_or_else(|| IssueManagementContextError::IssueNotFound(command.issue_id))?;
+            .ok_or(IssueManagementContextError::IssueNotFound(command.issue_id))?;
         let at = Instant::now();
 
         // pure
