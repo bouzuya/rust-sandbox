@@ -99,8 +99,29 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
 
     async fn handle_block_issue(
         &self,
-        _command: BlockIssue,
+        BlockIssue {
+            issue_id,
+            blocked_issue_id,
+        }: BlockIssue,
     ) -> Result<IssueBlocked, IssueManagementContextError> {
+        // io
+        let issue = self
+            .issue_repository()
+            .find_by_id(&issue_id)
+            .await?
+            .ok_or(IssueManagementContextError::IssueNotFound(issue_id))?;
+        let blocked_issue = self
+            .issue_repository()
+            .find_by_id(&blocked_issue_id)
+            .await?
+            .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
+
+        // pure
+        let (_issue_block_link, _event) = issue.block(blocked_issue)?;
+
+        // io
+        // self.issue_block_link_repository().save(event).await?;
+
         todo!()
     }
 
