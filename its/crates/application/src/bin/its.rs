@@ -1,13 +1,17 @@
 use std::{path::PathBuf, str::FromStr};
 
-use adapter_sqlite::{SqliteConnectionPool, SqliteIssueRepository, SqliteQueryHandler};
+use adapter_sqlite::{
+    SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
+};
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{
-    HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
+    HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
+    IssueManagementContextUseCase,
 };
 use xdg::BaseDirectories;
 
 struct App {
+    issue_block_link_repository: SqliteIssueBlockLinkRepository,
     issue_repository: SqliteIssueRepository,
     query_handler: SqliteQueryHandler,
 }
@@ -17,9 +21,12 @@ impl App {
         let data_dir = Self::state_dir()?;
         let query_handler = SqliteQueryHandler::new(data_dir.as_path()).await?;
         let connection_pool = SqliteConnectionPool::new(data_dir).await?;
+        let issue_block_link_repository =
+            SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
         let issue_repository =
             SqliteIssueRepository::new(connection_pool, query_handler.clone()).await?;
         Ok(Self {
+            issue_block_link_repository,
             issue_repository,
             query_handler,
         })
@@ -30,6 +37,14 @@ impl App {
         // $HOME/.local/state/$prefix
         let prefix = "net.bouzuya.rust-sandbox.its";
         Ok(BaseDirectories::with_prefix(prefix)?.get_state_home())
+    }
+}
+
+impl HasIssueBlockLinkRepository for App {
+    type IssueBlockLinkRepository = SqliteIssueBlockLinkRepository;
+
+    fn issue_block_link_repository(&self) -> &Self::IssueBlockLinkRepository {
+        &self.issue_block_link_repository
     }
 }
 

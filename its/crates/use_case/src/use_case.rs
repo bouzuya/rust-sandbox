@@ -6,6 +6,7 @@ mod issue_repository;
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
+pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::aggregate::IssueBlockLinkAggregateError;
@@ -39,7 +40,7 @@ pub enum IssueManagementContextError {
 }
 
 #[async_trait]
-pub trait IssueManagementContextUseCase: HasIssueRepository {
+pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkRepository {
     async fn handle(
         &self,
         command: IssueManagementContextCommand,
@@ -117,10 +118,10 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
             .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
 
         // pure
-        let (_issue_block_link, _event) = issue.block(blocked_issue)?;
+        let (_, event) = issue.block(blocked_issue)?;
 
         // io
-        // self.issue_block_link_repository().save(event).await?;
+        self.issue_block_link_repository().save(event).await?;
 
         todo!()
     }
@@ -219,7 +220,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository {
     }
 }
 
-impl<T: HasIssueRepository> IssueManagementContextUseCase for T {}
+impl<T: HasIssueRepository + HasIssueBlockLinkRepository> IssueManagementContextUseCase for T {}
 
 pub trait HasIssueManagementContextUseCase {
     type IssueManagementContextUseCase: IssueManagementContextUseCase;
