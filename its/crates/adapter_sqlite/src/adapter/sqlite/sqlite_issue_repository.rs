@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use domain::{
@@ -11,10 +7,8 @@ use domain::{
 };
 
 use sqlx::{
-    any::{AnyArguments, AnyConnectOptions, AnyRow},
-    migrate::Migrator,
+    any::{AnyArguments, AnyRow},
     query::Query,
-    sqlite::{SqliteConnectOptions, SqliteJournalMode},
     Any, AnyPool, FromRow, Row, Transaction,
 };
 use use_case::{IssueRepository, IssueRepositoryError};
@@ -26,8 +20,8 @@ use crate::{
 };
 
 use super::{
-    command_migration_source::CommandMigrationSource,
     event_store::{self, AggregateId},
+    sqlilte_connection_pool::SqliteConnectionPool,
 };
 
 #[derive(Debug)]
@@ -63,42 +57,13 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
 }
 
 impl SqliteIssueRepository {
-    async fn connection(path: &Path) -> Result<AnyPool, IssueRepositoryError> {
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().ok_or(IssueRepositoryError::IO)?
-        ))
-        .map_err(|_| IssueRepositoryError::IO)?
-        .journal_mode(SqliteJournalMode::Delete);
-        let options = AnyConnectOptions::from(options);
-        let pool = AnyPool::connect_with(options)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-        Ok(pool)
-    }
-
-    pub async fn new(data_dir: PathBuf) -> Result<Self, IssueRepositoryError> {
-        if !data_dir.exists() {
-            fs::create_dir_all(data_dir.as_path()).map_err(|_| IssueRepositoryError::IO)?;
-        }
-        let pool = Self::connection(data_dir.join("command.sqlite").as_path())
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-        let query_handler = SqliteQueryHandler::new(data_dir.as_path())
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-        let migrator = Migrator::new(CommandMigrationSource::default())
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-        migrator
-            .run(&pool)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
+    pub async fn new(
+        connection_pool: SqliteConnectionPool,
+        // TODO: remove
+        query_handler: SqliteQueryHandler,
+    ) -> Result<Self, IssueRepositoryError> {
         Ok(Self {
-            pool,
+            pool: AnyPool::from(connection_pool),
             query_handler,
         })
     }
@@ -306,8 +271,10 @@ mod tests {
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempdir()?;
 
-        let sqlite_path = temp_dir.path().join("its");
-        let issue_repository = SqliteIssueRepository::new(sqlite_path).await?;
+        let sqlite_dir = temp_dir.path().join("its");
+        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
+        let query_handler = SqliteQueryHandler::new(sqlite_dir.as_path()).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool, query_handler).await?;
 
         // create
         let (created, created_event) = IssueAggregate::transaction(IssueAggregateCommand::Create(

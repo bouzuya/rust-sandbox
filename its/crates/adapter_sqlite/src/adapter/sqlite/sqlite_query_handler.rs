@@ -36,7 +36,7 @@ impl From<sqlx::Error> for QueryHandlerError {
 
 // SqliteQueryHandler
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct SqliteQueryHandler {
     pool: AnyPool,
 }

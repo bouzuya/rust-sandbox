@@ -1,6 +1,6 @@
 use std::{path::PathBuf, str::FromStr};
 
-use adapter_sqlite::{SqliteIssueRepository, SqliteQueryHandler};
+use adapter_sqlite::{SqliteConnectionPool, SqliteIssueRepository, SqliteQueryHandler};
 use domain::{IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
@@ -16,7 +16,9 @@ impl App {
     async fn new() -> anyhow::Result<Self> {
         let data_dir = Self::state_dir()?;
         let query_handler = SqliteQueryHandler::new(data_dir.as_path()).await?;
-        let issue_repository = SqliteIssueRepository::new(data_dir).await?;
+        let connection_pool = SqliteConnectionPool::new(data_dir).await?;
+        let issue_repository =
+            SqliteIssueRepository::new(connection_pool, query_handler.clone()).await?;
         Ok(Self {
             issue_repository,
             query_handler,
