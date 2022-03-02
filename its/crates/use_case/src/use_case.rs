@@ -5,7 +5,7 @@ mod issue_repository;
 
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
-use self::issue_block_link_repository::IssueBlockLinkRepositoryError;
+pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::aggregate::IssueBlockLinkAggregateError;

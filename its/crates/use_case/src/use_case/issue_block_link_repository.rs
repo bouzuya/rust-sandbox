@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
-    IssueId,
+    IssueBlockLinkId,
 };
 use thiserror::Error;
 
@@ -17,7 +17,7 @@ pub enum IssueBlockLinkRepositoryError {
 pub trait IssueBlockLinkRepository {
     async fn find_by_id(
         &self,
-        issue_id: &IssueId,
+        issue_block_link: &IssueBlockLinkId,
     ) -> Result<Option<IssueBlockLinkAggregate>, IssueBlockLinkRepositoryError>;
 
     async fn save(
