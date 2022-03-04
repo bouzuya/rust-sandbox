@@ -3,7 +3,7 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueAggregate, IssueAggregateEvent},
-    IssueId,
+    DomainEvent, IssueId,
 };
 
 use sqlx::{
@@ -155,7 +155,10 @@ impl IssueRepository for SqliteIssueRepository {
                         .map_err(|_| IssueRepositoryError::IO)?;
                     // TODO: check dto.version and aggregate_id
                     issue_aggregate_events.push(
-                        IssueAggregateEvent::try_from(dto).map_err(|_| IssueRepositoryError::IO)?,
+                        DomainEvent::try_from(dto)
+                            .map_err(|e| IssueRepositoryError::Unknown(e.to_string()))?
+                            .issue()
+                            .ok_or(IssueRepositoryError::IO)?,
                     );
                 }
                 IssueAggregate::from_events(&issue_aggregate_events)
@@ -204,7 +207,7 @@ impl IssueRepository for SqliteIssueRepository {
                     .transpose()?,
                 Event {
                     aggregate_id,
-                    data: serde_json::to_string(&EventDto::from(event))
+                    data: serde_json::to_string(&EventDto::from(DomainEvent::from(event)))
                         .map_err(|_| IssueRepositoryError::IO)?,
                     version: AggregateVersion::from(
                         u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
@@ -222,7 +225,7 @@ impl IssueRepository for SqliteIssueRepository {
                 None,
                 Event {
                     aggregate_id,
-                    data: serde_json::to_string(&EventDto::from(event))
+                    data: serde_json::to_string(&EventDto::from(DomainEvent::from(event)))
                         .map_err(|_| IssueRepositoryError::IO)?,
                     version: AggregateVersion::from(
                         u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,

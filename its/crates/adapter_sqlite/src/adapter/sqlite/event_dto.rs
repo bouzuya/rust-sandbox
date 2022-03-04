@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use domain::{
-    aggregate::IssueAggregateEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle,
-    IssueUpdated, ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError,
-    TryFromIssueTitleError, Version,
+    aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
+    DomainEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle, IssueUpdated,
+    ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -58,37 +58,46 @@ pub enum EventDto {
     },
 }
 
-// TODO: DomainEvent -> EventDto
-impl From<IssueAggregateEvent> for EventDto {
-    fn from(event: IssueAggregateEvent) -> Self {
+impl From<DomainEvent> for EventDto {
+    fn from(event: DomainEvent) -> Self {
         match event {
-            IssueAggregateEvent::Created(event) => EventDto::from(IssueAggregateEvent::CreatedV2(
-                IssueCreatedV2::from_v1(event),
-            )),
-            IssueAggregateEvent::CreatedV2(event) => EventDto::IssueCreated {
-                at: event.at().to_string(),
-                issue_id: event.issue_id().to_string(),
-                issue_title: event.issue_title().to_string(),
-                issue_due: event.issue_due().map(|d| d.to_string()),
-                version: u64::from(event.version()),
+            DomainEvent::Issue(event) => match event {
+                IssueAggregateEvent::Created(event) => EventDto::from(DomainEvent::from(
+                    IssueAggregateEvent::CreatedV2(IssueCreatedV2::from_v1(event)),
+                )),
+                IssueAggregateEvent::CreatedV2(event) => EventDto::IssueCreated {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    issue_title: event.issue_title().to_string(),
+                    issue_due: event.issue_due().map(|d| d.to_string()),
+                    version: u64::from(event.version()),
+                },
+                IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    version: u64::from(event.version()),
+                },
+                IssueAggregateEvent::Updated(event) => EventDto::IssueUpdated {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    issue_due: event.issue_due().map(|d| d.to_string()),
+                    version: u64::from(event.version()),
+                },
             },
-            IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
-                at: event.at().to_string(),
-                issue_id: event.issue_id().to_string(),
-                version: u64::from(event.version()),
-            },
-            IssueAggregateEvent::Updated(event) => EventDto::IssueUpdated {
-                at: event.at().to_string(),
-                issue_id: event.issue_id().to_string(),
-                issue_due: event.issue_due().map(|d| d.to_string()),
-                version: u64::from(event.version()),
+            DomainEvent::IssueBlockLink(event) => match event {
+                IssueBlockLinkAggregateEvent::Blocked(event) => EventDto::IssueBlocked {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    blocked_issue_id: event.issue_id().to_string(),
+                    version: u64::from(event.version()),
+                },
+                IssueBlockLinkAggregateEvent::Unblocked => todo!(),
             },
         }
     }
 }
 
-// TODO: EventDto -> DomainEvent
-impl TryFrom<EventDto> for IssueAggregateEvent {
+impl TryFrom<EventDto> for DomainEvent {
     type Error = TryFromEventDtoError;
 
     fn try_from(value: EventDto) -> Result<Self, Self::Error> {
@@ -100,8 +109,8 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                 issue_title,
                 issue_due,
                 version,
-            } => Ok(IssueAggregateEvent::CreatedV2(
-                IssueCreatedV2::from_trusted_data(
+            } => Ok(
+                IssueAggregateEvent::CreatedV2(IssueCreatedV2::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
                     IssueTitle::try_from(issue_title)?,
@@ -109,34 +118,37 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
                         .map(|s| IssueDue::from_str(s.as_str()))
                         .transpose()?,
                     Version::from(version),
-                ),
-            )),
+                ))
+                .into(),
+            ),
             EventDto::IssueFinished {
                 at,
                 issue_id,
                 version,
-            } => Ok(IssueAggregateEvent::Finished(
-                IssueFinished::from_trusted_data(
+            } => Ok(
+                IssueAggregateEvent::Finished(IssueFinished::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
                     Version::from(version),
-                ),
-            )),
+                ))
+                .into(),
+            ),
             EventDto::IssueUpdated {
                 at,
                 issue_id,
                 issue_due,
                 version,
-            } => Ok(IssueAggregateEvent::Updated(
-                IssueUpdated::from_trusted_data(
+            } => Ok(
+                IssueAggregateEvent::Updated(IssueUpdated::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
                     issue_due
                         .map(|s| IssueDue::from_str(s.as_str()))
                         .transpose()?,
                     Version::from(version),
-                ),
-            )),
+                ))
+                .into(),
+            ),
         }
     }
 }
@@ -152,11 +164,13 @@ mod tests {
 
     #[test]
     fn issue_created_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::Created(IssueCreated::from_trusted_data(
-            Instant::from_str("2021-02-03T04:05:06Z")?,
-            IssueId::new(IssueNumber::try_from(2_usize)?),
-            IssueTitle::from_str("title1")?,
-            Version::from(1_u64),
+        let event = DomainEvent::from(IssueAggregateEvent::Created(
+            IssueCreated::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                IssueTitle::from_str("title1")?,
+                Version::from(1_u64),
+            ),
         ));
         let dto = EventDto::IssueCreated {
             at: "2021-02-03T04:05:06Z".to_string(),
@@ -178,12 +192,14 @@ mod tests {
 
     #[test]
     fn issue_created_v2_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::CreatedV2(IssueCreatedV2::from_trusted_data(
-            Instant::from_str("2021-02-03T04:05:06Z")?,
-            IssueId::new(IssueNumber::try_from(2_usize)?),
-            IssueTitle::from_str("title1")?,
-            Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
-            Version::from(1_u64),
+        let event = DomainEvent::from(IssueAggregateEvent::CreatedV2(
+            IssueCreatedV2::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                IssueTitle::from_str("title1")?,
+                Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
+                Version::from(1_u64),
+            ),
         ));
         let dto = EventDto::IssueCreated {
             at: "2021-02-03T04:05:06Z".to_string(),
@@ -194,10 +210,7 @@ mod tests {
         };
         let serialized_v1_1 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","issue_due":"2021-02-03T04:05:07Z","version":1}"#;
         assert_eq!(EventDto::from(event.clone()), dto);
-        assert_eq!(
-            IssueAggregateEvent::try_from(EventDto::from(event.clone()))?,
-            event
-        );
+        assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
         assert_eq!(serde_json::to_string(&dto)?, serialized_v1_1);
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_1)?, dto);
         Ok(())
@@ -205,10 +218,12 @@ mod tests {
 
     #[test]
     fn issue_finished_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::Finished(IssueFinished::from_trusted_data(
-            Instant::from_str("2021-02-03T04:05:06Z")?,
-            IssueId::new(IssueNumber::try_from(2_usize)?),
-            Version::from(1_u64),
+        let event = DomainEvent::from(IssueAggregateEvent::Finished(
+            IssueFinished::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                Version::from(1_u64),
+            ),
         ));
         let dto = EventDto::IssueFinished {
             at: "2021-02-03T04:05:06Z".to_string(),
@@ -218,10 +233,7 @@ mod tests {
         let serialized =
             r#"{"type":"issue_finished","at":"2021-02-03T04:05:06Z","issue_id":"2","version":1}"#;
         assert_eq!(EventDto::from(event.clone()), dto);
-        assert_eq!(
-            IssueAggregateEvent::try_from(EventDto::from(event.clone()))?,
-            event
-        );
+        assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
         assert_eq!(serde_json::to_string(&dto)?, serialized);
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
         Ok(())
@@ -229,11 +241,13 @@ mod tests {
 
     #[test]
     fn issue_updated_conversion_test() -> anyhow::Result<()> {
-        let event = IssueAggregateEvent::Updated(IssueUpdated::from_trusted_data(
-            Instant::from_str("2021-02-03T04:05:06Z")?,
-            IssueId::new(IssueNumber::try_from(2_usize)?),
-            Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
-            Version::from(1_u64),
+        let event = DomainEvent::from(IssueAggregateEvent::Updated(
+            IssueUpdated::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
+                Version::from(1_u64),
+            ),
         ));
         let dto = EventDto::IssueUpdated {
             at: "2021-02-03T04:05:06Z".to_string(),
@@ -243,10 +257,7 @@ mod tests {
         };
         let serialized = r#"{"type":"issue_updated","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_due":"2021-02-03T04:05:07Z","version":1}"#;
         assert_eq!(EventDto::from(event.clone()), dto);
-        assert_eq!(
-            IssueAggregateEvent::try_from(EventDto::from(event.clone()))?,
-            event
-        );
+        assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
         assert_eq!(serde_json::to_string(&dto)?, serialized);
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
         Ok(())
