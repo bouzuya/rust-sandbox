@@ -21,11 +21,20 @@ pub enum TryFromEventDtoError {
     IssueNumber(#[from] ParseIssueNumberError),
     #[error("IssueTitle")]
     IssueTitle(#[from] TryFromIssueTitleError),
+    #[error("NotIssueAggregate")]
+    NotIssueAggregate,
 }
 
 #[derive(Debug, Eq, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type")]
 pub enum EventDto {
+    #[serde(rename = "issue_blocked")]
+    IssueBlocked {
+        at: String,
+        issue_id: String,
+        blocked_issue_id: String,
+        version: u64,
+    },
     #[serde(rename = "issue_created")]
     IssueCreated {
         at: String,
@@ -84,6 +93,7 @@ impl TryFrom<EventDto> for IssueAggregateEvent {
 
     fn try_from(value: EventDto) -> Result<Self, Self::Error> {
         match value {
+            EventDto::IssueBlocked { .. } => Err(TryFromEventDtoError::NotIssueAggregate),
             EventDto::IssueCreated {
                 at,
                 issue_id,
