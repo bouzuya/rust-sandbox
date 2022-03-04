@@ -1,18 +1,12 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+use std::str::FromStr;
 
 use async_trait::async_trait;
 use domain::{
-    aggregate::{
-        IssueBlockLinkAggregate, IssueBlockLinkAggregateError, IssueBlockLinkAggregateEvent,
-    },
+    aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
     IssueBlockLinkId,
 };
 
-use sqlx::{any::AnyRow, AnyPool, FromRow, Row};
+use sqlx::{any::AnyRow, Any, AnyPool, FromRow, Row, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
 use crate::SqliteConnectionPool;
@@ -27,11 +21,13 @@ struct IssueBlockLinkIdRow {
 
 impl IssueBlockLinkIdRow {
     fn issue_block_link_id(&self) -> IssueBlockLinkId {
-        IssueBlockLinkId::from_str(self.issue_block_link_id.as_str()).unwrap()
+        IssueBlockLinkId::from_str(&self.issue_block_link_id)
+            .expect("stored issue_block_link_id is not well-formed")
     }
 
     fn aggregate_id(&self) -> AggregateId {
-        AggregateId::from_str(self.aggregate_id.as_str()).unwrap()
+        AggregateId::from_str(&self.aggregate_id)
+            .expect("stored issue_block_link_id is not well-formed")
     }
 }
 
@@ -57,14 +53,36 @@ impl SqliteIssueBlockLinkRepository {
             pool: AnyPool::from(connection_pool),
         })
     }
+
+    async fn find_aggregate_id_by_issue_block_link_id(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+        issue_block_link_id: &IssueBlockLinkId,
+    ) -> Result<Option<AggregateId>, IssueBlockLinkRepositoryError> {
+        let issue_block_link_id_row: Option<IssueBlockLinkIdRow> = sqlx::query_as(include_str!(
+            "../../../sql/command/select_issue_block_link_id_by_issue_block_link_id.sql"
+        ))
+        .bind(issue_block_link_id.to_string())
+        .fetch_optional(&mut *transaction)
+        .await
+        .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+        Ok(issue_block_link_id_row.map(|row| row.aggregate_id()))
+    }
 }
 
 #[async_trait]
 impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
     async fn find_by_id(
         &self,
-        _issue_block_link_id: &IssueBlockLinkId,
+        issue_block_link_id: &IssueBlockLinkId,
     ) -> Result<Option<IssueBlockLinkAggregate>, IssueBlockLinkRepositoryError> {
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+        self.find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+            .await?;
         todo!()
     }
 
