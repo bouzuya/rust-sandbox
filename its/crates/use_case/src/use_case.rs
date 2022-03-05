@@ -106,6 +106,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         }: BlockIssue,
     ) -> Result<IssueBlocked, IssueManagementContextError> {
         // io
+        let at = Instant::now();
         let issue = self
             .issue_repository()
             .find_by_id(&issue_id)
@@ -118,7 +119,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
 
         // pure
-        let (_, event) = issue.block(blocked_issue)?;
+        let (_, event) = issue.block(blocked_issue, at)?;
 
         // io
         self.issue_block_link_repository().save(event).await?;

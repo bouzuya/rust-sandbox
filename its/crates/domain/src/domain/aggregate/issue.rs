@@ -3,6 +3,8 @@ mod error;
 mod event;
 mod transaction;
 
+use limited_date_time::Instant;
+
 pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
@@ -106,7 +108,11 @@ impl IssueAggregate {
         &self.issue
     }
 
-    pub fn block(&self, blocked_issue: IssueAggregate) -> IssueBlockLinkAggregateResult {
-        IssueBlockLinkAggregate::block(self.id().clone(), blocked_issue.id().clone())
+    pub fn block(
+        &self,
+        blocked_issue: IssueAggregate,
+        at: Instant,
+    ) -> IssueBlockLinkAggregateResult {
+        IssueBlockLinkAggregate::block(at, self.id().clone(), blocked_issue.id().clone())
     }
 }
