@@ -19,6 +19,11 @@ pub type IssueBlockLinkAggregateResult =
     Result<(IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent), IssueBlockLinkAggregateError>;
 
 impl IssueBlockLinkAggregate {
+    pub fn from_event(event: IssueBlocked) -> Result<Self, IssueBlockLinkAggregateError> {
+        Self::block(event.issue_id().clone(), event.blocked_issue_id().clone())
+            .map(|(issue_block_link, _)| issue_block_link)
+    }
+
     pub fn block(issue_id: IssueId, blocked_issue_id: IssueId) -> IssueBlockLinkAggregateResult {
         let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)
             .map_err(|_| IssueBlockLinkAggregateError::Block)?;
@@ -51,5 +56,13 @@ impl IssueBlockLinkAggregate {
             },
             IssueBlockLinkAggregateEvent::Unblocked,
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn from_event_test() {
+        // TODO
     }
 }
