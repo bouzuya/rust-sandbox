@@ -1,14 +1,19 @@
-use crate::IssueBlocked;
+use crate::{IssueBlocked, IssueUnblocked};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IssueBlockLinkAggregateEvent {
     Blocked(IssueBlocked),
-    // TODO: Id
-    Unblocked,
+    Unblocked(IssueUnblocked),
 }
 
 impl From<IssueBlocked> for IssueBlockLinkAggregateEvent {
     fn from(event: IssueBlocked) -> Self {
         Self::Blocked(event)
+    }
+}
+
+impl From<IssueUnblocked> for IssueBlockLinkAggregateEvent {
+    fn from(event: IssueUnblocked) -> Self {
+        Self::Unblocked(event)
     }
 }
