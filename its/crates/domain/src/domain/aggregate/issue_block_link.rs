@@ -16,25 +16,31 @@ pub struct IssueBlockLinkAggregate {
     version: Version,
 }
 
-pub type IssueBlockLinkAggregateResult =
-    Result<(IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent), IssueBlockLinkAggregateError>;
-
 impl IssueBlockLinkAggregate {
-    pub fn from_event(event: IssueBlocked) -> Result<Self, IssueBlockLinkAggregateError> {
-        Self::block(
-            event.at(),
-            event.issue_id().clone(),
-            event.blocked_issue_id().clone(),
-        )
-        .map(|issue_block_link| issue_block_link.truncate_events())
-    }
-
-    fn truncate_events(&self) -> Self {
-        Self {
-            events: vec![],
-            issue_block_link: self.issue_block_link.clone(),
-            version: self.version.clone(),
+    pub fn from_events(
+        events: &[IssueBlockLinkAggregateEvent],
+    ) -> Result<Self, IssueBlockLinkAggregateError> {
+        let first_event = match events.first() {
+            Some(event) => match event {
+                IssueBlockLinkAggregateEvent::Blocked(event) => Ok(event),
+                IssueBlockLinkAggregateEvent::Unblocked => {
+                    Err(IssueBlockLinkAggregateError::InvalidEventSequence)
+                }
+            },
+            None => Err(IssueBlockLinkAggregateError::InvalidEventSequence),
+        }?;
+        let issue_block_link = Self::from_event(first_event)?;
+        for event in events.iter().skip(1) {
+            match event {
+                IssueBlockLinkAggregateEvent::Blocked(_) => {
+                    return Err(IssueBlockLinkAggregateError::InvalidEventSequence);
+                }
+                IssueBlockLinkAggregateEvent::Unblocked => {
+                    todo!()
+                }
+            }
         }
+        Ok(issue_block_link)
     }
 
     pub fn block(
@@ -75,6 +81,23 @@ impl IssueBlockLinkAggregate {
             issue_block_link: updated_issue_block_link,
             version: updated_version,
         })
+    }
+
+    fn from_event(event: &IssueBlocked) -> Result<Self, IssueBlockLinkAggregateError> {
+        Self::block(
+            event.at(),
+            event.issue_id().clone(),
+            event.blocked_issue_id().clone(),
+        )
+        .map(Self::truncate_events)
+    }
+
+    fn truncate_events(self) -> Self {
+        Self {
+            events: vec![],
+            issue_block_link: self.issue_block_link,
+            version: self.version,
+        }
     }
 }
 

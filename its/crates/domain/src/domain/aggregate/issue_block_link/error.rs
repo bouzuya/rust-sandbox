@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum IssueBlockLinkAggregateError {
     #[error("Block")]
     Block,
+    #[error("InvalidEventSequence")]
+    InvalidEventSequence,
     #[error("NextVersion")]
     NoNextVersion,
 }

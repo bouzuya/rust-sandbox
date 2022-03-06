@@ -18,7 +18,6 @@ use crate::{
 
 use super::IssueBlockLinkAggregate;
 use super::IssueBlockLinkAggregateError;
-use super::IssueBlockLinkAggregateResult;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueAggregate {
