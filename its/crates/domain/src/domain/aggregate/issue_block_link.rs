@@ -11,6 +11,7 @@ pub use self::event::IssueBlockLinkAggregateEvent;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueBlockLinkAggregate {
+    events: Vec<IssueBlockLinkAggregateEvent>,
     issue_block_link: IssueBlockLink,
     version: Version,
 }
@@ -25,45 +26,55 @@ impl IssueBlockLinkAggregate {
             event.issue_id().clone(),
             event.blocked_issue_id().clone(),
         )
-        .map(|(issue_block_link, _)| issue_block_link)
+        .map(|issue_block_link| issue_block_link.truncate_events())
+    }
+
+    fn truncate_events(&self) -> Self {
+        Self {
+            events: vec![],
+            issue_block_link: self.issue_block_link.clone(),
+            version: self.version.clone(),
+        }
     }
 
     pub fn block(
         at: Instant,
         issue_id: IssueId,
         blocked_issue_id: IssueId,
-    ) -> IssueBlockLinkAggregateResult {
+    ) -> Result<Self, IssueBlockLinkAggregateError> {
         let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)
             .map_err(|_| IssueBlockLinkAggregateError::Block)?;
         let issue_block_link = IssueBlockLink::new(id.clone());
         let version = Version::from(1_u64);
-        Ok((
-            Self {
-                issue_block_link,
-                version,
-            },
-            IssueBlockLinkAggregateEvent::Blocked(IssueBlocked {
+        Ok(Self {
+            events: vec![IssueBlockLinkAggregateEvent::Blocked(IssueBlocked {
                 at,
                 issue_block_link_id: id,
                 version,
-            }),
-        ))
+            })],
+            issue_block_link,
+            version,
+        })
     }
 
-    pub fn unblock(&self) -> IssueBlockLinkAggregateResult {
+    pub fn events(&self) -> &Vec<IssueBlockLinkAggregateEvent> {
+        &self.events
+    }
+
+    pub fn unblock(&self) -> Result<Self, IssueBlockLinkAggregateError> {
         // TODO: check blocked
         let updated_issue_block_link = self.issue_block_link.unblock();
         let updated_version = self
             .version
             .next()
             .ok_or(IssueBlockLinkAggregateError::NoNextVersion)?;
-        Ok((
-            Self {
-                issue_block_link: updated_issue_block_link,
-                version: updated_version,
-            },
-            IssueBlockLinkAggregateEvent::Unblocked,
-        ))
+        let mut updated_events = self.events.clone();
+        updated_events.push(IssueBlockLinkAggregateEvent::Unblocked);
+        Ok(Self {
+            events: updated_events,
+            issue_block_link: updated_issue_block_link,
+            version: updated_version,
+        })
     }
 }
 

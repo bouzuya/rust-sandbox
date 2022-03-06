@@ -17,6 +17,7 @@ use crate::{
 };
 
 use super::IssueBlockLinkAggregate;
+use super::IssueBlockLinkAggregateError;
 use super::IssueBlockLinkAggregateResult;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -112,7 +113,7 @@ impl IssueAggregate {
         &self,
         blocked_issue: IssueAggregate,
         at: Instant,
-    ) -> IssueBlockLinkAggregateResult {
+    ) -> Result<IssueBlockLinkAggregate, IssueBlockLinkAggregateError> {
         IssueBlockLinkAggregate::block(at, self.id().clone(), blocked_issue.id().clone())
     }
 }

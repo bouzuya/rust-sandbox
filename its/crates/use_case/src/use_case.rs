@@ -119,7 +119,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
 
         // pure
-        let (_, event) = issue.block(blocked_issue, at)?;
+        let issue_block_link = issue.block(blocked_issue, at)?;
+        let event = issue_block_link.events().first().unwrap().clone(); // TODO: unwrap
 
         // io
         self.issue_block_link_repository().save(event).await?;
