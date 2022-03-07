@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use domain::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
-    DomainEvent, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueTitle, IssueUpdated,
-    ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
+    DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId,
+    IssueTitle, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError, ParseIssueDueError,
+    ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -21,6 +22,8 @@ pub enum TryFromEventDtoError {
     IssueNumber(#[from] ParseIssueNumberError),
     #[error("IssueTitle")]
     IssueTitle(#[from] TryFromIssueTitleError),
+    #[error("IssueBlockLink")]
+    IssueBlockLink(#[from] ParseIssueBlockLinkError),
     #[error("NotIssueAggregate")]
     NotIssueAggregate,
 }
@@ -47,6 +50,13 @@ pub enum EventDto {
     IssueFinished {
         at: String,
         issue_id: String,
+        version: u64,
+    },
+    #[serde(rename = "issue_unblocked")]
+    IssueUnblocked {
+        at: String,
+        issue_id: String,
+        blocked_issue_id: String,
         version: u64,
     },
     #[serde(rename = "issue_updated")]
@@ -88,10 +98,15 @@ impl From<DomainEvent> for EventDto {
                 IssueBlockLinkAggregateEvent::Blocked(event) => EventDto::IssueBlocked {
                     at: event.at().to_string(),
                     issue_id: event.issue_id().to_string(),
-                    blocked_issue_id: event.issue_id().to_string(),
+                    blocked_issue_id: event.blocked_issue_id().to_string(),
                     version: u64::from(event.version()),
                 },
-                IssueBlockLinkAggregateEvent::Unblocked => todo!(),
+                IssueBlockLinkAggregateEvent::Unblocked(event) => EventDto::IssueUnblocked {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    blocked_issue_id: event.blocked_issue_id().to_string(),
+                    version: u64::from(event.version()),
+                },
             },
         }
     }
@@ -102,7 +117,22 @@ impl TryFrom<EventDto> for DomainEvent {
 
     fn try_from(value: EventDto) -> Result<Self, Self::Error> {
         match value {
-            EventDto::IssueBlocked { .. } => Err(TryFromEventDtoError::NotIssueAggregate),
+            EventDto::IssueBlocked {
+                at,
+                issue_id,
+                blocked_issue_id,
+                version,
+            } => Ok(
+                IssueBlockLinkAggregateEvent::Blocked(IssueBlocked::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueBlockLinkId::new(
+                        IssueId::from_str(issue_id.as_str())?,
+                        IssueId::from_str(blocked_issue_id.as_str())?,
+                    )?,
+                    Version::from(version),
+                ))
+                .into(),
+            ),
             EventDto::IssueCreated {
                 at,
                 issue_id,
@@ -129,6 +159,22 @@ impl TryFrom<EventDto> for DomainEvent {
                 IssueAggregateEvent::Finished(IssueFinished::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
+                    Version::from(version),
+                ))
+                .into(),
+            ),
+            EventDto::IssueUnblocked {
+                at,
+                issue_id,
+                blocked_issue_id,
+                version,
+            } => Ok(
+                IssueBlockLinkAggregateEvent::Unblocked(IssueUnblocked::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueBlockLinkId::new(
+                        IssueId::from_str(issue_id.as_str())?,
+                        IssueId::from_str(blocked_issue_id.as_str())?,
+                    )?,
                     Version::from(version),
                 ))
                 .into(),
