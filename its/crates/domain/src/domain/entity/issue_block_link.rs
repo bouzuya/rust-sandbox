@@ -14,6 +14,10 @@ impl IssueBlockLink {
         }
     }
 
+    pub(crate) fn id(&self) -> &IssueBlockLinkId {
+        &self.id
+    }
+
     pub(crate) fn issue_id(&self) -> &IssueId {
         self.id.issue_id()
     }
@@ -51,6 +55,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let id = IssueBlockLinkId::from_str("1 -> 2")?;
         let link = IssueBlockLink::new(id.clone());
+        assert_eq!(link.id(), &id);
         assert_eq!(link.issue_id(), id.issue_id());
         assert_eq!(link.blocked_issue_id(), id.blocked_issue_id());
         assert!(link.is_blocked());
