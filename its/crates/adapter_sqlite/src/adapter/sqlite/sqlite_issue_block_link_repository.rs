@@ -3,15 +3,15 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
-    IssueBlockLinkId,
+    DomainEvent, IssueBlockLinkId,
 };
 
 use sqlx::{any::AnyRow, Any, AnyPool, FromRow, Row, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
-use crate::SqliteConnectionPool;
+use crate::{event_dto::EventDto, SqliteConnectionPool};
 
-use super::event_store::AggregateId;
+use super::event_store::{self, AggregateId};
 
 #[derive(Debug)]
 struct IssueBlockLinkIdRow {
@@ -81,9 +81,35 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
             .begin()
             .await
             .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
-        self.find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
-            .await?;
-        todo!()
+        match self
+            .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+            .await?
+        {
+            Some(aggregate_id) => {
+                let events =
+                    event_store::find_events_by_aggregate_id(&mut transaction, aggregate_id)
+                        .await
+                        .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+                let mut issue_block_link_aggregate_events = vec![];
+                for event in events {
+                    let dto = serde_json::from_str::<'_, EventDto>(event.data.as_str())
+                        .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+                    // TODO: check dto.version and aggregate_id
+                    issue_block_link_aggregate_events.push(
+                        DomainEvent::try_from(dto)
+                            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?
+                            .issue_block_link()
+                            .ok_or_else(|| {
+                                IssueBlockLinkRepositoryError::Unknown("".to_string())
+                            })?,
+                    );
+                }
+                IssueBlockLinkAggregate::from_events(&issue_block_link_aggregate_events)
+                    .map(Some)
+                    .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))
+            }
+            None => Ok(None),
+        }
     }
 
     async fn save(
