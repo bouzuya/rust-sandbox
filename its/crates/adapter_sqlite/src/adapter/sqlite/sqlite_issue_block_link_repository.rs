@@ -1,4 +1,4 @@
-use std::str::FromStr;
+mod issue_block_link_id_row;
 
 use async_trait::async_trait;
 use domain::{
@@ -6,39 +6,14 @@ use domain::{
     DomainEvent, IssueBlockLinkId,
 };
 
-use sqlx::{any::AnyRow, Any, AnyPool, FromRow, Row, Transaction};
+use sqlx::{Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
 use crate::{event_dto::EventDto, SqliteConnectionPool};
 
+use self::issue_block_link_id_row::IssueBlockLinkIdRow;
+
 use super::event_store::{self, AggregateId};
-
-#[derive(Debug)]
-struct IssueBlockLinkIdRow {
-    issue_block_link_id: String,
-    aggregate_id: String,
-}
-
-impl IssueBlockLinkIdRow {
-    fn issue_block_link_id(&self) -> IssueBlockLinkId {
-        IssueBlockLinkId::from_str(&self.issue_block_link_id)
-            .expect("stored issue_block_link_id is not well-formed")
-    }
-
-    fn aggregate_id(&self) -> AggregateId {
-        AggregateId::from_str(&self.aggregate_id)
-            .expect("stored issue_block_link_id is not well-formed")
-    }
-}
-
-impl<'r> FromRow<'r, AnyRow> for IssueBlockLinkIdRow {
-    fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Self {
-            issue_block_link_id: row.get("issue_block_link_id"),
-            aggregate_id: row.get("aggregate_id"),
-        })
-    }
-}
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {
