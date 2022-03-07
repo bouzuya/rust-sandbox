@@ -113,6 +113,6 @@ impl IssueAggregate {
         blocked_issue: IssueAggregate,
         at: Instant,
     ) -> Result<IssueBlockLinkAggregate, IssueBlockLinkAggregateError> {
-        IssueBlockLinkAggregate::block(at, self.id().clone(), blocked_issue.id().clone())
+        IssueBlockLinkAggregate::new(at, self.id().clone(), blocked_issue.id().clone())
     }
 }
