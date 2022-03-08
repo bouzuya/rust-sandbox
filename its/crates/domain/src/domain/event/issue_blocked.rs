@@ -10,7 +10,7 @@ pub struct IssueBlocked {
 }
 
 impl IssueBlocked {
-    pub fn from_trusted_data(
+    pub(crate) fn from_trusted_data(
         at: Instant,
         issue_block_link_id: IssueBlockLinkId,
         version: Version,

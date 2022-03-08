@@ -11,7 +11,7 @@ pub struct IssueCreated {
 }
 
 impl IssueCreated {
-    pub fn from_trusted_data(
+    pub(crate) fn from_trusted_data(
         at: Instant,
         issue_id: IssueId,
         issue_title: IssueTitle,

@@ -10,7 +10,7 @@ pub struct IssueFinished {
 }
 
 impl IssueFinished {
-    pub fn from_trusted_data(at: Instant, issue_id: IssueId, version: Version) -> Self {
+    pub(crate) fn from_trusted_data(at: Instant, issue_id: IssueId, version: Version) -> Self {
         Self::new(at, issue_id, version)
     }
 

@@ -12,7 +12,7 @@ pub struct IssueCreatedV2 {
 }
 
 impl IssueCreatedV2 {
-    pub fn from_v1(event: IssueCreated) -> Self {
+    pub(crate) fn from_v1(event: IssueCreated) -> Self {
         Self::new(
             event.at,
             event.issue_id,
@@ -22,7 +22,7 @@ impl IssueCreatedV2 {
         )
     }
 
-    pub fn from_trusted_data(
+    pub(crate) fn from_trusted_data(
         at: Instant,
         issue_id: IssueId,
         issue_title: IssueTitle,

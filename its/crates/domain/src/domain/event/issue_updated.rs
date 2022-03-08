@@ -11,7 +11,7 @@ pub struct IssueUpdated {
 }
 
 impl IssueUpdated {
-    pub fn from_trusted_data(
+    pub(crate) fn from_trusted_data(
         at: Instant,
         issue_id: IssueId,
         issue_due: Option<IssueDue>,
