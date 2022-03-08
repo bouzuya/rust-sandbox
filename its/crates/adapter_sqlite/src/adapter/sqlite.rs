@@ -1,5 +1,4 @@
 mod command_migration_source;
-pub mod event_dto;
 mod event_store;
 mod sqlilte_connection_pool;
 mod sqlite_issue_block_link_repository;

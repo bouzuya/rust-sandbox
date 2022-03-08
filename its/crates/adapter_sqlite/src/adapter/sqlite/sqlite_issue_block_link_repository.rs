@@ -1,5 +1,7 @@
 mod issue_block_link_id_row;
 
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
@@ -9,7 +11,7 @@ use domain::{
 use sqlx::{Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
-use crate::{event_dto::EventDto, SqliteConnectionPool};
+use crate::SqliteConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
@@ -67,16 +69,13 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
                 let mut issue_block_link_aggregate_events = vec![];
                 for event in events {
-                    let dto = serde_json::from_str::<'_, EventDto>(event.data.as_str())
+                    let event = DomainEvent::from_str(event.data.as_str())
                         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
                     // TODO: check dto.version and aggregate_id
                     issue_block_link_aggregate_events.push(
-                        DomainEvent::try_from(dto)
-                            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?
-                            .issue_block_link()
-                            .ok_or_else(|| {
-                                IssueBlockLinkRepositoryError::Unknown("".to_string())
-                            })?,
+                        event.issue_block_link().ok_or_else(|| {
+                            IssueBlockLinkRepositoryError::Unknown("".to_string())
+                        })?,
                     );
                 }
                 IssueBlockLinkAggregate::from_events(&issue_block_link_aggregate_events)

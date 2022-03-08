@@ -1,3 +1,4 @@
+mod event_dto;
 mod issue_blocked;
 mod issue_created;
 mod issue_created_v2;
@@ -5,6 +6,12 @@ mod issue_finished;
 mod issue_unblocked;
 mod issue_updated;
 
+use std::fmt::Display;
+use std::str::FromStr;
+
+use thiserror::Error;
+
+use self::event_dto::*;
 use crate::aggregate::IssueAggregateEvent;
 use crate::aggregate::IssueBlockLinkAggregateEvent;
 
@@ -19,6 +26,29 @@ pub use self::issue_updated::*;
 pub enum DomainEvent {
     Issue(IssueAggregateEvent),
     IssueBlockLink(IssueBlockLinkAggregateEvent),
+}
+
+impl Display for DomainEvent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let dto = EventDto::from(self.clone());
+        let s = serde_json::to_string(&dto).map_err(|_| std::fmt::Error)?;
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug, Error)]
+#[error("ParseDomainEventError")]
+pub struct ParseDomainEventError;
+
+impl FromStr for DomainEvent {
+    type Err = ParseDomainEventError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str::<'_, EventDto>(s)
+            .map_err(|_| ParseDomainEventError)
+            .and_then(|dto| DomainEvent::try_from(dto).map_err(|_| ParseDomainEventError))
+            .map_err(|_| ParseDomainEventError)
+    }
 }
 
 impl From<IssueAggregateEvent> for DomainEvent {

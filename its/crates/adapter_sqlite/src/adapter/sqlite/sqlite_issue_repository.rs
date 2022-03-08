@@ -15,7 +15,6 @@ use use_case::{IssueRepository, IssueRepositoryError};
 
 use crate::{
     adapter::sqlite::event_store::{AggregateVersion, Event},
-    event_dto::EventDto,
     SqliteQueryHandler,
 };
 
@@ -151,15 +150,10 @@ impl IssueRepository for SqliteIssueRepository {
                         .map_err(|_| IssueRepositoryError::IO)?;
                 let mut issue_aggregate_events = vec![];
                 for event in events {
-                    let dto = serde_json::from_str::<'_, EventDto>(event.data.as_str())
+                    let event = DomainEvent::from_str(event.data.as_str())
                         .map_err(|_| IssueRepositoryError::IO)?;
-                    // TODO: check dto.version and aggregate_id
-                    issue_aggregate_events.push(
-                        DomainEvent::try_from(dto)
-                            .map_err(|e| IssueRepositoryError::Unknown(e.to_string()))?
-                            .issue()
-                            .ok_or(IssueRepositoryError::IO)?,
-                    );
+                    // TODO: check event.version and aggregate_id
+                    issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
                 }
                 IssueAggregate::from_events(&issue_aggregate_events)
                     .map(Some)
@@ -207,8 +201,7 @@ impl IssueRepository for SqliteIssueRepository {
                     .transpose()?,
                 Event {
                     aggregate_id,
-                    data: serde_json::to_string(&EventDto::from(DomainEvent::from(event)))
-                        .map_err(|_| IssueRepositoryError::IO)?,
+                    data: DomainEvent::from(event).to_string(),
                     version: AggregateVersion::from(
                         u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
                     ),
@@ -225,8 +218,7 @@ impl IssueRepository for SqliteIssueRepository {
                 None,
                 Event {
                     aggregate_id,
-                    data: serde_json::to_string(&EventDto::from(DomainEvent::from(event)))
-                        .map_err(|_| IssueRepositoryError::IO)?,
+                    data: DomainEvent::from(event).to_string(),
                     version: AggregateVersion::from(
                         u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
                     ),

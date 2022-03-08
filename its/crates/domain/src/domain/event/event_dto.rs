@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use domain::{
+use crate::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
     DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId,
     IssueTitle, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError, ParseIssueDueError,
@@ -30,6 +30,7 @@ pub enum TryFromEventDtoError {
 
 #[derive(Debug, Eq, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "type")]
+#[allow(clippy::enum_variant_names)]
 pub enum EventDto {
     #[serde(rename = "issue_blocked")]
     IssueBlocked {
@@ -203,7 +204,7 @@ impl TryFrom<EventDto> for DomainEvent {
 mod tests {
     use std::str::FromStr;
 
-    use domain::{IssueCreated, IssueId, IssueNumber, IssueTitle, Version};
+    use crate::{IssueCreated, IssueId, IssueNumber, IssueTitle, Version};
     use limited_date_time::Instant;
 
     use super::*;
