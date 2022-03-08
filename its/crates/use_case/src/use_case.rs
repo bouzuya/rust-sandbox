@@ -6,19 +6,16 @@ mod issue_repository;
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
-pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
-use domain::aggregate::IssueBlockLinkAggregateError;
-use domain::aggregate::IssueBlockLinkAggregateEvent;
-use domain::DomainEvent;
-use domain::IssueBlocked;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
         IssueAggregateEvent, IssueAggregateFinishIssue, IssueAggregateUpdateIssue,
+        IssueBlockLinkAggregateError, IssueBlockLinkAggregateEvent,
     },
-    IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber, IssueTitle, IssueUpdated,
+    DomainEvent, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber,
+    IssueTitle, IssueUpdated,
 };
 use limited_date_time::Instant;
 use thiserror::Error;
