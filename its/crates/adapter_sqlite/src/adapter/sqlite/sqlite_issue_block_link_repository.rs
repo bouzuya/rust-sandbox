@@ -52,10 +52,11 @@ impl SqliteIssueBlockLinkRepository {
         issue_block_link_id: &IssueBlockLinkId,
         aggregate_id: AggregateId,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
-        let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
-                .bind(issue_block_link_id.to_string())
-                .bind(aggregate_id.to_string());
+        let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
+            "../../../sql/command/insert_issue_block_link_id.sql"
+        ))
+        .bind(issue_block_link_id.to_string())
+        .bind(aggregate_id.to_string());
         let rows_affected = query
             .execute(transaction)
             .await
@@ -171,4 +172,36 @@ fn aggregate_version_from(
         u32::try_from(u64::from(version))
             .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?,
     ))
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::Context;
+    use limited_date_time::Instant;
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let temp_dir = tempdir()?;
+
+        let sqlite_dir = temp_dir.path().join("its");
+        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
+        let issue_repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
+
+        // save
+        let created = IssueBlockLinkAggregate::new(Instant::now(), "123".parse()?, "456".parse()?)?;
+        issue_repository
+            .save(
+                created
+                    .events()
+                    .first()
+                    .with_context(|| "no event")?
+                    .clone(),
+            )
+            .await?;
+
+        Ok(())
+    }
 }
