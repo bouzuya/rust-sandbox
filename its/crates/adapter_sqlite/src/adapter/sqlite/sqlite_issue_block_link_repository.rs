@@ -188,11 +188,11 @@ mod tests {
 
         let sqlite_dir = temp_dir.path().join("its");
         let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
-        let issue_repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
+        let repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
 
-        // save
+        // save (create)
         let created = IssueBlockLinkAggregate::new(Instant::now(), "123".parse()?, "456".parse()?)?;
-        issue_repository
+        repository
             .save(
                 created
                     .events()
@@ -203,8 +203,23 @@ mod tests {
             .await?;
 
         // find_by_id
-        let found = issue_repository.find_by_id(created.id()).await?;
+        let found = repository.find_by_id(created.id()).await?;
         assert_eq!(Some(created.truncate_events()), found);
+        let found = found.context("found is None")?;
+
+        // save (update)
+        let updated = found.unblock(Instant::now())?;
+        repository
+            .save(
+                updated
+                    .events()
+                    .first()
+                    .context("updated has no events")?
+                    .clone(),
+            )
+            .await?;
+        let found = repository.find_by_id(updated.id()).await?;
+        assert_eq!(Some(updated.truncate_events()), found);
 
         Ok(())
     }
