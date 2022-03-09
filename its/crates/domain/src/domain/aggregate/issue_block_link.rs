@@ -73,6 +73,14 @@ impl IssueBlockLinkAggregate {
         self.issue_block_link.id()
     }
 
+    pub fn truncate_events(self) -> Self {
+        Self {
+            events: vec![],
+            issue_block_link: self.issue_block_link,
+            version: self.version,
+        }
+    }
+
     pub fn unblock(&self, at: Instant) -> Result<Self, IssueBlockLinkAggregateError> {
         let event = IssueUnblocked {
             at,
@@ -119,14 +127,6 @@ impl IssueBlockLinkAggregate {
             .next()
             .ok_or(IssueBlockLinkAggregateError::NoNextVersion)
     }
-
-    fn truncate_events(self) -> Self {
-        Self {
-            events: vec![],
-            issue_block_link: self.issue_block_link,
-            version: self.version,
-        }
-    }
 }
 
 #[cfg(test)]
@@ -155,6 +155,16 @@ mod tests {
         )?;
         let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
         assert_eq!(created.id(), &id);
+        Ok(())
+    }
+
+    #[test]
+    fn truncate_events_test() -> anyhow::Result<()> {
+        let issue_id = IssueId::from_str("123")?;
+        let blocked_issue_id = IssueId::from_str("456")?;
+        let created = IssueBlockLinkAggregate::new(Instant::now(), issue_id, blocked_issue_id)?;
+        assert!(!created.events().is_empty());
+        assert!(created.truncate_events().events().is_empty());
         Ok(())
     }
 }
