@@ -69,6 +69,10 @@ impl IssueBlockLinkAggregate {
         &self.events
     }
 
+    pub fn id(&self) -> &IssueBlockLinkId {
+        self.issue_block_link.id()
+    }
+
     pub fn unblock(&self, at: Instant) -> Result<Self, IssueBlockLinkAggregateError> {
         let event = IssueUnblocked {
             at,
@@ -127,8 +131,30 @@ impl IssueBlockLinkAggregate {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use limited_date_time::Instant;
+
+    use crate::{IssueBlockLinkId, IssueId};
+
+    use super::IssueBlockLinkAggregate;
+
     #[test]
     fn from_event_test() {
         // TODO
+    }
+
+    #[test]
+    fn id_test() -> anyhow::Result<()> {
+        let issue_id = IssueId::from_str("123")?;
+        let blocked_issue_id = IssueId::from_str("456")?;
+        let created = IssueBlockLinkAggregate::new(
+            Instant::now(),
+            issue_id.clone(),
+            blocked_issue_id.clone(),
+        )?;
+        let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
+        assert_eq!(created.id(), &id);
+        Ok(())
     }
 }
