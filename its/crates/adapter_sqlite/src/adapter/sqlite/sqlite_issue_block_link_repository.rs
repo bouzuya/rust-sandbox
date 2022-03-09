@@ -197,10 +197,14 @@ mod tests {
                 created
                     .events()
                     .first()
-                    .with_context(|| "no event")?
+                    .context("created has no events")?
                     .clone(),
             )
             .await?;
+
+        // find_by_id
+        let found = issue_repository.find_by_id(created.id()).await?;
+        assert_eq!(Some(created.truncate_events()), found);
 
         Ok(())
     }
