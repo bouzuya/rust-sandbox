@@ -5,17 +5,17 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
-    DomainEvent, IssueBlockLinkId,
+    DomainEvent, IssueBlockLinkId, Version,
 };
 
-use sqlx::{Any, AnyPool, Transaction};
+use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
 use crate::SqliteConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
-use super::event_store::{self, AggregateId};
+use super::event_store::{self, AggregateId, AggregateVersion, Event};
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {
@@ -44,6 +44,30 @@ impl SqliteIssueBlockLinkRepository {
         .await
         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
         Ok(issue_block_link_id_row.map(|row| row.aggregate_id()))
+    }
+
+    async fn insert_issue_block_link_id(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+        issue_block_link_id: &IssueBlockLinkId,
+        aggregate_id: AggregateId,
+    ) -> Result<(), IssueBlockLinkRepositoryError> {
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
+                .bind(issue_block_link_id.to_string())
+                .bind(aggregate_id.to_string());
+        let rows_affected = query
+            .execute(transaction)
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?
+            .rows_affected();
+        if rows_affected != 1 {
+            return Err(IssueBlockLinkRepositoryError::Unknown(
+                "rows_affected != 1".to_string(),
+            ));
+        }
+
+        Ok(())
     }
 }
 
@@ -88,8 +112,63 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
 
     async fn save(
         &self,
-        _event: IssueBlockLinkAggregateEvent,
+        event: IssueBlockLinkAggregateEvent,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
-        todo!()
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+
+        let (issue_block_link_id, version) = event.key();
+        if let Some(aggregate_id) = self
+            .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+            .await?
+        {
+            // update
+            event_store::save(
+                &mut transaction,
+                version.prev().map(aggregate_version_from).transpose()?,
+                Event {
+                    aggregate_id,
+                    data: DomainEvent::from(event.clone()).to_string(),
+                    version: aggregate_version_from(version)?,
+                },
+            )
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+        } else {
+            // create
+            let aggregate_id = AggregateId::generate();
+            event_store::save(
+                &mut transaction,
+                None,
+                Event {
+                    aggregate_id,
+                    data: DomainEvent::from(event.clone()).to_string(),
+                    version: aggregate_version_from(version)?,
+                },
+            )
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+
+            self.insert_issue_block_link_id(&mut transaction, issue_block_link_id, aggregate_id)
+                .await?;
+        }
+
+        transaction
+            .commit()
+            .await
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+        Ok(())
     }
+}
+
+fn aggregate_version_from(
+    version: Version,
+) -> Result<AggregateVersion, IssueBlockLinkRepositoryError> {
+    Ok(AggregateVersion::from(
+        u32::try_from(u64::from(version))
+            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?,
+    ))
 }

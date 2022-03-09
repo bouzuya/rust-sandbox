@@ -7,7 +7,7 @@ pub enum IssueBlockLinkAggregateEvent {
 }
 
 impl IssueBlockLinkAggregateEvent {
-    pub(crate) fn key(&self) -> (&IssueBlockLinkId, Version) {
+    pub fn key(&self) -> (&IssueBlockLinkId, Version) {
         match self {
             IssueBlockLinkAggregateEvent::Blocked(event) => event.key(),
             IssueBlockLinkAggregateEvent::Unblocked(event) => event.key(),
