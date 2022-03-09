@@ -33,7 +33,7 @@ impl IssueBlockLinkAggregate {
         for event in events.iter().skip(1) {
             issue_block_link = issue_block_link.apply_event(event.clone())?;
         }
-        Ok(issue_block_link)
+        Ok(issue_block_link.truncate_events())
     }
 
     pub fn new(
@@ -135,13 +135,31 @@ mod tests {
 
     use limited_date_time::Instant;
 
-    use crate::{IssueBlockLinkId, IssueId};
+    use crate::{IssueBlockLinkId, IssueBlocked, IssueId, IssueUnblocked, Version};
 
     use super::IssueBlockLinkAggregate;
 
     #[test]
-    fn from_event_test() {
-        // TODO
+    fn from_event_test() -> anyhow::Result<()> {
+        let issue_block_link_id = IssueBlockLinkId::from_str("123 -> 456")?;
+        let events = vec![
+            IssueBlocked::from_trusted_data(
+                Instant::now(),
+                issue_block_link_id.clone(),
+                Version::from(1_u64),
+            )
+            .into(),
+            IssueUnblocked::from_trusted_data(
+                Instant::now(),
+                issue_block_link_id.clone(),
+                Version::from(2_u64),
+            )
+            .into(),
+        ];
+        let created = IssueBlockLinkAggregate::from_events(&events)?;
+        assert_eq!(created.id(), &issue_block_link_id);
+        assert!(created.events().is_empty());
+        Ok(())
     }
 
     #[test]
