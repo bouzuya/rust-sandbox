@@ -64,6 +64,26 @@ impl HasIssueManagementContextUseCase for App {
     }
 }
 
+#[argopt::subcmd(name = "issue-block")]
+fn issue_block(
+    #[opt(name = "issue-id")] issue_id: String,
+    #[opt(name = "blocked-issue-id")] blocked_issue_id: String,
+) -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let app = App::new().await?;
+            let use_case = app.issue_management_context_use_case();
+            let issue_id = IssueId::from_str(issue_id.as_str())?;
+            let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
+            let command = use_case.block_issue(issue_id, blocked_issue_id).into();
+            let event = use_case.handle(command).await?;
+            println!("issue blocked : {:?}", event);
+            Ok(())
+        })
+}
+
 #[argopt::subcmd(name = "issue-create")]
 fn issue_create(
     #[opt(long = "title")] title: Option<String>,
@@ -134,5 +154,11 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
         })
 }
 
-#[argopt::cmd_group(commands = [issue_create, issue_finish, issue_list, issue_update])]
+#[argopt::cmd_group(commands = [
+    issue_block,
+    issue_create,
+    issue_finish,
+    issue_list,
+    issue_update
+])]
 fn main() -> anyhow::Result<()> {}
