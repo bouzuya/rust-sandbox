@@ -123,7 +123,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .save(&issue_block_link)
             .await?;
 
-        todo!()
+        Ok(match issue_block_link.events().first() {
+            Some(event) => match event {
+                IssueBlockLinkAggregateEvent::Blocked(event) => event.clone(),
+                IssueBlockLinkAggregateEvent::Unblocked(_) => unreachable!(),
+            },
+            None => unreachable!(),
+        })
     }
 
     async fn handle_create_issue(
