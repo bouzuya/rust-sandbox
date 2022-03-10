@@ -3,10 +3,7 @@ mod issue_block_link_id_row;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use domain::{
-    aggregate::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent},
-    DomainEvent, IssueBlockLinkId, Version,
-};
+use domain::{aggregate::IssueBlockLinkAggregate, DomainEvent, IssueBlockLinkId, Version};
 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
@@ -113,8 +110,19 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
 
     async fn save(
         &self,
-        event: IssueBlockLinkAggregateEvent,
+        issue_block_link: &IssueBlockLinkAggregate,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
+        let events = issue_block_link.events();
+        if events.len() > 1 {
+            return Err(IssueBlockLinkRepositoryError::Unknown(
+                "too many events".to_string(),
+            ));
+        }
+        let event = match events.first() {
+            Some(event) => event,
+            None => return Ok(()),
+        };
+
         let mut transaction = self
             .pool
             .begin()
@@ -192,15 +200,7 @@ mod tests {
 
         // save (create)
         let created = IssueBlockLinkAggregate::new(Instant::now(), "123".parse()?, "456".parse()?)?;
-        repository
-            .save(
-                created
-                    .events()
-                    .first()
-                    .context("created has no events")?
-                    .clone(),
-            )
-            .await?;
+        repository.save(&created).await?;
 
         // find_by_id
         let found = repository.find_by_id(created.id()).await?;
@@ -209,15 +209,7 @@ mod tests {
 
         // save (update)
         let updated = found.unblock(Instant::now())?;
-        repository
-            .save(
-                updated
-                    .events()
-                    .first()
-                    .context("updated has no events")?
-                    .clone(),
-            )
-            .await?;
+        repository.save(&updated).await?;
         let found = repository.find_by_id(updated.id()).await?;
         assert_eq!(Some(updated.truncate_events()), found);
 

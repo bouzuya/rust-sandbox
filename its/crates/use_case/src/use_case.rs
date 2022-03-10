@@ -117,10 +117,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
         // pure
         let issue_block_link = issue.block(blocked_issue, at)?;
-        let event = issue_block_link.events().first().unwrap().clone(); // TODO: unwrap
 
         // io
-        self.issue_block_link_repository().save(event).await?;
+        self.issue_block_link_repository()
+            .save(&issue_block_link)
+            .await?;
 
         todo!()
     }
