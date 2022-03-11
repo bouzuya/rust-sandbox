@@ -160,14 +160,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Create(
-            IssueAggregateCreateIssue {
-                issue_number,
-                issue_title: command.issue_title,
-                issue_due: command.issue_due,
-                at,
-            },
-        ))?;
+        let (_, event) =
+            IssueAggregate::new(at, issue_number, command.issue_title, command.issue_due)?;
 
         // io
         self.issue_repository().save(event.clone()).await?;
