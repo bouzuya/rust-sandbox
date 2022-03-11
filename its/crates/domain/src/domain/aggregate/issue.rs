@@ -10,6 +10,9 @@ pub use self::error::*;
 pub use self::event::*;
 use self::transaction::*;
 use crate::IssueCreatedV2;
+use crate::IssueDue;
+use crate::IssueNumber;
+use crate::IssueTitle;
 use crate::IssueUpdated;
 use crate::{
     domain::{entity::Issue, event::IssueFinished},
@@ -90,6 +93,29 @@ impl IssueAggregate {
         Ok(issue)
     }
 
+    pub fn new(
+        at: Instant,
+        issue_number: IssueNumber,
+        issue_title: IssueTitle,
+        issue_due: Option<IssueDue>,
+    ) -> Result<(Self, IssueAggregateEvent), IssueAggregateError> {
+        let issue_id = IssueId::new(issue_number);
+        let issue_title = issue_title;
+        let issue_due = issue_due;
+        let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
+        let version = Version::from(1_u64);
+        let issue = IssueAggregate { issue, version };
+        let event = IssueCreatedV2 {
+            at,
+            issue_id,
+            issue_title,
+            issue_due,
+            version,
+        }
+        .into();
+        Ok((issue, event))
+    }
+
     pub fn transaction(
         command: IssueAggregateCommand,
     ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
@@ -114,5 +140,24 @@ impl IssueAggregate {
         at: Instant,
     ) -> Result<IssueBlockLinkAggregate, IssueBlockLinkAggregateError> {
         IssueBlockLinkAggregate::new(at, self.id().clone(), blocked_issue.id().clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn new_test() -> anyhow::Result<()> {
+        let (_, _) = IssueAggregate::new(
+            Instant::now(),
+            IssueNumber::from_str("123")?,
+            IssueTitle::from_str("title")?,
+            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+        )?;
+        // TODO: assert
+        Ok(())
     }
 }
