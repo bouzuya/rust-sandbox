@@ -5,6 +5,7 @@ pub enum IssueManagementContextCommand {
     BlockIssue(BlockIssue),
     CreateIssue(CreateIssue),
     FinishIssue(FinishIssue),
+    UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),
 }
 
@@ -23,6 +24,12 @@ impl From<CreateIssue> for IssueManagementContextCommand {
 impl From<FinishIssue> for IssueManagementContextCommand {
     fn from(command: FinishIssue) -> Self {
         Self::FinishIssue(command)
+    }
+}
+
+impl From<UnblockIssue> for IssueManagementContextCommand {
+    fn from(command: UnblockIssue) -> Self {
+        Self::UnblockIssue(command)
     }
 }
 
@@ -47,6 +54,12 @@ pub struct CreateIssue {
 #[derive(Debug)]
 pub struct FinishIssue {
     pub issue_id: IssueId,
+}
+
+#[derive(Debug)]
+pub struct UnblockIssue {
+    pub issue_id: IssueId,
+    pub blocked_issue_id: IssueId,
 }
 
 #[derive(Debug)]

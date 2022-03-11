@@ -8,6 +8,7 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
+use domain::IssueBlockLinkId;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
@@ -61,6 +62,12 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
                     IssueAggregateEvent::from(event),
                 )))
             }
+            IssueManagementContextCommand::UnblockIssue(command) => {
+                let event = self.handle_unblock_issue(command).await?;
+                Ok(IssueManagementContextEvent::from(
+                    DomainEvent::IssueBlockLink(IssueBlockLinkAggregateEvent::from(event)),
+                ))
+            }
             IssueManagementContextCommand::UpdateIssue(command) => {
                 let event = self.handle_update_issue(command).await?;
                 Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
@@ -86,6 +93,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
     fn finish_issue(&self, issue_id: IssueId) -> FinishIssue {
         FinishIssue { issue_id }
+    }
+
+    fn unblock_issue(&self, issue_id: IssueId, blocked_issue_id: IssueId) -> UnblockIssue {
+        UnblockIssue {
+            issue_id,
+            blocked_issue_id,
+        }
     }
 
     fn update_issue(&self, issue_id: IssueId, issue_due: Option<IssueDue>) -> UpdateIssue {
@@ -190,6 +204,16 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         } else {
             unreachable!()
         }
+    }
+
+    async fn handle_unblock_issue(
+        &self,
+        UnblockIssue {
+            issue_id,
+            blocked_issue_id,
+        }: UnblockIssue,
+    ) -> Result<IssueBlocked, IssueManagementContextError> {
+        todo!()
     }
 
     async fn handle_update_issue(
