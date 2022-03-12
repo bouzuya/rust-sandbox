@@ -13,13 +13,6 @@ impl IssueBlockLinkAggregateEvent {
             IssueBlockLinkAggregateEvent::Unblocked(event) => event.key(),
         }
     }
-
-    pub(crate) fn version(&self) -> Version {
-        match self {
-            IssueBlockLinkAggregateEvent::Blocked(event) => event.version(),
-            IssueBlockLinkAggregateEvent::Unblocked(event) => event.version(),
-        }
-    }
 }
 
 impl From<IssueBlocked> for IssueBlockLinkAggregateEvent {
