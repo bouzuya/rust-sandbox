@@ -10,8 +10,7 @@ pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::{
     aggregate::{
-        IssueAggregate, IssueAggregateCommand, IssueAggregateError, IssueAggregateEvent,
-        IssueAggregateFinishIssue, IssueAggregateUpdateIssue, IssueBlockLinkAggregateError,
+        IssueAggregate, IssueAggregateError, IssueAggregateEvent, IssueBlockLinkAggregateError,
         IssueBlockLinkAggregateEvent,
     },
     DomainEvent, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber,
@@ -185,9 +184,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Finish(
-            IssueAggregateFinishIssue { issue, at },
-        ))?;
+        let (_, event) = issue.finish(at)?;
 
         // io
         self.issue_repository().save(event.clone()).await?;
@@ -201,10 +198,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
     async fn handle_unblock_issue(
         &self,
-        UnblockIssue {
-            issue_id,
-            blocked_issue_id,
-        }: UnblockIssue,
+        _: UnblockIssue,
     ) -> Result<IssueBlocked, IssueManagementContextError> {
         todo!()
     }
@@ -224,13 +218,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) = IssueAggregate::transaction(IssueAggregateCommand::Update(
-            IssueAggregateUpdateIssue {
-                issue,
-                issue_due,
-                at,
-            },
-        ))?;
+        let (_, event) = issue.update(issue_due, at)?;
 
         // io
         self.issue_repository().save(event.clone()).await?;

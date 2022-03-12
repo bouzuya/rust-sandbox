@@ -254,7 +254,6 @@ impl IssueRepository for SqliteIssueRepository {
 
 #[cfg(test)]
 mod tests {
-    use domain::aggregate::{IssueAggregateCommand, IssueAggregateFinishIssue};
     use limited_date_time::Instant;
     use tempfile::tempdir;
 
@@ -288,12 +287,7 @@ mod tests {
         let found = found.ok_or(anyhow::anyhow!("found is not Some"))?;
 
         // update
-        let (updated, updated_event) = IssueAggregate::transaction(IssueAggregateCommand::Finish(
-            IssueAggregateFinishIssue {
-                issue: found,
-                at: Instant::now(),
-            },
-        ))?;
+        let (updated, updated_event) = found.finish(Instant::now())?;
         issue_repository.save(updated_event).await?;
 
         let found = issue_repository.find_by_id(updated.id()).await?;

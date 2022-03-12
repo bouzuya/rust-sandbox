@@ -1,14 +1,10 @@
-mod command;
 mod error;
 mod event;
-mod transaction;
 
 use limited_date_time::Instant;
 
-pub use self::command::*;
 pub use self::error::*;
 pub use self::event::*;
-use self::transaction::*;
 use crate::IssueCreatedV2;
 use crate::IssueDue;
 use crate::IssueNumber;
@@ -136,15 +132,6 @@ impl IssueAggregate {
             },
             event,
         ))
-    }
-
-    pub fn transaction(
-        command: IssueAggregateCommand,
-    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
-        match command {
-            IssueAggregateCommand::Finish(command) => finish_issue(command),
-            IssueAggregateCommand::Update(command) => update_issue(command),
-        }
     }
 
     pub fn update(
