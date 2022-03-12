@@ -95,7 +95,6 @@ impl SqliteQueryHandler {
 
 #[cfg(test)]
 mod tests {
-    use domain::aggregate::{IssueAggregateCommand, IssueAggregateCreateIssue};
     use limited_date_time::Instant;
 
     use super::*;
@@ -104,14 +103,12 @@ mod tests {
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
 
-        let (issue, _) = IssueAggregate::transaction(IssueAggregateCommand::Create(
-            IssueAggregateCreateIssue {
-                issue_number: "123".parse()?,
-                issue_title: "title".parse()?,
-                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
-                at: Instant::now(),
-            },
-        ))?;
+        let (issue, _) = IssueAggregate::new(
+            Instant::now(),
+            "123".parse()?,
+            "title".parse()?,
+            Some("2021-02-03T04:05:06Z".parse()?),
+        )?;
 
         let query_handler = SqliteQueryHandler::new(temp_dir.path()).await?;
 

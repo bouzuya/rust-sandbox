@@ -1,32 +1,9 @@
-use crate::{
-    domain::{entity::Issue, event::IssueFinished, IssueId},
-    IssueCreatedV2, IssueUpdated, Version,
-};
+use crate::{domain::event::IssueFinished, IssueUpdated};
 
 use super::{
-    IssueAggregate, IssueAggregateCreateIssue, IssueAggregateError, IssueAggregateEvent,
-    IssueAggregateFinishIssue, IssueAggregateUpdateIssue,
+    IssueAggregate, IssueAggregateError, IssueAggregateEvent, IssueAggregateFinishIssue,
+    IssueAggregateUpdateIssue,
 };
-
-pub fn create_issue(
-    command: IssueAggregateCreateIssue,
-) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
-    let issue_id = IssueId::new(command.issue_number);
-    let issue_title = command.issue_title;
-    let issue_due = command.issue_due;
-    let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
-    let version = Version::from(1_u64);
-    let issue = IssueAggregate { issue, version };
-    let event = IssueCreatedV2 {
-        at: command.at,
-        issue_id,
-        issue_title,
-        issue_due,
-        version,
-    }
-    .into();
-    Ok((issue, event))
-}
 
 pub fn finish_issue(
     command: IssueAggregateFinishIssue,

@@ -120,7 +120,6 @@ impl IssueAggregate {
         command: IssueAggregateCommand,
     ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
         match command {
-            IssueAggregateCommand::Create(command) => create_issue(command),
             IssueAggregateCommand::Finish(command) => finish_issue(command),
             IssueAggregateCommand::Update(command) => update_issue(command),
         }

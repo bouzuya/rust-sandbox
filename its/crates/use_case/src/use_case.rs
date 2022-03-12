@@ -8,12 +8,11 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
-use domain::IssueBlockLinkId;
 use domain::{
     aggregate::{
-        IssueAggregate, IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateError,
-        IssueAggregateEvent, IssueAggregateFinishIssue, IssueAggregateUpdateIssue,
-        IssueBlockLinkAggregateError, IssueBlockLinkAggregateEvent,
+        IssueAggregate, IssueAggregateCommand, IssueAggregateError, IssueAggregateEvent,
+        IssueAggregateFinishIssue, IssueAggregateUpdateIssue, IssueBlockLinkAggregateError,
+        IssueBlockLinkAggregateEvent,
     },
     DomainEvent, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber,
     IssueTitle, IssueUpdated,

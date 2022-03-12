@@ -254,9 +254,7 @@ impl IssueRepository for SqliteIssueRepository {
 
 #[cfg(test)]
 mod tests {
-    use domain::aggregate::{
-        IssueAggregateCommand, IssueAggregateCreateIssue, IssueAggregateFinishIssue,
-    };
+    use domain::aggregate::{IssueAggregateCommand, IssueAggregateFinishIssue};
     use limited_date_time::Instant;
     use tempfile::tempdir;
 
@@ -272,14 +270,12 @@ mod tests {
         let issue_repository = SqliteIssueRepository::new(connection_pool, query_handler).await?;
 
         // create
-        let (created, created_event) = IssueAggregate::transaction(IssueAggregateCommand::Create(
-            IssueAggregateCreateIssue {
-                issue_number: "123".parse()?,
-                issue_title: "title".parse()?,
-                issue_due: Some("2021-02-03T04:05:06Z".parse()?),
-                at: Instant::now(),
-            },
-        ))?;
+        let (created, created_event) = IssueAggregate::new(
+            Instant::now(),
+            "123".parse()?,
+            "title".parse()?,
+            Some("2021-02-03T04:05:06Z".parse()?),
+        )?;
         issue_repository.save(created_event).await?;
 
         // last_created
