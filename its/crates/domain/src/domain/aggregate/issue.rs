@@ -100,8 +100,6 @@ impl IssueAggregate {
         issue_due: Option<IssueDue>,
     ) -> Result<(Self, IssueAggregateEvent), IssueAggregateError> {
         let issue_id = IssueId::new(issue_number);
-        let issue_title = issue_title;
-        let issue_due = issue_due;
         let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
         let version = Version::from(1_u64);
         let issue = IssueAggregate { issue, version };
@@ -116,6 +114,30 @@ impl IssueAggregate {
         Ok((issue, event))
     }
 
+    pub fn finish(
+        &self,
+        at: Instant,
+    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
+        let updated_issue = self
+            .issue
+            .finish()
+            .map_err(|_| IssueAggregateError::Unknown)?;
+        let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
+        let event = IssueFinished {
+            at,
+            issue_id: self.id().clone(),
+            version: updated_version,
+        }
+        .into();
+        Ok((
+            IssueAggregate {
+                issue: updated_issue,
+                version: updated_version,
+            },
+            event,
+        ))
+    }
+
     pub fn transaction(
         command: IssueAggregateCommand,
     ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
@@ -123,6 +145,29 @@ impl IssueAggregate {
             IssueAggregateCommand::Finish(command) => finish_issue(command),
             IssueAggregateCommand::Update(command) => update_issue(command),
         }
+    }
+
+    pub fn update(
+        &self,
+        issue_due: Option<IssueDue>,
+        at: Instant,
+    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
+        let updated_issue = self.issue.change_due(issue_due);
+        let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
+        let event = IssueUpdated {
+            at,
+            issue_id: self.id().clone(),
+            issue_due: updated_issue.due(),
+            version: updated_version,
+        }
+        .into();
+        Ok((
+            IssueAggregate {
+                issue: updated_issue,
+                version: updated_version,
+            },
+            event,
+        ))
     }
 
     pub fn id(&self) -> &IssueId {
@@ -156,6 +201,32 @@ mod tests {
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
         )?;
+        // TODO: assert
+        Ok(())
+    }
+
+    #[test]
+    fn finish_test() -> anyhow::Result<()> {
+        let (issue, _) = IssueAggregate::new(
+            Instant::now(),
+            IssueNumber::from_str("123")?,
+            IssueTitle::from_str("title")?,
+            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+        )?;
+        let (_, _) = issue.finish(Instant::now())?;
+        // TODO: assert
+        Ok(())
+    }
+
+    #[test]
+    fn updaate_test() -> anyhow::Result<()> {
+        let (issue, _) = IssueAggregate::new(
+            Instant::now(),
+            IssueNumber::from_str("123")?,
+            IssueTitle::from_str("title")?,
+            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+        )?;
+        let (_, _) = issue.update(None, Instant::now())?;
         // TODO: assert
         Ok(())
     }
