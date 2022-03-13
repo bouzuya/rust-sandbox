@@ -8,6 +8,8 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
+use domain::IssueBlockLinkId;
+use domain::IssueUnblocked;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateError, IssueAggregateEvent, IssueBlockLinkAggregateError,
@@ -25,6 +27,8 @@ pub enum IssueManagementContextError {
     IssueAggregate(#[from] IssueAggregateError),
     #[error("IssueBlockLinkAggregate")]
     IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    #[error("IssueBlockLinkNotFound")]
+    IssueBlockLinkNotFound(IssueBlockLinkId),
     #[error("IssueBlockLinkRepository")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
     #[error("IssueNotFound")]
@@ -93,10 +97,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         FinishIssue { issue_id }
     }
 
-    fn unblock_issue(&self, issue_id: IssueId, blocked_issue_id: IssueId) -> UnblockIssue {
+    fn unblock_issue(&self, issue_block_link_id: IssueBlockLinkId) -> UnblockIssue {
         UnblockIssue {
-            issue_id,
-            blocked_issue_id,
+            issue_block_link_id,
         }
     }
 
@@ -116,6 +119,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     ) -> Result<IssueBlocked, IssueManagementContextError> {
         // io
         let at = Instant::now();
+        // TODO: already created
         let issue = self
             .issue_repository()
             .find_by_id(&issue_id)
@@ -198,9 +202,33 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
     async fn handle_unblock_issue(
         &self,
-        _: UnblockIssue,
-    ) -> Result<IssueBlocked, IssueManagementContextError> {
-        todo!()
+        UnblockIssue {
+            issue_block_link_id,
+        }: UnblockIssue,
+    ) -> Result<IssueUnblocked, IssueManagementContextError> {
+        // io
+        let at = Instant::now();
+        let issue_block_link = self
+            .issue_block_link_repository()
+            .find_by_id(&issue_block_link_id)
+            .await?
+            .ok_or(IssueManagementContextError::IssueBlockLinkNotFound(
+                issue_block_link_id,
+            ))?;
+
+        // pure
+        let updated = issue_block_link.unblock(at)?;
+
+        // io
+        self.issue_block_link_repository().save(&updated).await?;
+
+        Ok(match updated.events().first() {
+            Some(event) => match event {
+                IssueBlockLinkAggregateEvent::Blocked(_) => unreachable!(),
+                IssueBlockLinkAggregateEvent::Unblocked(event) => event.clone(),
+            },
+            None => unreachable!(),
+        })
     }
 
     async fn handle_update_issue(
