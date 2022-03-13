@@ -1,5 +1,3 @@
-use std::env;
-
 use assert_cmd::Command;
 
 #[test]
