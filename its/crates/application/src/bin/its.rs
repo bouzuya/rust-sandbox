@@ -3,7 +3,7 @@ use std::{path::PathBuf, str::FromStr};
 use adapter_sqlite::{
     SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
 };
-use domain::{IssueDue, IssueId, IssueTitle};
+use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
     IssueManagementContextUseCase,
@@ -134,6 +134,27 @@ fn issue_list() -> anyhow::Result<()> {
         })
 }
 
+#[argopt::subcmd(name = "issue-unblock")]
+fn issue_unblock(
+    #[opt(name = "issue-id")] issue_id: String,
+    #[opt(name = "blocked-issue-id")] blocked_issue_id: String,
+) -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let app = App::new().await?;
+            let use_case = app.issue_management_context_use_case();
+            let issue_id = IssueId::from_str(issue_id.as_str())?;
+            let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
+            let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
+            let command = use_case.unblock_issue(issue_block_link_id).into();
+            let event = use_case.handle(command).await?;
+            println!("issue unblocked : {:?}", event);
+            Ok(())
+        })
+}
+
 #[argopt::subcmd(name = "issue-update")]
 fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
@@ -159,6 +180,7 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
     issue_create,
     issue_finish,
     issue_list,
+    issue_unblock,
     issue_update
 ])]
 fn main() -> anyhow::Result<()> {}
