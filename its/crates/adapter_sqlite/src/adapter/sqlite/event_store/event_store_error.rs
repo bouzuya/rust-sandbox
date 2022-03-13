@@ -16,6 +16,8 @@ pub enum EventStoreError {
     MigrateCreateAggregateTable,
     #[error("MigrateCreateEventTable")]
     MigrateCreateEventTable,
+    #[error("SqlxError")]
+    SqlxError(#[from] sqlx::Error),
     #[error("UpdateAggregate")]
     UpdateAggregate,
     #[error("Unknown")]

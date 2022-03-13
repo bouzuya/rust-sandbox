@@ -68,8 +68,7 @@ pub async fn find_events_by_aggregate_id(
     ))
     .bind(aggregate_id.to_string())
     .fetch_all(&mut *transaction)
-    .await
-    .map_err(|_| EventStoreError::IO)?;
+    .await?;
     Ok(event_rows.into_iter().map(Event::from).collect())
 }
 
@@ -84,10 +83,7 @@ pub async fn save(
                 .bind(i64::from(event.version))
                 .bind(event.aggregate_id.to_string())
                 .bind(i64::from(current_version));
-        let result = query
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| EventStoreError::IO)?;
+        let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
             return Err(EventStoreError::UpdateAggregate);
         }
@@ -96,10 +92,7 @@ pub async fn save(
             sqlx::query(include_str!("../../../sql/command/insert_aggregate.sql"))
                 .bind(event.aggregate_id.to_string())
                 .bind(i64::from(event.version));
-        let result = query
-            .execute(&mut *transaction)
-            .await
-            .map_err(|_| EventStoreError::IO)?;
+        let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
             return Err(EventStoreError::InsertAggregate);
         }
@@ -110,10 +103,7 @@ pub async fn save(
             .bind(event.aggregate_id.to_string())
             .bind(i64::from(event.version))
             .bind(event.data);
-    let result = query
-        .execute(&mut *transaction)
-        .await
-        .map_err(|_| EventStoreError::IO)?;
+    let result = query.execute(&mut *transaction).await?;
     if result.rows_affected() == 0 {
         return Err(EventStoreError::InsertEvent);
     }
@@ -127,8 +117,7 @@ pub async fn find_aggregate_ids(
     let aggregate_rows: Vec<AggregateRow> =
         sqlx::query_as(include_str!("../../../sql/command/select_aggregates.sql"))
             .fetch_all(&mut *transaction)
-            .await
-            .map_err(|_| EventStoreError::IO)?;
+            .await?;
     aggregate_rows
         .into_iter()
         .map(|row| AggregateId::from_str(row.id.as_str()))
@@ -141,8 +130,7 @@ pub async fn find_events(
     let event_rows: Vec<EventRow> =
         sqlx::query_as(include_str!("../../../sql/command/select_events.sql"))
             .fetch_all(&mut *transaction)
-            .await
-            .map_err(|_| EventStoreError::IO)?;
+            .await?;
     Ok(event_rows.into_iter().map(Event::from).collect())
 }
 
