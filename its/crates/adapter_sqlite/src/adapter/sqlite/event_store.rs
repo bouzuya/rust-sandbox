@@ -1,9 +1,11 @@
 mod aggregate_id;
+mod aggregate_row;
 mod aggregate_version;
 mod event;
 mod event_store_error;
 
 pub use self::aggregate_id::*;
+use self::aggregate_row::AggregateRow;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_store_error::EventStoreError;
@@ -15,21 +17,6 @@ use sqlx::{
     query::Query,
     Any, FromRow, Row,
 };
-
-#[derive(Debug)]
-struct AggregateRow {
-    id: String,
-    version: i64,
-}
-
-impl<'r> FromRow<'r, AnyRow> for AggregateRow {
-    fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Self {
-            id: row.get("id"),
-            version: row.get("version"),
-        })
-    }
-}
 
 #[derive(Debug)]
 struct EventRow {
@@ -118,10 +105,7 @@ pub async fn find_aggregate_ids(
         sqlx::query_as(include_str!("../../../sql/command/select_aggregates.sql"))
             .fetch_all(&mut *transaction)
             .await?;
-    aggregate_rows
-        .into_iter()
-        .map(|row| AggregateId::from_str(row.id.as_str()))
-        .collect()
+    Ok(aggregate_rows.into_iter().map(|row| row.id()).collect())
 }
 
 pub async fn find_events(
