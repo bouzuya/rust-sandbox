@@ -1,3 +1,5 @@
+mod issue_row;
+
 use std::str::FromStr;
 
 use async_trait::async_trait;
@@ -6,17 +8,15 @@ use domain::{
     DomainEvent, IssueId,
 };
 
-use sqlx::{
-    any::{AnyArguments, AnyRow},
-    query::Query,
-    Any, AnyPool, FromRow, Row, Transaction,
-};
+use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
 
 use crate::{
     adapter::sqlite::event_store::{AggregateVersion, Event},
     SqliteQueryHandler,
 };
+
+use self::issue_row::IssueIdRow;
 
 use super::{
     event_store::{self, AggregateId},
@@ -28,31 +28,6 @@ pub struct SqliteIssueRepository {
     pool: AnyPool,
     // update query db
     query_handler: SqliteQueryHandler,
-}
-
-#[derive(Debug)]
-struct IssueIdRow {
-    issue_number: i64,
-    aggregate_id: String,
-}
-
-impl IssueIdRow {
-    fn issue_id(&self) -> IssueId {
-        IssueId::from_str(self.issue_number.to_string().as_str()).unwrap()
-    }
-
-    fn aggregate_id(&self) -> AggregateId {
-        AggregateId::from_str(self.aggregate_id.as_str()).unwrap()
-    }
-}
-
-impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
-    fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Self {
-            issue_number: row.get("issue_number"),
-            aggregate_id: row.get("aggregate_id"),
-        })
-    }
 }
 
 impl SqliteIssueRepository {
