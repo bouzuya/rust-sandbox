@@ -2,49 +2,18 @@ mod aggregate_id;
 mod aggregate_row;
 mod aggregate_version;
 mod event;
+mod event_row;
 mod event_store_error;
 
 pub use self::aggregate_id::*;
 use self::aggregate_row::AggregateRow;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
+use self::event_row::EventRow;
 use self::event_store_error::EventStoreError;
-use std::str::FromStr;
 
 use sqlx::Transaction;
-use sqlx::{
-    any::{AnyArguments, AnyRow},
-    query::Query,
-    Any, FromRow, Row,
-};
-
-#[derive(Debug)]
-struct EventRow {
-    aggregate_id: String,
-    data: String,
-    version: i64,
-}
-
-impl<'r> FromRow<'r, AnyRow> for EventRow {
-    fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Self {
-            aggregate_id: row.get("aggregate_id"),
-            data: row.get("data"),
-            version: row.get("version"),
-        })
-    }
-}
-
-impl From<EventRow> for Event {
-    fn from(row: EventRow) -> Self {
-        Self {
-            aggregate_id: AggregateId::from_str(row.aggregate_id.as_str())
-                .expect("invalid aggregate_id"),
-            data: row.data,
-            version: AggregateVersion::try_from(row.version).expect("invalid version"),
-        }
-    }
-}
+use sqlx::{any::AnyArguments, query::Query, Any};
 
 pub async fn find_events_by_aggregate_id(
     transaction: &mut Transaction<'_, Any>,
@@ -120,6 +89,8 @@ pub async fn find_events(
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use anyhow::Context;
     use sqlx::{
         any::AnyConnectOptions,
