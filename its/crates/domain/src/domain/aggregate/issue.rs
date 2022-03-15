@@ -8,6 +8,7 @@ pub use self::event::*;
 use crate::IssueCreatedV2;
 use crate::IssueDue;
 use crate::IssueNumber;
+use crate::IssueStatus;
 use crate::IssueTitle;
 use crate::IssueUpdated;
 use crate::{
@@ -180,8 +181,16 @@ impl IssueAggregate {
         self.issue.id()
     }
 
-    pub fn issue(&self) -> &Issue {
-        &self.issue
+    pub fn status(&self) -> IssueStatus {
+        self.issue.status()
+    }
+
+    pub fn title(&self) -> &IssueTitle {
+        self.issue.title()
+    }
+
+    pub fn due(&self) -> Option<IssueDue> {
+        self.issue.due()
     }
 
     pub fn block(

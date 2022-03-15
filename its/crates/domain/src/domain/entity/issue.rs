@@ -9,7 +9,7 @@ pub enum IssueError {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Issue {
+pub(crate) struct Issue {
     id: IssueId,
     status: IssueStatus,
     title: IssueTitle,
@@ -17,7 +17,7 @@ pub struct Issue {
 }
 
 impl Issue {
-    pub fn from_event(event: IssueCreatedV2) -> Self {
+    pub(crate) fn from_event(event: IssueCreatedV2) -> Self {
         Self {
             id: event.issue_id,
             status: IssueStatus::Todo,
@@ -26,7 +26,7 @@ impl Issue {
         }
     }
 
-    pub fn new(id: IssueId, title: IssueTitle, due: Option<IssueDue>) -> Self {
+    pub(crate) fn new(id: IssueId, title: IssueTitle, due: Option<IssueDue>) -> Self {
         Self {
             id,
             status: IssueStatus::Todo,
@@ -35,7 +35,7 @@ impl Issue {
         }
     }
 
-    pub fn finish(&self) -> Result<Self, IssueError> {
+    pub(crate) fn finish(&self) -> Result<Self, IssueError> {
         if self.status == IssueStatus::Done {
             return Err(IssueError::AlreadyFinished);
         }
@@ -47,7 +47,7 @@ impl Issue {
         })
     }
 
-    pub fn change_due(&self, due: Option<IssueDue>) -> Self {
+    pub(crate) fn change_due(&self, due: Option<IssueDue>) -> Self {
         Self {
             id: self.id.clone(),
             status: self.status,
@@ -56,23 +56,23 @@ impl Issue {
         }
     }
 
-    pub fn id(&self) -> &IssueId {
+    pub(crate) fn id(&self) -> &IssueId {
         &self.id
     }
 
-    pub fn number(&self) -> IssueNumber {
+    pub(crate) fn number(&self) -> IssueNumber {
         self.id.issue_number()
     }
 
-    pub fn status(&self) -> IssueStatus {
+    pub(crate) fn status(&self) -> IssueStatus {
         self.status
     }
 
-    pub fn title(&self) -> &IssueTitle {
+    pub(crate) fn title(&self) -> &IssueTitle {
         &self.title
     }
 
-    pub fn due(&self) -> Option<IssueDue> {
+    pub(crate) fn due(&self) -> Option<IssueDue> {
         self.due
     }
 }

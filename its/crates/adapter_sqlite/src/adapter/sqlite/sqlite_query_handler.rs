@@ -70,14 +70,14 @@ impl SqliteQueryHandler {
         let mut transaction = self.pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/delete_issue.sql"))
-                .bind(issue.issue().id().to_string());
+                .bind(issue.id().to_string());
         query.execute(&mut transaction).await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/insert_issue.sql"))
-                .bind(issue.issue().id().to_string())
-                .bind(issue.issue().status().to_string())
-                .bind(issue.issue().title().to_string())
-                .bind(issue.issue().due().map(|d| d.to_string()));
+                .bind(issue.id().to_string())
+                .bind(issue.status().to_string())
+                .bind(issue.title().to_string())
+                .bind(issue.due().map(|d| d.to_string()));
         query.execute(&mut transaction).await?;
         transaction.commit().await?;
         Ok(())
