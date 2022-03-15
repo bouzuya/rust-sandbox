@@ -162,8 +162,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) =
+        let created =
             IssueAggregate::new(at, issue_number, command.issue_title, command.issue_due)?;
+        let event = created.events().first().unwrap().clone(); // TODO
 
         // io
         self.issue_repository().save(event.clone()).await?;
@@ -188,7 +189,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) = issue.finish(at)?;
+        let updated = issue.finish(at)?;
+        let event = updated.events().first().unwrap().clone(); // TODO
 
         // io
         self.issue_repository().save(event.clone()).await?;
@@ -246,7 +248,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let at = Instant::now();
 
         // pure
-        let (_, event) = issue.update(issue_due, at)?;
+        let updated = issue.update(issue_due, at)?;
+        let event = updated.events().first().unwrap().clone(); // TODO
 
         // io
         self.issue_repository().save(event.clone()).await?;

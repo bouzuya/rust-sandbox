@@ -244,29 +244,31 @@ mod tests {
         let issue_repository = SqliteIssueRepository::new(connection_pool, query_handler).await?;
 
         // create
-        let (created, created_event) = IssueAggregate::new(
+        let created = IssueAggregate::new(
             Instant::now(),
             "123".parse()?,
             "title".parse()?,
             Some("2021-02-03T04:05:06Z".parse()?),
         )?;
+        let created_event = created.events().first().unwrap().clone(); // TODO
         issue_repository.save(created_event).await?;
 
         // last_created
         let last_created = issue_repository.last_created().await?;
-        assert_eq!(Some(created.clone()), last_created);
+        assert_eq!(Some(created.clone().truncate_events()), last_created);
 
         // find_by_id
         let found = issue_repository.find_by_id(created.id()).await?;
-        assert_eq!(Some(created), found);
+        assert_eq!(Some(created.truncate_events()), found);
         let found = found.ok_or(anyhow::anyhow!("found is not Some"))?;
 
         // update
-        let (updated, updated_event) = found.finish(Instant::now())?;
+        let updated = found.finish(Instant::now())?;
+        let updated_event = updated.events().first().unwrap().clone(); // TODO
         issue_repository.save(updated_event).await?;
 
         let found = issue_repository.find_by_id(updated.id()).await?;
-        assert_eq!(Some(updated), found);
+        assert_eq!(Some(updated.truncate_events()), found);
 
         Ok(())
     }

@@ -103,7 +103,7 @@ mod tests {
     async fn test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
 
-        let (issue, _) = IssueAggregate::new(
+        let issue = IssueAggregate::new(
             Instant::now(),
             "123".parse()?,
             "title".parse()?,

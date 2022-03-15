@@ -20,6 +20,7 @@ use super::IssueBlockLinkAggregateError;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueAggregate {
+    events: Vec<IssueAggregateEvent>,
     issue: Issue,
     version: Version,
 }
@@ -37,7 +38,11 @@ impl IssueAggregate {
         }?;
         let version = first_event.version;
         let issue = Issue::from_event(first_event);
-        let mut issue = IssueAggregate { issue, version };
+        let mut issue = IssueAggregate {
+            events: vec![],
+            issue,
+            version,
+        };
         for event in events.iter().skip(1) {
             match event {
                 IssueAggregateEvent::Created(_) => {
@@ -59,6 +64,7 @@ impl IssueAggregate {
                     }
 
                     issue = IssueAggregate {
+                        events: vec![],
                         issue: issue
                             .issue
                             .finish()
@@ -80,6 +86,7 @@ impl IssueAggregate {
                     }
 
                     issue = IssueAggregate {
+                        events: vec![],
                         issue: issue.issue.change_due(*issue_due),
                         version: *version,
                     }
@@ -94,11 +101,10 @@ impl IssueAggregate {
         issue_number: IssueNumber,
         issue_title: IssueTitle,
         issue_due: Option<IssueDue>,
-    ) -> Result<(Self, IssueAggregateEvent), IssueAggregateError> {
+    ) -> Result<Self, IssueAggregateError> {
         let issue_id = IssueId::new(issue_number);
         let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
         let version = Version::from(1_u64);
-        let issue = IssueAggregate { issue, version };
         let event = IssueCreatedV2 {
             at,
             issue_id,
@@ -107,13 +113,16 @@ impl IssueAggregate {
             version,
         }
         .into();
-        Ok((issue, event))
+        let events = vec![event];
+        let issue = IssueAggregate {
+            events,
+            issue,
+            version,
+        };
+        Ok(issue)
     }
 
-    pub fn finish(
-        &self,
-        at: Instant,
-    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
+    pub fn finish(&self, at: Instant) -> Result<IssueAggregate, IssueAggregateError> {
         let updated_issue = self
             .issue
             .finish()
@@ -125,20 +134,19 @@ impl IssueAggregate {
             version: updated_version,
         }
         .into();
-        Ok((
-            IssueAggregate {
-                issue: updated_issue,
-                version: updated_version,
-            },
-            event,
-        ))
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(IssueAggregate {
+            events,
+            issue: updated_issue,
+            version: updated_version,
+        })
     }
 
     pub fn update(
         &self,
         issue_due: Option<IssueDue>,
         at: Instant,
-    ) -> Result<(IssueAggregate, IssueAggregateEvent), IssueAggregateError> {
+    ) -> Result<IssueAggregate, IssueAggregateError> {
         let updated_issue = self.issue.change_due(issue_due);
         let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
         let event = IssueUpdated {
@@ -148,13 +156,24 @@ impl IssueAggregate {
             version: updated_version,
         }
         .into();
-        Ok((
-            IssueAggregate {
-                issue: updated_issue,
-                version: updated_version,
-            },
-            event,
-        ))
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(IssueAggregate {
+            events,
+            issue: updated_issue,
+            version: updated_version,
+        })
+    }
+
+    pub fn truncate_events(self) -> Self {
+        Self {
+            events: vec![],
+            issue: self.issue,
+            version: self.version,
+        }
+    }
+
+    pub fn events(&self) -> &Vec<IssueAggregateEvent> {
+        &self.events
     }
 
     pub fn id(&self) -> &IssueId {
@@ -182,7 +201,7 @@ mod tests {
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
-        let (_, _) = IssueAggregate::new(
+        let _ = IssueAggregate::new(
             Instant::now(),
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
@@ -194,27 +213,32 @@ mod tests {
 
     #[test]
     fn finish_test() -> anyhow::Result<()> {
-        let (issue, _) = IssueAggregate::new(
+        let issue = IssueAggregate::new(
             Instant::now(),
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
         )?;
-        let (_, _) = issue.finish(Instant::now())?;
+        let _ = issue.finish(Instant::now())?;
         // TODO: assert
         Ok(())
     }
 
     #[test]
     fn updaate_test() -> anyhow::Result<()> {
-        let (issue, _) = IssueAggregate::new(
+        let issue = IssueAggregate::new(
             Instant::now(),
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
         )?;
-        let (_, _) = issue.update(None, Instant::now())?;
+        let _ = issue.update(None, Instant::now())?;
         // TODO: assert
         Ok(())
+    }
+
+    #[test]
+    fn truncate_events_test() {
+        // TODO
     }
 }
