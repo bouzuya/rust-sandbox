@@ -175,12 +175,28 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
         })
 }
 
+#[argopt::subcmd(name = "issue-view")]
+fn issue_view(issue_id: String) -> anyhow::Result<()> {
+    tokio::runtime::Builder::new_current_thread()
+        .enable_all()
+        .build()?
+        .block_on(async {
+            let app = App::new().await?;
+            let issue_id = IssueId::from_str(issue_id.as_str())?;
+
+            let issue = app.query_handler.issue_view(&issue_id).await?;
+            println!("{}", serde_json::to_string(&issue)?);
+            Ok(())
+        })
+}
+
 #[argopt::cmd_group(commands = [
     issue_block,
     issue_create,
     issue_finish,
     issue_list,
     issue_unblock,
-    issue_update
+    issue_update,
+    issue_view
 ])]
 fn main() -> anyhow::Result<()> {}

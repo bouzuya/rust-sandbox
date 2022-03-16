@@ -11,6 +11,8 @@ fn its_no_args() -> anyhow::Result<()> {
     Ok(())
 }
 
+// TODO: issue-block
+
 #[test]
 fn its_issue_create() -> anyhow::Result<()> {
     let temp_dir = tempfile::tempdir()?;
@@ -32,6 +34,28 @@ fn its_issue_create_with_title() -> anyhow::Result<()> {
         .assert()
         .stdout(predicates::str::contains("issue created"))
         .stdout(predicates::str::contains("title1"))
+        .success();
+    Ok(())
+}
+
+// TODO: issue-finish
+// TODO: issue-list
+// TODO: issue-unblock
+// TODO: issue-update
+
+#[test]
+fn its_issue_view() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-view", "1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"1""#))
+        .stdout(predicates::str::contains(r#""title":"title1""#))
         .success();
     Ok(())
 }
