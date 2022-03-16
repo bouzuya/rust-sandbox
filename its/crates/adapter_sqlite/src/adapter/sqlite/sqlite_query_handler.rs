@@ -1,6 +1,6 @@
 use std::{fs, path::Path, str::FromStr};
 
-use domain::aggregate::IssueAggregate;
+use domain::{aggregate::IssueAggregate, IssueId};
 use serde::Serialize;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
@@ -12,7 +12,7 @@ use thiserror::Error;
 
 // QueryIssue
 
-#[derive(Clone, Debug, FromRow, Serialize)]
+#[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
 pub struct QueryIssue {
     pub id: String,
     pub status: String,
@@ -91,6 +91,19 @@ impl SqliteQueryHandler {
                 .await?;
         Ok(issues)
     }
+
+    pub async fn issue_view(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Option<QueryIssue>, QueryHandlerError> {
+        let mut transaction = self.pool.begin().await?;
+        let issue: Option<QueryIssue> =
+            sqlx::query_as(include_str!("../../../sql/query/select_issue.sql"))
+                .bind(issue_id.to_string())
+                .fetch_optional(&mut transaction)
+                .await?;
+        Ok(issue)
+    }
 }
 
 #[cfg(test)]
@@ -122,6 +135,9 @@ mod tests {
         assert_eq!("todo", issue.status);
         assert_eq!("title", issue.title);
         assert_eq!(Some("2021-02-03T04:05:06Z".to_string()), issue.due);
+
+        let found = query_handler.issue_view(&"123".parse()?).await?;
+        assert_eq!(Some(issue), found);
         Ok(())
     }
 }
