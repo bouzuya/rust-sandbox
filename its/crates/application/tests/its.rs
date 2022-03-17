@@ -38,7 +38,22 @@ fn its_issue_create_with_title() -> anyhow::Result<()> {
     Ok(())
 }
 
-// TODO: issue-finish
+#[test]
+fn its_issue_finish() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-finish", "1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains("issue finished"))
+        .success();
+    Ok(())
+}
+
 // TODO: issue-list
 // TODO: issue-unblock
 // TODO: issue-update
