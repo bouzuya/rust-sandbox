@@ -3,10 +3,7 @@ mod issue_row;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use domain::{
-    aggregate::{IssueAggregate, IssueAggregateEvent},
-    DomainEvent, IssueId,
-};
+use domain::{aggregate::IssueAggregate, DomainEvent, IssueId};
 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
@@ -150,7 +147,9 @@ impl IssueRepository for SqliteIssueRepository {
         })
     }
 
-    async fn save(&self, event: IssueAggregateEvent) -> Result<(), IssueRepositoryError> {
+    async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
+        let event = issue.events().first().unwrap().clone(); // TODO
+
         let mut transaction = self
             .pool
             .begin()
@@ -250,8 +249,7 @@ mod tests {
             "title".parse()?,
             Some("2021-02-03T04:05:06Z".parse()?),
         )?;
-        let created_event = created.events().first().unwrap().clone(); // TODO
-        issue_repository.save(created_event).await?;
+        issue_repository.save(&created).await?;
 
         // last_created
         let last_created = issue_repository.last_created().await?;
@@ -264,8 +262,7 @@ mod tests {
 
         // update
         let updated = found.finish(Instant::now())?;
-        let updated_event = updated.events().first().unwrap().clone(); // TODO
-        issue_repository.save(updated_event).await?;
+        issue_repository.save(&updated).await?;
 
         let found = issue_repository.find_by_id(updated.id()).await?;
         assert_eq!(Some(updated.truncate_events()), found);

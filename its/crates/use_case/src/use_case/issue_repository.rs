@@ -1,8 +1,5 @@
 use async_trait::async_trait;
-use domain::{
-    aggregate::{IssueAggregate, IssueAggregateEvent},
-    IssueId,
-};
+use domain::{aggregate::IssueAggregate, IssueId};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -22,7 +19,7 @@ pub trait IssueRepository {
 
     async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError>;
 
-    async fn save(&self, event: IssueAggregateEvent) -> Result<(), IssueRepositoryError>;
+    async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError>;
 }
 
 pub trait HasIssueRepository {

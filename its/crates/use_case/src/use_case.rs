@@ -164,11 +164,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // pure
         let created =
             IssueAggregate::new(at, issue_number, command.issue_title, command.issue_due)?;
-        let event = created.events().first().unwrap().clone(); // TODO
 
         // io
-        self.issue_repository().save(event.clone()).await?;
+        self.issue_repository().save(&created).await?;
 
+        let event = created.events().first().unwrap().clone(); // TODO
         if let IssueAggregateEvent::CreatedV2(event) = event {
             Ok(event)
         } else {
@@ -190,11 +190,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
         // pure
         let updated = issue.finish(at)?;
-        let event = updated.events().first().unwrap().clone(); // TODO
 
         // io
-        self.issue_repository().save(event.clone()).await?;
+        self.issue_repository().save(&updated).await?;
 
+        let event = updated.events().first().unwrap().clone(); // TODO
         if let IssueAggregateEvent::Finished(event) = event {
             Ok(event)
         } else {
@@ -249,11 +249,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
 
         // pure
         let updated = issue.update(issue_due, at)?;
-        let event = updated.events().first().unwrap().clone(); // TODO
 
         // io
-        self.issue_repository().save(event.clone()).await?;
+        self.issue_repository().save(&updated).await?;
 
+        let event = updated.events().first().unwrap().clone(); // TODO
         if let IssueAggregateEvent::Updated(event) = event {
             Ok(event)
         } else {
