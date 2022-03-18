@@ -253,7 +253,12 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // io
         self.issue_repository().save(&updated).await?;
 
-        let event = updated.events().first().unwrap().clone(); // TODO
+        let event = updated
+            .events()
+            .iter()
+            .find(|event| matches!(event, IssueAggregateEvent::Updated(_)))
+            .unwrap()
+            .clone(); // TODO
         if let IssueAggregateEvent::Updated(event) = event {
             Ok(event)
         } else {
