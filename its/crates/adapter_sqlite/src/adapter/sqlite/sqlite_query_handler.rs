@@ -61,6 +61,9 @@ impl SqliteQueryHandler {
         sqlx::query(include_str!("../../../sql/query/create_issues.sql"))
             .execute(&mut *transaction)
             .await?;
+        sqlx::query(include_str!("../../../sql/query/create_issue_block_links.sql"))
+            .execute(&mut *transaction)
+            .await?;
         transaction.commit().await?;
 
         Ok(Self { pool })
