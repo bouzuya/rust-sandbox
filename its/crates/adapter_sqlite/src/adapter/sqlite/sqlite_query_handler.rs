@@ -1,6 +1,9 @@
 use std::{fs, path::Path, str::FromStr};
 
-use domain::{aggregate::IssueAggregate, IssueId};
+use domain::{
+    aggregate::{IssueAggregate, IssueBlockLinkAggregate},
+    IssueId,
+};
 use serde::Serialize;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
@@ -61,9 +64,11 @@ impl SqliteQueryHandler {
         sqlx::query(include_str!("../../../sql/query/create_issues.sql"))
             .execute(&mut *transaction)
             .await?;
-        sqlx::query(include_str!("../../../sql/query/create_issue_block_links.sql"))
-            .execute(&mut *transaction)
-            .await?;
+        sqlx::query(include_str!(
+            "../../../sql/query/create_issue_block_links.sql"
+        ))
+        .execute(&mut *transaction)
+        .await?;
         transaction.commit().await?;
 
         Ok(Self { pool })
@@ -82,6 +87,22 @@ impl SqliteQueryHandler {
                 .bind(issue.title().to_string())
                 .bind(issue.due().map(|d| d.to_string()));
         query.execute(&mut transaction).await?;
+        transaction.commit().await?;
+        Ok(())
+    }
+
+    pub async fn save_issue_block_link(
+        &self,
+        issue_block_link: IssueBlockLinkAggregate,
+    ) -> Result<(), QueryHandlerError> {
+        let mut transaction = self.pool.begin().await?;
+        let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
+            "../../../sql/query/delete_issue_block_link.sql"
+        ))
+        .bind(issue_block_link.id().issue_id().to_string())
+        .bind(issue_block_link.id().blocked_issue_id().to_string());
+        query.execute(&mut transaction).await?;
+        // TODO: insert
         transaction.commit().await?;
         Ok(())
     }
@@ -116,7 +137,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test() -> anyhow::Result<()> {
+    async fn issue_test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
 
         let issue = IssueAggregate::new(
@@ -142,5 +163,10 @@ mod tests {
         let found = query_handler.issue_view(&"123".parse()?).await?;
         assert_eq!(Some(issue), found);
         Ok(())
+    }
+
+    #[tokio::test]
+    async fn issue_block_link_test() {
+        // TODO:
     }
 }
