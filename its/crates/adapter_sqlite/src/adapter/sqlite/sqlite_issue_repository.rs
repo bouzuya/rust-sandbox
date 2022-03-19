@@ -148,78 +148,80 @@ impl IssueRepository for SqliteIssueRepository {
     }
 
     async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
-        let event = issue.events().first().unwrap().clone(); // TODO
-
-        let mut transaction = self
-            .pool
-            .begin()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-        let issue_id = event.issue_id().clone();
-        if let Some(aggregate_id) = self
-            .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
-            .await?
-        {
-            // update
-            let version = event.version();
-            event_store::save(
-                &mut transaction,
-                version
-                    .prev()
-                    .map(|version| {
-                        u32::try_from(u64::from(version))
-                            .map(AggregateVersion::from)
-                            .map_err(|_| IssueRepositoryError::IO)
-                    })
-                    .transpose()?,
-                Event {
-                    aggregate_id,
-                    data: DomainEvent::from(event).to_string(),
-                    version: AggregateVersion::from(
-                        u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
-                    ),
-                },
-            )
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-        } else {
-            // create
-            let aggregate_id = AggregateId::generate();
-            let version = event.version();
-            event_store::save(
-                &mut transaction,
-                None,
-                Event {
-                    aggregate_id,
-                    data: DomainEvent::from(event).to_string(),
-                    version: AggregateVersion::from(
-                        u32::try_from(u64::from(version)).map_err(|_| IssueRepositoryError::IO)?,
-                    ),
-                },
-            )
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-            self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
-                .await?;
-        }
-
-        transaction
-            .commit()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-        {
-            // update query db
-            let issue = self
-                .find_by_id(&issue_id)
-                .await?
-                .ok_or(IssueRepositoryError::IO)?;
-            self.query_handler
-                .save_issue(issue)
+        for event in issue.events().iter().cloned() {
+            let mut transaction = self
+                .pool
+                .begin()
                 .await
                 .map_err(|_| IssueRepositoryError::IO)?;
+
+            let issue_id = event.issue_id().clone();
+            if let Some(aggregate_id) = self
+                .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
+                .await?
+            {
+                // update
+                let version = event.version();
+                event_store::save(
+                    &mut transaction,
+                    version
+                        .prev()
+                        .map(|version| {
+                            u32::try_from(u64::from(version))
+                                .map(AggregateVersion::from)
+                                .map_err(|_| IssueRepositoryError::IO)
+                        })
+                        .transpose()?,
+                    Event {
+                        aggregate_id,
+                        data: DomainEvent::from(event).to_string(),
+                        version: AggregateVersion::from(
+                            u32::try_from(u64::from(version))
+                                .map_err(|_| IssueRepositoryError::IO)?,
+                        ),
+                    },
+                )
+                .await
+                .map_err(|_| IssueRepositoryError::IO)?;
+            } else {
+                // create
+                let aggregate_id = AggregateId::generate();
+                let version = event.version();
+                event_store::save(
+                    &mut transaction,
+                    None,
+                    Event {
+                        aggregate_id,
+                        data: DomainEvent::from(event).to_string(),
+                        version: AggregateVersion::from(
+                            u32::try_from(u64::from(version))
+                                .map_err(|_| IssueRepositoryError::IO)?,
+                        ),
+                    },
+                )
+                .await
+                .map_err(|_| IssueRepositoryError::IO)?;
+
+                self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
+                    .await?;
+            }
+
+            transaction
+                .commit()
+                .await
+                .map_err(|_| IssueRepositoryError::IO)?;
+
+            {
+                // update query db
+                let issue = self
+                    .find_by_id(&issue_id)
+                    .await?
+                    .ok_or(IssueRepositoryError::IO)?;
+                self.query_handler
+                    .save_issue(issue)
+                    .await
+                    .map_err(|_| IssueRepositoryError::IO)?;
+            }
         }
 
         Ok(())
