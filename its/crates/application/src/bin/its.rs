@@ -3,10 +3,10 @@ use std::{path::PathBuf, str::FromStr};
 use adapter_sqlite::{
     SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
 };
-use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
+use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
-    IssueManagementContextUseCase,
+    IssueManagementContextEvent, IssueManagementContextUseCase, IssueRepository,
 };
 use xdg::BaseDirectories;
 
@@ -23,13 +23,27 @@ impl App {
         let connection_pool = SqliteConnectionPool::new(data_dir).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
-        let issue_repository =
-            SqliteIssueRepository::new(connection_pool, query_handler.clone()).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
         Ok(Self {
             issue_block_link_repository,
             issue_repository,
             query_handler,
         })
+    }
+
+    // TODO: remove
+    async fn update_query_db(&self, event: IssueManagementContextEvent) -> anyhow::Result<()> {
+        // TODO: update query db
+        if let DomainEvent::Issue(issue_aggregate_event) = DomainEvent::from(event.clone()) {
+            // TODO: unwrap
+            let issue = self
+                .issue_repository()
+                .find_by_id(issue_aggregate_event.issue_id())
+                .await?
+                .unwrap();
+            self.query_handler.save_issue(issue).await?;
+        }
+        Ok(())
     }
 
     fn state_dir() -> anyhow::Result<PathBuf> {
@@ -79,6 +93,7 @@ fn issue_block(
             let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
             let command = use_case.block_issue(issue_id, blocked_issue_id).into();
             let event = use_case.handle(command).await?;
+            app.update_query_db(event.clone()).await?;
             println!("issue blocked : {:?}", event);
             Ok(())
         })
@@ -99,6 +114,7 @@ fn issue_create(
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
             let command = use_case.create_issue(issue_title, issue_due).into();
             let event = use_case.handle(command).await?;
+            app.update_query_db(event.clone()).await?;
             println!("issue created : {:?}", event);
             Ok(())
         })
@@ -115,6 +131,7 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let command = use_case.finish_issue(issue_id).into();
             let event = use_case.handle(command).await?;
+            app.update_query_db(event.clone()).await?;
             println!("issue finished : {:?}", event);
             Ok(())
         })
@@ -150,6 +167,7 @@ fn issue_unblock(
             let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
             let command = use_case.unblock_issue(issue_block_link_id).into();
             let event = use_case.handle(command).await?;
+            app.update_query_db(event.clone()).await?;
             println!("issue unblocked : {:?}", event);
             Ok(())
         })
@@ -170,6 +188,7 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
                 .issue_management_context_use_case()
                 .handle(command)
                 .await?;
+            app.update_query_db(event.clone()).await?;
             println!("issue updated : {:?}", event);
             Ok(())
         })

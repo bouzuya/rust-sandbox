@@ -1,6 +1,6 @@
 use domain::DomainEvent;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct IssueManagementContextEvent(DomainEvent);
 
 impl From<DomainEvent> for IssueManagementContextEvent {

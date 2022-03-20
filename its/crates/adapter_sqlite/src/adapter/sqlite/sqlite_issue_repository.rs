@@ -8,10 +8,7 @@ use domain::{aggregate::IssueAggregate, DomainEvent, IssueId};
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
 
-use crate::{
-    adapter::sqlite::event_store::{AggregateVersion, Event},
-    SqliteQueryHandler,
-};
+use crate::adapter::sqlite::event_store::{AggregateVersion, Event};
 
 use self::issue_row::IssueIdRow;
 
@@ -23,19 +20,12 @@ use super::{
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
     pool: AnyPool,
-    // update query db
-    query_handler: SqliteQueryHandler,
 }
 
 impl SqliteIssueRepository {
-    pub async fn new(
-        connection_pool: SqliteConnectionPool,
-        // TODO: remove
-        query_handler: SqliteQueryHandler,
-    ) -> Result<Self, IssueRepositoryError> {
+    pub async fn new(connection_pool: SqliteConnectionPool) -> Result<Self, IssueRepositoryError> {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
-            query_handler,
         })
     }
 
@@ -148,13 +138,13 @@ impl IssueRepository for SqliteIssueRepository {
     }
 
     async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
-        for event in issue.events().iter().cloned() {
-            let mut transaction = self
-                .pool
-                .begin()
-                .await
-                .map_err(|_| IssueRepositoryError::IO)?;
+        let mut transaction = self
+            .pool
+            .begin()
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
 
+        for event in issue.events().iter().cloned() {
             let issue_id = event.issue_id().clone();
             if let Some(aggregate_id) = self
                 .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
@@ -205,24 +195,12 @@ impl IssueRepository for SqliteIssueRepository {
                 self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
                     .await?;
             }
-
-            transaction
-                .commit()
-                .await
-                .map_err(|_| IssueRepositoryError::IO)?;
-
-            {
-                // update query db
-                let issue = self
-                    .find_by_id(&issue_id)
-                    .await?
-                    .ok_or(IssueRepositoryError::IO)?;
-                self.query_handler
-                    .save_issue(issue)
-                    .await
-                    .map_err(|_| IssueRepositoryError::IO)?;
-            }
         }
+
+        transaction
+            .commit()
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         Ok(())
     }
@@ -241,8 +219,7 @@ mod tests {
 
         let sqlite_dir = temp_dir.path().join("its");
         let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
-        let query_handler = SqliteQueryHandler::new(sqlite_dir.as_path()).await?;
-        let issue_repository = SqliteIssueRepository::new(connection_pool, query_handler).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
 
         // create
         let created = IssueAggregate::new(
