@@ -44,6 +44,19 @@ fn its_issue_create() -> anyhow::Result<()> {
 }
 
 #[test]
+fn its_issue_create_with_due() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--due", "2021-02-03T04:05:06+09:00"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains("issue created"))
+        .stdout(predicates::str::contains("Instant(1612292706)")) // TODO
+        .success();
+    Ok(())
+}
+
+#[test]
 fn its_issue_create_with_title() -> anyhow::Result<()> {
     let temp_dir = tempfile::tempdir()?;
     Command::cargo_bin("its")?

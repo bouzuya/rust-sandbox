@@ -1,4 +1,4 @@
-use limited_date_time::Instant;
+use limited_date_time::{Instant, OffsetDateTime};
 use thiserror::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -18,8 +18,8 @@ impl std::str::FromStr for IssueDue {
     type Err = ParseIssueDueError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = Instant::from_str(s).map_err(|_| ParseIssueDueError {})?;
-        Self::try_from(value).map_err(|_| ParseIssueDueError {})
+        let value = OffsetDateTime::from_str(s).map_err(|_| ParseIssueDueError {})?;
+        Self::try_from(value.instant()).map_err(|_| ParseIssueDueError {})
     }
 }
 
