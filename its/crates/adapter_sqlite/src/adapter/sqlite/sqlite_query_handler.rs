@@ -1,4 +1,10 @@
-use std::{fs, path::Path, str::FromStr};
+use std::{
+    fmt::Debug,
+    fs,
+    path::Path,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use domain::{
     aggregate::{IssueAggregate, IssueBlockLinkAggregate},
@@ -12,6 +18,7 @@ use sqlx::{
     Any, AnyPool, FromRow,
 };
 use thiserror::Error;
+use use_case::IssueRepository;
 
 // QueryIssue
 
@@ -39,13 +46,17 @@ impl From<sqlx::Error> for QueryHandlerError {
 
 // SqliteQueryHandler
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct SqliteQueryHandler {
     pool: AnyPool,
+    issue_repository: Arc<Mutex<dyn IssueRepository>>,
 }
 
 impl SqliteQueryHandler {
-    pub async fn new(data_dir: &Path) -> Result<Self, QueryHandlerError> {
+    pub async fn new(
+        data_dir: &Path,
+        issue_repository: Arc<Mutex<dyn IssueRepository>>,
+    ) -> Result<Self, QueryHandlerError> {
         if !data_dir.exists() {
             fs::create_dir_all(data_dir).map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
         }
@@ -71,7 +82,10 @@ impl SqliteQueryHandler {
         .await?;
         transaction.commit().await?;
 
-        Ok(Self { pool })
+        Ok(Self {
+            pool,
+            issue_repository,
+        })
     }
 
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<(), QueryHandlerError> {
@@ -134,11 +148,15 @@ impl SqliteQueryHandler {
 mod tests {
     use limited_date_time::Instant;
 
+    use crate::{SqliteConnectionPool, SqliteIssueRepository};
+
     use super::*;
 
     #[tokio::test]
     async fn issue_test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
+        let sqlite_dir = temp_dir.path().join("its");
+        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
 
         let issue = IssueAggregate::new(
             Instant::now(),
@@ -147,7 +165,10 @@ mod tests {
             Some("2021-02-03T04:05:06Z".parse()?),
         )?;
 
-        let query_handler = SqliteQueryHandler::new(temp_dir.path()).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
+        let query_handler =
+            SqliteQueryHandler::new(temp_dir.path(), Arc::new(Mutex::new(issue_repository)))
+                .await?;
 
         query_handler.save_issue(issue.clone()).await?;
         query_handler.save_issue(issue).await?;

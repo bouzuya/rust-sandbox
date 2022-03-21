@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use async_trait::async_trait;
 use domain::{aggregate::IssueAggregate, IssueId};
 use thiserror::Error;
@@ -11,7 +13,7 @@ pub enum IssueRepositoryError {
 }
 
 #[async_trait]
-pub trait IssueRepository {
+pub trait IssueRepository: Debug {
     async fn find_by_id(
         &self,
         issue_id: &IssueId,
