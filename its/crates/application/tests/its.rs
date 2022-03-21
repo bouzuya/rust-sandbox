@@ -85,9 +85,71 @@ fn its_issue_finish() -> anyhow::Result<()> {
     Ok(())
 }
 
-// TODO: issue-list
-// TODO: issue-unblock
-// TODO: issue-update
+#[test]
+fn its_issue_list() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-list"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"1""#))
+        .stdout(predicates::str::contains(r#""id":"2""#))
+        .success();
+    Ok(())
+}
+
+#[test]
+fn its_issue_unblock() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-block", "1", "2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-unblock", "1", "2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains("issue unblocked"))
+        .success();
+    Ok(())
+}
+
+#[test]
+fn its_issue_update() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-update", "--due", "2022-03-04T05:06:07Z", "1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains("issue updated"))
+        .stdout(predicates::str::contains("Instant(1646370367)")) // TODO
+        .success();
+    Ok(())
+}
 
 #[test]
 fn its_issue_view() -> anyhow::Result<()> {
