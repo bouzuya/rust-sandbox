@@ -30,6 +30,29 @@ pub struct QueryIssue {
     pub due: Option<String>,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct QueryIssueIdWithTitle {
+    pub id: String,
+    pub title: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct QueryIssueWithLinks {
+    pub id: String,
+    pub status: String,
+    pub title: String,
+    pub due: Option<String>,
+    pub blocks: Vec<QueryIssueIdWithTitle>,
+}
+
+#[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
+pub struct QueryIssueBlockLink {
+    pub issue_id: String,
+    pub issue_title: String,
+    pub blocked_issue_id: String,
+    pub blocked_issue_title: String,
+}
+
 // QueryHandlerError
 
 #[derive(Debug, Error)]
@@ -165,14 +188,37 @@ impl SqliteQueryHandler {
     pub async fn issue_view(
         &self,
         issue_id: &IssueId,
-    ) -> Result<Option<QueryIssue>, QueryHandlerError> {
+    ) -> Result<Option<QueryIssueWithLinks>, QueryHandlerError> {
         let mut transaction = self.pool.begin().await?;
         let issue: Option<QueryIssue> =
             sqlx::query_as(include_str!("../../../sql/query/select_issue.sql"))
                 .bind(issue_id.to_string())
                 .fetch_optional(&mut transaction)
                 .await?;
-        Ok(issue)
+        match issue {
+            Some(issue) => {
+                let issue_block_links: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
+                    "../../../sql/query/select_issue_block_links_by_issue_id.sql"
+                ))
+                .bind(issue_id.to_string())
+                .fetch_all(&mut transaction)
+                .await?;
+                Ok(Some(QueryIssueWithLinks {
+                    id: issue.id,
+                    status: issue.status,
+                    title: issue.title,
+                    due: issue.due,
+                    blocks: issue_block_links
+                        .into_iter()
+                        .map(|issue_block_link| QueryIssueIdWithTitle {
+                            id: issue_block_link.blocked_issue_id,
+                            title: issue_block_link.blocked_issue_title,
+                        })
+                        .collect::<Vec<QueryIssueIdWithTitle>>(),
+                }))
+            }
+            None => Ok(None),
+        }
     }
 }
 
@@ -214,7 +260,18 @@ mod tests {
         assert_eq!(Some("2021-02-03T04:05:06Z".to_string()), issue.due);
 
         let found = query_handler.issue_view(&"123".parse()?).await?;
-        assert_eq!(Some(issue), found);
+        assert_eq!(
+            Some(QueryIssueWithLinks {
+                id: "123".to_string(),
+                status: "todo".to_string(),
+                title: "title".to_string(),
+                due: Some("2021-02-03T04:05:06Z".to_string()),
+                blocks: vec![
+                    // TODO
+                ]
+            }),
+            found
+        );
         Ok(())
     }
 
