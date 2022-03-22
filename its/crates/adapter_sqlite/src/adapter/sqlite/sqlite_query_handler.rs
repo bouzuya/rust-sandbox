@@ -46,16 +46,15 @@ impl From<sqlx::Error> for QueryHandlerError {
 
 // SqliteQueryHandler
 
-#[derive(Debug)]
 pub struct SqliteQueryHandler {
     pool: AnyPool,
-    issue_repository: Arc<Mutex<dyn IssueRepository>>,
+    issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
 }
 
 impl SqliteQueryHandler {
     pub async fn new(
         data_dir: &Path,
-        issue_repository: Arc<Mutex<dyn IssueRepository>>,
+        issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
     ) -> Result<Self, QueryHandlerError> {
         if !data_dir.exists() {
             fs::create_dir_all(data_dir).map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
@@ -116,7 +115,40 @@ impl SqliteQueryHandler {
         .bind(issue_block_link.id().issue_id().to_string())
         .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut transaction).await?;
-        // TODO: insert
+
+        // TODO: unwrap
+        let issue_title = self
+            .issue_repository
+            .lock()
+            .unwrap()
+            .find_by_id(issue_block_link.id().issue_id())
+            .await
+            .unwrap()
+            .unwrap()
+            .title()
+            .to_string();
+        let blocked_issue_title = self
+            .issue_repository
+            .lock()
+            .unwrap()
+            .find_by_id(issue_block_link.id().blocked_issue_id())
+            .await
+            .unwrap()
+            .unwrap()
+            .title()
+            .to_string();
+        let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
+            "../../../sql/query/insert_issue_block_link.sql"
+        ))
+        .bind(issue_block_link.id().issue_id().to_string())
+        .bind(issue_title.to_string())
+        .bind(issue_block_link.id().blocked_issue_id().to_string())
+        .bind(blocked_issue_title.to_string());
+        let rows_affected = query.execute(&mut transaction).await?.rows_affected();
+        if rows_affected != 1 {
+            return Err(QueryHandlerError::Unknown("rows_affected != 1".to_string()));
+        }
+
         transaction.commit().await?;
         Ok(())
     }

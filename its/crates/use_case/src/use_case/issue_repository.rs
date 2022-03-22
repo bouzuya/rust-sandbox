@@ -13,7 +13,7 @@ pub enum IssueRepositoryError {
 }
 
 #[async_trait]
-pub trait IssueRepository: Debug {
+pub trait IssueRepository {
     async fn find_by_id(
         &self,
         issue_id: &IssueId,

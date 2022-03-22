@@ -1,4 +1,8 @@
-use std::{path::PathBuf, str::FromStr};
+use std::{
+    path::PathBuf,
+    str::FromStr,
+    sync::{Arc, Mutex},
+};
 
 use adapter_sqlite::{
     SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
@@ -19,10 +23,13 @@ struct App {
 impl App {
     async fn new() -> anyhow::Result<Self> {
         let data_dir = Self::state_dir()?;
-        let query_handler = SqliteQueryHandler::new(data_dir.as_path()).await?;
-        let connection_pool = SqliteConnectionPool::new(data_dir).await?;
+        let connection_pool = SqliteConnectionPool::new(data_dir.clone()).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
+        let query_handler =
+            SqliteQueryHandler::new(data_dir.as_path(), Arc::new(Mutex::new(issue_repository)))
+                .await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
         Ok(Self {
             issue_block_link_repository,
