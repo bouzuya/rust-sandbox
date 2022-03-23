@@ -159,11 +159,22 @@ fn its_issue_view() -> anyhow::Result<()> {
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert();
     Command::cargo_bin("its")?
+        .args(&["issue-create", "--title", "title2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue-block", "1", "2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
         .args(&["issue-view", "1"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
         .stdout(predicates::str::contains(r#""id":"1""#))
         .stdout(predicates::str::contains(r#""title":"title1""#))
+        .stdout(predicates::str::contains(
+            r#""blocks":[{"id":"2","title":"title2"}]"#,
+        ))
         .success();
     Ok(())
 }

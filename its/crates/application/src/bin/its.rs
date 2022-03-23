@@ -10,7 +10,8 @@ use adapter_sqlite::{
 use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
-    IssueManagementContextEvent, IssueManagementContextUseCase, IssueRepository,
+    IssueBlockLinkRepository, IssueManagementContextEvent, IssueManagementContextUseCase,
+    IssueRepository,
 };
 use xdg::BaseDirectories;
 
@@ -40,15 +41,26 @@ impl App {
 
     // TODO: remove
     async fn update_query_db(&self, event: IssueManagementContextEvent) -> anyhow::Result<()> {
-        // TODO: update query db
-        if let DomainEvent::Issue(issue_aggregate_event) = DomainEvent::from(event.clone()) {
+        if let DomainEvent::Issue(event) = DomainEvent::from(event.clone()) {
             // TODO: unwrap
             let issue = self
                 .issue_repository()
-                .find_by_id(issue_aggregate_event.issue_id())
+                .find_by_id(event.issue_id())
                 .await?
                 .unwrap();
             self.query_handler.save_issue(issue).await?;
+            // TODO: update query.issue_block_links.issue_title
+            // TODO: update query.issue_block_links.blocked_issue_title
+        }
+        if let DomainEvent::IssueBlockLink(event) = DomainEvent::from(event.clone()) {
+            let issue_block_link = self
+                .issue_block_link_repository()
+                .find_by_id(event.key().0)
+                .await?
+                .unwrap();
+            self.query_handler
+                .save_issue_block_link(issue_block_link)
+                .await?;
         }
         Ok(())
     }
