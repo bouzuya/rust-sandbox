@@ -112,59 +112,53 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
         &self,
         issue_block_link: &IssueBlockLinkAggregate,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
-        let events = issue_block_link.events();
-        if events.len() > 1 {
-            return Err(IssueBlockLinkRepositoryError::Unknown(
-                "too many events".to_string(),
-            ));
-        }
-        let event = match events.first() {
-            Some(event) => event,
-            None => return Ok(()),
-        };
-
         let mut transaction = self
             .pool
             .begin()
             .await
             .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
 
-        let (issue_block_link_id, version) = event.key();
-        if let Some(aggregate_id) = self
-            .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
-            .await?
-        {
-            // update
-            event_store::save(
-                &mut transaction,
-                version.prev().map(aggregate_version_from).transpose()?,
-                Event {
-                    aggregate_id,
-                    data: DomainEvent::from(event.clone()).to_string(),
-                    version: aggregate_version_from(version)?,
-                },
-            )
-            .await
-            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
-        } else {
-            // create
-            let aggregate_id = AggregateId::generate();
-            event_store::save(
-                &mut transaction,
-                None,
-                Event {
-                    aggregate_id,
-                    data: DomainEvent::from(event.clone()).to_string(),
-                    version: aggregate_version_from(version)?,
-                },
-            )
-            .await
-            .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+        for event in issue_block_link.events() {
+            let (issue_block_link_id, version) = event.key();
+            if let Some(aggregate_id) = self
+                .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+                .await?
+            {
+                // update
+                event_store::save(
+                    &mut transaction,
+                    version.prev().map(aggregate_version_from).transpose()?,
+                    Event {
+                        aggregate_id,
+                        data: DomainEvent::from(event.clone()).to_string(),
+                        version: aggregate_version_from(version)?,
+                    },
+                )
+                .await
+                .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
+            } else {
+                // create
+                let aggregate_id = AggregateId::generate();
+                event_store::save(
+                    &mut transaction,
+                    None,
+                    Event {
+                        aggregate_id,
+                        data: DomainEvent::from(event.clone()).to_string(),
+                        version: aggregate_version_from(version)?,
+                    },
+                )
+                .await
+                .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
 
-            self.insert_issue_block_link_id(&mut transaction, issue_block_link_id, aggregate_id)
+                self.insert_issue_block_link_id(
+                    &mut transaction,
+                    issue_block_link_id,
+                    aggregate_id,
+                )
                 .await?;
+            }
         }
-
         transaction
             .commit()
             .await
