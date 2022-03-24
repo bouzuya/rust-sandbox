@@ -241,9 +241,8 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         let issue = self
             .issue_repository()
             .find_by_id(&command.issue_id)
-            .await?;
-        // TODO: fix error
-        let issue = issue.ok_or(IssueManagementContextError::Unknown)?;
+            .await?
+            .ok_or(IssueManagementContextError::IssueNotFound(command.issue_id))?;
         let issue_due = command.issue_due;
         let at = Instant::now();
 
