@@ -210,13 +210,14 @@ mod tests {
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
-        let _ = IssueAggregate::new(
-            Instant::now(),
-            IssueNumber::from_str("123")?,
-            IssueTitle::from_str("title")?,
-            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
-        )?;
-        // TODO: assert
+        let issue_number = IssueNumber::from_str("123")?;
+        let issue_title = IssueTitle::from_str("title")?;
+        let issue_due = Some(IssueDue::from_str("2021-02-03T04:05:06Z")?);
+        let issue =
+            IssueAggregate::new(Instant::now(), issue_number, issue_title.clone(), issue_due)?;
+        assert_eq!(issue.id().issue_number(), issue_number);
+        assert_eq!(issue.title(), &issue_title);
+        assert_eq!(issue.due(), issue_due);
         Ok(())
     }
 
