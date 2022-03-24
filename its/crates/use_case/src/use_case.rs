@@ -35,8 +35,6 @@ pub enum IssueManagementContextError {
     IssueNotFound(IssueId),
     #[error("IssueRepository")]
     IssueRepository(#[from] IssueRepositoryError),
-    #[error("Unknown")]
-    Unknown,
 }
 
 #[async_trait]
