@@ -43,6 +43,7 @@ pub struct QueryIssueWithLinks {
     pub title: String,
     pub due: Option<String>,
     pub blocks: Vec<QueryIssueIdWithTitle>,
+    pub is_blocked_by: Vec<QueryIssueIdWithTitle>,
 }
 
 #[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
@@ -197,8 +198,14 @@ impl SqliteQueryHandler {
                 .await?;
         match issue {
             Some(issue) => {
-                let issue_block_links: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
+                let blocks: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
                     "../../../sql/query/select_issue_block_links_by_issue_id.sql"
+                ))
+                .bind(issue_id.to_string())
+                .fetch_all(&mut transaction)
+                .await?;
+                let is_blocked_by: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
+                    "../../../sql/query/select_issue_block_links_by_blocked_issue_id.sql"
                 ))
                 .bind(issue_id.to_string())
                 .fetch_all(&mut transaction)
@@ -208,11 +215,18 @@ impl SqliteQueryHandler {
                     status: issue.status,
                     title: issue.title,
                     due: issue.due,
-                    blocks: issue_block_links
+                    blocks: blocks
                         .into_iter()
                         .map(|issue_block_link| QueryIssueIdWithTitle {
                             id: issue_block_link.blocked_issue_id,
                             title: issue_block_link.blocked_issue_title,
+                        })
+                        .collect::<Vec<QueryIssueIdWithTitle>>(),
+                    is_blocked_by: is_blocked_by
+                        .into_iter()
+                        .map(|issue_block_link| QueryIssueIdWithTitle {
+                            id: issue_block_link.issue_id,
+                            title: issue_block_link.issue_title,
                         })
                         .collect::<Vec<QueryIssueIdWithTitle>>(),
                 }))
@@ -267,6 +281,9 @@ mod tests {
                 title: "title".to_string(),
                 due: Some("2021-02-03T04:05:06Z".to_string()),
                 blocks: vec![
+                    // TODO
+                ],
+                is_blocked_by: vec![
                     // TODO
                 ]
             }),
