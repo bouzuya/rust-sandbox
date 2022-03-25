@@ -99,8 +99,12 @@ mod tests {
     }
 
     #[test]
-    fn change_due() {
-        // TODO:
+    fn change_due() -> anyhow::Result<()> {
+        let issue = new()?;
+        assert_eq!(issue.change_due(None).due(), None);
+        let due = IssueDue::from_str("1970-01-01T00:00:00Z")?;
+        assert_eq!(issue.change_due(Some(due)).due(), Some(due));
+        Ok(())
     }
 
     #[test]
@@ -111,5 +115,13 @@ mod tests {
         let updated = issue.finish()?;
         assert_eq!(updated.status(), IssueStatus::Done);
         Ok(())
+    }
+
+    fn new() -> anyhow::Result<Issue> {
+        let number = IssueNumber::try_from(1_usize)?;
+        let title = IssueTitle::from_str("title1")?;
+        let id = IssueId::new(number);
+        let due = IssueDue::from_str("2021-02-03T04:05:06Z")?;
+        Ok(Issue::new(id.clone(), title.clone(), Some(due)))
     }
 }
