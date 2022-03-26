@@ -147,7 +147,7 @@ impl SqliteQueryHandler {
             .unwrap()
             .find_by_id(issue_block_link.id().issue_id())
             .await
-            .unwrap()
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
             .unwrap()
             .title()
             .to_string();
@@ -157,7 +157,7 @@ impl SqliteQueryHandler {
             .unwrap()
             .find_by_id(issue_block_link.id().blocked_issue_id())
             .await
-            .unwrap()
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
             .unwrap()
             .title()
             .to_string();
