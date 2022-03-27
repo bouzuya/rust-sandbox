@@ -140,25 +140,21 @@ impl SqliteQueryHandler {
         .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut transaction).await?;
 
-        // TODO: unwrap
-        let issue_title = self
-            .issue_repository
-            .lock()
-            .unwrap()
+        let issue_repository = self.issue_repository.lock().map_err(|e| {
+            QueryHandlerError::Unknown(format!("IssueRepository can't lock: {}", e))
+        })?;
+        let issue_title = issue_repository
             .find_by_id(issue_block_link.id().issue_id())
             .await
             .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-            .unwrap()
+            .ok_or_else(|| QueryHandlerError::Unknown("no issue".to_string()))?
             .title()
             .to_string();
-        let blocked_issue_title = self
-            .issue_repository
-            .lock()
-            .unwrap()
+        let blocked_issue_title = issue_repository
             .find_by_id(issue_block_link.id().blocked_issue_id())
             .await
             .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-            .unwrap()
+            .ok_or_else(|| QueryHandlerError::Unknown("no issue".to_string()))?
             .title()
             .to_string();
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
