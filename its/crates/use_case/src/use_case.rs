@@ -10,6 +10,7 @@ pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::IssueBlockLinkId;
 use domain::IssueUnblocked;
+use domain::ParseIssueBlockLinkError;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateError, IssueAggregateEvent, IssueBlockLinkAggregateError,
@@ -35,6 +36,8 @@ pub enum IssueManagementContextError {
     IssueNotFound(IssueId),
     #[error("IssueRepository")]
     IssueRepository(#[from] IssueRepositoryError),
+    #[error("InvalidIssueBlockLinkId")]
+    InvalidIssueBlockLinkId(#[from] ParseIssueBlockLinkError),
 }
 
 #[async_trait]
@@ -117,20 +120,31 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     ) -> Result<IssueBlocked, IssueManagementContextError> {
         // io
         let at = Instant::now();
-        // TODO: already created
-        let issue = self
-            .issue_repository()
-            .find_by_id(&issue_id)
+        let issue_block_link_id =
+            IssueBlockLinkId::new(issue_id.clone(), blocked_issue_id.clone())?;
+        let issue_block_link = match self
+            .issue_block_link_repository()
+            .find_by_id(&issue_block_link_id)
             .await?
-            .ok_or(IssueManagementContextError::IssueNotFound(issue_id))?;
-        let blocked_issue = self
-            .issue_repository()
-            .find_by_id(&blocked_issue_id)
-            .await?
-            .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
+        {
+            Some(_) => todo!("already created"),
+            None => {
+                // io
+                let issue = self
+                    .issue_repository()
+                    .find_by_id(&issue_id)
+                    .await?
+                    .ok_or(IssueManagementContextError::IssueNotFound(issue_id))?;
+                let blocked_issue = self
+                    .issue_repository()
+                    .find_by_id(&blocked_issue_id)
+                    .await?
+                    .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
 
-        // pure
-        let issue_block_link = issue.block(blocked_issue, at)?;
+                // pure
+                issue.block(blocked_issue, at)?
+            }
+        };
 
         // io
         self.issue_block_link_repository()
