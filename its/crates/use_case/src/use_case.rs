@@ -106,7 +106,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .find_by_id(&issue_block_link_id)
             .await?
         {
-            Some(_) => todo!("already created"),
+            Some(issue_block_link) => issue_block_link.block(at)?,
             None => {
                 // io
                 let issue = self
