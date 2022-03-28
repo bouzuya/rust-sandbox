@@ -8,16 +8,10 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
-use domain::IssueBlockLinkId;
-use domain::IssueUnblocked;
-use domain::ParseIssueBlockLinkError;
 use domain::{
-    aggregate::{
-        IssueAggregate, IssueAggregateError, IssueAggregateEvent, IssueBlockLinkAggregateError,
-        IssueBlockLinkAggregateEvent,
-    },
-    DomainEvent, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId, IssueNumber,
-    IssueTitle, IssueUpdated,
+    aggregate::{IssueAggregate, IssueAggregateError, IssueBlockLinkAggregateError},
+    DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueNumber, IssueTitle,
+    ParseIssueBlockLinkError,
 };
 use limited_date_time::Instant;
 use thiserror::Error;
@@ -45,37 +39,22 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle(
         &self,
         command: IssueManagementContextCommand,
-    ) -> Result<IssueManagementContextEvent, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         match command {
             IssueManagementContextCommand::BlockIssue(command) => {
-                let event = self.handle_block_issue(command).await?;
-                Ok(IssueManagementContextEvent::from(
-                    DomainEvent::IssueBlockLink(IssueBlockLinkAggregateEvent::from(event)),
-                ))
+                self.handle_block_issue(command).await
             }
             IssueManagementContextCommand::CreateIssue(command) => {
-                let event = self.handle_create_issue(command).await?;
-                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
-                    IssueAggregateEvent::from(event),
-                )))
+                self.handle_create_issue(command).await
             }
             IssueManagementContextCommand::FinishIssue(command) => {
-                let event = self.handle_finish_issue(command).await?;
-                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
-                    IssueAggregateEvent::from(event),
-                )))
+                self.handle_finish_issue(command).await
             }
             IssueManagementContextCommand::UnblockIssue(command) => {
-                let event = self.handle_unblock_issue(command).await?;
-                Ok(IssueManagementContextEvent::from(
-                    DomainEvent::IssueBlockLink(IssueBlockLinkAggregateEvent::from(event)),
-                ))
+                self.handle_unblock_issue(command).await
             }
             IssueManagementContextCommand::UpdateIssue(command) => {
-                let event = self.handle_update_issue(command).await?;
-                Ok(IssueManagementContextEvent::from(DomainEvent::Issue(
-                    IssueAggregateEvent::from(event),
-                )))
+                self.handle_update_issue(command).await
             }
         }
     }
@@ -117,7 +96,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             issue_id,
             blocked_issue_id,
         }: BlockIssue,
-    ) -> Result<IssueBlocked, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         // io
         let at = Instant::now();
         let issue_block_link_id =
@@ -151,19 +130,19 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .save(&issue_block_link)
             .await?;
 
-        Ok(match issue_block_link.events().first() {
-            Some(event) => match event {
-                IssueBlockLinkAggregateEvent::Blocked(event) => event.clone(),
-                IssueBlockLinkAggregateEvent::Unblocked(_) => unreachable!(),
-            },
-            None => unreachable!(),
-        })
+        Ok(issue_block_link
+            .events()
+            .iter()
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 
     async fn handle_create_issue(
         &self,
         command: CreateIssue,
-    ) -> Result<IssueCreatedV2, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         // io
         let issue_number = self
             .issue_repository()
@@ -180,18 +159,19 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // io
         self.issue_repository().save(&created).await?;
 
-        let event = created.events().first().unwrap().clone(); // TODO
-        if let IssueAggregateEvent::CreatedV2(event) = event {
-            Ok(event)
-        } else {
-            unreachable!()
-        }
+        Ok(created
+            .events()
+            .iter()
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 
     async fn handle_finish_issue(
         &self,
         command: FinishIssue,
-    ) -> Result<IssueFinished, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         // io
         let issue = self
             .issue_repository()
@@ -206,12 +186,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // io
         self.issue_repository().save(&updated).await?;
 
-        let event = updated.events().first().unwrap().clone(); // TODO
-        if let IssueAggregateEvent::Finished(event) = event {
-            Ok(event)
-        } else {
-            unreachable!()
-        }
+        Ok(updated
+            .events()
+            .iter()
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 
     async fn handle_unblock_issue(
@@ -219,7 +200,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         UnblockIssue {
             issue_block_link_id,
         }: UnblockIssue,
-    ) -> Result<IssueUnblocked, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         // io
         let at = Instant::now();
         let issue_block_link = self
@@ -236,19 +217,19 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // io
         self.issue_block_link_repository().save(&updated).await?;
 
-        Ok(match updated.events().first() {
-            Some(event) => match event {
-                IssueBlockLinkAggregateEvent::Blocked(_) => unreachable!(),
-                IssueBlockLinkAggregateEvent::Unblocked(event) => event.clone(),
-            },
-            None => unreachable!(),
-        })
+        Ok(updated
+            .events()
+            .iter()
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 
     async fn handle_update_issue(
         &self,
         command: UpdateIssue,
-    ) -> Result<IssueUpdated, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
         // io
         let issue = self
             .issue_repository()
@@ -264,17 +245,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         // io
         self.issue_repository().save(&updated).await?;
 
-        let event = updated
+        Ok(updated
             .events()
             .iter()
-            .find(|event| matches!(event, IssueAggregateEvent::Updated(_)))
-            .unwrap()
-            .clone(); // TODO
-        if let IssueAggregateEvent::Updated(event) = event {
-            Ok(event)
-        } else {
-            unreachable!()
-        }
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 }
 

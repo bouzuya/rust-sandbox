@@ -108,9 +108,10 @@ fn issue_block(
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
             let command = use_case.block_issue(issue_id, blocked_issue_id).into();
-            let event = use_case.handle(command).await?;
-            app.update_query_db(event.clone()).await?;
-            println!("issue blocked : {:?}", event);
+            let events = use_case.handle(command).await?;
+            // FIXME:
+            app.update_query_db(events.first().unwrap().clone()).await?;
+            println!("issue blocked : {:?}", events);
             Ok(())
         })
 }
@@ -129,9 +130,10 @@ fn issue_create(
             let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
             let command = use_case.create_issue(issue_title, issue_due).into();
-            let event = use_case.handle(command).await?;
-            app.update_query_db(event.clone()).await?;
-            println!("issue created : {:?}", event);
+            let events = use_case.handle(command).await?;
+            // FIXME:
+            app.update_query_db(events.first().unwrap().clone()).await?;
+            println!("issue created : {:?}", events);
             Ok(())
         })
 }
@@ -146,9 +148,10 @@ fn issue_finish(issue_id: String) -> anyhow::Result<()> {
             let use_case = app.issue_management_context_use_case();
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let command = use_case.finish_issue(issue_id).into();
-            let event = use_case.handle(command).await?;
-            app.update_query_db(event.clone()).await?;
-            println!("issue finished : {:?}", event);
+            let events = use_case.handle(command).await?;
+            // FIXME:
+            app.update_query_db(events.first().unwrap().clone()).await?;
+            println!("issue finished : {:?}", events);
             Ok(())
         })
 }
@@ -182,9 +185,10 @@ fn issue_unblock(
             let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
             let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
             let command = use_case.unblock_issue(issue_block_link_id).into();
-            let event = use_case.handle(command).await?;
-            app.update_query_db(event.clone()).await?;
-            println!("issue unblocked : {:?}", event);
+            let events = use_case.handle(command).await?;
+            // FIXME:
+            app.update_query_db(events.first().unwrap().clone()).await?;
+            println!("issue unblocked : {:?}", events);
             Ok(())
         })
 }
@@ -200,12 +204,13 @@ fn issue_update(issue_id: String, #[opt(long = "due")] due: Option<String>) -> a
             let issue_id = IssueId::from_str(issue_id.as_str())?;
             let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
             let command = use_case.update_issue(issue_id, issue_due).into();
-            let event = app
+            let events = app
                 .issue_management_context_use_case()
                 .handle(command)
                 .await?;
-            app.update_query_db(event.clone()).await?;
-            println!("issue updated : {:?}", event);
+            // FIXME:
+            app.update_query_db(events.first().unwrap().clone()).await?;
+            println!("issue updated : {:?}", events);
             Ok(())
         })
 }
