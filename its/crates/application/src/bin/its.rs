@@ -1,4 +1,5 @@
 use std::{
+    fs,
     path::PathBuf,
     str::FromStr,
     sync::{Arc, Mutex},
@@ -7,6 +8,7 @@ use std::{
 use adapter_sqlite::{
     SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
 };
+use anyhow::Context;
 use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
@@ -24,7 +26,15 @@ struct App {
 impl App {
     async fn new() -> anyhow::Result<Self> {
         let data_dir = Self::state_dir()?;
-        let connection_pool = SqliteConnectionPool::new(data_dir.clone()).await?;
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path())?;
+        }
+        let path = data_dir.join("command.sqlite");
+        let connection_uri = format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().context("path is not utf-8")?
+        );
+        let connection_pool = SqliteConnectionPool::new(connection_uri.as_str()).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;

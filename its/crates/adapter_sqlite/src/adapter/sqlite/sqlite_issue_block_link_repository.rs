@@ -178,6 +178,8 @@ fn aggregate_version_from(
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use anyhow::Context;
     use limited_date_time::Instant;
     use tempfile::tempdir;
@@ -189,7 +191,16 @@ mod tests {
         let temp_dir = tempdir()?;
 
         let sqlite_dir = temp_dir.path().join("its");
-        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
+        let data_dir = sqlite_dir;
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path())?;
+        }
+        let path = data_dir.join("command.sqlite");
+        let connection_uri = format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().context("path is not utf-8")?
+        );
+        let connection_pool = SqliteConnectionPool::new(connection_uri.as_str()).await?;
         let repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
 
         // save (create)

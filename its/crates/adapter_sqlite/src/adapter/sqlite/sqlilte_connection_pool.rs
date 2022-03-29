@@ -1,11 +1,6 @@
-use std::{fs, path::PathBuf, str::FromStr};
+use std::str::FromStr;
 
-use sqlx::{
-    any::AnyConnectOptions,
-    migrate::Migrator,
-    sqlite::{SqliteConnectOptions, SqliteJournalMode},
-    AnyPool,
-};
+use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
 use use_case::IssueRepositoryError;
 
 use super::command_migration_source::CommandMigrationSource;
@@ -20,17 +15,9 @@ impl From<SqliteConnectionPool> for AnyPool {
 }
 
 impl SqliteConnectionPool {
-    pub async fn new(data_dir: PathBuf) -> Result<Self, IssueRepositoryError> {
-        if !data_dir.exists() {
-            fs::create_dir_all(data_dir.as_path()).map_err(|_| IssueRepositoryError::IO)?;
-        }
-        let path = data_dir.join("command.sqlite");
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().ok_or(IssueRepositoryError::IO)?
-        ))
-        .map_err(|_| IssueRepositoryError::IO)?
-        .journal_mode(SqliteJournalMode::Delete);
+    pub async fn new(connection_uri: &str) -> Result<Self, IssueRepositoryError> {
+        let options =
+            AnyConnectOptions::from_str(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
         let options = AnyConnectOptions::from(options);
         let pool = AnyPool::connect_with(options)
             .await

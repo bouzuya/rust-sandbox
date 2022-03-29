@@ -234,6 +234,7 @@ impl SqliteQueryHandler {
 
 #[cfg(test)]
 mod tests {
+    use anyhow::Context;
     use limited_date_time::Instant;
 
     use crate::{SqliteConnectionPool, SqliteIssueRepository};
@@ -244,7 +245,16 @@ mod tests {
     async fn issue_test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let sqlite_dir = temp_dir.path().join("its");
-        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
+        let data_dir = sqlite_dir;
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path())?;
+        }
+        let path = data_dir.join("command.sqlite");
+        let connection_uri = format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().context("path is not utf-8")?
+        );
+        let connection_pool = SqliteConnectionPool::new(&connection_uri).await?;
 
         let issue = IssueAggregate::new(
             Instant::now(),
@@ -289,7 +299,16 @@ mod tests {
     async fn issue_block_link_test() -> anyhow::Result<()> {
         let temp_dir = tempfile::tempdir()?;
         let sqlite_dir = temp_dir.path().join("its");
-        let connection_pool = SqliteConnectionPool::new(sqlite_dir.clone()).await?;
+        let data_dir = sqlite_dir;
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path())?;
+        }
+        let path = data_dir.join("command.sqlite");
+        let connection_uri = format!(
+            "sqlite:{}?mode=rwc",
+            path.to_str().context("path is not utf-8")?
+        );
+        let connection_pool = SqliteConnectionPool::new(&connection_uri).await?;
 
         let issue1 = IssueAggregate::new(Instant::now(), "1".parse()?, "title1".parse()?, None)?;
         let issue2 = IssueAggregate::new(Instant::now(), "2".parse()?, "title2".parse()?, None)?;
