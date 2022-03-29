@@ -1,7 +1,5 @@
 use std::{
     fmt::Debug,
-    fs,
-    path::Path,
     str::FromStr,
     sync::{Arc, Mutex},
 };
@@ -14,7 +12,6 @@ use serde::Serialize;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
     query::Query,
-    sqlite::{SqliteConnectOptions, SqliteJournalMode},
     Any, AnyPool, FromRow,
 };
 use thiserror::Error;
@@ -77,21 +74,10 @@ pub struct SqliteQueryHandler {
 
 impl SqliteQueryHandler {
     pub async fn new(
-        data_dir: &Path,
+        connection_uri: &str,
         issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
     ) -> Result<Self, QueryHandlerError> {
-        if !data_dir.exists() {
-            fs::create_dir_all(data_dir).map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
-        }
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            data_dir
-                .join("query.sqlite")
-                .to_str()
-                .ok_or_else(|| QueryHandlerError::Unknown("data_dir is not UTF-8".to_string()))?
-        ))?
-        .journal_mode(SqliteJournalMode::Delete);
-        let options = AnyConnectOptions::from(options);
+        let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
 
         let mut transaction = pool.begin().await?;
@@ -234,6 +220,8 @@ impl SqliteQueryHandler {
 
 #[cfg(test)]
 mod tests {
+    use std::{fs, path::PathBuf};
+
     use anyhow::Context;
     use limited_date_time::Instant;
 
@@ -249,12 +237,16 @@ mod tests {
         if !data_dir.exists() {
             fs::create_dir_all(data_dir.as_path())?;
         }
-        let path = data_dir.join("command.sqlite");
-        let connection_uri = format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().context("path is not utf-8")?
-        );
-        let connection_pool = SqliteConnectionPool::new(&connection_uri).await?;
+        let new_connection_uri = |path: PathBuf| -> anyhow::Result<String> {
+            Ok(format!(
+                "sqlite:{}?mode=rwc",
+                path.to_str().context("path is not utf-8")?
+            ))
+        };
+        let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
+        let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
+
+        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
 
         let issue = IssueAggregate::new(
             Instant::now(),
@@ -266,9 +258,11 @@ mod tests {
         let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
         issue_repository.save(&issue).await?;
 
-        let query_handler =
-            SqliteQueryHandler::new(temp_dir.path(), Arc::new(Mutex::new(issue_repository)))
-                .await?;
+        let query_handler = SqliteQueryHandler::new(
+            &query_connection_uri,
+            Arc::new(Mutex::new(issue_repository)),
+        )
+        .await?;
 
         query_handler.save_issue(issue).await?;
 
@@ -303,12 +297,15 @@ mod tests {
         if !data_dir.exists() {
             fs::create_dir_all(data_dir.as_path())?;
         }
-        let path = data_dir.join("command.sqlite");
-        let connection_uri = format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().context("path is not utf-8")?
-        );
-        let connection_pool = SqliteConnectionPool::new(&connection_uri).await?;
+        let new_connection_uri = |path: PathBuf| -> anyhow::Result<String> {
+            Ok(format!(
+                "sqlite:{}?mode=rwc",
+                path.to_str().context("path is not utf-8")?
+            ))
+        };
+        let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
+        let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
+        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
 
         let issue1 = IssueAggregate::new(Instant::now(), "1".parse()?, "title1".parse()?, None)?;
         let issue2 = IssueAggregate::new(Instant::now(), "2".parse()?, "title2".parse()?, None)?;
@@ -321,9 +318,11 @@ mod tests {
         issue_repository.save(&issue2).await?;
         issue_repository.save(&issue3).await?;
 
-        let query_handler =
-            SqliteQueryHandler::new(temp_dir.path(), Arc::new(Mutex::new(issue_repository)))
-                .await?;
+        let query_handler = SqliteQueryHandler::new(
+            &query_connection_uri,
+            Arc::new(Mutex::new(issue_repository)),
+        )
+        .await?;
 
         query_handler.save_issue(issue1).await?;
         query_handler.save_issue(issue2).await?;

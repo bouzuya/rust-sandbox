@@ -29,18 +29,23 @@ impl App {
         if !data_dir.exists() {
             fs::create_dir_all(data_dir.as_path())?;
         }
-        let path = data_dir.join("command.sqlite");
-        let connection_uri = format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().context("path is not utf-8")?
-        );
-        let connection_pool = SqliteConnectionPool::new(connection_uri.as_str()).await?;
+        let new_connection_uri = |path: PathBuf| -> anyhow::Result<String> {
+            Ok(format!(
+                "sqlite:{}?mode=rwc",
+                path.to_str().context("path is not utf-8")?
+            ))
+        };
+        let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
+        let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
+        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
-        let query_handler =
-            SqliteQueryHandler::new(data_dir.as_path(), Arc::new(Mutex::new(issue_repository)))
-                .await?;
+        let query_handler = SqliteQueryHandler::new(
+            &query_connection_uri,
+            Arc::new(Mutex::new(issue_repository)),
+        )
+        .await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
         Ok(Self {
             issue_block_link_repository,
