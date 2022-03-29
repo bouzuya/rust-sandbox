@@ -18,7 +18,6 @@ impl SqliteConnectionPool {
     pub async fn new(connection_uri: &str) -> Result<Self, IssueRepositoryError> {
         let options =
             AnyConnectOptions::from_str(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
-        let options = AnyConnectOptions::from(options);
         let pool = AnyPool::connect_with(options)
             .await
             .map_err(|_| IssueRepositoryError::IO)?;
