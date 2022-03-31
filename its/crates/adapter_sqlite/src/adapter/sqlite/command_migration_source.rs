@@ -19,7 +19,7 @@ impl MigrationSource<'static> for CommandMigrationSource {
                     Cow::from("create aggregates"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/command/migrations/20220224000001_create_aggregates.sql"
+                        "../../../sql/command/migrations/20210223000001_create_aggregates.sql"
                     )),
                 ),
                 Migration::new(
@@ -27,7 +27,7 @@ impl MigrationSource<'static> for CommandMigrationSource {
                     Cow::from("create events"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/command/migrations/20220224000002_create_events.sql"
+                        "../../../sql/command/migrations/20210223000002_create_events.sql"
                     )),
                 ),
                 Migration::new(
@@ -35,7 +35,7 @@ impl MigrationSource<'static> for CommandMigrationSource {
                     Cow::from("create issue_ids"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/command/migrations/20220224000003_create_issue_ids.sql"
+                        "../../../sql/command/migrations/20210223000003_create_issue_ids.sql"
                     )),
                 ),
                 Migration::new(
