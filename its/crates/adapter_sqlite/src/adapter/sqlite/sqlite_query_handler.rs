@@ -97,6 +97,19 @@ impl SqliteQueryHandler {
         })
     }
 
+    pub async fn drop_database(&self) -> Result<(), QueryHandlerError> {
+        let mut transaction = self.pool.begin().await?;
+        let sqls = vec![
+            include_str!("../../../sql/query/drop_issue_block_links.sql"),
+            include_str!("../../../sql/query/drop_issues.sql"),
+        ];
+        for sql in sqls {
+            sqlx::query(sql).execute(&mut *transaction).await?;
+        }
+        transaction.commit().await?;
+        Ok(())
+    }
+
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<(), QueryHandlerError> {
         let mut transaction = self.pool.begin().await?;
         let query: Query<Any, AnyArguments> =
