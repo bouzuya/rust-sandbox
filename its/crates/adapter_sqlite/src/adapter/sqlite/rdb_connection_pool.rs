@@ -6,15 +6,15 @@ use use_case::IssueRepositoryError;
 use super::command_migration_source::CommandMigrationSource;
 
 #[derive(Clone, Debug)]
-pub struct SqliteConnectionPool(AnyPool);
+pub struct RdbConnectionPool(AnyPool);
 
-impl From<SqliteConnectionPool> for AnyPool {
-    fn from(sqlite_connection_pool: SqliteConnectionPool) -> Self {
-        sqlite_connection_pool.0
+impl From<RdbConnectionPool> for AnyPool {
+    fn from(rdb_connection_pool: RdbConnectionPool) -> Self {
+        rdb_connection_pool.0
     }
 }
 
-impl SqliteConnectionPool {
+impl RdbConnectionPool {
     // TODO: Error
     pub async fn new(connection_uri: &str) -> Result<Self, IssueRepositoryError> {
         let options =

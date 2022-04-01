@@ -14,7 +14,7 @@ use self::issue_row::IssueIdRow;
 
 use super::{
     event_store::{self, AggregateId},
-    sqlilte_connection_pool::SqliteConnectionPool,
+    rdb_connection_pool::RdbConnectionPool,
 };
 
 #[derive(Debug)]
@@ -23,7 +23,7 @@ pub struct SqliteIssueRepository {
 }
 
 impl SqliteIssueRepository {
-    pub async fn new(connection_pool: SqliteConnectionPool) -> Result<Self, IssueRepositoryError> {
+    pub async fn new(connection_pool: RdbConnectionPool) -> Result<Self, IssueRepositoryError> {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
         })
@@ -230,7 +230,7 @@ mod tests {
             "sqlite:{}?mode=rwc",
             path.to_str().context("path is not utf-8")?
         );
-        let connection_pool = SqliteConnectionPool::new(&connection_uri).await?;
+        let connection_pool = RdbConnectionPool::new(&connection_uri).await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
 
         // create

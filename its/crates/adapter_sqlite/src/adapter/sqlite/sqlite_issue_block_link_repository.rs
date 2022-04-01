@@ -8,7 +8,7 @@ use domain::{aggregate::IssueBlockLinkAggregate, DomainEvent, IssueBlockLinkId, 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
-use crate::SqliteConnectionPool;
+use crate::RdbConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
@@ -21,7 +21,7 @@ pub struct SqliteIssueBlockLinkRepository {
 
 impl SqliteIssueBlockLinkRepository {
     pub async fn new(
-        connection_pool: SqliteConnectionPool,
+        connection_pool: RdbConnectionPool,
     ) -> Result<Self, IssueBlockLinkRepositoryError> {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
@@ -200,7 +200,7 @@ mod tests {
             "sqlite:{}?mode=rwc",
             path.to_str().context("path is not utf-8")?
         );
-        let connection_pool = SqliteConnectionPool::new(connection_uri.as_str()).await?;
+        let connection_pool = RdbConnectionPool::new(connection_uri.as_str()).await?;
         let repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
 
         // save (create)

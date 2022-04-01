@@ -6,7 +6,7 @@ use std::{
 };
 
 use adapter_sqlite::{
-    SqliteConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
+    RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
 };
 use anyhow::Context;
 use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
@@ -46,7 +46,7 @@ impl App {
             Some(s) => s,
             None => new_connection_uri(data_dir.join("query.sqlite"))?,
         };
-        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
+        let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
         let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;

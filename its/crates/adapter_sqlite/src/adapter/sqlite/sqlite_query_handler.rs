@@ -225,7 +225,7 @@ mod tests {
     use anyhow::Context;
     use limited_date_time::Instant;
 
-    use crate::{SqliteConnectionPool, SqliteIssueRepository};
+    use crate::{RdbConnectionPool, SqliteIssueRepository};
 
     use super::*;
 
@@ -246,7 +246,7 @@ mod tests {
         let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
         let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
 
-        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
+        let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
 
         let issue = IssueAggregate::new(
             Instant::now(),
@@ -305,7 +305,7 @@ mod tests {
         };
         let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
         let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
-        let connection_pool = SqliteConnectionPool::new(&command_connection_uri).await?;
+        let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
 
         let issue1 = IssueAggregate::new(Instant::now(), "1".parse()?, "title1".parse()?, None)?;
         let issue2 = IssueAggregate::new(Instant::now(), "2".parse()?, "title2".parse()?, None)?;
