@@ -79,22 +79,27 @@ impl SqliteQueryHandler {
     ) -> Result<Self, QueryHandlerError> {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
-
-        let mut transaction = pool.begin().await?;
-        sqlx::query(include_str!("../../../sql/query/create_issues.sql"))
-            .execute(&mut *transaction)
-            .await?;
-        sqlx::query(include_str!(
-            "../../../sql/query/create_issue_block_links.sql"
-        ))
-        .execute(&mut *transaction)
-        .await?;
-        transaction.commit().await?;
-
-        Ok(Self {
+        let created = Self {
             pool,
             issue_repository,
-        })
+        };
+
+        created.create_database().await?;
+
+        Ok(created)
+    }
+
+    pub async fn create_database(&self) -> Result<(), QueryHandlerError> {
+        let mut transaction = self.pool.begin().await?;
+        let sqls = vec![
+            include_str!("../../../sql/query/create_issues.sql"),
+            include_str!("../../../sql/query/create_issue_block_links.sql"),
+        ];
+        for sql in sqls {
+            sqlx::query(sql).execute(&mut *transaction).await?;
+        }
+        transaction.commit().await?;
+        Ok(())
     }
 
     pub async fn drop_database(&self) -> Result<(), QueryHandlerError> {
