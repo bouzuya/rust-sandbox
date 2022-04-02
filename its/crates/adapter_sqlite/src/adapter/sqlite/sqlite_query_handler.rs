@@ -115,6 +115,12 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
+    pub async fn restore_database(&self) -> Result<(), QueryHandlerError> {
+        self.drop_database().await?;
+        self.create_database().await?;
+        Ok(())
+    }
+
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<(), QueryHandlerError> {
         let mut transaction = self.pool.begin().await?;
         let query: Query<Any, AnyArguments> =
