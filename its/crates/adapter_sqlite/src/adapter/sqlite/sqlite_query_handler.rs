@@ -115,7 +115,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn restore_database(&self) -> Result<(), QueryHandlerError> {
+    pub async fn reset_database(&self) -> Result<(), QueryHandlerError> {
         self.drop_database().await?;
         self.create_database().await?;
         Ok(())
