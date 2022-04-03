@@ -118,6 +118,18 @@ impl SqliteQueryHandler {
     pub async fn reset_database(&self) -> Result<(), QueryHandlerError> {
         self.drop_database().await?;
         self.create_database().await?;
+
+        // TODO
+        // for aggregate_id in event_store.find_aggregate_ids() {
+        //   let events = event_store.find_events_by_aggregate_id(aggregate_id);
+        //   // issue
+        //     let issue = IssueAggregate::from_events(events);
+        //     self.save_issue(issue);
+        //   // issue_block_link
+        //     let issue_block_link = IssueBlockLinkAggregate::from_events(events);
+        //     self.save_issue_block_link(issue_block_link);
+        // }
+
         Ok(())
     }
 
