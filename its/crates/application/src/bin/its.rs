@@ -304,6 +304,24 @@ fn issue_view(
         })
 }
 
+struct Opt {
+    resource: Resource,
+}
+
+enum Resource {
+    Issue { command: Command },
+}
+
+enum Command {
+    Block,
+    Create,
+    Finish,
+    List,
+    Unblock,
+    Update,
+    View,
+}
+
 #[argopt::cmd_group(commands = [
     issue_block,
     issue_create,
