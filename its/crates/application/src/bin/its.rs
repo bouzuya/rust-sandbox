@@ -9,6 +9,7 @@ use adapter_sqlite::{
     RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
 };
 use anyhow::Context;
+use clap::{Parser, Subcommand};
 use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
@@ -304,14 +305,21 @@ fn issue_view(
         })
 }
 
+#[derive(Parser)]
 struct Opt {
+    #[clap(subcommand)]
     resource: Resource,
 }
 
+#[derive(Subcommand)]
 enum Resource {
-    Issue { command: Command },
+    Issue {
+        #[clap(subcommand)]
+        command: Command,
+    },
 }
 
+#[derive(Subcommand)]
 enum Command {
     Block,
     Create,
