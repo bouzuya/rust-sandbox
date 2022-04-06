@@ -119,12 +119,11 @@ impl HasIssueManagementContextUseCase for App {
     }
 }
 
-#[argopt::subcmd(name = "issue-block")]
 fn issue_block(
-    #[opt(name = "issue-id")] issue_id: String,
-    #[opt(name = "blocked-issue-id")] blocked_issue_id: String,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    issue_id: String,
+    blocked_issue_id: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -147,12 +146,11 @@ fn issue_block(
         })
 }
 
-#[argopt::subcmd(name = "issue-create")]
 fn issue_create(
-    #[opt(long = "title")] title: Option<String>,
-    #[opt(long = "due")] due: Option<String>,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    title: Option<String>,
+    due: Option<String>,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -175,11 +173,10 @@ fn issue_create(
         })
 }
 
-#[argopt::subcmd(name = "issue-finish")]
 fn issue_finish(
     issue_id: String,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -201,10 +198,9 @@ fn issue_finish(
         })
 }
 
-#[argopt::subcmd(name = "issue-list")]
 fn issue_list(
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -222,12 +218,11 @@ fn issue_list(
         })
 }
 
-#[argopt::subcmd(name = "issue-unblock")]
 fn issue_unblock(
-    #[opt(name = "issue-id")] issue_id: String,
-    #[opt(name = "blocked-issue-id")] blocked_issue_id: String,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    issue_id: String,
+    blocked_issue_id: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -251,12 +246,11 @@ fn issue_unblock(
         })
 }
 
-#[argopt::subcmd(name = "issue-update")]
 fn issue_update(
     issue_id: String,
-    #[opt(long = "due")] due: Option<String>,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    due: Option<String>,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -282,11 +276,10 @@ fn issue_update(
         })
 }
 
-#[argopt::subcmd(name = "issue-view")]
 fn issue_view(
     issue_id: String,
-    #[opt(long)] command_database_connection_uri: Option<String>,
-    #[opt(long)] query_database_connection_uri: Option<String>,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
     tokio::runtime::Builder::new_current_thread()
         .enable_all()
@@ -321,22 +314,140 @@ enum Resource {
 
 #[derive(Subcommand)]
 enum Command {
-    Block,
-    Create,
-    Finish,
-    List,
-    Unblock,
-    Update,
-    View,
+    Block {
+        #[clap(name = "issue-id")]
+        issue_id: String,
+        #[clap(name = "blocked-issue-id")]
+        blocked_issue_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Create {
+        #[clap(long = "title")]
+        title: Option<String>,
+        #[clap(long = "due")]
+        due: Option<String>,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Finish {
+        issue_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    List {
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Unblock {
+        #[clap(name = "issue-id")]
+        issue_id: String,
+        #[clap(name = "blocked-issue-id")]
+        blocked_issue_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Update {
+        issue_id: String,
+        #[clap(long = "due")]
+        due: Option<String>,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    View {
+        issue_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
 }
 
-#[argopt::cmd_group(commands = [
-    issue_block,
-    issue_create,
-    issue_finish,
-    issue_list,
-    issue_unblock,
-    issue_update,
-    issue_view
-])]
-fn main() -> anyhow::Result<()> {}
+fn main() -> anyhow::Result<()> {
+    let opt = Opt::parse();
+    match opt.resource {
+        Resource::Issue { command } => match command {
+            Command::Block {
+                issue_id,
+                blocked_issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_block(
+                issue_id,
+                blocked_issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::Create {
+                title,
+                due,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_create(
+                title,
+                due,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::Finish {
+                issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_finish(
+                issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::List {
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_list(
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::Unblock {
+                issue_id,
+                blocked_issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_unblock(
+                issue_id,
+                blocked_issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::Update {
+                issue_id,
+                due,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_update(
+                issue_id,
+                due,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+            Command::View {
+                issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => issue_view(
+                issue_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            ),
+        },
+    }
+}
