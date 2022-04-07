@@ -119,183 +119,148 @@ impl HasIssueManagementContextUseCase for App {
     }
 }
 
-fn issue_block(
+async fn issue_block(
     issue_id: String,
     blocked_issue_id: String,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let use_case = app.issue_management_context_use_case();
-            let issue_id = IssueId::from_str(issue_id.as_str())?;
-            let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
-            let command = use_case.block_issue(issue_id, blocked_issue_id).into();
-            let events = use_case.handle(command).await?;
-            // FIXME:
-            app.update_query_db(events.first().unwrap().clone()).await?;
-            println!("issue blocked : {:?}", events);
-            Ok(())
-        })
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
+    let command = use_case.block_issue(issue_id, blocked_issue_id).into();
+    let events = use_case.handle(command).await?;
+    // FIXME:
+    app.update_query_db(events.first().unwrap().clone()).await?;
+    println!("issue blocked : {:?}", events);
+    Ok(())
 }
 
-fn issue_create(
+async fn issue_create(
     title: Option<String>,
     due: Option<String>,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let use_case = app.issue_management_context_use_case();
-            let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
-            let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-            let command = use_case.create_issue(issue_title, issue_due).into();
-            let events = use_case.handle(command).await?;
-            // FIXME:
-            app.update_query_db(events.first().unwrap().clone()).await?;
-            println!("issue created : {:?}", events);
-            Ok(())
-        })
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
+    let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
+    let command = use_case.create_issue(issue_title, issue_due).into();
+    let events = use_case.handle(command).await?;
+    // FIXME:
+    app.update_query_db(events.first().unwrap().clone()).await?;
+    println!("issue created : {:?}", events);
+    Ok(())
 }
 
-fn issue_finish(
+async fn issue_finish(
     issue_id: String,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let use_case = app.issue_management_context_use_case();
-            let issue_id = IssueId::from_str(issue_id.as_str())?;
-            let command = use_case.finish_issue(issue_id).into();
-            let events = use_case.handle(command).await?;
-            // FIXME:
-            app.update_query_db(events.first().unwrap().clone()).await?;
-            println!("issue finished : {:?}", events);
-            Ok(())
-        })
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let command = use_case.finish_issue(issue_id).into();
+    let events = use_case.handle(command).await?;
+    // FIXME:
+    app.update_query_db(events.first().unwrap().clone()).await?;
+    println!("issue finished : {:?}", events);
+    Ok(())
 }
 
-fn issue_list(
+async fn issue_list(
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
 
-            let issues = app.query_handler.issue_list().await?;
-            println!("{}", serde_json::to_string(&issues)?);
-            Ok(())
-        })
+    let issues = app.query_handler.issue_list().await?;
+    println!("{}", serde_json::to_string(&issues)?);
+    Ok(())
 }
 
-fn issue_unblock(
+async fn issue_unblock(
     issue_id: String,
     blocked_issue_id: String,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let use_case = app.issue_management_context_use_case();
-            let issue_id = IssueId::from_str(issue_id.as_str())?;
-            let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
-            let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
-            let command = use_case.unblock_issue(issue_block_link_id).into();
-            let events = use_case.handle(command).await?;
-            // FIXME:
-            app.update_query_db(events.first().unwrap().clone()).await?;
-            println!("issue unblocked : {:?}", events);
-            Ok(())
-        })
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
+    let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
+    let command = use_case.unblock_issue(issue_block_link_id).into();
+    let events = use_case.handle(command).await?;
+    // FIXME:
+    app.update_query_db(events.first().unwrap().clone()).await?;
+    println!("issue unblocked : {:?}", events);
+    Ok(())
 }
 
-fn issue_update(
+async fn issue_update(
     issue_id: String,
     due: Option<String>,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let use_case = app.issue_management_context_use_case();
-            let issue_id = IssueId::from_str(issue_id.as_str())?;
-            let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-            let command = use_case.update_issue(issue_id, issue_due).into();
-            let events = app
-                .issue_management_context_use_case()
-                .handle(command)
-                .await?;
-            // FIXME:
-            app.update_query_db(events.first().unwrap().clone()).await?;
-            println!("issue updated : {:?}", events);
-            Ok(())
-        })
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
+    let command = use_case.update_issue(issue_id, issue_due).into();
+    let events = app
+        .issue_management_context_use_case()
+        .handle(command)
+        .await?;
+    // FIXME:
+    app.update_query_db(events.first().unwrap().clone()).await?;
+    println!("issue updated : {:?}", events);
+    Ok(())
 }
 
-fn issue_view(
+async fn issue_view(
     issue_id: String,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
-    tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        .build()?
-        .block_on(async {
-            let app = App::new(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            )
-            .await?;
-            let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
 
-            let issue = app.query_handler.issue_view(&issue_id).await?;
-            println!("{}", serde_json::to_string(&issue)?);
-            Ok(())
-        })
+    let issue = app.query_handler.issue_view(&issue_id).await?;
+    println!("{}", serde_json::to_string(&issue)?);
+    Ok(())
 }
 
 #[derive(Parser)]
@@ -375,7 +340,8 @@ enum Command {
     },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let opt = Opt::parse();
     match opt.resource {
         Resource::Issue { command } => match command {
@@ -384,70 +350,91 @@ fn main() -> anyhow::Result<()> {
                 blocked_issue_id,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_block(
-                issue_id,
-                blocked_issue_id,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_block(
+                    issue_id,
+                    blocked_issue_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::Create {
                 title,
                 due,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_create(
-                title,
-                due,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_create(
+                    title,
+                    due,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::Finish {
                 issue_id,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_finish(
-                issue_id,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_finish(
+                    issue_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::List {
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_list(
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_list(
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::Unblock {
                 issue_id,
                 blocked_issue_id,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_unblock(
-                issue_id,
-                blocked_issue_id,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_unblock(
+                    issue_id,
+                    blocked_issue_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::Update {
                 issue_id,
                 due,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_update(
-                issue_id,
-                due,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_update(
+                    issue_id,
+                    due,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
             Command::View {
                 issue_id,
                 command_database_connection_uri,
                 query_database_connection_uri,
-            } => issue_view(
-                issue_id,
-                command_database_connection_uri,
-                query_database_connection_uri,
-            ),
+            } => {
+                issue_view(
+                    issue_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
         },
     }
 }
