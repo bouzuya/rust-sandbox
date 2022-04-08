@@ -292,7 +292,7 @@ mod tests {
     use anyhow::Context;
     use limited_date_time::Instant;
 
-    use crate::{RdbConnectionPool, SqliteIssueRepository};
+    use crate::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository};
 
     use super::*;
 
@@ -322,12 +322,15 @@ mod tests {
             Some("2021-02-03T04:05:06Z".parse()?),
         )?;
 
-        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
         issue_repository.save(&issue).await?;
+        let issue_block_link_repository =
+            SqliteIssueBlockLinkRepository::new(connection_pool).await?;
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
             Arc::new(Mutex::new(issue_repository)),
+            Arc::new(Mutex::new(issue_block_link_repository)),
         )
         .await?;
 
@@ -380,14 +383,17 @@ mod tests {
         let issue_block_link1 = issue1.block(issue2.clone(), Instant::now())?;
         let issue_block_link2 = issue2.block(issue3.clone(), Instant::now())?;
 
-        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
+        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
         issue_repository.save(&issue1).await?;
         issue_repository.save(&issue2).await?;
         issue_repository.save(&issue3).await?;
+        let issue_block_link_repository =
+            SqliteIssueBlockLinkRepository::new(connection_pool).await?;
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
             Arc::new(Mutex::new(issue_repository)),
+            Arc::new(Mutex::new(issue_block_link_repository)),
         )
         .await?;
 
