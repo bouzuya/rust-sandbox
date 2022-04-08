@@ -6,7 +6,7 @@ use std::{
 
 use domain::{
     aggregate::{IssueAggregate, IssueBlockLinkAggregate},
-    IssueId,
+    DomainEvent, IssueId,
 };
 use serde::Serialize;
 use sqlx::{
@@ -15,7 +15,9 @@ use sqlx::{
     Any, AnyPool, FromRow,
 };
 use thiserror::Error;
-use use_case::IssueRepository;
+use use_case::{IssueBlockLinkRepository, IssueRepository};
+
+use super::event_store;
 
 // QueryIssue
 
@@ -70,18 +72,21 @@ impl From<sqlx::Error> for QueryHandlerError {
 pub struct SqliteQueryHandler {
     pool: AnyPool,
     issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
+    issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
 }
 
 impl SqliteQueryHandler {
     pub async fn new(
         connection_uri: &str,
         issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
+        issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
     ) -> Result<Self, QueryHandlerError> {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
         let created = Self {
             pool,
             issue_repository,
+            issue_block_link_repository,
         };
 
         created.create_database().await?;
@@ -119,16 +124,42 @@ impl SqliteQueryHandler {
         self.drop_database().await?;
         self.create_database().await?;
 
-        // TODO
-        // for aggregate_id in event_store.find_aggregate_ids() {
-        //   let events = event_store.find_events_by_aggregate_id(aggregate_id);
-        //   // issue
-        //     let issue = IssueAggregate::from_events(events);
-        //     self.save_issue(issue);
-        //   // issue_block_link
-        //     let issue_block_link = IssueBlockLinkAggregate::from_events(events);
-        //     self.save_issue_block_link(issue_block_link);
-        // }
+        let issue_repository = self.issue_repository.lock().map_err(|e| {
+            QueryHandlerError::Unknown(format!("IssueRepository can't lock: {}", e))
+        })?;
+        let issue_block_link_repository = self.issue_block_link_repository.lock().map_err(|e| {
+            QueryHandlerError::Unknown(format!("IssueBlockLinkRepository can't lock: {}", e))
+        })?;
+        let mut transaction = self.pool.begin().await?;
+        for event in event_store::find_events(&mut transaction)
+            .await
+            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+        {
+            let event = DomainEvent::from_str(event.data.as_str())
+                .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+            match event {
+                DomainEvent::Issue(event) => {
+                    let issue_id = event.issue_id();
+                    // FIXME: event_store::find_events_by_aggregate_id (until event version)
+                    let issue = issue_repository
+                        .find_by_id(issue_id)
+                        .await
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .unwrap();
+                    self.save_issue(issue).await?;
+                }
+                DomainEvent::IssueBlockLink(event) => {
+                    let (issue_block_link_id, _) = event.key();
+                    // FIXME: event_store::find_events_by_aggregate_id (until event version)
+                    let issue_block_link = issue_block_link_repository
+                        .find_by_id(issue_block_link_id)
+                        .await
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .unwrap();
+                    self.save_issue_block_link(issue_block_link).await?;
+                }
+            }
+        }
 
         Ok(())
     }
