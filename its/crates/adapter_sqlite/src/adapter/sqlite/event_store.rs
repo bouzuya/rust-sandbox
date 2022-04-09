@@ -28,6 +28,21 @@ pub async fn find_events_by_aggregate_id(
     Ok(event_rows.into_iter().map(Event::from).collect())
 }
 
+pub async fn find_events_by_aggregate_id_and_version_less_than_equal(
+    transaction: &mut Transaction<'_, Any>,
+    aggregate_id: AggregateId,
+    version: AggregateVersion,
+) -> Result<Vec<Event>, EventStoreError> {
+    let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
+        "../../../sql/command/select_events_by_aggregate_id_and_version_less_than_equal.sql"
+    ))
+    .bind(aggregate_id.to_string())
+    .bind(i64::from(version))
+    .fetch_all(&mut *transaction)
+    .await?;
+    Ok(event_rows.into_iter().map(Event::from).collect())
+}
+
 pub async fn save(
     transaction: &mut Transaction<'_, Any>,
     current_version: Option<AggregateVersion>,
