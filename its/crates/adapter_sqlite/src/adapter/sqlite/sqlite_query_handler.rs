@@ -5,8 +5,8 @@ use std::{
 };
 
 use domain::{
-    aggregate::{IssueAggregate, IssueBlockLinkAggregate},
-    DomainEvent, IssueId,
+    aggregate::{IssueAggregate, IssueAggregateEvent, IssueBlockLinkAggregate},
+    DomainEvent, IssueId, ParseDomainEventError,
 };
 use serde::Serialize;
 use sqlx::{
@@ -135,17 +135,28 @@ impl SqliteQueryHandler {
             .await
             .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
         {
-            let event = DomainEvent::from_str(event.data.as_str())
+            let domain_event = DomainEvent::from_str(event.data.as_str())
                 .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
-            match event {
-                DomainEvent::Issue(event) => {
-                    let issue_id = event.issue_id();
-                    // FIXME: event_store::find_events_by_aggregate_id (until event version)
-                    let issue = issue_repository
-                        .find_by_id(issue_id)
+            match domain_event {
+                DomainEvent::Issue(_) => {
+                    // TODO: improve
+                    let events =
+                        event_store::find_events_by_aggregate_id_and_version_less_than_equal(
+                            &mut transaction,
+                            event.aggregate_id,
+                            event.version,
+                        )
                         .await
                         .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-                        .unwrap();
+                        .into_iter()
+                        .map(|e| DomainEvent::from_str(e.data.as_str()))
+                        .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .into_iter()
+                        .filter_map(|e| e.issue())
+                        .collect::<Vec<IssueAggregateEvent>>();
+                    let issue = IssueAggregate::from_events(&events)
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
                     self.save_issue(issue).await?;
                 }
                 DomainEvent::IssueBlockLink(event) => {
