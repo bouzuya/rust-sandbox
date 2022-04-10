@@ -46,7 +46,7 @@ impl SqliteIssueRepository {
         .await
         .map_err(|e| IssueRepositoryError::Unknown(e.to_string()))?;
 
-        Ok(issue_id_row.map(|row| row.aggregate_id()))
+        Ok(issue_id_row.map(|row| row.event_stream_id()))
     }
 
     async fn find_max_issue_id(

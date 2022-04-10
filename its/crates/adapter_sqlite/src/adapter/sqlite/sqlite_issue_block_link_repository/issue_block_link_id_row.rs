@@ -20,7 +20,7 @@ impl IssueBlockLinkIdRow {
 
     pub(super) fn event_stream_id(&self) -> AggregateId {
         AggregateId::from_str(&self.event_stream_id)
-            .expect("stored issue_block_link_id is not well-formed")
+            .expect("stored event_stream_id is not well-formed")
     }
 }
 
