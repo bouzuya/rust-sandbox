@@ -20,7 +20,7 @@ pub async fn find_events_by_aggregate_id(
     aggregate_id: AggregateId,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
-        "../../../sql/command/select_events_by_aggregate_id.sql"
+        "../../../sql/command/select_events_by_event_stream_id.sql"
     ))
     .bind(aggregate_id.to_string())
     .fetch_all(&mut *transaction)
@@ -34,7 +34,7 @@ pub async fn find_events_by_aggregate_id_and_version_less_than_equal(
     version: AggregateVersion,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
-        "../../../sql/command/select_events_by_aggregate_id_and_version_less_than_equal.sql"
+        "../../../sql/command/select_events_by_event_stream_id_and_version_less_than_equal.sql"
     ))
     .bind(aggregate_id.to_string())
     .bind(i64::from(version))
@@ -60,7 +60,7 @@ pub async fn save(
         }
     } else {
         let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/command/insert_aggregate.sql"))
+            sqlx::query(include_str!("../../../sql/command/insert_event_stream.sql"))
                 .bind(event.aggregate_id.to_string())
                 .bind(i64::from(event.version));
         let result = query.execute(&mut *transaction).await?;
@@ -85,10 +85,11 @@ pub async fn save(
 pub async fn find_aggregate_ids(
     transaction: &mut Transaction<'_, Any>,
 ) -> Result<Vec<AggregateId>, EventStoreError> {
-    let aggregate_rows: Vec<AggregateRow> =
-        sqlx::query_as(include_str!("../../../sql/command/select_aggregates.sql"))
-            .fetch_all(&mut *transaction)
-            .await?;
+    let aggregate_rows: Vec<AggregateRow> = sqlx::query_as(include_str!(
+        "../../../sql/command/select_event_streams.sql"
+    ))
+    .fetch_all(&mut *transaction)
+    .await?;
     Ok(aggregate_rows.into_iter().map(|row| row.id()).collect())
 }
 

@@ -27,7 +27,7 @@ impl<'r> FromRow<'r, AnyRow> for IssueIdRow {
     fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
             issue_number: row.get("issue_number"),
-            aggregate_id: row.get("aggregate_id"),
+            aggregate_id: row.get("event_stream_id"),
         })
     }
 }

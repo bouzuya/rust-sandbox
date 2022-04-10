@@ -1,6 +1,6 @@
-SELECT events.aggregate_id AS aggregate_id,
+SELECT events.event_stream_id AS event_stream_id,
   events.version AS version,
   events.data AS data
 FROM events
-WHERE events.aggregate_id = $1
+WHERE events.event_stream_id = $1
   AND events.version <= $2
