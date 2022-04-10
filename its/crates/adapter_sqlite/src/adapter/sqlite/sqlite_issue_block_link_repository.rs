@@ -40,7 +40,7 @@ impl SqliteIssueBlockLinkRepository {
         .fetch_optional(&mut *transaction)
         .await
         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
-        Ok(issue_block_link_id_row.map(|row| row.aggregate_id()))
+        Ok(issue_block_link_id_row.map(|row| row.event_stream_id()))
     }
 
     async fn insert_issue_block_link_id(
