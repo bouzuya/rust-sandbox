@@ -12,7 +12,7 @@ use crate::RdbConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
-use super::event_store::{self, AggregateId, AggregateVersion, Event};
+use super::event_store::{self, AggregateVersion, Event, EventStreamId};
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {
@@ -32,7 +32,7 @@ impl SqliteIssueBlockLinkRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_block_link_id: &IssueBlockLinkId,
-    ) -> Result<Option<AggregateId>, IssueBlockLinkRepositoryError> {
+    ) -> Result<Option<EventStreamId>, IssueBlockLinkRepositoryError> {
         let issue_block_link_id_row: Option<IssueBlockLinkIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_block_link_id_by_issue_block_link_id.sql"
         ))
@@ -47,7 +47,7 @@ impl SqliteIssueBlockLinkRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_block_link_id: &IssueBlockLinkId,
-        event_stream_id: AggregateId,
+        event_stream_id: EventStreamId,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
             "../../../sql/command/insert_issue_block_link_id.sql"
@@ -138,7 +138,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                 .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
             } else {
                 // create
-                let event_stream_id = AggregateId::generate();
+                let event_stream_id = EventStreamId::generate();
                 event_store::save(
                     &mut transaction,
                     None,

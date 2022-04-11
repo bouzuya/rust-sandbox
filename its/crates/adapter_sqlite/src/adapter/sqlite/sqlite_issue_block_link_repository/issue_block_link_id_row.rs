@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::event_store::AggregateId;
+use super::event_store::EventStreamId;
 
 #[derive(Debug)]
 pub(super) struct IssueBlockLinkIdRow {
@@ -18,8 +18,8 @@ impl IssueBlockLinkIdRow {
     //         .expect("stored issue_block_link_id is not well-formed")
     // }
 
-    pub(super) fn event_stream_id(&self) -> AggregateId {
-        AggregateId::from_str(&self.event_stream_id)
+    pub(super) fn event_stream_id(&self) -> EventStreamId {
+        EventStreamId::from_str(&self.event_stream_id)
             .expect("stored event_stream_id is not well-formed")
     }
 }

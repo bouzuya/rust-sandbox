@@ -3,7 +3,7 @@ use std::str::FromStr;
 use domain::IssueId;
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use crate::adapter::sqlite::event_store::AggregateId;
+use crate::adapter::sqlite::event_store::EventStreamId;
 
 #[derive(Debug)]
 pub(super) struct IssueIdRow {
@@ -17,8 +17,8 @@ impl IssueIdRow {
             .expect("stored issue_number is not well-formed")
     }
 
-    pub(super) fn event_stream_id(&self) -> AggregateId {
-        AggregateId::from_str(self.event_stream_id.as_str())
+    pub(super) fn event_stream_id(&self) -> EventStreamId {
+        EventStreamId::from_str(self.event_stream_id.as_str())
             .expect("stored event_stream_id is not well-formed")
     }
 }

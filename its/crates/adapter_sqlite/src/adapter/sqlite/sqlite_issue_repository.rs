@@ -13,7 +13,7 @@ use crate::adapter::sqlite::event_store::{AggregateVersion, Event};
 use self::issue_row::IssueIdRow;
 
 use super::{
-    event_store::{self, AggregateId},
+    event_store::{self, EventStreamId},
     rdb_connection_pool::RdbConnectionPool,
 };
 
@@ -33,7 +33,7 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-    ) -> Result<Option<AggregateId>, IssueRepositoryError> {
+    ) -> Result<Option<EventStreamId>, IssueRepositoryError> {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
@@ -65,7 +65,7 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-        event_stream_id: AggregateId,
+        event_stream_id: EventStreamId,
     ) -> Result<(), IssueRepositoryError> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
@@ -175,7 +175,7 @@ impl IssueRepository for SqliteIssueRepository {
                 .map_err(|_| IssueRepositoryError::IO)?;
             } else {
                 // create
-                let event_stream_id = AggregateId::generate();
+                let event_stream_id = EventStreamId::generate();
                 let version = event.version();
                 event_store::save(
                     &mut transaction,

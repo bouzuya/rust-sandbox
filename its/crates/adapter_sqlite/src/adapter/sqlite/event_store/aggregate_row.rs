@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::AggregateId;
+use super::EventStreamId;
 
 #[derive(Debug)]
 pub(super) struct AggregateRow {
@@ -19,7 +19,7 @@ impl<'r> FromRow<'r, AnyRow> for AggregateRow {
     }
 }
 impl AggregateRow {
-    pub(super) fn id(&self) -> AggregateId {
-        AggregateId::from_str(self.id.as_str()).expect("stored aggregate_id is not well-formed")
+    pub(super) fn id(&self) -> EventStreamId {
+        EventStreamId::from_str(self.id.as_str()).expect("stored aggregate_id is not well-formed")
     }
 }

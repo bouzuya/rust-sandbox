@@ -1,23 +1,23 @@
-mod aggregate_id;
 mod aggregate_row;
 mod aggregate_version;
 mod event;
 mod event_row;
 mod event_store_error;
+mod event_stream_id;
 
-pub use self::aggregate_id::*;
 use self::aggregate_row::AggregateRow;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_row::EventRow;
 use self::event_store_error::EventStoreError;
+pub use self::event_stream_id::*;
 
 use sqlx::Transaction;
 use sqlx::{any::AnyArguments, query::Query, Any};
 
 pub async fn find_events_by_event_stream_id(
     transaction: &mut Transaction<'_, Any>,
-    event_stream_id: AggregateId,
+    event_stream_id: EventStreamId,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id.sql"
@@ -30,7 +30,7 @@ pub async fn find_events_by_event_stream_id(
 
 pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
     transaction: &mut Transaction<'_, Any>,
-    event_stream_id: AggregateId,
+    event_stream_id: EventStreamId,
     version: AggregateVersion,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
@@ -84,7 +84,7 @@ pub async fn save(
 
 pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
-) -> Result<Vec<AggregateId>, EventStoreError> {
+) -> Result<Vec<EventStreamId>, EventStoreError> {
     let aggregate_rows: Vec<AggregateRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_event_streams.sql"
     ))
@@ -144,7 +144,7 @@ mod tests {
         let events = find_events(&mut transaction).await?;
         assert!(events.is_empty());
 
-        let event_stream_id = AggregateId::generate();
+        let event_stream_id = EventStreamId::generate();
         let version = AggregateVersion::from(1_u32);
         let create_event = Event {
             event_stream_id,
@@ -165,7 +165,7 @@ mod tests {
         let events = find_events_by_event_stream_id(&mut transaction, event_stream_id).await?;
         assert!(!events.is_empty());
         let events =
-            find_events_by_event_stream_id(&mut transaction, AggregateId::generate()).await?;
+            find_events_by_event_stream_id(&mut transaction, EventStreamId::generate()).await?;
         assert!(events.is_empty());
 
         let update_event = Event {

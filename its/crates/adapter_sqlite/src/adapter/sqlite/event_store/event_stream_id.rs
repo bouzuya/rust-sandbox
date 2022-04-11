@@ -5,21 +5,21 @@ use ulid::Ulid;
 use super::event_store_error::EventStoreError;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct AggregateId(Ulid);
+pub struct EventStreamId(Ulid);
 
-impl AggregateId {
+impl EventStreamId {
     pub fn generate() -> Self {
         Self(Ulid::new())
     }
 }
 
-impl Display for AggregateId {
+impl Display for EventStreamId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl FromStr for AggregateId {
+impl FromStr for EventStreamId {
     type Err = EventStoreError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
