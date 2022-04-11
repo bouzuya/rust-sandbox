@@ -161,7 +161,7 @@ impl SqliteQueryHandler {
                 }
                 DomainEvent::IssueBlockLink(event) => {
                     let (issue_block_link_id, _) = event.key();
-                    // FIXME: event_store::find_events_by_aggregate_id (until event version)
+                    // FIXME: event_store::find_events_by_event_stream_id (until event version)
                     let issue_block_link = issue_block_link_repository
                         .find_by_id(issue_block_link_id)
                         .await

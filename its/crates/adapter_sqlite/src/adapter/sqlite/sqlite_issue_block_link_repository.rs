@@ -127,11 +127,11 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                 // update
                 event_store::save(
                     &mut transaction,
-                    version.prev().map(aggregate_version_from).transpose()?,
+                    version.prev().map(event_stream_version_from).transpose()?,
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
-                        version: aggregate_version_from(version)?,
+                        version: event_stream_version_from(version)?,
                     },
                 )
                 .await
@@ -145,7 +145,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
-                        version: aggregate_version_from(version)?,
+                        version: event_stream_version_from(version)?,
                     },
                 )
                 .await
@@ -167,7 +167,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
     }
 }
 
-fn aggregate_version_from(
+fn event_stream_version_from(
     version: Version,
 ) -> Result<EventStreamVersion, IssueBlockLinkRepositoryError> {
     Ok(EventStreamVersion::from(
