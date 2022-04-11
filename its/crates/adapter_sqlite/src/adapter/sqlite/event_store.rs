@@ -50,13 +50,13 @@ pub async fn save(
 ) -> Result<(), EventStoreError> {
     if let Some(current_version) = current_version {
         let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/command/update_aggregate.sql"))
+            sqlx::query(include_str!("../../../sql/command/update_event_stream.sql"))
                 .bind(i64::from(event.version))
                 .bind(event.event_stream_id.to_string())
                 .bind(i64::from(current_version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
-            return Err(EventStoreError::UpdateAggregate);
+            return Err(EventStoreError::UpdateEventStream);
         }
     } else {
         let query: Query<Any, AnyArguments> =
@@ -65,7 +65,7 @@ pub async fn save(
                 .bind(i64::from(event.version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
-            return Err(EventStoreError::InsertAggregate);
+            return Err(EventStoreError::InsertEventStream);
         }
     }
 
@@ -85,12 +85,12 @@ pub async fn save(
 pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
 ) -> Result<Vec<EventStreamId>, EventStoreError> {
-    let aggregate_rows: Vec<EventStreamRow> = sqlx::query_as(include_str!(
+    let event_stream_rows: Vec<EventStreamRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_event_streams.sql"
     ))
     .fetch_all(&mut *transaction)
     .await?;
-    Ok(aggregate_rows.into_iter().map(|row| row.id()).collect())
+    Ok(event_stream_rows.into_iter().map(|row| row.id()).collect())
 }
 
 pub async fn find_events(

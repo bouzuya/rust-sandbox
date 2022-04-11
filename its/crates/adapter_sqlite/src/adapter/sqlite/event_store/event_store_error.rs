@@ -2,24 +2,20 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum EventStoreError {
-    #[error("InsertAggregate")]
-    InsertAggregate,
+    #[error("InsertEventStream")]
+    InsertEventStream,
     #[error("InsertEvent")]
     InsertEvent,
-    #[error("InvalidAggregateId")]
-    InvalidAggregateId,
-    #[error("InvalidAggregateVersion")]
-    InvalidAggregateVersion,
+    #[error("InvalidEventStreamId")]
+    InvalidEventStreamId,
+    #[error("InvalidEventStreamVersion")]
+    InvalidEventStreamVersion,
     #[error("IO")]
     IO,
-    #[error("MigrateCreateAggregateTable")]
-    MigrateCreateAggregateTable,
-    #[error("MigrateCreateEventTable")]
-    MigrateCreateEventTable,
     #[error("SqlxError")]
     SqlxError(#[from] sqlx::Error),
-    #[error("UpdateAggregate")]
-    UpdateAggregate,
+    #[error("UpdateEventStream")]
+    UpdateEventStream,
     #[error("Unknown")]
     Unknown,
 }

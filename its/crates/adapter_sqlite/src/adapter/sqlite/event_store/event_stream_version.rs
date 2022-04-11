@@ -19,7 +19,7 @@ impl TryFrom<i64> for EventStreamVersion {
     type Error = EventStoreError;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        let value = u32::try_from(value).map_err(|_| EventStoreError::InvalidAggregateVersion)?;
+        let value = u32::try_from(value).map_err(|_| EventStoreError::InvalidEventStreamVersion)?;
         Ok(Self(value))
     }
 }

@@ -23,7 +23,7 @@ impl FromStr for EventStreamId {
     type Err = EventStoreError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ulid = Ulid::from_str(s).map_err(|_| EventStoreError::InvalidAggregateId)?;
+        let ulid = Ulid::from_str(s).map_err(|_| EventStoreError::InvalidEventStreamId)?;
         Ok(Self(ulid))
     }
 }
