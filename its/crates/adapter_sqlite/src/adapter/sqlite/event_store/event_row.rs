@@ -6,15 +6,15 @@ use super::{AggregateVersion, Event, EventStreamId};
 
 #[derive(Debug)]
 pub(super) struct EventRow {
-    aggregate_id: String,
+    event_stream_id: String,
     data: String,
     version: i64,
 }
 
 impl EventRow {
-    fn aggregate_id(&self) -> EventStreamId {
-        EventStreamId::from_str(self.aggregate_id.as_str())
-            .expect("stored aggregate_id is not well-formed")
+    fn event_stream_id(&self) -> EventStreamId {
+        EventStreamId::from_str(self.event_stream_id.as_str())
+            .expect("stored event_stream_id is not well-formed")
     }
 
     fn data(&self) -> String {
@@ -29,7 +29,7 @@ impl EventRow {
 impl<'r> FromRow<'r, AnyRow> for EventRow {
     fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
         Ok(Self {
-            aggregate_id: row.get("event_stream_id"),
+            event_stream_id: row.get("event_stream_id"),
             data: row.get("data"),
             version: row.get("version"),
         })
@@ -39,7 +39,7 @@ impl<'r> FromRow<'r, AnyRow> for EventRow {
 impl From<EventRow> for Event {
     fn from(row: EventRow) -> Self {
         Self {
-            event_stream_id: row.aggregate_id(),
+            event_stream_id: row.event_stream_id(),
             data: row.data(),
             version: row.version(),
         }
