@@ -29,7 +29,7 @@ impl SqliteIssueRepository {
         })
     }
 
-    async fn find_aggregate_id_by_issue_id(
+    async fn find_event_stream_id_by_issue_id(
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
@@ -65,7 +65,7 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-        aggregate_id: AggregateId,
+        event_stream_id: AggregateId,
     ) -> Result<(), IssueRepositoryError> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
@@ -76,7 +76,7 @@ impl SqliteIssueRepository {
                         )
                     })?,
                 )
-                .bind(aggregate_id.to_string());
+                .bind(event_stream_id.to_string());
         let rows_affected = query
             .execute(transaction)
             .await
@@ -102,19 +102,19 @@ impl IssueRepository for SqliteIssueRepository {
             .await
             .map_err(|_| IssueRepositoryError::IO)?;
         match self
-            .find_aggregate_id_by_issue_id(&mut transaction, issue_id)
+            .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
             .await?
         {
-            Some(aggregate_id) => {
+            Some(event_stream_id) => {
                 let events =
-                    event_store::find_events_by_event_stream_id(&mut transaction, aggregate_id)
+                    event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
                         .await
                         .map_err(|_| IssueRepositoryError::IO)?;
                 let mut issue_aggregate_events = vec![];
                 for event in events {
                     let event = DomainEvent::from_str(event.data.as_str())
                         .map_err(|_| IssueRepositoryError::IO)?;
-                    // TODO: check event.version and aggregate_id
+                    // TODO: check event.version and event_stream_id
                     issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
                 }
                 IssueAggregate::from_events(&issue_aggregate_events)
@@ -147,7 +147,7 @@ impl IssueRepository for SqliteIssueRepository {
         for event in issue.events().iter().cloned() {
             let issue_id = event.issue_id().clone();
             if let Some(event_stream_id) = self
-                .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
+                .find_event_stream_id_by_issue_id(&mut transaction, &issue_id)
                 .await?
             {
                 // update
