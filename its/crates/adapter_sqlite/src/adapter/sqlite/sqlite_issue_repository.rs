@@ -146,7 +146,7 @@ impl IssueRepository for SqliteIssueRepository {
 
         for event in issue.events().iter().cloned() {
             let issue_id = event.issue_id().clone();
-            if let Some(aggregate_id) = self
+            if let Some(event_stream_id) = self
                 .find_aggregate_id_by_issue_id(&mut transaction, &issue_id)
                 .await?
             {
@@ -163,7 +163,7 @@ impl IssueRepository for SqliteIssueRepository {
                         })
                         .transpose()?,
                     Event {
-                        aggregate_id,
+                        event_stream_id,
                         data: DomainEvent::from(event).to_string(),
                         version: AggregateVersion::from(
                             u32::try_from(u64::from(version))
@@ -175,13 +175,13 @@ impl IssueRepository for SqliteIssueRepository {
                 .map_err(|_| IssueRepositoryError::IO)?;
             } else {
                 // create
-                let aggregate_id = AggregateId::generate();
+                let event_stream_id = AggregateId::generate();
                 let version = event.version();
                 event_store::save(
                     &mut transaction,
                     None,
                     Event {
-                        aggregate_id,
+                        event_stream_id,
                         data: DomainEvent::from(event).to_string(),
                         version: AggregateVersion::from(
                             u32::try_from(u64::from(version))
@@ -192,7 +192,7 @@ impl IssueRepository for SqliteIssueRepository {
                 .await
                 .map_err(|_| IssueRepositoryError::IO)?;
 
-                self.insert_issue_id(&mut transaction, &issue_id, aggregate_id)
+                self.insert_issue_id(&mut transaction, &issue_id, event_stream_id)
                     .await?;
             }
         }

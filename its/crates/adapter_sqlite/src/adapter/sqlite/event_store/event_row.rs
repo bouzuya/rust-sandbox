@@ -39,7 +39,7 @@ impl<'r> FromRow<'r, AnyRow> for EventRow {
 impl From<EventRow> for Event {
     fn from(row: EventRow) -> Self {
         Self {
-            aggregate_id: row.aggregate_id(),
+            event_stream_id: row.aggregate_id(),
             data: row.data(),
             version: row.version(),
         }

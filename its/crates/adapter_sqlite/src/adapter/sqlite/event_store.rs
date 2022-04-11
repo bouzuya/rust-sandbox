@@ -52,7 +52,7 @@ pub async fn save(
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/update_aggregate.sql"))
                 .bind(i64::from(event.version))
-                .bind(event.aggregate_id.to_string())
+                .bind(event.event_stream_id.to_string())
                 .bind(i64::from(current_version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
@@ -61,7 +61,7 @@ pub async fn save(
     } else {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_event_stream.sql"))
-                .bind(event.aggregate_id.to_string())
+                .bind(event.event_stream_id.to_string())
                 .bind(i64::from(event.version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
@@ -71,7 +71,7 @@ pub async fn save(
 
     let query: Query<Any, AnyArguments> =
         sqlx::query(include_str!("../../../sql/command/insert_event.sql"))
-            .bind(event.aggregate_id.to_string())
+            .bind(event.event_stream_id.to_string())
             .bind(i64::from(event.version))
             .bind(event.data);
     let result = query.execute(&mut *transaction).await?;
@@ -144,10 +144,10 @@ mod tests {
         let events = find_events(&mut transaction).await?;
         assert!(events.is_empty());
 
-        let aggregate_id = AggregateId::generate();
+        let event_stream_id = AggregateId::generate();
         let version = AggregateVersion::from(1_u32);
         let create_event = Event {
-            aggregate_id,
+            event_stream_id,
             data: r#"{"type":"issue_created"}"#.to_string(),
             version,
         };
@@ -162,14 +162,14 @@ mod tests {
         assert_eq!(find_events(&mut transaction).await?.len(), 1);
 
         // TODO: improve
-        let events = find_events_by_event_stream_id(&mut transaction, aggregate_id).await?;
+        let events = find_events_by_event_stream_id(&mut transaction, event_stream_id).await?;
         assert!(!events.is_empty());
         let events =
             find_events_by_event_stream_id(&mut transaction, AggregateId::generate()).await?;
         assert!(events.is_empty());
 
         let update_event = Event {
-            aggregate_id,
+            event_stream_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: AggregateVersion::from(2_u32),
         };

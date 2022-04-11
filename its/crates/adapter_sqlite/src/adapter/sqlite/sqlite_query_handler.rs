@@ -143,7 +143,7 @@ impl SqliteQueryHandler {
                     let events =
                         event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                             &mut transaction,
-                            event.aggregate_id,
+                            event.event_stream_id,
                             event.version,
                         )
                         .await
