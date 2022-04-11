@@ -86,7 +86,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
         {
             Some(aggregate_id) => {
                 let events =
-                    event_store::find_events_by_aggregate_id(&mut transaction, aggregate_id)
+                    event_store::find_events_by_event_stream_id(&mut transaction, aggregate_id)
                         .await
                         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
                 let mut issue_block_link_aggregate_events = vec![];

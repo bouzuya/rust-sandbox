@@ -141,7 +141,7 @@ impl SqliteQueryHandler {
                 DomainEvent::Issue(_) => {
                     // TODO: improve
                     let events =
-                        event_store::find_events_by_aggregate_id_and_version_less_than_equal(
+                        event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                             &mut transaction,
                             event.aggregate_id,
                             event.version,

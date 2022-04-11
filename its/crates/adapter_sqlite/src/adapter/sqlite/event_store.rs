@@ -15,28 +15,28 @@ use self::event_store_error::EventStoreError;
 use sqlx::Transaction;
 use sqlx::{any::AnyArguments, query::Query, Any};
 
-pub async fn find_events_by_aggregate_id(
+pub async fn find_events_by_event_stream_id(
     transaction: &mut Transaction<'_, Any>,
-    aggregate_id: AggregateId,
+    event_stream_id: AggregateId,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id.sql"
     ))
-    .bind(aggregate_id.to_string())
+    .bind(event_stream_id.to_string())
     .fetch_all(&mut *transaction)
     .await?;
     Ok(event_rows.into_iter().map(Event::from).collect())
 }
 
-pub async fn find_events_by_aggregate_id_and_version_less_than_equal(
+pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
     transaction: &mut Transaction<'_, Any>,
-    aggregate_id: AggregateId,
+    event_stream_id: AggregateId,
     version: AggregateVersion,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id_and_version_less_than_equal.sql"
     ))
-    .bind(aggregate_id.to_string())
+    .bind(event_stream_id.to_string())
     .bind(i64::from(version))
     .fetch_all(&mut *transaction)
     .await?;
@@ -82,7 +82,7 @@ pub async fn save(
     Ok(())
 }
 
-pub async fn find_aggregate_ids(
+pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
 ) -> Result<Vec<AggregateId>, EventStoreError> {
     let aggregate_rows: Vec<AggregateRow> = sqlx::query_as(include_str!(
@@ -138,8 +138,8 @@ mod tests {
 
         let mut transaction = pool.begin().await?;
 
-        let aggregates = find_aggregate_ids(&mut transaction).await?;
-        assert!(aggregates.is_empty());
+        let event_stream_ids = find_event_stream_ids(&mut transaction).await?;
+        assert!(event_stream_ids.is_empty());
 
         let events = find_events(&mut transaction).await?;
         assert!(events.is_empty());
@@ -157,16 +157,16 @@ mod tests {
         let mut transaction = pool.begin().await?;
 
         // TODO: improve
-        let aggregates = find_aggregate_ids(&mut transaction).await?;
-        assert!(!aggregates.is_empty());
+        let event_stream_ids = find_event_stream_ids(&mut transaction).await?;
+        assert!(!event_stream_ids.is_empty());
         assert_eq!(find_events(&mut transaction).await?.len(), 1);
 
         // TODO: improve
-        let aggregates = find_events_by_aggregate_id(&mut transaction, aggregate_id).await?;
-        assert!(!aggregates.is_empty());
-        let aggregates =
-            find_events_by_aggregate_id(&mut transaction, AggregateId::generate()).await?;
-        assert!(aggregates.is_empty());
+        let events = find_events_by_event_stream_id(&mut transaction, aggregate_id).await?;
+        assert!(!events.is_empty());
+        let events =
+            find_events_by_event_stream_id(&mut transaction, AggregateId::generate()).await?;
+        assert!(events.is_empty());
 
         let update_event = Event {
             aggregate_id,
