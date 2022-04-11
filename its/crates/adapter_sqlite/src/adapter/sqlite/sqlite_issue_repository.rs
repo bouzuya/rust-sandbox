@@ -8,7 +8,7 @@ use domain::{aggregate::IssueAggregate, DomainEvent, IssueId};
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
 
-use crate::adapter::sqlite::event_store::{AggregateVersion, Event};
+use crate::adapter::sqlite::event_store::{Event, EventStreamVersion};
 
 use self::issue_row::IssueIdRow;
 
@@ -158,14 +158,14 @@ impl IssueRepository for SqliteIssueRepository {
                         .prev()
                         .map(|version| {
                             u32::try_from(u64::from(version))
-                                .map(AggregateVersion::from)
+                                .map(EventStreamVersion::from)
                                 .map_err(|_| IssueRepositoryError::IO)
                         })
                         .transpose()?,
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: AggregateVersion::from(
+                        version: EventStreamVersion::from(
                             u32::try_from(u64::from(version))
                                 .map_err(|_| IssueRepositoryError::IO)?,
                         ),
@@ -183,7 +183,7 @@ impl IssueRepository for SqliteIssueRepository {
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: AggregateVersion::from(
+                        version: EventStreamVersion::from(
                             u32::try_from(u64::from(version))
                                 .map_err(|_| IssueRepositoryError::IO)?,
                         ),

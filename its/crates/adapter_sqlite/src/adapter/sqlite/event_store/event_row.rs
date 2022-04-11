@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::{AggregateVersion, Event, EventStreamId};
+use super::{Event, EventStreamId, EventStreamVersion};
 
 #[derive(Debug)]
 pub(super) struct EventRow {
@@ -21,8 +21,8 @@ impl EventRow {
         self.data.to_owned()
     }
 
-    fn version(&self) -> AggregateVersion {
-        AggregateVersion::try_from(self.version).expect("events.version is not well-formed")
+    fn version(&self) -> EventStreamVersion {
+        EventStreamVersion::try_from(self.version).expect("events.version is not well-formed")
     }
 }
 

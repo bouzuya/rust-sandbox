@@ -1,8 +1,8 @@
-use super::{aggregate_version::AggregateVersion, event_stream_id::EventStreamId};
+use super::{event_stream_id::EventStreamId, event_stream_version::EventStreamVersion};
 
 #[derive(Clone, Debug)]
 pub struct Event {
     pub event_stream_id: EventStreamId,
     pub data: String,
-    pub version: AggregateVersion,
+    pub version: EventStreamVersion,
 }

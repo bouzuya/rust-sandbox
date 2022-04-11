@@ -1,16 +1,16 @@
-mod aggregate_version;
 mod event;
 mod event_row;
 mod event_store_error;
 mod event_stream_id;
 mod event_stream_row;
+mod event_stream_version;
 
-pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_row::EventRow;
 use self::event_store_error::EventStoreError;
 pub use self::event_stream_id::*;
 use self::event_stream_row::EventStreamRow;
+pub use self::event_stream_version::*;
 
 use sqlx::Transaction;
 use sqlx::{any::AnyArguments, query::Query, Any};
@@ -31,7 +31,7 @@ pub async fn find_events_by_event_stream_id(
 pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
-    version: AggregateVersion,
+    version: EventStreamVersion,
 ) -> Result<Vec<Event>, EventStoreError> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id_and_version_less_than_equal.sql"
@@ -45,7 +45,7 @@ pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
 
 pub async fn save(
     transaction: &mut Transaction<'_, Any>,
-    current_version: Option<AggregateVersion>,
+    current_version: Option<EventStreamVersion>,
     event: Event,
 ) -> Result<(), EventStoreError> {
     if let Some(current_version) = current_version {
@@ -145,7 +145,7 @@ mod tests {
         assert!(events.is_empty());
 
         let event_stream_id = EventStreamId::generate();
-        let version = AggregateVersion::from(1_u32);
+        let version = EventStreamVersion::from(1_u32);
         let create_event = Event {
             event_stream_id,
             data: r#"{"type":"issue_created"}"#.to_string(),
@@ -171,7 +171,7 @@ mod tests {
         let update_event = Event {
             event_stream_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
-            version: AggregateVersion::from(2_u32),
+            version: EventStreamVersion::from(2_u32),
         };
         save(&mut transaction, Some(version), update_event).await?;
         transaction.commit().await?;
