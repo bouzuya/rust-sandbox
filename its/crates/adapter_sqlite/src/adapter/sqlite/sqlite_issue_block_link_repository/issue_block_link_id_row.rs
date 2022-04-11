@@ -15,12 +15,12 @@ pub(super) struct IssueBlockLinkIdRow {
 impl IssueBlockLinkIdRow {
     // pub(super) fn issue_block_link_id(&self) -> IssueBlockLinkId {
     //     IssueBlockLinkId::from_str(&self.issue_block_link_id)
-    //         .expect("stored issue_block_link_id is not well-formed")
+    //         .expect("issue_block_link_ids.issue_block_link_id is not well-formed")
     // }
 
     pub(super) fn event_stream_id(&self) -> EventStreamId {
         EventStreamId::from_str(&self.event_stream_id)
-            .expect("stored event_stream_id is not well-formed")
+            .expect("issue_block_link_ids.event_stream_id is not well-formed")
     }
 }
 

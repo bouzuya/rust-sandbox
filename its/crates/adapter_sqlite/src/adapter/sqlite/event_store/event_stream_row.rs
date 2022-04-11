@@ -20,7 +20,6 @@ impl<'r> FromRow<'r, AnyRow> for EventStreamRow {
 }
 impl EventStreamRow {
     pub(super) fn id(&self) -> EventStreamId {
-        EventStreamId::from_str(self.id.as_str())
-            .expect("stored event_stream_id is not well-formed")
+        EventStreamId::from_str(self.id.as_str()).expect("event_streams.id is not well-formed")
     }
 }

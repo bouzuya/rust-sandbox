@@ -14,12 +14,12 @@ pub(super) struct IssueIdRow {
 impl IssueIdRow {
     pub(super) fn issue_id(&self) -> IssueId {
         IssueId::from_str(self.issue_number.to_string().as_str())
-            .expect("stored issue_number is not well-formed")
+            .expect("issue_ids.issue_number is not well-formed")
     }
 
     pub(super) fn event_stream_id(&self) -> EventStreamId {
         EventStreamId::from_str(self.event_stream_id.as_str())
-            .expect("stored event_stream_id is not well-formed")
+            .expect("issue_ids.event_stream_id is not well-formed")
     }
 }
 

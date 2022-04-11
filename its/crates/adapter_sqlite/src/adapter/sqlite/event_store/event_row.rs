@@ -14,7 +14,7 @@ pub(super) struct EventRow {
 impl EventRow {
     fn event_stream_id(&self) -> EventStreamId {
         EventStreamId::from_str(self.event_stream_id.as_str())
-            .expect("stored event_stream_id is not well-formed")
+            .expect("events.event_stream_id is not well-formed")
     }
 
     fn data(&self) -> String {
@@ -22,7 +22,7 @@ impl EventRow {
     }
 
     fn version(&self) -> AggregateVersion {
-        AggregateVersion::try_from(self.version).expect("stored version is not well-formed")
+        AggregateVersion::try_from(self.version).expect("events.version is not well-formed")
     }
 }
 
