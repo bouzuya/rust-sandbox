@@ -1,16 +1,16 @@
-mod aggregate_row;
 mod aggregate_version;
 mod event;
 mod event_row;
 mod event_store_error;
 mod event_stream_id;
+mod event_stream_row;
 
-use self::aggregate_row::AggregateRow;
 pub use self::aggregate_version::*;
 pub use self::event::Event;
 use self::event_row::EventRow;
 use self::event_store_error::EventStoreError;
 pub use self::event_stream_id::*;
+use self::event_stream_row::EventStreamRow;
 
 use sqlx::Transaction;
 use sqlx::{any::AnyArguments, query::Query, Any};
@@ -85,7 +85,7 @@ pub async fn save(
 pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
 ) -> Result<Vec<EventStreamId>, EventStoreError> {
-    let aggregate_rows: Vec<AggregateRow> = sqlx::query_as(include_str!(
+    let aggregate_rows: Vec<EventStreamRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_event_streams.sql"
     ))
     .fetch_all(&mut *transaction)
