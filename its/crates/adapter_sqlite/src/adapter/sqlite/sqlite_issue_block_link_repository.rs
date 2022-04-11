@@ -28,7 +28,7 @@ impl SqliteIssueBlockLinkRepository {
         })
     }
 
-    async fn find_aggregate_id_by_issue_block_link_id(
+    async fn find_event_stream_id_by_issue_block_link_id(
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_block_link_id: &IssueBlockLinkId,
@@ -47,13 +47,13 @@ impl SqliteIssueBlockLinkRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_block_link_id: &IssueBlockLinkId,
-        aggregate_id: AggregateId,
+        event_stream_id: AggregateId,
     ) -> Result<(), IssueBlockLinkRepositoryError> {
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
             "../../../sql/command/insert_issue_block_link_id.sql"
         ))
         .bind(issue_block_link_id.to_string())
-        .bind(aggregate_id.to_string());
+        .bind(event_stream_id.to_string());
         let rows_affected = query
             .execute(transaction)
             .await
@@ -81,19 +81,19 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
             .await
             .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
         match self
-            .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+            .find_event_stream_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
             .await?
         {
-            Some(aggregate_id) => {
+            Some(event_stream_id) => {
                 let events =
-                    event_store::find_events_by_event_stream_id(&mut transaction, aggregate_id)
+                    event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
                         .await
                         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
                 let mut issue_block_link_aggregate_events = vec![];
                 for event in events {
                     let event = DomainEvent::from_str(event.data.as_str())
                         .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?;
-                    // TODO: check dto.version and aggregate_id
+                    // TODO: check dto.version and event_stream_id
                     issue_block_link_aggregate_events.push(
                         event.issue_block_link().ok_or_else(|| {
                             IssueBlockLinkRepositoryError::Unknown("".to_string())
@@ -121,7 +121,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
         for event in issue_block_link.events() {
             let (issue_block_link_id, version) = event.key();
             if let Some(event_stream_id) = self
-                .find_aggregate_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
+                .find_event_stream_id_by_issue_block_link_id(&mut transaction, issue_block_link_id)
                 .await?
             {
                 // update
