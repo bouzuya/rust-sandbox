@@ -1,4 +1,4 @@
-mod issue_row;
+mod issue_id_row;
 
 use std::str::FromStr;
 
@@ -10,7 +10,7 @@ use use_case::{IssueRepository, IssueRepositoryError};
 
 use crate::adapter::sqlite::event_store::{Event, EventStreamVersion};
 
-use self::issue_row::IssueIdRow;
+use self::issue_id_row::IssueIdRow;
 
 use super::{
     event_store::{self, EventStreamId},
