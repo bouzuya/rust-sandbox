@@ -122,6 +122,6 @@ mod tests {
         let title = IssueTitle::from_str("title1")?;
         let id = IssueId::new(number);
         let due = IssueDue::from_str("2021-02-03T04:05:06Z")?;
-        Ok(Issue::new(id.clone(), title.clone(), Some(due)))
+        Ok(Issue::new(id, title, Some(due)))
     }
 }
