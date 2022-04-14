@@ -65,12 +65,11 @@ impl IssueAggregate {
                         return Err(IssueAggregateError::InvalidEventSequence);
                     }
 
-                    // FIXME: Use resolution
                     issue = IssueAggregate {
                         events: vec![],
                         issue: issue
                             .issue
-                            .finish()
+                            .finish(resolution.clone())
                             .map_err(|_| IssueAggregateError::InvalidEventSequence)?,
                         version: *version,
                     }
@@ -126,15 +125,17 @@ impl IssueAggregate {
     }
 
     pub fn finish(&self, at: Instant) -> Result<IssueAggregate, IssueAggregateError> {
+        // FIXME: resolution
+        let resolution = None;
         let updated_issue = self
             .issue
-            .finish()
+            .finish(resolution.clone())
             .map_err(|_| IssueAggregateError::Unknown)?;
         let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
         let event = IssueFinished {
             at,
             issue_id: self.id().clone(),
-            resolution: None, // FIXME
+            resolution,
             version: updated_version,
         }
         .into();

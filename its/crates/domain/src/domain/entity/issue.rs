@@ -1,6 +1,8 @@
 use thiserror::Error;
 
-use crate::{IssueCreatedV2, IssueDue, IssueId, IssueNumber, IssueStatus, IssueTitle};
+use crate::{
+    IssueCreatedV2, IssueDue, IssueId, IssueNumber, IssueResolution, IssueStatus, IssueTitle,
+};
 
 #[derive(Debug, Error)]
 pub enum IssueError {
@@ -11,6 +13,7 @@ pub enum IssueError {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Issue {
     id: IssueId,
+    resolution: Option<IssueResolution>,
     status: IssueStatus,
     title: IssueTitle,
     due: Option<IssueDue>,
@@ -20,6 +23,7 @@ impl Issue {
     pub(crate) fn from_event(event: IssueCreatedV2) -> Self {
         Self {
             id: event.issue_id,
+            resolution: None,
             status: IssueStatus::Todo,
             title: event.issue_title,
             due: event.issue_due,
@@ -29,18 +33,20 @@ impl Issue {
     pub(crate) fn new(id: IssueId, title: IssueTitle, due: Option<IssueDue>) -> Self {
         Self {
             id,
+            resolution: None,
             status: IssueStatus::Todo,
             title,
             due,
         }
     }
 
-    pub(crate) fn finish(&self) -> Result<Self, IssueError> {
+    pub(crate) fn finish(&self, resolution: Option<IssueResolution>) -> Result<Self, IssueError> {
         if self.status == IssueStatus::Done {
             return Err(IssueError::AlreadyFinished);
         }
         Ok(Self {
             id: self.id.clone(),
+            resolution,
             status: IssueStatus::Done,
             title: self.title.clone(),
             due: self.due,
@@ -50,6 +56,7 @@ impl Issue {
     pub(crate) fn change_due(&self, due: Option<IssueDue>) -> Self {
         Self {
             id: self.id.clone(),
+            resolution: self.resolution.clone(),
             status: self.status,
             title: self.title.clone(),
             due,
@@ -62,6 +69,10 @@ impl Issue {
 
     pub(crate) fn number(&self) -> IssueNumber {
         self.id.issue_number()
+    }
+
+    pub(crate) fn resolution(&self) -> Option<&IssueResolution> {
+        self.resolution.as_ref()
     }
 
     pub(crate) fn status(&self) -> IssueStatus {
@@ -112,7 +123,7 @@ mod tests {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
         let issue = Issue::new(IssueId::new(number), title, None);
-        let updated = issue.finish()?;
+        let updated = issue.finish(None)?; // TODO: Use resolution
         assert_eq!(updated.status(), IssueStatus::Done);
         Ok(())
     }
