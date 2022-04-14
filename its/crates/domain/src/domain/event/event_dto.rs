@@ -3,8 +3,9 @@ use std::str::FromStr;
 use crate::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
     DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId,
-    IssueTitle, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError, ParseIssueDueError,
-    ParseIssueIdError, ParseIssueNumberError, TryFromIssueTitleError, Version,
+    IssueResolution, IssueTitle, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError,
+    ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, ParseIssueResolutionError,
+    TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -20,6 +21,8 @@ pub enum TryFromEventDtoError {
     IssueId(#[from] ParseIssueIdError),
     #[error("IssueNumber")]
     IssueNumber(#[from] ParseIssueNumberError),
+    #[error("IssueResolution")]
+    IssueResolution(#[from] ParseIssueResolutionError),
     #[error("IssueTitle")]
     IssueTitle(#[from] TryFromIssueTitleError),
     #[error("IssueBlockLink")]
@@ -51,6 +54,7 @@ pub enum EventDto {
     IssueFinished {
         at: String,
         issue_id: String,
+        resolution: Option<String>,
         version: u64,
     },
     #[serde(rename = "issue_unblocked")]
@@ -86,6 +90,7 @@ impl From<DomainEvent> for EventDto {
                 IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
                     at: event.at().to_string(),
                     issue_id: event.issue_id().to_string(),
+                    resolution: event.resolution().map(|r| r.to_string()),
                     version: u64::from(event.version()),
                 },
                 IssueAggregateEvent::Updated(event) => EventDto::IssueUpdated {
@@ -155,11 +160,16 @@ impl TryFrom<EventDto> for DomainEvent {
             EventDto::IssueFinished {
                 at,
                 issue_id,
+                resolution,
                 version,
             } => Ok(
                 IssueAggregateEvent::Finished(IssueFinished::from_trusted_data(
                     Instant::from_str(at.as_str())?,
                     IssueId::from_str(issue_id.as_str())?,
+                    resolution
+                        .as_ref()
+                        .map(|s| IssueResolution::from_str(s))
+                        .transpose()?,
                     Version::from(version),
                 ))
                 .into(),
@@ -204,7 +214,7 @@ impl TryFrom<EventDto> for DomainEvent {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{IssueCreated, IssueId, IssueNumber, IssueTitle, Version};
+    use crate::{IssueCreated, IssueId, IssueNumber, IssueResolution, IssueTitle, Version};
     use limited_date_time::Instant;
 
     use super::*;
@@ -264,28 +274,76 @@ mod tests {
     }
 
     #[test]
-    fn issue_finished_conversion_test() -> anyhow::Result<()> {
+    fn issue_finished_v1_0_conversion_test() -> anyhow::Result<()> {
+        // v1.0 deserialize only
         let event = DomainEvent::from(IssueAggregateEvent::Finished(
             IssueFinished::from_trusted_data(
                 Instant::from_str("2021-02-03T04:05:06Z")?,
                 IssueId::new(IssueNumber::try_from(2_usize)?),
+                None,
                 Version::from(1_u64),
             ),
         ));
         let dto = EventDto::IssueFinished {
             at: "2021-02-03T04:05:06Z".to_string(),
             issue_id: "2".to_string(),
+            resolution: None,
             version: 1_u64,
         };
         let serialized =
             r#"{"type":"issue_finished","at":"2021-02-03T04:05:06Z","issue_id":"2","version":1}"#;
         assert_eq!(EventDto::from(event.clone()), dto);
         assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
-        assert_eq!(serde_json::to_string(&dto)?, serialized);
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
         Ok(())
     }
 
+    #[test]
+    fn issue_finished_v1_1_conversion_test() -> anyhow::Result<()> {
+        // v1.1
+        let event = DomainEvent::from(IssueAggregateEvent::Finished(
+            IssueFinished::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                Some(IssueResolution::from_str("Duplicate")?),
+                Version::from(1_u64),
+            ),
+        ));
+        let dto = EventDto::IssueFinished {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            resolution: Some("Duplicate".to_string()),
+            version: 1_u64,
+        };
+        let serialized = r#"{"type":"issue_finished","at":"2021-02-03T04:05:06Z","issue_id":"2","resolution":"Duplicate","version":1}"#;
+        assert_eq!(EventDto::from(event.clone()), dto);
+        assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
+        assert_eq!(serde_json::to_string(&dto)?, serialized);
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
+
+        // v1.1
+        let event = DomainEvent::from(IssueAggregateEvent::Finished(
+            IssueFinished::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                None,
+                Version::from(1_u64),
+            ),
+        ));
+        let dto = EventDto::IssueFinished {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            resolution: None,
+            version: 1_u64,
+        };
+        let serialized = r#"{"type":"issue_finished","at":"2021-02-03T04:05:06Z","issue_id":"2","resolution":null,"version":1}"#;
+        assert_eq!(EventDto::from(event.clone()), dto);
+        assert_eq!(DomainEvent::try_from(EventDto::from(event.clone()))?, event);
+        assert_eq!(serde_json::to_string(&dto)?, serialized);
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized)?, dto);
+
+        Ok(())
+    }
     #[test]
     fn issue_updated_conversion_test() -> anyhow::Result<()> {
         let event = DomainEvent::from(IssueAggregateEvent::Updated(

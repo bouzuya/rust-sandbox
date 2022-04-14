@@ -55,6 +55,7 @@ impl IssueAggregate {
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
                     issue_id,
+                    resolution,
                     version,
                 }) => {
                     if issue.issue.id() != issue_id {
@@ -64,6 +65,7 @@ impl IssueAggregate {
                         return Err(IssueAggregateError::InvalidEventSequence);
                     }
 
+                    // FIXME: Use resolution
                     issue = IssueAggregate {
                         events: vec![],
                         issue: issue
@@ -132,6 +134,7 @@ impl IssueAggregate {
         let event = IssueFinished {
             at,
             issue_id: self.id().clone(),
+            resolution: None, // FIXME
             version: updated_version,
         }
         .into();
