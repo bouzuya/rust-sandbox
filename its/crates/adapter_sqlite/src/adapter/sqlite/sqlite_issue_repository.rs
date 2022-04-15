@@ -211,6 +211,7 @@ mod tests {
     use std::fs;
 
     use anyhow::Context;
+    use domain::IssueResolution;
     use limited_date_time::Instant;
     use tempfile::tempdir;
 
@@ -252,7 +253,8 @@ mod tests {
         let found = found.ok_or(anyhow::anyhow!("found is not Some"))?;
 
         // update
-        let updated = found.finish(Instant::now())?;
+        let resolution = IssueResolution::from_str("Duplicate")?;
+        let updated = found.finish(Some(resolution), Instant::now())?;
         issue_repository.save(&updated).await?;
 
         let found = issue_repository.find_by_id(updated.id()).await?;

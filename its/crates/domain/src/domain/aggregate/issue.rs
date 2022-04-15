@@ -8,6 +8,7 @@ pub use self::event::*;
 use crate::IssueCreatedV2;
 use crate::IssueDue;
 use crate::IssueNumber;
+use crate::IssueResolution;
 use crate::IssueStatus;
 use crate::IssueTitle;
 use crate::IssueUpdated;
@@ -124,9 +125,11 @@ impl IssueAggregate {
         Ok(issue)
     }
 
-    pub fn finish(&self, at: Instant) -> Result<IssueAggregate, IssueAggregateError> {
-        // FIXME: resolution
-        let resolution = None;
+    pub fn finish(
+        &self,
+        resolution: Option<IssueResolution>,
+        at: Instant,
+    ) -> Result<IssueAggregate, IssueAggregateError> {
         let updated_issue = self
             .issue
             .finish(resolution.clone())
@@ -233,7 +236,8 @@ mod tests {
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
         )?;
-        let _ = issue.finish(Instant::now())?;
+        let resolution = IssueResolution::from_str("Duplicate")?;
+        let _ = issue.finish(Some(resolution), Instant::now())?;
         // TODO: assert
         Ok(())
     }

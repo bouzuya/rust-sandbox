@@ -1,4 +1,4 @@
-use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
+use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
 
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
@@ -54,6 +54,7 @@ pub struct CreateIssue {
 #[derive(Debug)]
 pub struct FinishIssue {
     pub issue_id: IssueId,
+    pub resolution: Option<IssueResolution>,
 }
 
 #[derive(Debug)]

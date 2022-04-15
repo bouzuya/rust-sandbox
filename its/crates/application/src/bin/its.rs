@@ -10,7 +10,7 @@ use adapter_sqlite::{
 };
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueTitle};
+use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
     IssueBlockLinkRepository, IssueManagementContextEvent, IssueManagementContextUseCase,
@@ -168,6 +168,7 @@ async fn issue_create(
 
 async fn issue_finish(
     issue_id: String,
+    resolution: Option<String>,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
@@ -178,7 +179,11 @@ async fn issue_finish(
     .await?;
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
-    let command = use_case.finish_issue(issue_id).into();
+    let resolution = resolution
+        .as_deref()
+        .map(IssueResolution::from_str)
+        .transpose()?;
+    let command = use_case.finish_issue(issue_id, resolution).into();
     let events = use_case.handle(command).await?;
     // FIXME:
     app.update_query_db(events.first().unwrap().clone()).await?;
@@ -305,6 +310,8 @@ enum Command {
     Finish {
         issue_id: String,
         #[clap(long)]
+        resolution: Option<String>,
+        #[clap(long)]
         command_database_connection_uri: Option<String>,
         #[clap(long)]
         query_database_connection_uri: Option<String>,
@@ -378,11 +385,13 @@ async fn main() -> anyhow::Result<()> {
             }
             Command::Finish {
                 issue_id,
+                resolution,
                 command_database_connection_uri,
                 query_database_connection_uri,
             } => {
                 issue_finish(
                     issue_id,
+                    resolution,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )

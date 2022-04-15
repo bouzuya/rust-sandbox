@@ -8,6 +8,7 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
+use domain::IssueResolution;
 use domain::{
     aggregate::{IssueAggregate, IssueAggregateError, IssueBlockLinkAggregateError},
     DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueNumber, IssueTitle,
@@ -73,8 +74,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         }
     }
 
-    fn finish_issue(&self, issue_id: IssueId) -> FinishIssue {
-        FinishIssue { issue_id }
+    fn finish_issue(&self, issue_id: IssueId, resolution: Option<IssueResolution>) -> FinishIssue {
+        FinishIssue {
+            issue_id,
+            resolution,
+        }
     }
 
     fn unblock_issue(&self, issue_block_link_id: IssueBlockLinkId) -> UnblockIssue {
@@ -178,10 +182,11 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .find_by_id(&command.issue_id)
             .await?
             .ok_or(IssueManagementContextError::IssueNotFound(command.issue_id))?;
+        let resolution = command.resolution;
         let at = Instant::now();
 
         // pure
-        let updated = issue.finish(at)?;
+        let updated = issue.finish(resolution, at)?;
 
         // io
         self.issue_repository().save(&updated).await?;
