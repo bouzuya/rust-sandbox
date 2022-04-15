@@ -53,21 +53,29 @@ impl IssueFinished {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::IssueNumber;
 
     use super::*;
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         let at = Instant::now();
         let issue_id = IssueId::new(IssueNumber::start_number());
-        let resolution = None; // TODO: resolution
+        let resolution = IssueResolution::from_str("Duplicate")?;
         let version = Version::from(2_u64);
-        let issue_finished = IssueFinished::from_trusted_data(at, issue_id.clone(), None, version);
+        let issue_finished = IssueFinished::from_trusted_data(
+            at,
+            issue_id.clone(),
+            Some(resolution.clone()),
+            version,
+        );
         // TODO: new
         assert_eq!(issue_finished.at(), at);
         assert_eq!(issue_finished.issue_id(), &issue_id);
-        assert_eq!(issue_finished.resolution(), resolution);
+        assert_eq!(issue_finished.resolution(), Some(&resolution));
         assert_eq!(issue_finished.version(), version);
+        Ok(())
     }
 }
