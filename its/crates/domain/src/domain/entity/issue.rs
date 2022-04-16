@@ -123,8 +123,10 @@ mod tests {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
         let issue = Issue::new(IssueId::new(number), title, None);
-        let updated = issue.finish(None)?; // TODO: Use resolution
+        let resolution = IssueResolution::from_str("Duplicate")?;
+        let updated = issue.finish(Some(resolution.clone()))?;
         assert_eq!(updated.status(), IssueStatus::Done);
+        assert_eq!(updated.resolution(), Some(&resolution));
         Ok(())
     }
 
