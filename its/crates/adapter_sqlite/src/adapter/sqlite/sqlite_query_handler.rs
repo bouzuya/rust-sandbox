@@ -11,13 +11,14 @@ use domain::{
 use serde::Serialize;
 use sqlx::{
     any::{AnyArguments, AnyConnectOptions},
+    migrate::Migrator,
     query::Query,
     Any, AnyPool, FromRow,
 };
 use thiserror::Error;
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
-use super::event_store;
+use super::{event_store, query_migration_source::QueryMigrationSource};
 
 // QueryIssue
 
@@ -67,6 +68,12 @@ impl From<sqlx::Error> for QueryHandlerError {
     }
 }
 
+impl From<sqlx::migrate::MigrateError> for QueryHandlerError {
+    fn from(e: sqlx::migrate::MigrateError) -> Self {
+        Self::Unknown(e.to_string())
+    }
+}
+
 // SqliteQueryHandler
 
 pub struct SqliteQueryHandler {
@@ -96,13 +103,8 @@ impl SqliteQueryHandler {
 
     pub async fn create_database(&self) -> Result<(), QueryHandlerError> {
         let mut transaction = self.pool.begin().await?;
-        let sqls = vec![
-            include_str!("../../../sql/query/create_issues.sql"),
-            include_str!("../../../sql/query/create_issue_block_links.sql"),
-        ];
-        for sql in sqls {
-            sqlx::query(sql).execute(&mut *transaction).await?;
-        }
+        let migrator = Migrator::new(QueryMigrationSource::default()).await?;
+        migrator.run(&mut *transaction).await?;
         transaction.commit().await?;
         Ok(())
     }
@@ -124,9 +126,6 @@ impl SqliteQueryHandler {
         self.drop_database().await?;
         self.create_database().await?;
 
-        let issue_repository = self.issue_repository.lock().map_err(|e| {
-            QueryHandlerError::Unknown(format!("IssueRepository can't lock: {}", e))
-        })?;
         let issue_block_link_repository = self.issue_block_link_repository.lock().map_err(|e| {
             QueryHandlerError::Unknown(format!("IssueBlockLinkRepository can't lock: {}", e))
         })?;
