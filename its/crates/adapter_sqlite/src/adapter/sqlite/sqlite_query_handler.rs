@@ -25,6 +25,7 @@ use super::{event_store, query_migration_source::QueryMigrationSource};
 #[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
 pub struct QueryIssue {
     pub id: String,
+    pub resolution: Option<String>,
     pub status: String,
     pub title: String,
     pub due: Option<String>,
@@ -39,6 +40,7 @@ pub struct QueryIssueIdWithTitle {
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
 pub struct QueryIssueWithLinks {
     pub id: String,
+    pub resolution: Option<String>,
     pub status: String,
     pub title: String,
     pub due: Option<String>,
@@ -271,6 +273,7 @@ impl SqliteQueryHandler {
                 .await?;
                 Ok(Some(QueryIssueWithLinks {
                     id: issue.id,
+                    resolution: issue.resolution,
                     status: issue.status,
                     title: issue.title,
                     due: issue.due,
@@ -358,6 +361,7 @@ mod tests {
         assert_eq!(
             Some(QueryIssueWithLinks {
                 id: "123".to_string(),
+                resolution: None,
                 status: "todo".to_string(),
                 title: "title".to_string(),
                 due: Some("2021-02-03T04:05:06Z".to_string()),
@@ -421,6 +425,7 @@ mod tests {
         assert_eq!(
             Some(QueryIssueWithLinks {
                 id: "2".to_string(),
+                resolution: None,
                 status: "todo".to_string(),
                 title: "title2".to_string(),
                 due: None,
