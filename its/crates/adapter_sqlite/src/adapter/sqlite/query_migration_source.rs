@@ -30,6 +30,14 @@ impl MigrationSource<'static> for QueryMigrationSource {
                         "../../../sql/query/migrations/20220417000002_create_issue_block_links.sql"
                     )),
                 ),
+                Migration::new(
+                    20220417000003,
+                    Cow::from("alter_issues_add_resolution"),
+                    MigrationType::Simple,
+                    Cow::from(include_str!(
+                        "../../../sql/query/migrations/20220417000003_alter_issues_add_resolution.sql"
+                    )),
+                ),
             ];
             Ok(migrations)
         })
