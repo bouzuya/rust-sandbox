@@ -1,2 +1,2 @@
-INSERT INTO issues (id, status, title, due)
-VALUES ($1, $2, $3, $4)
+INSERT INTO issues (id, status, title, due, resolution)
+VALUES ($1, $2, $3, $4, $5);

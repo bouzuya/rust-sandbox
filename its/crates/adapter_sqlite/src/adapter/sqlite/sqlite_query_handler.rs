@@ -187,7 +187,8 @@ impl SqliteQueryHandler {
                 .bind(issue.id().to_string())
                 .bind(issue.status().to_string())
                 .bind(issue.title().to_string())
-                .bind(issue.due().map(|d| d.to_string()));
+                .bind(issue.due().map(|d| d.to_string()))
+                .bind(issue.resolution().map(|s| s.to_string()));
         query.execute(&mut transaction).await?;
         transaction.commit().await?;
         Ok(())
@@ -353,6 +354,7 @@ mod tests {
         assert_eq!(1, issues.len());
         let issue = issues[0].clone();
         assert_eq!("123", issue.id);
+        assert_eq!(None, issue.resolution);
         assert_eq!("todo", issue.status);
         assert_eq!("title", issue.title);
         assert_eq!(Some("2021-02-03T04:05:06Z".to_string()), issue.due);

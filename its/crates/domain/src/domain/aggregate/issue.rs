@@ -188,6 +188,10 @@ impl IssueAggregate {
         self.issue.id()
     }
 
+    pub fn resolution(&self) -> Option<&IssueResolution> {
+        self.issue.resolution()
+    }
+
     pub fn status(&self) -> IssueStatus {
         self.issue.status()
     }
