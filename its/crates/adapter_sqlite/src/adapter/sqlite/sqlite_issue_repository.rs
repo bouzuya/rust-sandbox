@@ -250,7 +250,7 @@ mod tests {
         // find_by_id
         let found = issue_repository.find_by_id(created.id()).await?;
         assert_eq!(Some(created.truncate_events()), found);
-        let found = found.ok_or(anyhow::anyhow!("found is not Some"))?;
+        let found = found.ok_or_else(|| anyhow::anyhow!("found is not Some"))?;
 
         // update
         let resolution = IssueResolution::from_str("Duplicate")?;
