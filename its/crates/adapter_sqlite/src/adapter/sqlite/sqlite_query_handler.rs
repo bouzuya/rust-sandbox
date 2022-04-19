@@ -185,10 +185,10 @@ impl SqliteQueryHandler {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/insert_issue.sql"))
                 .bind(issue.id().to_string())
+                .bind(issue.resolution().map(|s| s.to_string()))
                 .bind(issue.status().to_string())
                 .bind(issue.title().to_string())
-                .bind(issue.due().map(|d| d.to_string()))
-                .bind(issue.resolution().map(|s| s.to_string()));
+                .bind(issue.due().map(|d| d.to_string()));
         query.execute(&mut transaction).await?;
         transaction.commit().await?;
         Ok(())
