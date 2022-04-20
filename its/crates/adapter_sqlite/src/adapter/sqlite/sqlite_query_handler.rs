@@ -21,7 +21,7 @@ use thiserror::Error;
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
 use super::{
-    event_store::{self, EventStoreError},
+    event_store::{self},
     query_migration_source::QueryMigrationSource,
 };
 

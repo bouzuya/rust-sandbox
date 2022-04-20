@@ -220,7 +220,41 @@ mod tests {
     use super::*;
 
     #[test]
-    fn issue_created_conversion_test() -> anyhow::Result<()> {
+    fn issue_created_1_0_deserialize_test() -> anyhow::Result<()> {
+        let dto = EventDto::IssueCreated {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            issue_title: "title1".to_string(),
+            issue_due: None,
+            version: 1_u64,
+        };
+        let serialized_v1_0 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","version":1}"#;
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_0)?, dto);
+        Ok(())
+    }
+
+    #[test]
+    fn issue_created_1_0_serialize_test() -> anyhow::Result<()> {
+        // removed
+        Ok(())
+    }
+
+    #[test]
+    fn issue_created_1_1_deserialize_test() -> anyhow::Result<()> {
+        let dto = EventDto::IssueCreated {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            issue_title: "title1".to_string(),
+            issue_due: None,
+            version: 1_u64,
+        };
+        let serialized_v1_1 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","issue_due":null,"version":1}"#;
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_1)?, dto);
+        Ok(())
+    }
+
+    #[test]
+    fn issue_created_1_1_serialize_test() -> anyhow::Result<()> {
         let event = DomainEvent::from(IssueAggregateEvent::Created(
             IssueCreated::from_trusted_data(
                 Instant::from_str("2021-02-03T04:05:06Z")?,
@@ -239,11 +273,6 @@ mod tests {
         let serialized_v1_1 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","issue_due":null,"version":1}"#;
         assert_eq!(EventDto::from(event), dto);
         assert_eq!(serde_json::to_string(&dto)?, serialized_v1_1);
-        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_1)?, dto);
-        // dto -> event (IssueCreatedV1 -> IssueCreatedV2)
-
-        let serialized_v1_0 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","version":1}"#;
-        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_0)?, dto);
         Ok(())
     }
 
