@@ -5,7 +5,9 @@ use std::{
 };
 
 use domain::{
-    aggregate::{IssueAggregate, IssueAggregateEvent, IssueBlockLinkAggregate},
+    aggregate::{
+        IssueAggregate, IssueAggregateEvent, IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent,
+    },
     DomainEvent, IssueId, ParseDomainEventError,
 };
 use serde::Serialize;
@@ -160,14 +162,25 @@ impl SqliteQueryHandler {
                         .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
                     self.save_issue(issue).await?;
                 }
-                DomainEvent::IssueBlockLink(event) => {
-                    let (issue_block_link_id, _) = event.key();
-                    // FIXME: event_store::find_events_by_event_stream_id (until event version)
-                    let issue_block_link = issue_block_link_repository
-                        .find_by_id(issue_block_link_id)
+                DomainEvent::IssueBlockLink(_) => {
+                    // TODO: improve
+                    let events =
+                        event_store::find_events_by_event_stream_id_and_version_less_than_equal(
+                            &mut transaction,
+                            event.event_stream_id,
+                            event.version,
+                        )
                         .await
                         .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-                        .unwrap();
+                        .into_iter()
+                        .map(|e| DomainEvent::from_str(e.data.as_str()))
+                        .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .into_iter()
+                        .filter_map(|e| e.issue_block_link())
+                        .collect::<Vec<IssueBlockLinkAggregateEvent>>();
+                    let issue_block_link = IssueBlockLinkAggregate::from_events(&events)
+                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
                     self.save_issue_block_link(issue_block_link).await?;
                 }
             }
