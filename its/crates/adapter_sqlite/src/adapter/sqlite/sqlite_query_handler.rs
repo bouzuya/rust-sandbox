@@ -20,7 +20,10 @@ use sqlx::{
 use thiserror::Error;
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
-use super::{event_store, query_migration_source::QueryMigrationSource};
+use super::{
+    event_store::{self, EventStoreError},
+    query_migration_source::QueryMigrationSource,
+};
 
 // QueryIssue
 
@@ -78,6 +81,12 @@ impl From<sqlx::migrate::MigrateError> for QueryHandlerError {
     }
 }
 
+impl From<event_store::EventStoreError> for QueryHandlerError {
+    fn from(e: event_store::EventStoreError) -> Self {
+        Self::Unknown(e.to_string())
+    }
+}
+
 // SqliteQueryHandler
 
 pub struct SqliteQueryHandler {
@@ -130,14 +139,8 @@ impl SqliteQueryHandler {
         self.drop_database().await?;
         self.create_database().await?;
 
-        let issue_block_link_repository = self.issue_block_link_repository.lock().map_err(|e| {
-            QueryHandlerError::Unknown(format!("IssueBlockLinkRepository can't lock: {}", e))
-        })?;
         let mut transaction = self.pool.begin().await?;
-        for event in event_store::find_events(&mut transaction)
-            .await
-            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-        {
+        for event in event_store::find_events(&mut transaction).await? {
             let domain_event = DomainEvent::from_str(event.data.as_str())
                 .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
             match domain_event {
@@ -149,8 +152,7 @@ impl SqliteQueryHandler {
                             event.event_stream_id,
                             event.version,
                         )
-                        .await
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .await?
                         .into_iter()
                         .map(|e| DomainEvent::from_str(e.data.as_str()))
                         .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
@@ -170,8 +172,7 @@ impl SqliteQueryHandler {
                             event.event_stream_id,
                             event.version,
                         )
-                        .await
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .await?
                         .into_iter()
                         .map(|e| DomainEvent::from_str(e.data.as_str()))
                         .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()

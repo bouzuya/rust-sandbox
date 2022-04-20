@@ -7,7 +7,7 @@ mod event_stream_version;
 
 pub use self::event::Event;
 use self::event_row::EventRow;
-use self::event_store_error::EventStoreError;
+pub use self::event_store_error::EventStoreError;
 pub use self::event_stream_id::*;
 use self::event_stream_row::EventStreamRow;
 pub use self::event_stream_version::*;
