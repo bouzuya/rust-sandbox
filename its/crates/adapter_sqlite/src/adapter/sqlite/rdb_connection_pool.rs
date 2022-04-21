@@ -1,7 +1,9 @@
 use std::str::FromStr;
 
 use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
-use use_case::IssueRepositoryError;
+use use_case::{IssueRepository, IssueRepositoryError};
+
+use crate::SqliteIssueRepository;
 
 use super::command_migration_source::CommandMigrationSource;
 
@@ -32,5 +34,9 @@ impl RdbConnectionPool {
             .map_err(|_| IssueRepositoryError::IO)?;
 
         Ok(Self(pool))
+    }
+
+    pub async fn issue_repository(&self) -> Result<impl IssueRepository, IssueRepositoryError> {
+        SqliteIssueRepository::new(self.clone()).await
     }
 }

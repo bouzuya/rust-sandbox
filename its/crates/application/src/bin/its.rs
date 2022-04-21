@@ -50,7 +50,7 @@ impl App {
         let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool.clone()).await?;
-        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
+        let issue_repository = connection_pool.issue_repository().await?;
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
             Arc::new(Mutex::new(issue_repository)),
