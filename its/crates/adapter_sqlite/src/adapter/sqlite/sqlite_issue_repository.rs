@@ -3,7 +3,10 @@ mod issue_id_row;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use domain::{aggregate::IssueAggregate, DomainEvent, IssueId, Version};
+use domain::{
+    aggregate::{IssueAggregate, IssueAggregateEvent},
+    DomainEvent, IssueId, Version,
+};
 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
@@ -29,6 +32,19 @@ impl SqliteIssueRepository {
         })
     }
 
+    fn events_to_issue_aggregate_events(
+        events: Vec<Event>,
+    ) -> Result<Vec<IssueAggregateEvent>, IssueRepositoryError> {
+        let mut issue_aggregate_events = vec![];
+        for event in events {
+            let event =
+                DomainEvent::from_str(event.data.as_str()).map_err(|_| IssueRepositoryError::IO)?;
+            // TODO: check event.version and event_stream_id
+            issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
+        }
+        Ok(issue_aggregate_events)
+    }
+
     async fn find_by_issue_id_and_version(
         &self,
         transaction: &mut Transaction<'_, Any>,
@@ -41,9 +57,7 @@ impl SqliteIssueRepository {
         match event_stream_id {
             None => Ok(None),
             Some(event_stream_id) => {
-                let version = u32::try_from(u64::from(*version))
-                    .map(EventStreamVersion::from)
-                    .map_err(|_| IssueRepositoryError::IO)?;
+                let version = Self::version_to_event_stream_version(*version)?;
                 let events =
                     event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                         transaction,
@@ -52,14 +66,7 @@ impl SqliteIssueRepository {
                     )
                     .await
                     .map_err(|_| IssueRepositoryError::IO)?;
-                // TODO: duplicated
-                let mut issue_aggregate_events = vec![];
-                for event in events {
-                    let event = DomainEvent::from_str(event.data.as_str())
-                        .map_err(|_| IssueRepositoryError::IO)?;
-                    // TODO: check event.version and event_stream_id
-                    issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
-                }
+                let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
                 IssueAggregate::from_events(&issue_aggregate_events)
                     .map(Some)
                     .map_err(|_| IssueRepositoryError::IO)
@@ -126,6 +133,14 @@ impl SqliteIssueRepository {
 
         Ok(())
     }
+
+    fn version_to_event_stream_version(
+        version: Version,
+    ) -> Result<EventStreamVersion, IssueRepositoryError> {
+        u32::try_from(u64::from(version))
+            .map(EventStreamVersion::from)
+            .map_err(|_| IssueRepositoryError::IO)
+    }
 }
 
 #[async_trait]
@@ -148,13 +163,7 @@ impl IssueRepository for SqliteIssueRepository {
                     event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
                         .await
                         .map_err(|_| IssueRepositoryError::IO)?;
-                let mut issue_aggregate_events = vec![];
-                for event in events {
-                    let event = DomainEvent::from_str(event.data.as_str())
-                        .map_err(|_| IssueRepositoryError::IO)?;
-                    // TODO: check event.version and event_stream_id
-                    issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
-                }
+                let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
                 IssueAggregate::from_events(&issue_aggregate_events)
                     .map(Some)
                     .map_err(|_| IssueRepositoryError::IO)
@@ -194,19 +203,12 @@ impl IssueRepository for SqliteIssueRepository {
                     &mut transaction,
                     version
                         .prev()
-                        .map(|version| {
-                            u32::try_from(u64::from(version))
-                                .map(EventStreamVersion::from)
-                                .map_err(|_| IssueRepositoryError::IO)
-                        })
+                        .map(Self::version_to_event_stream_version)
                         .transpose()?,
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: EventStreamVersion::from(
-                            u32::try_from(u64::from(version))
-                                .map_err(|_| IssueRepositoryError::IO)?,
-                        ),
+                        version: Self::version_to_event_stream_version(version)?,
                     },
                 )
                 .await
@@ -221,10 +223,7 @@ impl IssueRepository for SqliteIssueRepository {
                     Event {
                         event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: EventStreamVersion::from(
-                            u32::try_from(u64::from(version))
-                                .map_err(|_| IssueRepositoryError::IO)?,
-                        ),
+                        version: Self::version_to_event_stream_version(version)?,
                     },
                 )
                 .await
