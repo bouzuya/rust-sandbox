@@ -3,7 +3,7 @@ mod issue_id_row;
 use std::str::FromStr;
 
 use async_trait::async_trait;
-use domain::{aggregate::IssueAggregate, DomainEvent, IssueId};
+use domain::{aggregate::IssueAggregate, DomainEvent, IssueId, Version};
 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
@@ -27,6 +27,44 @@ impl SqliteIssueRepository {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
         })
+    }
+
+    async fn find_by_issue_id_and_version(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+        issue_id: &IssueId,
+        version: &Version,
+    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        let event_stream_id = self
+            .find_event_stream_id_by_issue_id(&mut *transaction, issue_id)
+            .await?;
+        match event_stream_id {
+            None => Ok(None),
+            Some(event_stream_id) => {
+                let version = u32::try_from(u64::from(*version))
+                    .map(EventStreamVersion::from)
+                    .map_err(|_| IssueRepositoryError::IO)?;
+                let events =
+                    event_store::find_events_by_event_stream_id_and_version_less_than_equal(
+                        transaction,
+                        event_stream_id,
+                        version,
+                    )
+                    .await
+                    .map_err(|_| IssueRepositoryError::IO)?;
+                // TODO: duplicated
+                let mut issue_aggregate_events = vec![];
+                for event in events {
+                    let event = DomainEvent::from_str(event.data.as_str())
+                        .map_err(|_| IssueRepositoryError::IO)?;
+                    // TODO: check event.version and event_stream_id
+                    issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
+                }
+                IssueAggregate::from_events(&issue_aggregate_events)
+                    .map(Some)
+                    .map_err(|_| IssueRepositoryError::IO)
+            }
+        }
     }
 
     async fn find_event_stream_id_by_issue_id(
