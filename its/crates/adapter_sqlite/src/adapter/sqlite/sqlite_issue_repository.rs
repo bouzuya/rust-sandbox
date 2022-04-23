@@ -1,11 +1,11 @@
 mod issue_id_row;
 
-use std::str::FromStr;
+use std::{num::TryFromIntError, str::FromStr};
 
 use async_trait::async_trait;
 use domain::{
-    aggregate::{IssueAggregate, IssueAggregateEvent},
-    DomainEvent, IssueId, Version,
+    aggregate::{IssueAggregate, IssueAggregateError, IssueAggregateEvent},
+    DomainEvent, IssueId, ParseDomainEventError, Version,
 };
 
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
@@ -16,9 +16,44 @@ use crate::adapter::sqlite::event_store::{Event, EventStreamVersion};
 use self::issue_id_row::IssueIdRow;
 
 use super::{
-    event_store::{self, EventStreamId},
+    event_store::{self, EventStoreError, EventStreamId},
     rdb_connection_pool::RdbConnectionPool,
 };
+
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("EventStore")]
+    EventStore(#[from] EventStoreError),
+    #[error("InvalidDomainEvent")]
+    InvalidDomainEvent(#[from] ParseDomainEventError),
+    #[error("InvalidIssueId")]
+    InvalidIssueId(TryFromIntError),
+    #[error("InvalidVersion")]
+    InvalidVersion(TryFromIntError),
+    #[error("IssueAggregate")]
+    IssueAggregate(#[from] IssueAggregateError),
+    #[error("RowsAffectedNotEqualOne")]
+    RowsAffectedNotEqualOne,
+    #[error("Sqlx")]
+    Sqlx(#[from] sqlx::Error),
+    #[error("UnknownAggregateEvent")]
+    UnknownAggregateEvent,
+}
+
+impl From<Error> for IssueRepositoryError {
+    fn from(e: Error) -> Self {
+        match e {
+            Error::EventStore(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::InvalidDomainEvent(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::InvalidIssueId(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::InvalidVersion(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::IssueAggregate(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::RowsAffectedNotEqualOne => IssueRepositoryError::Unknown(e.to_string()),
+            Error::Sqlx(e) => IssueRepositoryError::Unknown(e.to_string()),
+            Error::UnknownAggregateEvent => IssueRepositoryError::Unknown(e.to_string()),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct SqliteIssueRepository {
@@ -34,15 +69,33 @@ impl SqliteIssueRepository {
 
     fn events_to_issue_aggregate_events(
         events: Vec<Event>,
-    ) -> Result<Vec<IssueAggregateEvent>, IssueRepositoryError> {
-        let mut issue_aggregate_events = vec![];
+    ) -> Result<Vec<IssueAggregateEvent>, Error> {
+        let mut aggregate_events = vec![];
         for event in events {
-            let event =
-                DomainEvent::from_str(event.data.as_str()).map_err(|_| IssueRepositoryError::IO)?;
+            let domain_event = DomainEvent::from_str(event.data.as_str())?;
             // TODO: check event.version and event_stream_id
-            issue_aggregate_events.push(event.issue().ok_or(IssueRepositoryError::IO)?);
+            let aggregate_event = domain_event.issue().ok_or(Error::UnknownAggregateEvent)?;
+            aggregate_events.push(aggregate_event);
         }
-        Ok(issue_aggregate_events)
+        Ok(aggregate_events)
+    }
+
+    async fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>, Error> {
+        let mut transaction = self.pool.begin().await?;
+        let found = match self
+            .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
+            .await?
+        {
+            None => None,
+            Some(event_stream_id) => {
+                let events =
+                    event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
+                        .await?;
+                let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
+                IssueAggregate::from_events(&issue_aggregate_events).map(Some)?
+            }
+        };
+        Ok(found)
     }
 
     async fn find_by_issue_id_and_version(
@@ -50,7 +103,7 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
         version: &Version,
-    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+    ) -> Result<Option<IssueAggregate>, Error> {
         let event_stream_id = self
             .find_event_stream_id_by_issue_id(&mut *transaction, issue_id)
             .await?;
@@ -64,12 +117,9 @@ impl SqliteIssueRepository {
                         event_stream_id,
                         version,
                     )
-                    .await
-                    .map_err(|_| IssueRepositoryError::IO)?;
+                    .await?;
                 let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
-                IssueAggregate::from_events(&issue_aggregate_events)
-                    .map(Some)
-                    .map_err(|_| IssueRepositoryError::IO)
+                Ok(IssueAggregate::from_events(&issue_aggregate_events).map(Some)?)
             }
         }
     }
@@ -78,31 +128,24 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-    ) -> Result<Option<EventStreamId>, IssueRepositoryError> {
+    ) -> Result<Option<EventStreamId>, Error> {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
-        .bind(
-            i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
-                IssueRepositoryError::Unknown("Failed to convert issue_number to i64".to_string())
-            })?,
-        )
+        .bind(i64::try_from(usize::from(issue_id.issue_number())).map_err(Error::InvalidIssueId)?)
         .fetch_optional(&mut *transaction)
-        .await
-        .map_err(|e| IssueRepositoryError::Unknown(e.to_string()))?;
-
+        .await?;
         Ok(issue_id_row.map(|row| row.event_stream_id()))
     }
 
     async fn find_max_issue_id(
         &self,
         transaction: &mut Transaction<'_, Any>,
-    ) -> Result<Option<IssueId>, IssueRepositoryError> {
+    ) -> Result<Option<IssueId>, Error> {
         let issue_id_row: Option<IssueIdRow> =
             sqlx::query_as(include_str!("../../../sql/command/select_max_issue_id.sql"))
                 .fetch_optional(transaction)
-                .await
-                .map_err(|_| IssueRepositoryError::IO)?;
+                .await?;
         Ok(issue_id_row.map(|row| row.issue_id()))
     }
 
@@ -111,86 +154,33 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
         event_stream_id: EventStreamId,
-    ) -> Result<(), IssueRepositoryError> {
+    ) -> Result<(), Error> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
-                .bind(
-                    i64::try_from(usize::from(issue_id.issue_number())).map_err(|_| {
-                        IssueRepositoryError::Unknown(
-                            "Failed to convert issue_number to i64".to_string(),
-                        )
-                    })?,
-                )
+                .bind(Self::issue_number_as_i64_from_issue_id(issue_id)?)
                 .bind(event_stream_id.to_string());
-        let rows_affected = query
-            .execute(transaction)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?
-            .rows_affected();
+        let rows_affected = query.execute(transaction).await?.rows_affected();
         if rows_affected != 1 {
-            return Err(IssueRepositoryError::IO);
+            return Err(Error::RowsAffectedNotEqualOne);
         }
 
         Ok(())
     }
 
-    fn version_to_event_stream_version(
-        version: Version,
-    ) -> Result<EventStreamVersion, IssueRepositoryError> {
-        u32::try_from(u64::from(version))
-            .map(EventStreamVersion::from)
-            .map_err(|_| IssueRepositoryError::IO)
-    }
-}
-
-#[async_trait]
-impl IssueRepository for SqliteIssueRepository {
-    async fn find_by_id(
-        &self,
-        issue_id: &IssueId,
-    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
-        let mut transaction = self
-            .pool
-            .begin()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-        match self
-            .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
-            .await?
-        {
-            Some(event_stream_id) => {
-                let events =
-                    event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
-                        .await
-                        .map_err(|_| IssueRepositoryError::IO)?;
-                let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
-                IssueAggregate::from_events(&issue_aggregate_events)
-                    .map(Some)
-                    .map_err(|_| IssueRepositoryError::IO)
-            }
-            None => Ok(None),
-        }
+    fn issue_number_as_i64_from_issue_id(issue_id: &IssueId) -> Result<i64, Error> {
+        i64::try_from(usize::from(issue_id.issue_number())).map_err(Error::InvalidIssueId)
     }
 
-    async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
-        let mut transaction = self
-            .pool
-            .begin()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
+    async fn last_created(&self) -> Result<Option<IssueAggregate>, Error> {
+        let mut transaction = self.pool.begin().await?;
         Ok(match self.find_max_issue_id(&mut transaction).await? {
             Some(issue_id) => self.find_by_id(&issue_id).await?,
             None => None,
         })
     }
 
-    async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
-        let mut transaction = self
-            .pool
-            .begin()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
+    async fn save(&self, issue: &IssueAggregate) -> Result<(), Error> {
+        let mut transaction = self.pool.begin().await?;
         for event in issue.events().iter().cloned() {
             let issue_id = event.issue_id().clone();
             if let Some(event_stream_id) = self
@@ -211,8 +201,7 @@ impl IssueRepository for SqliteIssueRepository {
                         version: Self::version_to_event_stream_version(version)?,
                     },
                 )
-                .await
-                .map_err(|_| IssueRepositoryError::IO)?;
+                .await?
             } else {
                 // create
                 let event_stream_id = EventStreamId::generate();
@@ -226,20 +215,38 @@ impl IssueRepository for SqliteIssueRepository {
                         version: Self::version_to_event_stream_version(version)?,
                     },
                 )
-                .await
-                .map_err(|_| IssueRepositoryError::IO)?;
-
+                .await?;
                 self.insert_issue_id(&mut transaction, &issue_id, event_stream_id)
                     .await?;
             }
         }
 
-        transaction
-            .commit()
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
+        transaction.commit().await?;
         Ok(())
+    }
+
+    fn version_to_event_stream_version(version: Version) -> Result<EventStreamVersion, Error> {
+        u32::try_from(u64::from(version))
+            .map(EventStreamVersion::from)
+            .map_err(Error::InvalidVersion)
+    }
+}
+
+#[async_trait]
+impl IssueRepository for SqliteIssueRepository {
+    async fn find_by_id(
+        &self,
+        issue_id: &IssueId,
+    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        Ok(Self::find_by_id(self, issue_id).await?)
+    }
+
+    async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        Ok(Self::last_created(self).await?)
+    }
+
+    async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
+        Ok(Self::save(self, issue).await?)
     }
 }
 
