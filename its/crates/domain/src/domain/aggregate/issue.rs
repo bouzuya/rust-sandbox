@@ -204,6 +204,10 @@ impl IssueAggregate {
         self.issue.due()
     }
 
+    pub fn version(&self) -> Version {
+        self.version
+    }
+
     pub fn block(
         &self,
         blocked_issue: IssueAggregate,
@@ -247,7 +251,7 @@ mod tests {
     }
 
     #[test]
-    fn updaate_test() -> anyhow::Result<()> {
+    fn update_test() -> anyhow::Result<()> {
         let issue = IssueAggregate::new(
             Instant::now(),
             IssueNumber::from_str("123")?,
