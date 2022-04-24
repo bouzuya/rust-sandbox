@@ -110,16 +110,21 @@ impl SqliteIssueRepository {
         match event_stream_id {
             None => Ok(None),
             Some(event_stream_id) => {
-                let version = Self::version_to_event_stream_version(*version)?;
+                let event_stream_version = Self::version_to_event_stream_version(*version)?;
                 let events =
                     event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                         transaction,
                         event_stream_id,
-                        version,
+                        event_stream_version,
                     )
                     .await?;
                 let issue_aggregate_events = Self::events_to_issue_aggregate_events(events)?;
-                Ok(IssueAggregate::from_events(&issue_aggregate_events).map(Some)?)
+                let issue = IssueAggregate::from_events(&issue_aggregate_events)?;
+                if issue.version() != *version {
+                    Ok(None)
+                } else {
+                    Ok(Some(issue))
+                }
             }
         }
     }
