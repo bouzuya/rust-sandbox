@@ -1,9 +1,9 @@
 use std::str::FromStr;
 
 use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
-use use_case::{IssueRepository, IssueRepositoryError};
+use use_case::{IssueBlockLinkRepositoryError, IssueRepositoryError};
 
-use crate::SqliteIssueRepository;
+use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
 
 use super::command_migration_source::CommandMigrationSource;
 
@@ -34,6 +34,12 @@ impl RdbConnectionPool {
             .map_err(|_| IssueRepositoryError::IO)?;
 
         Ok(Self(pool))
+    }
+
+    pub fn issue_block_link_repository(
+        &self,
+    ) -> Result<SqliteIssueBlockLinkRepository, IssueBlockLinkRepositoryError> {
+        SqliteIssueBlockLinkRepository::new(self.clone())
     }
 
     pub fn issue_repository(&self) -> Result<SqliteIssueRepository, IssueRepositoryError> {

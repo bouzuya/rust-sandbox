@@ -20,7 +20,7 @@ pub struct SqliteIssueBlockLinkRepository {
 }
 
 impl SqliteIssueBlockLinkRepository {
-    pub async fn new(
+    pub(super) fn new(
         connection_pool: RdbConnectionPool,
     ) -> Result<Self, IssueBlockLinkRepositoryError> {
         Ok(Self {
@@ -201,7 +201,7 @@ mod tests {
             path.to_str().context("path is not utf-8")?
         );
         let connection_pool = RdbConnectionPool::new(connection_uri.as_str()).await?;
-        let repository = SqliteIssueBlockLinkRepository::new(connection_pool).await?;
+        let repository = connection_pool.issue_block_link_repository()?;
 
         // save (create)
         let created = IssueBlockLinkAggregate::new(Instant::now(), "123".parse()?, "456".parse()?)?;

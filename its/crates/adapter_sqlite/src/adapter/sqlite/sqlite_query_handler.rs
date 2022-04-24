@@ -92,21 +92,19 @@ impl From<event_store::EventStoreError> for QueryHandlerError {
 pub struct SqliteQueryHandler {
     pool: AnyPool,
     issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
-    issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
 }
 
 impl SqliteQueryHandler {
     pub async fn new(
         connection_uri: &str,
         issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
-        issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
+        _issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
     ) -> Result<Self, QueryHandlerError> {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
         let created = Self {
             pool,
             issue_repository,
-            issue_block_link_repository,
         };
 
         created.create_database().await?;
@@ -320,7 +318,7 @@ mod tests {
     use anyhow::Context;
     use limited_date_time::Instant;
 
-    use crate::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository};
+    use crate::RdbConnectionPool;
 
     use super::*;
 
@@ -352,8 +350,7 @@ mod tests {
 
         let issue_repository = connection_pool.issue_repository()?;
         issue_repository.save(&issue).await?;
-        let issue_block_link_repository =
-            SqliteIssueBlockLinkRepository::new(connection_pool).await?;
+        let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
@@ -417,8 +414,7 @@ mod tests {
         issue_repository.save(&issue1).await?;
         issue_repository.save(&issue2).await?;
         issue_repository.save(&issue3).await?;
-        let issue_block_link_repository =
-            SqliteIssueBlockLinkRepository::new(connection_pool).await?;
+        let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
