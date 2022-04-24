@@ -61,7 +61,7 @@ pub struct SqliteIssueRepository {
 }
 
 impl SqliteIssueRepository {
-    pub async fn new(connection_pool: RdbConnectionPool) -> Result<Self, IssueRepositoryError> {
+    pub(super) fn new(connection_pool: RdbConnectionPool) -> Result<Self, IssueRepositoryError> {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
         })
@@ -281,7 +281,7 @@ mod tests {
             path.to_str().context("path is not utf-8")?
         );
         let connection_pool = RdbConnectionPool::new(&connection_uri).await?;
-        let issue_repository = SqliteIssueRepository::new(connection_pool).await?;
+        let issue_repository = connection_pool.issue_repository()?;
 
         // create
         let created = IssueAggregate::new(

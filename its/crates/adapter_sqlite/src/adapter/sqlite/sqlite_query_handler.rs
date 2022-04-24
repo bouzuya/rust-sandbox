@@ -350,7 +350,7 @@ mod tests {
             Some("2021-02-03T04:05:06Z".parse()?),
         )?;
 
-        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
+        let issue_repository = connection_pool.issue_repository()?;
         issue_repository.save(&issue).await?;
         let issue_block_link_repository =
             SqliteIssueBlockLinkRepository::new(connection_pool).await?;
@@ -413,7 +413,7 @@ mod tests {
         let issue_block_link1 = issue1.block(issue2.clone(), Instant::now())?;
         let issue_block_link2 = issue2.block(issue3.clone(), Instant::now())?;
 
-        let issue_repository = SqliteIssueRepository::new(connection_pool.clone()).await?;
+        let issue_repository = connection_pool.issue_repository()?;
         issue_repository.save(&issue1).await?;
         issue_repository.save(&issue2).await?;
         issue_repository.save(&issue3).await?;

@@ -36,7 +36,7 @@ impl RdbConnectionPool {
         Ok(Self(pool))
     }
 
-    pub async fn issue_repository(&self) -> Result<impl IssueRepository, IssueRepositoryError> {
-        SqliteIssueRepository::new(self.clone()).await
+    pub fn issue_repository(&self) -> Result<SqliteIssueRepository, IssueRepositoryError> {
+        SqliteIssueRepository::new(self.clone())
     }
 }
