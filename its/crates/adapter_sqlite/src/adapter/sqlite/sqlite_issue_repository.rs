@@ -105,7 +105,7 @@ impl SqliteIssueRepository {
     ) -> Result<Option<IssueAggregate>, Error> {
         let mut transaction = self.pool.begin().await?;
         let event_stream_id = self
-            .find_event_stream_id_by_issue_id(&mut *transaction, issue_id)
+            .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
             .await?;
         match event_stream_id {
             None => Ok(None),
@@ -113,7 +113,7 @@ impl SqliteIssueRepository {
                 let event_stream_version = Self::version_to_event_stream_version(*version)?;
                 let events =
                     event_store::find_events_by_event_stream_id_and_version_less_than_equal(
-                        transaction,
+                        &mut transaction,
                         event_stream_id,
                         event_stream_version,
                     )
