@@ -98,12 +98,12 @@ impl SqliteIssueRepository {
         Ok(found)
     }
 
-    async fn find_by_issue_id_and_version(
+    async fn find_by_id_and_version(
         &self,
-        transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
         version: &Version,
     ) -> Result<Option<IssueAggregate>, Error> {
+        let mut transaction = self.pool.begin().await?;
         let event_stream_id = self
             .find_event_stream_id_by_issue_id(&mut *transaction, issue_id)
             .await?;
@@ -244,6 +244,14 @@ impl IssueRepository for SqliteIssueRepository {
         issue_id: &IssueId,
     ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
         Ok(Self::find_by_id(self, issue_id).await?)
+    }
+
+    async fn find_by_id_and_version(
+        &self,
+        issue_id: &IssueId,
+        version: &Version,
+    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+        Ok(Self::find_by_id_and_version(self, issue_id, version).await?)
     }
 
     async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError> {

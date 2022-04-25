@@ -48,8 +48,8 @@ impl App {
             None => new_connection_uri(data_dir.join("query.sqlite"))?,
         };
         let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
-        let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
         let issue_repository = connection_pool.issue_repository()?;
+        let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
             Arc::new(Mutex::new(issue_repository)),
