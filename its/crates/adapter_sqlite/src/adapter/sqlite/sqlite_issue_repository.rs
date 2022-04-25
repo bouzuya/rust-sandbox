@@ -137,7 +137,7 @@ impl SqliteIssueRepository {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
-        .bind(i64::try_from(usize::from(issue_id.issue_number())).map_err(Error::InvalidIssueId)?)
+        .bind(Self::issue_number_as_i64_from_issue_id(issue_id)?)
         .fetch_optional(&mut *transaction)
         .await?;
         Ok(issue_id_row.map(|row| row.event_stream_id()))
@@ -265,30 +265,14 @@ impl IssueRepository for SqliteIssueRepository {
 
 #[cfg(test)]
 mod tests {
-    use std::fs;
-
-    use anyhow::Context;
     use domain::IssueResolution;
     use limited_date_time::Instant;
-    use tempfile::tempdir;
 
     use super::*;
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let temp_dir = tempdir()?;
-
-        let sqlite_dir = temp_dir.path().join("its");
-        let data_dir = sqlite_dir;
-        if !data_dir.exists() {
-            fs::create_dir_all(data_dir.as_path())?;
-        }
-        let path = data_dir.join("command.sqlite");
-        let connection_uri = format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().context("path is not utf-8")?
-        );
-        let connection_pool = RdbConnectionPool::new(&connection_uri).await?;
+        let connection_pool = RdbConnectionPool::new("sqlite::memory:").await?;
         let issue_repository = connection_pool.issue_repository()?;
 
         // create
