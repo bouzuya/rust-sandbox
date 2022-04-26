@@ -12,7 +12,7 @@ use crate::RdbConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
-use super::event_store::{self, Event, EventStreamId, EventStreamVersion};
+use super::event_store::{self, Event, EventStreamId, EventStreamSeq};
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {
@@ -169,8 +169,8 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
 
 fn event_stream_version_from(
     version: Version,
-) -> Result<EventStreamVersion, IssueBlockLinkRepositoryError> {
-    Ok(EventStreamVersion::from(
+) -> Result<EventStreamSeq, IssueBlockLinkRepositoryError> {
+    Ok(EventStreamSeq::from(
         u32::try_from(u64::from(version))
             .map_err(|e| IssueBlockLinkRepositoryError::Unknown(e.to_string()))?,
     ))

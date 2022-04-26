@@ -1,21 +1,21 @@
 use super::event_store_error::EventStoreError;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct EventStreamVersion(u32);
+pub struct EventStreamSeq(u32);
 
-impl From<EventStreamVersion> for i64 {
-    fn from(version: EventStreamVersion) -> Self {
+impl From<EventStreamSeq> for i64 {
+    fn from(version: EventStreamSeq) -> Self {
         i64::from(version.0)
     }
 }
 
-impl From<u32> for EventStreamVersion {
+impl From<u32> for EventStreamSeq {
     fn from(value: u32) -> Self {
         Self(value)
     }
 }
 
-impl TryFrom<i64> for EventStreamVersion {
+impl TryFrom<i64> for EventStreamSeq {
     type Error = EventStoreError;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {

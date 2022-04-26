@@ -11,7 +11,7 @@ use domain::{
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
 
-use crate::adapter::sqlite::event_store::{Event, EventStreamVersion};
+use crate::adapter::sqlite::event_store::{Event, EventStreamSeq};
 
 use self::issue_id_row::IssueIdRow;
 
@@ -230,9 +230,9 @@ impl SqliteIssueRepository {
         Ok(())
     }
 
-    fn version_to_event_stream_version(version: Version) -> Result<EventStreamVersion, Error> {
+    fn version_to_event_stream_version(version: Version) -> Result<EventStreamSeq, Error> {
         u32::try_from(u64::from(version))
-            .map(EventStreamVersion::from)
+            .map(EventStreamSeq::from)
             .map_err(Error::InvalidVersion)
     }
 }
