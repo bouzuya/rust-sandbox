@@ -129,7 +129,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     &mut transaction,
                     version.prev().map(event_stream_version_from).transpose()?,
                     Event {
-                        event_stream_id,
+                        stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
                         version: event_stream_version_from(version)?,
                     },
@@ -143,7 +143,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     &mut transaction,
                     None,
                     Event {
-                        event_stream_id,
+                        stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
                         version: event_stream_version_from(version)?,
                     },

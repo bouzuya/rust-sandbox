@@ -201,7 +201,7 @@ impl SqliteIssueRepository {
                         .map(Self::version_to_event_stream_version)
                         .transpose()?,
                     Event {
-                        event_stream_id,
+                        stream_id: event_stream_id,
                         data: DomainEvent::from(event).to_string(),
                         version: Self::version_to_event_stream_version(version)?,
                     },
@@ -215,7 +215,7 @@ impl SqliteIssueRepository {
                     &mut transaction,
                     None,
                     Event {
-                        event_stream_id,
+                        stream_id: event_stream_id,
                         data: DomainEvent::from(event).to_string(),
                         version: Self::version_to_event_stream_version(version)?,
                     },

@@ -52,7 +52,7 @@ pub async fn save(
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/update_event_stream.sql"))
                 .bind(i64::from(event.version))
-                .bind(event.event_stream_id.to_string())
+                .bind(event.stream_id.to_string())
                 .bind(i64::from(current_version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
@@ -61,7 +61,7 @@ pub async fn save(
     } else {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_event_stream.sql"))
-                .bind(event.event_stream_id.to_string())
+                .bind(event.stream_id.to_string())
                 .bind(i64::from(event.version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
@@ -71,7 +71,7 @@ pub async fn save(
 
     let query: Query<Any, AnyArguments> =
         sqlx::query(include_str!("../../../sql/command/insert_event.sql"))
-            .bind(event.event_stream_id.to_string())
+            .bind(event.stream_id.to_string())
             .bind(i64::from(event.version))
             .bind(event.data);
     let result = query.execute(&mut *transaction).await?;
@@ -147,7 +147,7 @@ mod tests {
         let event_stream_id = EventStreamId::generate();
         let version = EventStreamVersion::from(1_u32);
         let create_event = Event {
-            event_stream_id,
+            stream_id: event_stream_id,
             data: r#"{"type":"issue_created"}"#.to_string(),
             version,
         };
@@ -169,7 +169,7 @@ mod tests {
         assert!(events.is_empty());
 
         let update_event = Event {
-            event_stream_id,
+            stream_id: event_stream_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
             version: EventStreamVersion::from(2_u32),
         };

@@ -2,7 +2,7 @@ use super::{event_stream_id::EventStreamId, event_stream_version::EventStreamVer
 
 #[derive(Clone, Debug)]
 pub struct Event {
-    pub event_stream_id: EventStreamId,
+    pub stream_id: EventStreamId,
     pub data: String,
     pub version: EventStreamVersion,
 }
