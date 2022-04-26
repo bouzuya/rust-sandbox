@@ -41,7 +41,7 @@ impl From<EventRow> for Event {
         Self {
             stream_id: row.event_stream_id(),
             data: row.data(),
-            version: row.version(),
+            stream_seq: row.version(),
         }
     }
 }

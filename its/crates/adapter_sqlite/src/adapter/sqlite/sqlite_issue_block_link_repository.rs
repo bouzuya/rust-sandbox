@@ -131,7 +131,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     Event {
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
-                        version: event_stream_version_from(version)?,
+                        stream_seq: event_stream_version_from(version)?,
                     },
                 )
                 .await
@@ -145,7 +145,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     Event {
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
-                        version: event_stream_version_from(version)?,
+                        stream_seq: event_stream_version_from(version)?,
                     },
                 )
                 .await

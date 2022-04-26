@@ -203,7 +203,7 @@ impl SqliteIssueRepository {
                     Event {
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: Self::version_to_event_stream_version(version)?,
+                        stream_seq: Self::version_to_event_stream_version(version)?,
                     },
                 )
                 .await?
@@ -217,7 +217,7 @@ impl SqliteIssueRepository {
                     Event {
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event).to_string(),
-                        version: Self::version_to_event_stream_version(version)?,
+                        stream_seq: Self::version_to_event_stream_version(version)?,
                     },
                 )
                 .await?;

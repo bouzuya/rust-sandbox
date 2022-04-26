@@ -51,7 +51,7 @@ pub async fn save(
     if let Some(current_version) = current_version {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/update_event_stream.sql"))
-                .bind(i64::from(event.version))
+                .bind(i64::from(event.stream_seq))
                 .bind(event.stream_id.to_string())
                 .bind(i64::from(current_version));
         let result = query.execute(&mut *transaction).await?;
@@ -62,7 +62,7 @@ pub async fn save(
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_event_stream.sql"))
                 .bind(event.stream_id.to_string())
-                .bind(i64::from(event.version));
+                .bind(i64::from(event.stream_seq));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
             return Err(EventStoreError::InsertEventStream);
@@ -72,7 +72,7 @@ pub async fn save(
     let query: Query<Any, AnyArguments> =
         sqlx::query(include_str!("../../../sql/command/insert_event.sql"))
             .bind(event.stream_id.to_string())
-            .bind(i64::from(event.version))
+            .bind(i64::from(event.stream_seq))
             .bind(event.data);
     let result = query.execute(&mut *transaction).await?;
     if result.rows_affected() == 0 {
@@ -149,7 +149,7 @@ mod tests {
         let create_event = Event {
             stream_id: event_stream_id,
             data: r#"{"type":"issue_created"}"#.to_string(),
-            version,
+            stream_seq: version,
         };
         save(&mut transaction, None, create_event).await?;
 
@@ -171,7 +171,7 @@ mod tests {
         let update_event = Event {
             stream_id: event_stream_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
-            version: EventStreamVersion::from(2_u32),
+            stream_seq: EventStreamVersion::from(2_u32),
         };
         save(&mut transaction, Some(version), update_event).await?;
         transaction.commit().await?;

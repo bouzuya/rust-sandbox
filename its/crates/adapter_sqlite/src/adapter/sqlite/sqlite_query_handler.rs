@@ -148,7 +148,7 @@ impl SqliteQueryHandler {
                         event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                             &mut transaction,
                             event.stream_id,
-                            event.version,
+                            event.stream_seq,
                         )
                         .await?
                         .into_iter()
@@ -168,7 +168,7 @@ impl SqliteQueryHandler {
                         event_store::find_events_by_event_stream_id_and_version_less_than_equal(
                             &mut transaction,
                             event.stream_id,
-                            event.version,
+                            event.stream_seq,
                         )
                         .await?
                         .into_iter()
