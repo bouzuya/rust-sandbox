@@ -1,4 +1,5 @@
 mod event;
+mod event_id;
 mod event_row;
 mod event_store_error;
 mod event_stream_id;

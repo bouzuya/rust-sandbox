@@ -6,6 +6,8 @@ pub enum EventStoreError {
     InsertEventStream,
     #[error("InsertEvent")]
     InsertEvent,
+    #[error("InvalidEventId")]
+    InvalidEventId,
     #[error("InvalidEventStreamId")]
     InvalidEventStreamId,
     #[error("InvalidEventStreamVersion")]
