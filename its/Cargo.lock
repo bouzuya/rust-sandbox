@@ -335,6 +335,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "ulid",
 ]
 
 [[package]]

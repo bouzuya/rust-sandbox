@@ -10,6 +10,7 @@ limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time",
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.74"
 thiserror = "1.0.30"
+ulid = "0.5.0"
 
 [dev-dependencies]
 anyhow = "1.0.52"

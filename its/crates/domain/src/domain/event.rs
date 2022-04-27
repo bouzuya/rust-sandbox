@@ -10,6 +10,7 @@
 //! - 永続化に使用される
 //! - domain crate 以外に対して文字列との相互変換を提供する
 mod event_dto;
+mod event_id;
 mod issue_blocked;
 mod issue_created;
 mod issue_created_v2;
