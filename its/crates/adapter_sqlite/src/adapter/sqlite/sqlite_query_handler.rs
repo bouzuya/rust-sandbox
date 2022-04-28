@@ -81,8 +81,8 @@ impl From<sqlx::migrate::MigrateError> for QueryHandlerError {
     }
 }
 
-impl From<event_store::EventStoreError> for QueryHandlerError {
-    fn from(e: event_store::EventStoreError) -> Self {
+impl From<event_store::Error> for QueryHandlerError {
+    fn from(e: event_store::Error) -> Self {
         Self::Unknown(e.to_string())
     }
 }

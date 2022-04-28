@@ -1,7 +1,5 @@
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-pub enum EventStoreError {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
     #[error("InsertEventStream")]
     InsertEventStream,
     #[error("InsertEvent")]

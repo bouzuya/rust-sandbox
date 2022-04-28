@@ -16,14 +16,14 @@ use crate::adapter::sqlite::event_store::{Event, EventStreamSeq};
 use self::issue_id_row::IssueIdRow;
 
 use super::{
-    event_store::{self, EventStoreError, EventStreamId},
+    event_store::{self, EventStreamId},
     rdb_connection_pool::RdbConnectionPool,
 };
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
     #[error("EventStore")]
-    EventStore(#[from] EventStoreError),
+    EventStore(#[from] event_store::Error),
     #[error("InvalidDomainEvent")]
     InvalidDomainEvent(#[from] ParseDomainEventError),
     #[error("InvalidIssueId")]

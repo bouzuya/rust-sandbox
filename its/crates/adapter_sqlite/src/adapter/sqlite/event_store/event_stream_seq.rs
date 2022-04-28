@@ -1,4 +1,4 @@
-use super::event_store_error::EventStoreError;
+use super::error::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EventStreamSeq(u32);
@@ -16,10 +16,10 @@ impl From<u32> for EventStreamSeq {
 }
 
 impl TryFrom<i64> for EventStreamSeq {
-    type Error = EventStoreError;
+    type Error = Error;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        let value = u32::try_from(value).map_err(|_| EventStoreError::InvalidEventStreamVersion)?;
+        let value = u32::try_from(value).map_err(|_| Error::InvalidEventStreamVersion)?;
         Ok(Self(value))
     }
 }

@@ -2,7 +2,7 @@ use std::{fmt::Display, str::FromStr};
 
 use ulid::Ulid;
 
-use super::event_store_error::EventStoreError;
+use super::error::Error;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EventId(Ulid);
@@ -20,10 +20,10 @@ impl Display for EventId {
 }
 
 impl FromStr for EventId {
-    type Err = EventStoreError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let ulid = Ulid::from_str(s).map_err(|_| EventStoreError::InvalidEventId)?;
+        let ulid = Ulid::from_str(s).map_err(|_| Error::InvalidEventId)?;
         Ok(Self(ulid))
     }
 }

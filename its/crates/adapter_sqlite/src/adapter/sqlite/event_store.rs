@@ -1,14 +1,14 @@
+mod error;
 mod event;
 mod event_id;
 mod event_row;
-mod event_store_error;
 mod event_stream_id;
 mod event_stream_row;
 mod event_stream_seq;
 
+pub use self::error::Error;
 pub use self::event::Event;
 use self::event_row::EventRow;
-pub use self::event_store_error::EventStoreError;
 pub use self::event_stream_id::*;
 use self::event_stream_row::EventStreamRow;
 pub use self::event_stream_seq::*;
@@ -19,7 +19,7 @@ use sqlx::{any::AnyArguments, query::Query, Any};
 pub async fn find_events_by_event_stream_id(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
-) -> Result<Vec<Event>, EventStoreError> {
+) -> Result<Vec<Event>, Error> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id.sql"
     ))
@@ -33,7 +33,7 @@ pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
     version: EventStreamSeq,
-) -> Result<Vec<Event>, EventStoreError> {
+) -> Result<Vec<Event>, Error> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id_and_version_less_than_equal.sql"
     ))
@@ -48,7 +48,7 @@ pub async fn save(
     transaction: &mut Transaction<'_, Any>,
     current_version: Option<EventStreamSeq>,
     event: Event,
-) -> Result<(), EventStoreError> {
+) -> Result<(), Error> {
     if let Some(current_version) = current_version {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/update_event_stream.sql"))
@@ -57,7 +57,7 @@ pub async fn save(
                 .bind(i64::from(current_version));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
-            return Err(EventStoreError::UpdateEventStream);
+            return Err(Error::UpdateEventStream);
         }
     } else {
         let query: Query<Any, AnyArguments> =
@@ -66,7 +66,7 @@ pub async fn save(
                 .bind(i64::from(event.stream_seq));
         let result = query.execute(&mut *transaction).await?;
         if result.rows_affected() == 0 {
-            return Err(EventStoreError::InsertEventStream);
+            return Err(Error::InsertEventStream);
         }
     }
 
@@ -77,7 +77,7 @@ pub async fn save(
             .bind(event.data);
     let result = query.execute(&mut *transaction).await?;
     if result.rows_affected() == 0 {
-        return Err(EventStoreError::InsertEvent);
+        return Err(Error::InsertEvent);
     }
 
     Ok(())
@@ -85,7 +85,7 @@ pub async fn save(
 
 pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
-) -> Result<Vec<EventStreamId>, EventStoreError> {
+) -> Result<Vec<EventStreamId>, Error> {
     let event_stream_rows: Vec<EventStreamRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_event_streams.sql"
     ))
@@ -94,9 +94,7 @@ pub async fn find_event_stream_ids(
     Ok(event_stream_rows.into_iter().map(|row| row.id()).collect())
 }
 
-pub async fn find_events(
-    transaction: &mut Transaction<'_, Any>,
-) -> Result<Vec<Event>, EventStoreError> {
+pub async fn find_events(transaction: &mut Transaction<'_, Any>) -> Result<Vec<Event>, Error> {
     let event_rows: Vec<EventRow> =
         sqlx::query_as(include_str!("../../../sql/command/select_events.sql"))
             .fetch_all(&mut *transaction)
