@@ -16,10 +16,12 @@ pub use self::event_stream_seq::*;
 use sqlx::Transaction;
 use sqlx::{any::AnyArguments, query::Query, Any};
 
+pub type Result<T, E = Error> = core::result::Result<T, E>;
+
 pub async fn find_events_by_event_stream_id(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
-) -> Result<Vec<Event>, Error> {
+) -> Result<Vec<Event>> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id.sql"
     ))
@@ -33,7 +35,7 @@ pub async fn find_events_by_event_stream_id_and_version_less_than_equal(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
     version: EventStreamSeq,
-) -> Result<Vec<Event>, Error> {
+) -> Result<Vec<Event>> {
     let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_events_by_event_stream_id_and_version_less_than_equal.sql"
     ))
@@ -48,7 +50,7 @@ pub async fn save(
     transaction: &mut Transaction<'_, Any>,
     current_version: Option<EventStreamSeq>,
     event: Event,
-) -> Result<(), Error> {
+) -> Result<()> {
     if let Some(current_version) = current_version {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/update_event_stream.sql"))
@@ -85,7 +87,7 @@ pub async fn save(
 
 pub async fn find_event_stream_ids(
     transaction: &mut Transaction<'_, Any>,
-) -> Result<Vec<EventStreamId>, Error> {
+) -> Result<Vec<EventStreamId>> {
     let event_stream_rows: Vec<EventStreamRow> = sqlx::query_as(include_str!(
         "../../../sql/command/select_event_streams.sql"
     ))
@@ -94,7 +96,7 @@ pub async fn find_event_stream_ids(
     Ok(event_stream_rows.into_iter().map(|row| row.id()).collect())
 }
 
-pub async fn find_events(transaction: &mut Transaction<'_, Any>) -> Result<Vec<Event>, Error> {
+pub async fn find_events(transaction: &mut Transaction<'_, Any>) -> Result<Vec<Event>> {
     let event_rows: Vec<EventRow> =
         sqlx::query_as(include_str!("../../../sql/command/select_events.sql"))
             .fetch_all(&mut *transaction)
