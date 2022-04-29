@@ -108,14 +108,7 @@ pub async fn find_events(transaction: &mut Transaction<'_, Any>) -> Result<Vec<E
 mod tests {
     use std::str::FromStr;
 
-    use anyhow::Context;
-    use sqlx::{
-        any::AnyConnectOptions,
-        migrate::Migrator,
-        sqlite::{SqliteConnectOptions, SqliteJournalMode},
-        AnyPool,
-    };
-    use tempfile::tempdir;
+    use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
 
     use crate::adapter::sqlite::command_migration_source::CommandMigrationSource;
 
@@ -123,15 +116,7 @@ mod tests {
 
     #[tokio::test]
     async fn read_and_write_test() -> anyhow::Result<()> {
-        let temp_dir = tempdir()?;
-        let sqlite_path = temp_dir.path().join("command.sqlite");
-        let path = sqlite_path.as_path();
-        let options = SqliteConnectOptions::from_str(&format!(
-            "sqlite:{}?mode=rwc",
-            path.to_str().with_context(|| "invalid path")?
-        ))?
-        .journal_mode(SqliteJournalMode::Delete);
-        let options = AnyConnectOptions::from(options);
+        let options = AnyConnectOptions::from_str("sqlite::memory:")?;
         let pool = AnyPool::connect_with(options).await?;
 
         let migrator = Migrator::new(CommandMigrationSource::default()).await?;
