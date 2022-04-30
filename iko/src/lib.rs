@@ -29,19 +29,32 @@ mod tests {
             }
         }
 
-        let mut current_version = 0;
+        struct Migrator {
+            current_version: u32,
+        }
+        impl Migrator {
+            fn load_and_lock_current_version(&self) -> u32 {
+                self.current_version
+            }
+
+            fn save_and_unlock_current_version(&mut self, new_current_version: u32) {
+                self.current_version = new_current_version;
+            }
+        }
+
+        let mut migrator = Migrator { current_version: 0 };
+
         let migrations: Vec<Box<dyn Migration>> =
             vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
         for migration in migrations {
-            // load_and_lock_current_version()
-            if current_version + 1 != migration.version() {
+            let current_version = migrator.load_and_lock_current_version();
+            if current_version >= migration.version() {
                 continue;
             }
 
             migration.migrate();
 
-            // save_and_unlock_current_version()
-            current_version += 1;
+            migrator.save_and_unlock_current_version(migration.version());
         }
     }
 }
