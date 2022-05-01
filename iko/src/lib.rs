@@ -29,37 +29,64 @@ mod tests {
     }
 
     #[derive(Debug)]
-    struct MigrationStatus {
-        current_version: Version,
-        updated_version: Option<Version>,
-        value: MigrationStatusValue,
+    enum MigrationStatus {
+        InProgress {
+            current_version: Version,
+            updated_version: Version,
+        },
+        Completed {
+            current_version: Version,
+        },
     }
 
     impl MigrationStatus {
         fn complete(&self) -> Result<MigrationStatus, Error> {
-            if self.value != MigrationStatusValue::InProgress {
-                return Err(Error::NotInProgress);
+            match self {
+                MigrationStatus::InProgress {
+                    updated_version, ..
+                } => Ok(Self::Completed {
+                    current_version: *updated_version,
+                }),
+                MigrationStatus::Completed { .. } => Err(Error::NotInProgress),
             }
-            Ok(Self {
-                current_version: self.updated_version.unwrap(), // FIXME
-                updated_version: None,
-                value: MigrationStatusValue::Completed,
-            })
+        }
+
+        fn current_version(&self) -> Version {
+            *match self {
+                MigrationStatus::InProgress {
+                    current_version, ..
+                } => current_version,
+                MigrationStatus::Completed { current_version } => current_version,
+            }
         }
 
         fn in_progress(&self, version: Version) -> Result<MigrationStatus, Error> {
-            if self.value != MigrationStatusValue::Completed {
-                return Err(Error::AlreadyInProgress);
+            match self {
+                MigrationStatus::InProgress { .. } => Err(Error::AlreadyInProgress),
+                MigrationStatus::Completed { current_version } if current_version >= &version => {
+                    Err(Error::AlreadyApplied)
+                }
+                MigrationStatus::Completed { current_version } => Ok(Self::InProgress {
+                    current_version: *current_version,
+                    updated_version: version,
+                }),
             }
-            if self.current_version >= version {
-                return Err(Error::AlreadyApplied);
-            }
+        }
 
-            Ok(Self {
-                current_version: self.current_version,
-                updated_version: Some(version),
-                value: MigrationStatusValue::InProgress,
-            })
+        fn updated_version(&self) -> Option<Version> {
+            match self {
+                MigrationStatus::InProgress {
+                    updated_version, ..
+                } => Some(*updated_version),
+                MigrationStatus::Completed { .. } => None,
+            }
+        }
+
+        fn value(&self) -> MigrationStatusValue {
+            match self {
+                MigrationStatus::InProgress { .. } => MigrationStatusValue::InProgress,
+                MigrationStatus::Completed { .. } => MigrationStatusValue::Completed,
+            }
         }
     }
 
@@ -89,10 +116,16 @@ mod tests {
 
     impl From<MigrationStatusRow> for MigrationStatus {
         fn from(row: MigrationStatusRow) -> Self {
-            Self {
-                current_version: row.current_version(),
-                updated_version: row.updated_version(),
-                value: row.value(),
+            match row.value() {
+                MigrationStatusValue::InProgress => MigrationStatus::InProgress {
+                    current_version: row.current_version(),
+                    updated_version: row
+                        .updated_version()
+                        .expect("persisted updated_version is invalid"),
+                },
+                MigrationStatusValue::Completed => MigrationStatus::Completed {
+                    current_version: row.current_version(),
+                },
             }
         }
     }
@@ -150,11 +183,11 @@ mod tests {
             let mut transaction = self.pool.begin().await?;
 
             let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update.sql"))
-                .bind(i64::from(updated.current_version))
-                .bind(updated.updated_version.map(i64::from))
-                .bind(updated.value.to_string())
-                .bind(i64::from(current.current_version))
-                .bind(current.value.to_string());
+                .bind(i64::from(updated.current_version()))
+                .bind(updated.updated_version().map(i64::from))
+                .bind(updated.value().to_string())
+                .bind(i64::from(current.current_version()))
+                .bind(current.value().to_string());
             let rows_affected = query.execute(&mut transaction).await?.rows_affected();
             if rows_affected != 1 {
                 todo!();
@@ -196,7 +229,7 @@ mod tests {
         for migration in migrations {
             let migration_version = Version::from(migration.version());
             let migration_status = migrator.load().await?;
-            if migration_status.current_version >= migration_version {
+            if migration_status.current_version() >= migration_version {
                 continue;
             }
 
