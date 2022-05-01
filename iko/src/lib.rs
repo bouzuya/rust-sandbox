@@ -1,3 +1,5 @@
+mod version;
+
 #[cfg(test)]
 mod tests {
     use std::{fmt::Display, str::FromStr};
@@ -7,6 +9,8 @@ mod tests {
         query::Query,
         Any, AnyPool, FromRow, Row,
     };
+
+    use crate::version::Version;
 
     trait Migration {
         fn migrate(&self);
@@ -44,7 +48,7 @@ mod tests {
     }
 
     struct DatabaseVersion {
-        current_version: u32,
+        current_version: Version,
         migration_status: MigrationStatus,
     }
 
@@ -54,8 +58,8 @@ mod tests {
     }
 
     impl DatabaseVersionRow {
-        fn current_version(&self) -> u32 {
-            u32::try_from(self.current_version).expect("persisted current_version is invalid")
+        fn current_version(&self) -> Version {
+            Version::try_from(self.current_version).expect("persisted current_version is invalid")
         }
 
         fn migration_status(&self) -> MigrationStatus {
@@ -118,7 +122,7 @@ mod tests {
             Ok(DatabaseVersion::from(row))
         }
 
-        async fn update_to_completed(&self, new_current_version: u32) -> sqlx::Result<()> {
+        async fn update_to_completed(&self, new_current_version: Version) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
             let query: Query<Any, AnyArguments> = sqlx::query(
@@ -137,8 +141,8 @@ mod tests {
 
         async fn update_to_in_progress(
             &self,
-            old_current_version: u32,
-            new_current_version: u32,
+            old_current_version: Version,
+            new_current_version: Version,
         ) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
@@ -188,20 +192,21 @@ mod tests {
         let migrations: Vec<Box<dyn Migration>> =
             vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
         for migration in migrations {
+            let migration_version = Version::from(migration.version());
             let database_version = migrator.load().await?;
-            if database_version.current_version >= migration.version() {
+            if database_version.current_version >= migration_version {
                 continue;
             }
 
             migrator
-                .update_to_in_progress(database_version.current_version, migration.version())
+                .update_to_in_progress(database_version.current_version, migration_version)
                 .await?;
 
             migration.migrate();
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
-            migrator.update_to_completed(migration.version()).await?;
+            migrator.update_to_completed(migration_version).await?;
         }
 
         Ok(())
