@@ -18,10 +18,49 @@ mod tests {
         fn version(&self) -> u32;
     }
 
+    #[derive(Debug, thiserror::Error)]
+    enum Error {
+        #[error("already applied")]
+        AlreadyApplied,
+        #[error("already in progress")]
+        AlreadyInProgress,
+        #[error("not in progress")]
+        NotInProgress,
+    }
+
+    #[derive(Debug)]
     struct MigrationStatus {
         current_version: Version,
         updated_version: Option<Version>,
-        migration_status: MigrationStatusValue,
+        value: MigrationStatusValue,
+    }
+
+    impl MigrationStatus {
+        fn complete(&self) -> Result<MigrationStatus, Error> {
+            if self.value != MigrationStatusValue::InProgress {
+                return Err(Error::NotInProgress);
+            }
+            Ok(Self {
+                current_version: self.updated_version.unwrap(), // FIXME
+                updated_version: None,
+                value: MigrationStatusValue::Completed,
+            })
+        }
+
+        fn in_progress(&self, version: Version) -> Result<MigrationStatus, Error> {
+            if self.value != MigrationStatusValue::Completed {
+                return Err(Error::AlreadyInProgress);
+            }
+            if self.current_version >= version {
+                return Err(Error::AlreadyApplied);
+            }
+
+            Ok(Self {
+                current_version: self.current_version,
+                updated_version: Some(version),
+                value: MigrationStatusValue::InProgress,
+            })
+        }
     }
 
     struct MigrationStatusRow {
@@ -53,7 +92,7 @@ mod tests {
             Self {
                 current_version: row.current_version(),
                 updated_version: row.updated_version(),
-                migration_status: row.value(),
+                value: row.value(),
             }
         }
     }
@@ -175,15 +214,23 @@ mod tests {
                 continue;
             }
 
+            let in_progress = migration_status.in_progress(migration_version)?;
+
             migrator
-                .update_to_in_progress(migration_status.current_version, migration_version)
+                .update_to_in_progress(
+                    migration_status.current_version,
+                    in_progress.updated_version.unwrap(),
+                )
                 .await?;
 
             migration.migrate();
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
-            migrator.update_to_completed(migration_version).await?;
+            let completed = in_progress.complete()?;
+            migrator
+                .update_to_completed(completed.current_version)
+                .await?;
         }
 
         Ok(())
