@@ -43,6 +43,45 @@ mod tests {
         }
     }
 
+    struct DatabaseVersion {
+        current_version: u32,
+        migration_status: MigrationStatus,
+    }
+
+    struct DatabaseVersionRow {
+        current_version: i64,
+        migration_status: String,
+    }
+
+    impl DatabaseVersionRow {
+        fn current_version(&self) -> u32 {
+            u32::try_from(self.current_version).expect("persisted current_version is invalid")
+        }
+
+        fn migration_status(&self) -> MigrationStatus {
+            MigrationStatus::from_str(self.migration_status.as_str())
+                .expect("persisted migration_status is invalid")
+        }
+    }
+
+    impl From<DatabaseVersionRow> for DatabaseVersion {
+        fn from(row: DatabaseVersionRow) -> Self {
+            Self {
+                current_version: row.current_version(),
+                migration_status: row.migration_status(),
+            }
+        }
+    }
+
+    impl<'r> FromRow<'r, AnyRow> for DatabaseVersionRow {
+        fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
+            Ok(Self {
+                current_version: row.try_get("current_version")?,
+                migration_status: row.try_get("migration_status")?,
+            })
+        }
+    }
+
     struct Migrator {
         pool: AnyPool,
     }
@@ -67,30 +106,16 @@ mod tests {
             transaction.commit().await
         }
 
-        async fn load_current_version(&self) -> sqlx::Result<u32> {
+        async fn load(&self) -> sqlx::Result<DatabaseVersion> {
             let mut transaction = self.pool.begin().await?;
 
-            struct DatabaseVersionRow {
-                current_version: u32,
-                migration_status: MigrationStatus,
-            }
-            impl<'r> FromRow<'r, AnyRow> for DatabaseVersionRow {
-                fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-                    let current_version: i64 = row.get("current_version");
-                    Ok(Self {
-                        current_version: u32::try_from(current_version).unwrap(),
-                        migration_status: MigrationStatus::from_str(row.get("migration_status"))
-                            .unwrap(),
-                    })
-                }
-            }
             let row: DatabaseVersionRow =
                 sqlx::query_as("SELECT current_version, migration_status FROM database_version")
                     .fetch_one(&mut transaction)
                     .await?;
 
             transaction.rollback().await?;
-            Ok(row.current_version)
+            Ok(DatabaseVersion::from(row))
         }
 
         async fn update_to_completed(&self, new_current_version: u32) -> sqlx::Result<()> {
@@ -163,13 +188,13 @@ mod tests {
         let migrations: Vec<Box<dyn Migration>> =
             vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
         for migration in migrations {
-            let current_version = migrator.load_current_version().await?;
-            if current_version >= migration.version() {
+            let database_version = migrator.load().await?;
+            if database_version.current_version >= migration.version() {
                 continue;
             }
 
             migrator
-                .update_to_in_progress(current_version, migration.version())
+                .update_to_in_progress(database_version.current_version, migration.version())
                 .await?;
 
             migration.migrate();
