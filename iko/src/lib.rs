@@ -18,8 +18,9 @@ mod tests {
         fn version(&self) -> u32;
     }
 
-    struct DatabaseVersion {
+    struct MigrationStatus {
         current_version: Version,
+        updated_version: Option<Version>,
         migration_status: MigrationStatusValue,
     }
 
@@ -47,12 +48,11 @@ mod tests {
         }
     }
 
-    impl From<MigrationStatusRow> for DatabaseVersion {
+    impl From<MigrationStatusRow> for MigrationStatus {
         fn from(row: MigrationStatusRow) -> Self {
             Self {
                 current_version: row.current_version(),
-                // FIXME
-                // updated_version: row.updated_version(),
+                updated_version: row.updated_version(),
                 migration_status: row.value(),
             }
         }
@@ -92,7 +92,7 @@ mod tests {
             transaction.commit().await
         }
 
-        async fn load(&self) -> sqlx::Result<DatabaseVersion> {
+        async fn load(&self) -> sqlx::Result<MigrationStatus> {
             let mut transaction = self.pool.begin().await?;
 
             let row: MigrationStatusRow = sqlx::query_as(include_str!("./sql/select.sql"))
@@ -100,7 +100,7 @@ mod tests {
                 .await?;
 
             transaction.rollback().await?;
-            Ok(DatabaseVersion::from(row))
+            Ok(MigrationStatus::from(row))
         }
 
         async fn update_to_completed(&self, new_current_version: Version) -> sqlx::Result<()> {
