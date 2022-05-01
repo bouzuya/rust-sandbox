@@ -1,8 +1,9 @@
+mod migration_status_value;
 mod version;
 
 #[cfg(test)]
 mod tests {
-    use std::{fmt::Display, str::FromStr};
+    use std::str::FromStr;
 
     use sqlx::{
         any::{AnyArguments, AnyRow},
@@ -10,46 +11,16 @@ mod tests {
         Any, AnyPool, FromRow, Row,
     };
 
-    use crate::version::Version;
+    use crate::{migration_status_value::MigrationStatusValue, version::Version};
 
     trait Migration {
         fn migrate(&self);
         fn version(&self) -> u32;
     }
 
-    enum MigrationStatus {
-        InProgress,
-        Completed,
-    }
-
-    impl FromStr for MigrationStatus {
-        type Err = sqlx::Error;
-
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            Ok(match s {
-                "in_progress" => MigrationStatus::InProgress,
-                "completed" => MigrationStatus::Completed,
-                _ => todo!(),
-            })
-        }
-    }
-
-    impl Display for MigrationStatus {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(
-                f,
-                "{}",
-                match self {
-                    MigrationStatus::InProgress => "in_progress",
-                    MigrationStatus::Completed => "completed",
-                }
-            )
-        }
-    }
-
     struct DatabaseVersion {
         current_version: Version,
-        migration_status: MigrationStatus,
+        migration_status: MigrationStatusValue,
     }
 
     struct DatabaseVersionRow {
@@ -62,8 +33,8 @@ mod tests {
             Version::try_from(self.current_version).expect("persisted current_version is invalid")
         }
 
-        fn migration_status(&self) -> MigrationStatus {
-            MigrationStatus::from_str(self.migration_status.as_str())
+        fn migration_status(&self) -> MigrationStatusValue {
+            MigrationStatusValue::from_str(self.migration_status.as_str())
                 .expect("persisted migration_status is invalid")
         }
     }
@@ -128,9 +99,9 @@ mod tests {
             let query: Query<Any, AnyArguments> = sqlx::query(
                 "UPDATE database_version SET migration_status = $1 WHERE current_version = $2 AND migration_status = $3",
             )
-            .bind(MigrationStatus::Completed.to_string())
+            .bind(MigrationStatusValue::Completed.to_string())
             .bind(i64::from(new_current_version))
-            .bind(MigrationStatus::InProgress.to_string());
+            .bind(MigrationStatusValue::InProgress.to_string());
             let rows_affected = query.execute(&mut transaction).await?.rows_affected();
             if rows_affected != 1 {
                 todo!();
@@ -150,9 +121,9 @@ mod tests {
                 "UPDATE database_version SET current_version = $1, migration_status = $2 WHERE current_version = $3 AND migration_status = $4",
             )
             .bind(i64::from(new_current_version))
-            .bind(MigrationStatus::InProgress.to_string())
+            .bind(MigrationStatusValue::InProgress.to_string())
             .bind(i64::from(old_current_version))
-            .bind(MigrationStatus::Completed.to_string());
+            .bind(MigrationStatusValue::Completed.to_string());
             let rows_affected = query.execute(&mut transaction).await?.rows_affected();
             if rows_affected != 1 {
                 todo!();
