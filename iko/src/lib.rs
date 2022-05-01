@@ -70,11 +70,11 @@ mod tests {
         async fn create_table(&self) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
-            sqlx::query("CREATE TABLE database_version (current_version INTEGER PRIMARY KEY, migration_status VARCHAR(11) NOT NULL)")
+            sqlx::query(include_str!("./sql/create_table.sql"))
                 .execute(&mut transaction)
                 .await?;
 
-            sqlx::query("INSERT INTO database_version(current_version, migration_status) VALUES (0, 'completed')")
+            sqlx::query(include_str!("./sql/insert.sql"))
                 .execute(&mut transaction)
                 .await?;
 
@@ -84,10 +84,9 @@ mod tests {
         async fn load(&self) -> sqlx::Result<DatabaseVersion> {
             let mut transaction = self.pool.begin().await?;
 
-            let row: DatabaseVersionRow =
-                sqlx::query_as("SELECT current_version, migration_status FROM database_version")
-                    .fetch_one(&mut transaction)
-                    .await?;
+            let row: DatabaseVersionRow = sqlx::query_as(include_str!("./sql/select.sql"))
+                .fetch_one(&mut transaction)
+                .await?;
 
             transaction.rollback().await?;
             Ok(DatabaseVersion::from(row))
@@ -96,12 +95,10 @@ mod tests {
         async fn update_to_completed(&self, new_current_version: Version) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
-            let query: Query<Any, AnyArguments> = sqlx::query(
-                "UPDATE database_version SET migration_status = $1 WHERE current_version = $2 AND migration_status = $3",
-            )
-            .bind(MigrationStatusValue::Completed.to_string())
-            .bind(i64::from(new_current_version))
-            .bind(MigrationStatusValue::InProgress.to_string());
+            let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update3.sql"))
+                .bind(MigrationStatusValue::Completed.to_string())
+                .bind(i64::from(new_current_version))
+                .bind(MigrationStatusValue::InProgress.to_string());
             let rows_affected = query.execute(&mut transaction).await?.rows_affected();
             if rows_affected != 1 {
                 todo!();
@@ -117,13 +114,11 @@ mod tests {
         ) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
-            let query: Query<Any, AnyArguments> = sqlx::query(
-                "UPDATE database_version SET current_version = $1, migration_status = $2 WHERE current_version = $3 AND migration_status = $4",
-            )
-            .bind(i64::from(new_current_version))
-            .bind(MigrationStatusValue::InProgress.to_string())
-            .bind(i64::from(old_current_version))
-            .bind(MigrationStatusValue::Completed.to_string());
+            let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update4.sql"))
+                .bind(i64::from(new_current_version))
+                .bind(MigrationStatusValue::InProgress.to_string())
+                .bind(i64::from(old_current_version))
+                .bind(MigrationStatusValue::Completed.to_string());
             let rows_affected = query.execute(&mut transaction).await?.rows_affected();
             if rows_affected != 1 {
                 todo!();
