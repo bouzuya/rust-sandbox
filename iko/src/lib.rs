@@ -162,41 +162,6 @@ mod tests {
 
             transaction.commit().await
         }
-
-        async fn update_to_completed(&self, new_current_version: Version) -> sqlx::Result<()> {
-            let mut transaction = self.pool.begin().await?;
-
-            let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update3.sql"))
-                .bind(MigrationStatusValue::Completed.to_string())
-                .bind(i64::from(new_current_version))
-                .bind(MigrationStatusValue::InProgress.to_string());
-            let rows_affected = query.execute(&mut transaction).await?.rows_affected();
-            if rows_affected != 1 {
-                todo!();
-            }
-
-            transaction.commit().await
-        }
-
-        async fn update_to_in_progress(
-            &self,
-            old_current_version: Version,
-            new_current_version: Version,
-        ) -> sqlx::Result<()> {
-            let mut transaction = self.pool.begin().await?;
-
-            let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update4.sql"))
-                .bind(i64::from(new_current_version))
-                .bind(MigrationStatusValue::InProgress.to_string())
-                .bind(i64::from(old_current_version))
-                .bind(MigrationStatusValue::Completed.to_string());
-            let rows_affected = query.execute(&mut transaction).await?.rows_affected();
-            if rows_affected != 1 {
-                todo!();
-            }
-
-            transaction.commit().await
-        }
     }
 
     #[tokio::test]
@@ -236,22 +201,14 @@ mod tests {
             }
 
             let in_progress = migration_status.in_progress(migration_version)?;
-
-            migrator
-                .update_to_in_progress(
-                    migration_status.current_version,
-                    in_progress.updated_version.unwrap(),
-                )
-                .await?;
+            migrator.store(&migration_status, &in_progress).await?;
 
             migration.migrate();
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
             let completed = in_progress.complete()?;
-            migrator
-                .update_to_completed(completed.current_version)
-                .await?;
+            migrator.store(&in_progress, &completed).await?;
         }
 
         Ok(())
