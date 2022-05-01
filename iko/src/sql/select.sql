@@ -1,3 +1,4 @@
 SELECT current_version,
-  migration_status
-FROM database_version
+  updated_version,
+  value
+FROM migration_status

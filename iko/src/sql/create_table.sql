@@ -1,4 +1,5 @@
-CREATE TABLE database_version (
+CREATE TABLE migration_status (
   current_version INTEGER PRIMARY KEY,
-  migration_status VARCHAR(11) NOT NULL
+  updated_version INTEGER,
+  value VARCHAR(11) NOT NULL
 )

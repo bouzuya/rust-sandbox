@@ -23,36 +23,47 @@ mod tests {
         migration_status: MigrationStatusValue,
     }
 
-    struct DatabaseVersionRow {
+    struct MigrationStatusRow {
         current_version: i64,
-        migration_status: String,
+        updated_version: Option<i64>,
+        value: String,
     }
 
-    impl DatabaseVersionRow {
+    impl MigrationStatusRow {
         fn current_version(&self) -> Version {
             Version::try_from(self.current_version).expect("persisted current_version is invalid")
         }
 
-        fn migration_status(&self) -> MigrationStatusValue {
-            MigrationStatusValue::from_str(self.migration_status.as_str())
+        fn updated_version(&self) -> Option<Version> {
+            self.updated_version
+                .map(Version::try_from)
+                .transpose()
+                .expect("persisted updated_version is invalid")
+        }
+
+        fn value(&self) -> MigrationStatusValue {
+            MigrationStatusValue::from_str(self.value.as_str())
                 .expect("persisted migration_status is invalid")
         }
     }
 
-    impl From<DatabaseVersionRow> for DatabaseVersion {
-        fn from(row: DatabaseVersionRow) -> Self {
+    impl From<MigrationStatusRow> for DatabaseVersion {
+        fn from(row: MigrationStatusRow) -> Self {
             Self {
                 current_version: row.current_version(),
-                migration_status: row.migration_status(),
+                // FIXME
+                // updated_version: row.updated_version(),
+                migration_status: row.value(),
             }
         }
     }
 
-    impl<'r> FromRow<'r, AnyRow> for DatabaseVersionRow {
+    impl<'r> FromRow<'r, AnyRow> for MigrationStatusRow {
         fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
             Ok(Self {
                 current_version: row.try_get("current_version")?,
-                migration_status: row.try_get("migration_status")?,
+                updated_version: row.try_get("updated_version")?,
+                value: row.try_get("value")?,
             })
         }
     }
@@ -84,7 +95,7 @@ mod tests {
         async fn load(&self) -> sqlx::Result<DatabaseVersion> {
             let mut transaction = self.pool.begin().await?;
 
-            let row: DatabaseVersionRow = sqlx::query_as(include_str!("./sql/select.sql"))
+            let row: MigrationStatusRow = sqlx::query_as(include_str!("./sql/select.sql"))
                 .fetch_one(&mut transaction)
                 .await?;
 
@@ -159,13 +170,13 @@ mod tests {
             vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
         for migration in migrations {
             let migration_version = Version::from(migration.version());
-            let database_version = migrator.load().await?;
-            if database_version.current_version >= migration_version {
+            let migration_status = migrator.load().await?;
+            if migration_status.current_version >= migration_version {
                 continue;
             }
 
             migrator
-                .update_to_in_progress(database_version.current_version, migration_version)
+                .update_to_in_progress(migration_status.current_version, migration_version)
                 .await?;
 
             migration.migrate();

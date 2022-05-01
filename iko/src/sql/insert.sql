@@ -1,2 +1,6 @@
-INSERT INTO database_version(current_version, migration_status)
-VALUES (0, 'completed')
+INSERT INTO migration_status(
+    current_version,
+    updated_version,
+    value
+  )
+VALUES (0, NULL, 'completed')

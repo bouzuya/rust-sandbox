@@ -1,4 +1,4 @@
-UPDATE database_version
-SET migration_status = $1
+UPDATE migration_status
+SET value = $1
 WHERE current_version = $2
-  AND migration_status = $3
+  AND value = $3
