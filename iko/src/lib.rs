@@ -142,6 +142,27 @@ mod tests {
             Ok(MigrationStatus::from(row))
         }
 
+        async fn store(
+            &self,
+            current: &MigrationStatus,
+            updated: &MigrationStatus,
+        ) -> sqlx::Result<()> {
+            let mut transaction = self.pool.begin().await?;
+
+            let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update.sql"))
+                .bind(i64::from(updated.current_version))
+                .bind(updated.updated_version.map(i64::from))
+                .bind(updated.value.to_string())
+                .bind(i64::from(current.current_version))
+                .bind(current.value.to_string());
+            let rows_affected = query.execute(&mut transaction).await?.rows_affected();
+            if rows_affected != 1 {
+                todo!();
+            }
+
+            transaction.commit().await
+        }
+
         async fn update_to_completed(&self, new_current_version: Version) -> sqlx::Result<()> {
             let mut transaction = self.pool.begin().await?;
 
