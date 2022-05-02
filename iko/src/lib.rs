@@ -6,6 +6,7 @@ mod version;
 mod tests {
     use std::str::FromStr;
 
+    use async_trait::async_trait;
     use sqlx::{
         any::{AnyArguments, AnyRow},
         query::Query,
@@ -17,8 +18,9 @@ mod tests {
         version::Version,
     };
 
+    #[async_trait]
     trait Migration {
-        fn migrate(&self);
+        async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()>;
         fn version(&self) -> u32;
     }
 
@@ -132,9 +134,11 @@ mod tests {
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
         struct Migration1 {}
+        #[async_trait]
         impl Migration for Migration1 {
-            fn migrate(&self) {
+            async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
                 println!("migrate1");
+                Ok(())
             }
 
             fn version(&self) -> u32 {
@@ -143,9 +147,11 @@ mod tests {
         }
 
         struct Migration2 {}
+        #[async_trait]
         impl Migration for Migration2 {
-            fn migrate(&self) {
+            async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
                 println!("migrate2");
+                Ok(())
             }
 
             fn version(&self) -> u32 {
@@ -168,7 +174,7 @@ mod tests {
             let in_progress = migration_status.in_progress(migration_version)?;
             migrator.store(&migration_status, &in_progress).await?;
 
-            migration.migrate();
+            migration.migrate(migrator.pool.clone());
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
