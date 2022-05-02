@@ -1,3 +1,4 @@
+mod migration_status;
 mod migration_status_value;
 mod version;
 
@@ -11,83 +12,14 @@ mod tests {
         Any, AnyPool, FromRow, Row,
     };
 
-    use crate::{migration_status_value::MigrationStatusValue, version::Version};
+    use crate::{
+        migration_status::MigrationStatus, migration_status_value::MigrationStatusValue,
+        version::Version,
+    };
 
     trait Migration {
         fn migrate(&self);
         fn version(&self) -> u32;
-    }
-
-    #[derive(Debug, thiserror::Error)]
-    enum Error {
-        #[error("already applied")]
-        AlreadyApplied,
-        #[error("already in progress")]
-        AlreadyInProgress,
-        #[error("not in progress")]
-        NotInProgress,
-    }
-
-    #[derive(Debug)]
-    enum MigrationStatus {
-        InProgress {
-            current_version: Version,
-            updated_version: Version,
-        },
-        Completed {
-            current_version: Version,
-        },
-    }
-
-    impl MigrationStatus {
-        fn complete(&self) -> Result<MigrationStatus, Error> {
-            match self {
-                MigrationStatus::InProgress {
-                    updated_version, ..
-                } => Ok(Self::Completed {
-                    current_version: *updated_version,
-                }),
-                MigrationStatus::Completed { .. } => Err(Error::NotInProgress),
-            }
-        }
-
-        fn current_version(&self) -> Version {
-            *match self {
-                MigrationStatus::InProgress {
-                    current_version, ..
-                } => current_version,
-                MigrationStatus::Completed { current_version } => current_version,
-            }
-        }
-
-        fn in_progress(&self, version: Version) -> Result<MigrationStatus, Error> {
-            match self {
-                MigrationStatus::InProgress { .. } => Err(Error::AlreadyInProgress),
-                MigrationStatus::Completed { current_version } if current_version >= &version => {
-                    Err(Error::AlreadyApplied)
-                }
-                MigrationStatus::Completed { current_version } => Ok(Self::InProgress {
-                    current_version: *current_version,
-                    updated_version: version,
-                }),
-            }
-        }
-
-        fn updated_version(&self) -> Option<Version> {
-            match self {
-                MigrationStatus::InProgress {
-                    updated_version, ..
-                } => Some(*updated_version),
-                MigrationStatus::Completed { .. } => None,
-            }
-        }
-
-        fn value(&self) -> MigrationStatusValue {
-            match self {
-                MigrationStatus::InProgress { .. } => MigrationStatusValue::InProgress,
-                MigrationStatus::Completed { .. } => MigrationStatusValue::Completed,
-            }
-        }
     }
 
     struct MigrationStatusRow {
