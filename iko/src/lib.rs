@@ -138,7 +138,14 @@ mod tests {
         impl Migration for Migration1 {
             async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
                 println!("migrate1");
-                Ok(())
+
+                let mut transaction = pool.begin().await?;
+
+                sqlx::query("CREATE TABLE tbl1 (col1 INTEGER PRIMARY KEY)")
+                    .execute(&mut transaction)
+                    .await?;
+
+                transaction.commit().await
             }
 
             fn version(&self) -> u32 {
@@ -151,7 +158,14 @@ mod tests {
         impl Migration for Migration2 {
             async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
                 println!("migrate2");
-                Ok(())
+
+                let mut transaction = pool.begin().await?;
+
+                sqlx::query("INSERT INTO tbl1 (col1) VALUES (123)")
+                    .execute(&mut transaction)
+                    .await?;
+
+                transaction.commit().await
             }
 
             fn version(&self) -> u32 {
@@ -174,7 +188,7 @@ mod tests {
             let in_progress = migration_status.in_progress(migration_version)?;
             migrator.store(&migration_status, &in_progress).await?;
 
-            migration.migrate(migrator.pool.clone());
+            migration.migrate(migrator.pool.clone()).await?;
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
