@@ -74,6 +74,14 @@ mod tests {
         }
     }
 
+    #[derive(Debug, thiserror::Error)]
+    pub enum Error {
+        #[error("migration status error: {0}")]
+        MigrationStatusError(#[from] crate::migration_status::Error),
+        #[error("sqlx error: {0}")]
+        SqlxError(#[from] sqlx::Error),
+    }
+
     struct Migrator {
         pool: AnyPool,
     }
@@ -107,6 +115,27 @@ mod tests {
 
             transaction.rollback().await?;
             Ok(MigrationStatus::from(row))
+        }
+
+        async fn migrate(&self, migrations: &[Box<dyn Migration>]) -> Result<(), Error> {
+            for migration in migrations {
+                let migration_version = Version::from(migration.version());
+                let migration_status = self.load().await?;
+                if migration_status.current_version() >= migration_version {
+                    continue;
+                }
+
+                let in_progress = migration_status.in_progress(migration_version)?;
+                self.store(&migration_status, &in_progress).await?;
+
+                migration.migrate(self.pool.clone()).await?;
+
+                // ここで失敗した場合は migration_status = in_progress で残る
+                // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
+                let completed = in_progress.complete()?;
+                self.store(&in_progress, &completed).await?;
+            }
+            Ok(())
         }
 
         async fn store(
@@ -178,23 +207,7 @@ mod tests {
 
         let migrations: Vec<Box<dyn Migration>> =
             vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
-        for migration in migrations {
-            let migration_version = Version::from(migration.version());
-            let migration_status = migrator.load().await?;
-            if migration_status.current_version() >= migration_version {
-                continue;
-            }
-
-            let in_progress = migration_status.in_progress(migration_version)?;
-            migrator.store(&migration_status, &in_progress).await?;
-
-            migration.migrate(migrator.pool.clone()).await?;
-
-            // ここで失敗した場合は migration_status = in_progress で残る
-            // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
-            let completed = in_progress.complete()?;
-            migrator.store(&in_progress, &completed).await?;
-        }
+        migrator.migrate(&migrations).await?;
 
         Ok(())
     }
