@@ -1,4 +1,8 @@
-use crate::{migration_status_value::MigrationStatusValue, version::Version};
+mod value;
+
+use crate::version::Version;
+
+pub use self::value::Value;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -64,10 +68,10 @@ impl MigrationStatus {
         }
     }
 
-    pub fn value(&self) -> MigrationStatusValue {
+    pub fn value(&self) -> Value {
         match self {
-            MigrationStatus::InProgress { .. } => MigrationStatusValue::InProgress,
-            MigrationStatus::Completed { .. } => MigrationStatusValue::Completed,
+            MigrationStatus::InProgress { .. } => Value::InProgress,
+            MigrationStatus::Completed { .. } => Value::Completed,
         }
     }
 }
@@ -83,17 +87,17 @@ mod tests {
         };
         assert_eq!(initial.current_version(), Version::from(0));
         assert_eq!(initial.updated_version(), None);
-        assert_eq!(initial.value(), MigrationStatusValue::Completed);
+        assert_eq!(initial.value(), Value::Completed);
 
         let in_progress = initial.in_progress(Version::from(1))?;
         assert_eq!(in_progress.current_version(), Version::from(0));
         assert_eq!(in_progress.updated_version(), Some(Version::from(1)));
-        assert_eq!(in_progress.value(), MigrationStatusValue::InProgress);
+        assert_eq!(in_progress.value(), Value::InProgress);
 
         let completed = in_progress.complete()?;
         assert_eq!(completed.current_version(), Version::from(1));
         assert_eq!(completed.updated_version(), None);
-        assert_eq!(completed.value(), MigrationStatusValue::Completed);
+        assert_eq!(completed.value(), Value::Completed);
         Ok(())
     }
 

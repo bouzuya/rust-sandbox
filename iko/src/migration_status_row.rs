@@ -3,7 +3,7 @@ use std::str::FromStr;
 use sqlx::{any::AnyRow, FromRow, Row};
 
 use crate::{
-    migration_status::MigrationStatus, migration_status_value::MigrationStatusValue,
+    migration_status::{MigrationStatus, Value},
     version::Version,
 };
 
@@ -25,22 +25,21 @@ impl MigrationStatusRow {
             .expect("persisted updated_version is invalid")
     }
 
-    fn value(&self) -> MigrationStatusValue {
-        MigrationStatusValue::from_str(self.value.as_str())
-            .expect("persisted migration_status is invalid")
+    fn value(&self) -> Value {
+        Value::from_str(self.value.as_str()).expect("persisted migration_status is invalid")
     }
 }
 
 impl From<MigrationStatusRow> for MigrationStatus {
     fn from(row: MigrationStatusRow) -> Self {
         match row.value() {
-            MigrationStatusValue::InProgress => MigrationStatus::InProgress {
+            Value::InProgress => MigrationStatus::InProgress {
                 current_version: row.current_version(),
                 updated_version: row
                     .updated_version()
                     .expect("persisted updated_version is invalid"),
             },
-            MigrationStatusValue::Completed => MigrationStatus::Completed {
+            Value::Completed => MigrationStatus::Completed {
                 current_version: row.current_version(),
             },
         }

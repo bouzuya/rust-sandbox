@@ -44,3 +44,11 @@ pub async fn update_migration_status(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test() {
+        // TODO
+    }
+}
