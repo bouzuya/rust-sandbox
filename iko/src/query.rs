@@ -1,6 +1,10 @@
+mod migration_status_row;
+
 use sqlx::{any::AnyArguments, query::Query, Any, Transaction};
 
-use crate::{migration_status::MigrationStatus, migration_status_row::MigrationStatusRow};
+use crate::migration_status::MigrationStatus;
+
+use self::migration_status_row::MigrationStatusRow;
 
 pub async fn create_migration_status_table(
     transaction: &mut Transaction<'_, Any>,
