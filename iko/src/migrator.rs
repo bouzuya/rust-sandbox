@@ -1,9 +1,7 @@
 use async_trait::async_trait;
-use sqlx::{any::AnyArguments, query::Query, Any, AnyPool};
+use sqlx::AnyPool;
 
-use crate::{
-    migration_status::MigrationStatus, migration_status_row::MigrationStatusRow, version::Version,
-};
+use crate::{query, version::Version};
 
 #[async_trait]
 pub trait Migration {
@@ -38,69 +36,39 @@ impl Migrator {
 
     pub async fn create_table(&self) -> sqlx::Result<()> {
         let mut transaction = self.pool.begin().await?;
-
-        sqlx::query(include_str!("./sql/create_table.sql"))
-            .execute(&mut transaction)
-            .await?;
-
-        sqlx::query(include_str!("./sql/insert.sql"))
-            .execute(&mut transaction)
-            .await?;
-
+        query::create_migration_status_table(&mut transaction).await?;
+        query::insert_migration_status(&mut transaction).await?;
         transaction.commit().await
     }
 
     pub async fn migrate(&self) -> Result<(), Error> {
         for migration in self.migrations.iter() {
             let migration_version = Version::from(migration.version());
-            let migration_status = self.load().await?;
+
+            let mut transaction = self.pool.begin().await?;
+            let migration_status = query::select_migration_status(&mut transaction).await?;
+            transaction.commit().await?;
+
             if migration_status.current_version() >= migration_version {
                 continue;
             }
 
+            let mut transaction = self.pool.begin().await?;
             let in_progress = migration_status.in_progress(migration_version)?;
-            self.store(&migration_status, &in_progress).await?;
+            query::update_migration_status(&mut transaction, &migration_status, &in_progress)
+                .await?;
+            transaction.commit().await?;
 
             migration.migrate(self.pool.clone()).await?;
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
+            let mut transaction = self.pool.begin().await?;
             let completed = in_progress.complete()?;
-            self.store(&in_progress, &completed).await?;
+            query::update_migration_status(&mut transaction, &in_progress, &completed).await?;
+            transaction.commit().await?;
         }
         Ok(())
-    }
-
-    async fn load(&self) -> sqlx::Result<MigrationStatus> {
-        let mut transaction = self.pool.begin().await?;
-
-        let row: MigrationStatusRow = sqlx::query_as(include_str!("./sql/select.sql"))
-            .fetch_one(&mut transaction)
-            .await?;
-
-        transaction.rollback().await?;
-        Ok(MigrationStatus::from(row))
-    }
-
-    async fn store(
-        &self,
-        current: &MigrationStatus,
-        updated: &MigrationStatus,
-    ) -> sqlx::Result<()> {
-        let mut transaction = self.pool.begin().await?;
-
-        let query: Query<Any, AnyArguments> = sqlx::query(include_str!("./sql/update.sql"))
-            .bind(i64::from(updated.current_version()))
-            .bind(updated.updated_version().map(i64::from))
-            .bind(updated.value().to_string())
-            .bind(i64::from(current.current_version()))
-            .bind(current.value().to_string());
-        let rows_affected = query.execute(&mut transaction).await?.rows_affected();
-        if rows_affected != 1 {
-            todo!();
-        }
-
-        transaction.commit().await
     }
 }
 
