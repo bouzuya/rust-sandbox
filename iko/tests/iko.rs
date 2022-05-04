@@ -45,12 +45,11 @@ async fn test() -> anyhow::Result<()> {
         }
     }
 
-    let migrator = Migrator::new("sqlite::memory:")?;
+    let mut migrator = Migrator::new("sqlite::memory:")?;
     migrator.create_table().await?;
-
-    let migrations: Vec<Box<dyn Migration>> =
-        vec![Box::new(Migration1 {}), Box::new(Migration2 {})];
-    migrator.migrate(&migrations).await?;
+    migrator.add_migration(Migration1 {});
+    migrator.add_migration(Migration2 {});
+    migrator.migrate().await?;
 
     Ok(())
 }

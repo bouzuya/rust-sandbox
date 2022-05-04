@@ -21,13 +21,19 @@ pub enum Error {
 
 pub struct Migrator {
     pool: AnyPool,
+    migrations: Vec<Box<dyn Migration>>,
 }
 
 impl Migrator {
     pub fn new(uri: &str) -> sqlx::Result<Self> {
         Ok(Self {
             pool: AnyPool::connect_lazy(uri)?,
+            migrations: vec![],
         })
+    }
+
+    pub fn add_migration(&mut self, migration: impl Migration + 'static) {
+        self.migrations.push(Box::new(migration));
     }
 
     pub async fn create_table(&self) -> sqlx::Result<()> {
@@ -44,8 +50,8 @@ impl Migrator {
         transaction.commit().await
     }
 
-    pub async fn migrate(&self, migrations: &[Box<dyn Migration>]) -> Result<(), Error> {
-        for migration in migrations {
+    pub async fn migrate(&self) -> Result<(), Error> {
+        for migration in self.migrations.iter() {
             let migration_version = Version::from(migration.version());
             let migration_status = self.load().await?;
             if migration_status.current_version() >= migration_version {
