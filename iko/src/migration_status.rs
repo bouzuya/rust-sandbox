@@ -1,8 +1,8 @@
 mod value;
-
-use crate::version::Version;
+mod version;
 
 pub use self::value::Value;
+pub use self::version::Version;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {

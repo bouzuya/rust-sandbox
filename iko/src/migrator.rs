@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use sqlx::AnyPool;
 
-use crate::{query, version::Version};
+use crate::{migration_status::Version, query};
 
 #[async_trait]
 pub trait Migration {

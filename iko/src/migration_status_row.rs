@@ -2,10 +2,7 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use crate::{
-    migration_status::{MigrationStatus, Value},
-    version::Version,
-};
+use crate::migration_status::{MigrationStatus, Value, Version};
 
 pub struct MigrationStatusRow {
     current_version: i64,
