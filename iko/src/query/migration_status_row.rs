@@ -1,9 +1,10 @@
 use std::str::FromStr;
 
-use sqlx::{any::AnyRow, FromRow, Row};
+use sqlx::FromRow;
 
 use crate::migration_status::{MigrationStatus, Value, Version};
 
+#[derive(Debug, FromRow)]
 pub struct MigrationStatusRow {
     current_version: i64,
     updated_version: Option<i64>,
@@ -43,20 +44,37 @@ impl From<MigrationStatusRow> for MigrationStatus {
     }
 }
 
-impl<'r> FromRow<'r, AnyRow> for MigrationStatusRow {
-    fn from_row(row: &'r AnyRow) -> Result<Self, sqlx::Error> {
-        Ok(Self {
-            current_version: row.try_get("current_version")?,
-            updated_version: row.try_get("updated_version")?,
-            value: row.try_get("value")?,
-        })
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::migration_status::{MigrationStatus, Version};
+
+    use super::MigrationStatusRow;
+
     #[test]
-    fn test() {
-        // TODO
+    fn migration_status_conversion_test() {
+        let initial = MigrationStatusRow {
+            current_version: 0,
+            updated_version: None,
+            value: "completed".to_string(),
+        };
+        assert_eq!(
+            MigrationStatus::from(initial),
+            MigrationStatus::Completed {
+                current_version: Version::from(0),
+            }
+        );
+
+        let in_progress = MigrationStatusRow {
+            current_version: 0,
+            updated_version: Some(1),
+            value: "in_progress".to_string(),
+        };
+        assert_eq!(
+            MigrationStatus::from(in_progress),
+            MigrationStatus::InProgress {
+                current_version: Version::from(0),
+                updated_version: Version::from(1),
+            }
+        );
     }
 }
