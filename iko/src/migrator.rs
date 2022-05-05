@@ -1,13 +1,8 @@
-use async_trait::async_trait;
+use std::{future::Future, pin::Pin};
+
 use sqlx::AnyPool;
 
 use crate::{migration_status::Version, query};
-
-#[async_trait]
-pub trait Migration {
-    async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()>;
-    fn version(&self) -> u32;
-}
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -17,9 +12,11 @@ pub enum Error {
     SqlxError(#[from] sqlx::Error),
 }
 
+type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = sqlx::Result<()>>>>>;
+
 pub struct Migrator {
     pool: AnyPool,
-    migrations: Vec<Box<dyn Migration>>,
+    migrations: Vec<(u32, Migrate)>,
 }
 
 impl Migrator {
@@ -30,8 +27,14 @@ impl Migrator {
         })
     }
 
-    pub fn add_migration(&mut self, migration: impl Migration + 'static) {
-        self.migrations.push(Box::new(migration));
+    pub fn add_migration<Fut>(&mut self, version: u32, migrate: impl Fn(AnyPool) -> Fut + 'static)
+    where
+        Fut: Future<Output = sqlx::Result<()>> + 'static,
+    {
+        self.migrations.push((
+            version,
+            Box::new(move |pool: AnyPool| Box::pin(migrate(pool))),
+        ));
     }
 
     pub async fn create_table(&self) -> sqlx::Result<()> {
@@ -42,8 +45,8 @@ impl Migrator {
     }
 
     pub async fn migrate(&self) -> Result<(), Error> {
-        for migration in self.migrations.iter() {
-            let migration_version = Version::from(migration.version());
+        for (version, migrate) in self.migrations.iter() {
+            let migration_version = Version::from(*version);
 
             let mut transaction = self.pool.begin().await?;
             let migration_status = query::select_migration_status(&mut transaction).await?;
@@ -59,7 +62,7 @@ impl Migrator {
                 .await?;
             transaction.commit().await?;
 
-            migration.migrate(self.pool.clone()).await?;
+            migrate(self.pool.clone()).await?;
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう

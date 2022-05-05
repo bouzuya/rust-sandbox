@@ -1,54 +1,36 @@
-use async_trait::async_trait;
+use iko::Migrator;
 use sqlx::AnyPool;
-
-use iko::{Migration, Migrator};
 
 #[tokio::test]
 async fn test() -> anyhow::Result<()> {
-    struct Migration1 {}
-    #[async_trait]
-    impl Migration for Migration1 {
-        async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
-            println!("migrate1");
+    async fn migrate1(pool: AnyPool) -> sqlx::Result<()> {
+        println!("migrate1");
 
-            let mut transaction = pool.begin().await?;
+        let mut transaction = pool.begin().await?;
 
-            sqlx::query("CREATE TABLE tbl1 (col1 INTEGER PRIMARY KEY)")
-                .execute(&mut transaction)
-                .await?;
+        sqlx::query("CREATE TABLE tbl1 (col1 INTEGER PRIMARY KEY)")
+            .execute(&mut transaction)
+            .await?;
 
-            transaction.commit().await
-        }
-
-        fn version(&self) -> u32 {
-            1
-        }
+        transaction.commit().await
     }
 
-    struct Migration2 {}
-    #[async_trait]
-    impl Migration for Migration2 {
-        async fn migrate(&self, pool: AnyPool) -> sqlx::Result<()> {
-            println!("migrate2");
+    async fn migrate2(pool: AnyPool) -> sqlx::Result<()> {
+        println!("migrate2");
 
-            let mut transaction = pool.begin().await?;
+        let mut transaction = pool.begin().await?;
 
-            sqlx::query("INSERT INTO tbl1 (col1) VALUES (123)")
-                .execute(&mut transaction)
-                .await?;
+        sqlx::query("INSERT INTO tbl1 (col1) VALUES (123)")
+            .execute(&mut transaction)
+            .await?;
 
-            transaction.commit().await
-        }
-
-        fn version(&self) -> u32 {
-            2
-        }
+        transaction.commit().await
     }
 
     let mut migrator = Migrator::new("sqlite::memory:")?;
     migrator.create_table().await?;
-    migrator.add_migration(Migration1 {});
-    migrator.add_migration(Migration2 {});
+    migrator.add_migration(1, migrate1);
+    migrator.add_migration(2, migrate2);
     migrator.migrate().await?;
 
     Ok(())
