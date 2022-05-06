@@ -7,9 +7,11 @@ use crate::{migration_status::Version, query};
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("migration status error: {0}")]
-    MigrationStatusError(#[from] crate::migration_status::Error),
+    MigrationStatus(#[from] crate::migration_status::Error),
     #[error("sqlx error: {0}")]
-    SqlxError(#[from] sqlx::Error),
+    Sqlx(#[from] sqlx::Error),
+    #[error("no rows to update")]
+    Query(#[from] query::Error),
 }
 
 type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = sqlx::Result<()>>>>>;
@@ -37,11 +39,12 @@ impl Migrator {
         ));
     }
 
-    pub async fn create_table(&self) -> sqlx::Result<()> {
+    pub async fn create_table(&self) -> Result<(), Error> {
         let mut transaction = self.pool.begin().await?;
         query::create_migration_status_table(&mut transaction).await?;
         query::insert_migration_status(&mut transaction).await?;
-        transaction.commit().await
+        transaction.commit().await?;
+        Ok(())
     }
 
     pub async fn migrate(&self) -> Result<(), Error> {
