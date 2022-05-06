@@ -39,15 +39,8 @@ impl Migrator {
         ));
     }
 
-    pub async fn create_table(&self) -> Result<(), Error> {
-        let mut transaction = self.pool.begin().await?;
-        query::create_migration_status_table(&mut transaction).await?;
-        query::insert_migration_status(&mut transaction).await?;
-        transaction.commit().await?;
-        Ok(())
-    }
-
     pub async fn migrate(&self) -> Result<(), Error> {
+        self.create_table().await?;
         for (version, migrate) in self.migrations.iter() {
             let migration_version = Version::from(*version);
 
@@ -74,6 +67,14 @@ impl Migrator {
             query::update_migration_status(&mut transaction, &in_progress, &completed).await?;
             transaction.commit().await?;
         }
+        Ok(())
+    }
+
+    async fn create_table(&self) -> Result<(), Error> {
+        let mut transaction = self.pool.begin().await?;
+        query::create_migration_status_table(&mut transaction).await?;
+        query::insert_migration_status(&mut transaction).await?;
+        transaction.commit().await?;
         Ok(())
     }
 }

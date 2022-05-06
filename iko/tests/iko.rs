@@ -28,7 +28,6 @@ async fn test() -> anyhow::Result<()> {
     }
 
     let mut migrator = Migrator::new("sqlite::memory:")?;
-    migrator.create_table().await?;
     migrator.add_migration(1, migrate1);
     migrator.add_migration(2, migrate2);
     migrator.migrate().await?;
