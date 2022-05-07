@@ -3,4 +3,10 @@ INSERT INTO migration_status(
     updated_version,
     value
   )
-VALUES (0, NULL, 'completed')
+SELECT 0,
+  NULL,
+  'completed'
+WHERE NOT EXISTS (
+    SELECT current_version
+    FROM migration_status
+  )
