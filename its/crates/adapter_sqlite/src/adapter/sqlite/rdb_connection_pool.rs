@@ -33,6 +33,9 @@ impl RdbConnectionPool {
             .await
             .map_err(|_| IssueRepositoryError::IO)?;
 
+        let iko = iko::Migrator::new(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
+        iko.migrate().await.map_err(|_| IssueRepositoryError::IO)?;
+
         Ok(Self(pool))
     }
 
