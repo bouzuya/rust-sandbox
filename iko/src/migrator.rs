@@ -10,8 +10,10 @@ pub enum Error {
     MigrationStatus(#[from] crate::migration_status::Error),
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
-    #[error("no rows to update")]
+    #[error("no rows to update: {0}")]
     Query(#[from] query::Error),
+    #[error("version 0 is reserved")]
+    ReservedVersion,
 }
 
 type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = sqlx::Result<()>>>>>;
@@ -29,14 +31,22 @@ impl Migrator {
         })
     }
 
-    pub fn add_migration<Fut>(&mut self, version: u32, migrate: impl Fn(AnyPool) -> Fut + 'static)
+    pub fn add_migration<Fut>(
+        &mut self,
+        version: u32,
+        migrate: impl Fn(AnyPool) -> Fut + 'static,
+    ) -> Result<(), Error>
     where
         Fut: Future<Output = sqlx::Result<()>> + 'static,
     {
+        if version == 0 {
+            return Err(Error::ReservedVersion);
+        }
         self.migrations.push((
             version,
             Box::new(move |pool: AnyPool| Box::pin(migrate(pool))),
         ));
+        Ok(())
     }
 
     pub async fn migrate(&self) -> Result<(), Error> {
