@@ -1,8 +1,8 @@
-use std::{future::Future, pin::Pin};
+use std::future::Future;
 
 use sqlx::AnyPool;
 
-use crate::{migration_status::Version, query};
+use crate::{migration::Migration, query};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -16,11 +16,9 @@ pub enum Error {
     ReservedVersion,
 }
 
-type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = sqlx::Result<()>>>>>;
-
 pub struct Migrator {
     pool: AnyPool,
-    migrations: Vec<(u32, Migrate)>,
+    migrations: Vec<Migration>,
 }
 
 impl Migrator {
@@ -42,33 +40,28 @@ impl Migrator {
         if version == 0 {
             return Err(Error::ReservedVersion);
         }
-        self.migrations.push((
-            version,
-            Box::new(move |pool: AnyPool| Box::pin(migrate(pool))),
-        ));
+        self.migrations.push(Migration::from((version, migrate)));
         Ok(())
     }
 
     pub async fn migrate(&self) -> Result<(), Error> {
         self.create_table().await?;
-        for (version, migrate) in self.migrations.iter() {
-            let migration_version = Version::from(*version);
-
+        for migration in self.migrations.iter() {
             let mut transaction = self.pool.begin().await?;
             let migration_status = query::select_migration_status(&mut transaction).await?;
             transaction.commit().await?;
 
-            if migration_status.current_version() >= migration_version {
+            if migration_status.current_version() >= migration.version() {
                 continue;
             }
 
             let mut transaction = self.pool.begin().await?;
-            let in_progress = migration_status.in_progress(migration_version)?;
+            let in_progress = migration_status.in_progress(migration.version())?;
             query::update_migration_status(&mut transaction, &migration_status, &in_progress)
                 .await?;
             transaction.commit().await?;
 
-            migrate(self.pool.clone()).await?;
+            migration.migrate()(self.pool.clone()).await?;
 
             // ここで失敗した場合は migration_status = in_progress で残る
             // Migration::migrate での失敗と区別がつかないため、ユーザーに手動で直してもらう
