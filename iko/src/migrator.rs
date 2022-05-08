@@ -16,20 +16,11 @@ pub enum Error {
     ReservedVersion,
 }
 
-pub struct Migrator {
-    pool: AnyPool,
-    migrations: Vec<Migration>,
-}
+#[derive(Default)]
+pub struct Migrations(pub(crate) Vec<Migration>);
 
-impl Migrator {
-    pub fn new(uri: &str) -> sqlx::Result<Self> {
-        Ok(Self {
-            pool: AnyPool::connect_lazy(uri)?,
-            migrations: vec![],
-        })
-    }
-
-    pub fn add_migration<Fut>(
+impl Migrations {
+    pub fn push<Fut>(
         &mut self,
         version: u32,
         migrate: impl Fn(AnyPool) -> Fut + 'static,
@@ -40,13 +31,25 @@ impl Migrator {
         if version == 0 {
             return Err(Error::ReservedVersion);
         }
-        self.migrations.push(Migration::from((version, migrate)));
+        self.0.push(Migration::from((version, migrate)));
         Ok(())
     }
+}
 
-    pub async fn migrate(&self) -> Result<(), Error> {
+pub struct Migrator {
+    pool: AnyPool,
+}
+
+impl Migrator {
+    pub fn new(uri: &str) -> sqlx::Result<Self> {
+        Ok(Self {
+            pool: AnyPool::connect_lazy(uri)?,
+        })
+    }
+
+    pub async fn migrate(&self, migrations: &Migrations) -> Result<(), Error> {
         self.create_table().await?;
-        for migration in self.migrations.iter() {
+        for migration in migrations.0.iter() {
             let mut transaction = self.pool.begin().await?;
             let migration_status = query::select_migration_status(&mut transaction).await?;
             transaction.commit().await?;

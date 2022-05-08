@@ -1,4 +1,4 @@
-use iko::Migrator;
+use iko::{Migrations, Migrator};
 use sqlx::AnyPool;
 
 #[tokio::test]
@@ -27,10 +27,11 @@ async fn test() -> anyhow::Result<()> {
         transaction.commit().await
     }
 
-    let mut migrator = Migrator::new("sqlite::memory:")?;
-    migrator.add_migration(1, migrate1);
-    migrator.add_migration(2, migrate2);
-    migrator.migrate().await?;
+    let mut migrations = Migrations::default();
+    migrations.push(1, migrate1)?;
+    migrations.push(2, migrate2)?;
+    let migrator = Migrator::new("sqlite::memory:")?;
+    migrator.migrate(&migrations).await?;
 
     Ok(())
 }
@@ -73,13 +74,14 @@ async fn test2() -> anyhow::Result<()> {
         transaction.commit().await
     }
 
-    let mut migrator = Migrator::new("sqlite::memory:")?;
-    migrator.add_migration(1, migrate1);
-    migrator.add_migration(2, migrate2);
-    migrator.migrate().await?;
+    let mut migrations = Migrations::default();
+    migrations.push(1, migrate1)?;
+    migrations.push(2, migrate2)?;
+    let migrator = Migrator::new("sqlite::memory:")?;
+    migrator.migrate(&migrations).await?;
 
-    migrator.add_migration(3, migrate3);
-    migrator.migrate().await?;
+    migrations.push(3, migrate3)?;
+    migrator.migrate(&migrations).await?;
 
     Ok(())
 }
