@@ -27,7 +27,7 @@ impl Migrator {
 
     pub async fn migrate(&self, migrations: &Migrations) -> Result<(), Error> {
         self.create_table().await?;
-        for migration in migrations.0.iter() {
+        for migration in migrations.iter() {
             let mut transaction = self.pool.begin().await?;
             let migration_status = query::select_migration_status(&mut transaction).await?;
             transaction.commit().await?;
