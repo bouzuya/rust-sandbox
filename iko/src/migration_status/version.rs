@@ -6,7 +6,7 @@ pub enum Error {
     TryFrom(#[from] TryFromIntError),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Version(u32);
 
 impl From<Version> for i64 {
@@ -50,5 +50,10 @@ mod tests {
     #[test]
     fn u32_conversion_test() {
         assert_eq!(u32::from(Version::from(0_u32)), 0_u32);
+    }
+
+    #[test]
+    fn default_test() {
+        assert_eq!(Version::from(0_u32), Version::default());
     }
 }

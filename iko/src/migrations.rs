@@ -42,10 +42,7 @@ impl Migrations {
     }
 
     fn last_migration_version(&self) -> Version {
-        self.0
-            .last()
-            .map(Migration::version)
-            .unwrap_or_else(|| Version::from(0))
+        self.0.last().map(Migration::version).unwrap_or_default()
     }
 }
 

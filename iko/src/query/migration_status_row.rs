@@ -60,7 +60,7 @@ mod tests {
         assert_eq!(
             MigrationStatus::from(initial),
             MigrationStatus::Completed {
-                current_version: Version::from(0),
+                current_version: Version::default()
             }
         );
 
@@ -72,7 +72,7 @@ mod tests {
         assert_eq!(
             MigrationStatus::from(in_progress),
             MigrationStatus::InProgress {
-                current_version: Version::from(0),
+                current_version: Version::default(),
                 updated_version: Version::from(1),
             }
         );

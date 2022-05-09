@@ -83,14 +83,14 @@ mod tests {
     #[test]
     fn happy_path() -> anyhow::Result<()> {
         let initial = MigrationStatus::Completed {
-            current_version: Version::from(0),
+            current_version: Version::default(),
         };
-        assert_eq!(initial.current_version(), Version::from(0));
+        assert_eq!(initial.current_version(), Version::default());
         assert_eq!(initial.updated_version(), None);
         assert_eq!(initial.value(), Value::Completed);
 
         let in_progress = initial.in_progress(Version::from(1))?;
-        assert_eq!(in_progress.current_version(), Version::from(0));
+        assert_eq!(in_progress.current_version(), Version::default());
         assert_eq!(in_progress.updated_version(), Some(Version::from(1)));
         assert_eq!(in_progress.value(), Value::InProgress);
 
@@ -104,10 +104,10 @@ mod tests {
     #[test]
     fn errors() -> anyhow::Result<()> {
         let initial = MigrationStatus::Completed {
-            current_version: Version::from(0),
+            current_version: Version::default(),
         };
         assert_eq!(
-            initial.in_progress(Version::from(0)),
+            initial.in_progress(Version::default()),
             Err(Error::AlreadyApplied)
         );
 
