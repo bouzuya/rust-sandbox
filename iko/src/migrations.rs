@@ -37,6 +37,11 @@ impl Migrations {
         if version == 0 {
             return Err(Error::ReservedVersion);
         }
+        if let Some(last_migration_version) = self.0.last().map(|m| u32::from(m.version())) {
+            if version <= last_migration_version {
+                return Err(Error::IncorrectVersionOrder);
+            }
+        }
         self.0.push(Migration::from((version, migrate)));
         Ok(())
     }

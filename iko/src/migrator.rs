@@ -12,6 +12,8 @@ pub enum Error {
     Query(#[from] query::Error),
     #[error("version 0 is reserved")]
     ReservedVersion,
+    #[error("incorrect version order")]
+    IncorrectVersionOrder,
 }
 
 pub struct Migrator {
