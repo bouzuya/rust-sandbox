@@ -2,7 +2,7 @@ use std::future::Future;
 
 use sqlx::AnyPool;
 
-use crate::{migration::Migration, Error};
+use crate::{migration::Migration, migration_status::Version, Error};
 
 pub struct Iter<'a> {
     inner: std::slice::Iter<'a, Migration>,
@@ -20,30 +20,32 @@ impl<'a> Iterator for Iter<'a> {
 pub struct Migrations(Vec<Migration>);
 
 impl Migrations {
-    pub(crate) fn iter(&self) -> Iter<'_> {
+    pub(crate) fn iter(&self) -> Iter {
         Iter {
             inner: self.0.iter(),
         }
     }
 
-    pub fn push<Fut>(
-        &mut self,
-        version: u32,
-        migrate: impl Fn(AnyPool) -> Fut + 'static,
-    ) -> Result<(), Error>
+    pub fn push<F, Fut>(&mut self, version: u32, migrate: F) -> Result<(), Error>
     where
+        F: Fn(AnyPool) -> Fut + 'static,
         Fut: Future<Output = sqlx::Result<()>> + 'static,
     {
         if version == 0 {
             return Err(Error::ReservedVersion);
         }
-        if let Some(last_migration_version) = self.0.last().map(|m| u32::from(m.version())) {
-            if version <= last_migration_version {
-                return Err(Error::IncorrectVersionOrder);
-            }
+        if Version::from(version) <= self.last_migration_version() {
+            return Err(Error::IncorrectVersionOrder);
         }
         self.0.push(Migration::from((version, migrate)));
         Ok(())
+    }
+
+    fn last_migration_version(&self) -> Version {
+        self.0
+            .last()
+            .map(Migration::version)
+            .unwrap_or_else(|| Version::from(0))
     }
 }
 
