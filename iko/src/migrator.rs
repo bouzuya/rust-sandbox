@@ -2,6 +2,8 @@ use sqlx::AnyPool;
 
 use crate::{migrations::Migrations, query};
 
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("migration status error: {0}")]
@@ -21,13 +23,13 @@ pub struct Migrator {
 }
 
 impl Migrator {
-    pub fn new(uri: &str) -> sqlx::Result<Self> {
+    pub fn new(uri: &str) -> Result<Self> {
         Ok(Self {
             pool: AnyPool::connect_lazy(uri)?,
         })
     }
 
-    pub async fn migrate(&self, migrations: &Migrations) -> Result<(), Error> {
+    pub async fn migrate(&self, migrations: &Migrations) -> Result<()> {
         self.create_table().await?;
         for migration in migrations.iter() {
             let mut transaction = self.pool.begin().await?;
@@ -56,7 +58,7 @@ impl Migrator {
         Ok(())
     }
 
-    async fn create_table(&self) -> Result<(), Error> {
+    async fn create_table(&self) -> Result<()> {
         let mut transaction = self.pool.begin().await?;
         query::create_migration_status_table(&mut transaction).await?;
         query::insert_migration_status(&mut transaction).await?;
