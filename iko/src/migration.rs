@@ -4,7 +4,15 @@ use sqlx::AnyPool;
 
 use crate::migration_status::Version;
 
-pub type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = sqlx::Result<()>>>>>;
+pub type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = Result<()>>>>>;
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+}
 
 pub struct Migration {
     migrate: Migrate,
@@ -24,7 +32,7 @@ impl Migration {
 impl<F, Fut> From<(u32, F)> for Migration
 where
     F: Fn(AnyPool) -> Fut + 'static,
-    Fut: Future<Output = sqlx::Result<()>> + 'static,
+    Fut: Future<Output = Result<()>> + 'static,
 {
     fn from((version, migrate): (u32, F)) -> Self {
         Self {
@@ -40,9 +48,8 @@ mod tests {
     use sqlx::AnyPool;
 
     #[tokio::test]
-
     async fn test() -> anyhow::Result<()> {
-        async fn migrate(_pool: AnyPool) -> sqlx::Result<()> {
+        async fn migrate(_pool: AnyPool) -> Result<()> {
             Ok(())
         }
 

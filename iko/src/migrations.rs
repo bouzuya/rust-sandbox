@@ -2,7 +2,10 @@ use std::future::Future;
 
 use sqlx::AnyPool;
 
-use crate::{migration::Migration, migration_status::Version};
+use crate::{
+    migration::{self, Migration},
+    migration_status::Version,
+};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -39,7 +42,7 @@ impl Migrations {
     pub fn push<F, Fut>(&mut self, version: u32, migrate: F) -> Result<()>
     where
         F: Fn(AnyPool) -> Fut + 'static,
-        Fut: Future<Output = sqlx::Result<()>> + 'static,
+        Fut: Future<Output = migration::Result<()>> + 'static,
     {
         if version == 0 {
             return Err(Error::ReservedVersion);
@@ -58,14 +61,14 @@ impl Migrations {
 
 #[cfg(test)]
 mod tests {
-    use crate::migration_status::Version;
+    use crate::{migration, migration_status::Version};
 
     use super::*;
     use sqlx::AnyPool;
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        async fn migrate1(_pool: AnyPool) -> sqlx::Result<()> {
+        async fn migrate1(_pool: AnyPool) -> migration::Result<()> {
             Ok(())
         }
         let mut migrations = Migrations::default();

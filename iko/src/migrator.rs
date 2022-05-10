@@ -1,6 +1,6 @@
 use sqlx::AnyPool;
 
-use crate::{migrations::Migrations, query};
+use crate::{migration, migrations::Migrations, query};
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -12,6 +12,8 @@ pub enum Error {
     Sqlx(#[from] sqlx::Error),
     #[error("no rows to update: {0}")]
     Query(#[from] query::Error),
+    #[error("migration: {0}")]
+    Migration(#[from] migration::Error),
 }
 
 pub struct Migrator {

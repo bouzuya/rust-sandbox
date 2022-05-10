@@ -1,9 +1,9 @@
-use iko::{Migrations, Migrator};
+use iko::{MigrateError, Migrations, Migrator};
 use sqlx::AnyPool;
 
 #[tokio::test]
 async fn test() -> anyhow::Result<()> {
-    async fn migrate1(pool: AnyPool) -> sqlx::Result<()> {
+    async fn migrate1(pool: AnyPool) -> Result<(), MigrateError> {
         println!("migrate1");
 
         let mut transaction = pool.begin().await?;
@@ -12,10 +12,12 @@ async fn test() -> anyhow::Result<()> {
             .execute(&mut transaction)
             .await?;
 
-        transaction.commit().await
+        transaction.commit().await?;
+
+        Ok(())
     }
 
-    async fn migrate2(pool: AnyPool) -> sqlx::Result<()> {
+    async fn migrate2(pool: AnyPool) -> Result<(), MigrateError> {
         println!("migrate2");
 
         let mut transaction = pool.begin().await?;
@@ -24,7 +26,9 @@ async fn test() -> anyhow::Result<()> {
             .execute(&mut transaction)
             .await?;
 
-        transaction.commit().await
+        transaction.commit().await?;
+
+        Ok(())
     }
 
     let mut migrations = Migrations::default();
@@ -38,7 +42,7 @@ async fn test() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test2() -> anyhow::Result<()> {
-    async fn migrate1(pool: AnyPool) -> sqlx::Result<()> {
+    async fn migrate1(pool: AnyPool) -> Result<(), MigrateError> {
         println!("migrate1");
 
         let mut transaction = pool.begin().await?;
@@ -47,10 +51,12 @@ async fn test2() -> anyhow::Result<()> {
             .execute(&mut transaction)
             .await?;
 
-        transaction.commit().await
+        transaction.commit().await?;
+
+        Ok(())
     }
 
-    async fn migrate2(pool: AnyPool) -> sqlx::Result<()> {
+    async fn migrate2(pool: AnyPool) -> Result<(), MigrateError> {
         println!("migrate2");
 
         let mut transaction = pool.begin().await?;
@@ -59,10 +65,12 @@ async fn test2() -> anyhow::Result<()> {
             .execute(&mut transaction)
             .await?;
 
-        transaction.commit().await
+        transaction.commit().await?;
+
+        Ok(())
     }
 
-    async fn migrate3(pool: AnyPool) -> sqlx::Result<()> {
+    async fn migrate3(pool: AnyPool) -> Result<(), MigrateError> {
         println!("migrate3");
 
         let mut transaction = pool.begin().await?;
@@ -71,7 +79,9 @@ async fn test2() -> anyhow::Result<()> {
             .execute(&mut transaction)
             .await?;
 
-        transaction.commit().await
+        transaction.commit().await?;
+
+        Ok(())
     }
 
     let mut migrations = Migrations::default();
