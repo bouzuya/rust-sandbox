@@ -2,7 +2,17 @@ use std::future::Future;
 
 use sqlx::AnyPool;
 
-use crate::{migration::Migration, migration_status::Version, Error};
+use crate::{migration::Migration, migration_status::Version};
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("version 0 is reserved")]
+    ReservedVersion,
+    #[error("incorrect version order")]
+    IncorrectVersionOrder,
+}
 
 pub struct Iter<'a> {
     inner: std::slice::Iter<'a, Migration>,
@@ -26,7 +36,7 @@ impl Migrations {
         }
     }
 
-    pub fn push<F, Fut>(&mut self, version: u32, migrate: F) -> Result<(), Error>
+    pub fn push<F, Fut>(&mut self, version: u32, migrate: F) -> Result<()>
     where
         F: Fn(AnyPool) -> Fut + 'static,
         Fut: Future<Output = sqlx::Result<()>> + 'static,

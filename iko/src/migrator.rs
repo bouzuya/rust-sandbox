@@ -12,10 +12,6 @@ pub enum Error {
     Sqlx(#[from] sqlx::Error),
     #[error("no rows to update: {0}")]
     Query(#[from] query::Error),
-    #[error("version 0 is reserved")]
-    ReservedVersion,
-    #[error("incorrect version order")]
-    IncorrectVersionOrder,
 }
 
 pub struct Migrator {
