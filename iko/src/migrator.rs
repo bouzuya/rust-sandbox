@@ -27,6 +27,12 @@ impl Migrator {
         })
     }
 
+    pub async fn revert(&self) -> Result<()> {
+        let current = self.select_migration_status().await?;
+        let updated = current.revert()?;
+        self.update_migration_status(&current, &updated).await
+    }
+
     pub async fn migrate(&self, migrations: &Migrations) -> Result<()> {
         self.create_table().await?;
         for migration in migrations.iter() {

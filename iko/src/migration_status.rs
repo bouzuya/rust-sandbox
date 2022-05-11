@@ -14,7 +14,7 @@ pub enum Error {
     NotInProgress,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum MigrationStatus {
     InProgress {
         current_version: Version,
@@ -59,6 +59,17 @@ impl MigrationStatus {
         }
     }
 
+    pub fn revert(&self) -> Result<MigrationStatus, Error> {
+        match self {
+            MigrationStatus::InProgress {
+                current_version, ..
+            } => Ok(Self::Completed {
+                current_version: *current_version,
+            }),
+            MigrationStatus::Completed { .. } => Ok(*self),
+        }
+    }
+
     pub fn updated_version(&self) -> Option<Version> {
         match self {
             MigrationStatus::InProgress {
@@ -98,6 +109,12 @@ mod tests {
         assert_eq!(completed.current_version(), Version::from(1));
         assert_eq!(completed.updated_version(), None);
         assert_eq!(completed.value(), Value::Completed);
+        Ok(())
+    }
+
+    #[test]
+    fn revert_test() -> anyhow::Result<()> {
+        // TODO
         Ok(())
     }
 
