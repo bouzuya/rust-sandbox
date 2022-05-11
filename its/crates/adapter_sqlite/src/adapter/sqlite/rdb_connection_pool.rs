@@ -25,16 +25,25 @@ impl RdbConnectionPool {
             .await
             .map_err(|_| IssueRepositoryError::IO)?;
 
-        let migrator = Migrator::new(CommandMigrationSource::default())
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-        migrator
-            .run(&pool)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
+        async fn migrate1(pool: AnyPool) -> Result<(), iko::MigrateError> {
+            // FIXME: unwrap
+            let migrator = Migrator::new(CommandMigrationSource::default())
+                .await
+                .unwrap();
+            migrator.run(&pool).await.unwrap();
+            Ok(())
+        }
 
-        let iko = iko::Migrator::new(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
-        iko.migrate().await.map_err(|_| IssueRepositoryError::IO)?;
+        let iko_migrator =
+            iko::Migrator::new(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
+        let mut iko_migrations = iko::Migrations::default();
+        iko_migrations
+            .push(1, migrate1)
+            .map_err(|_| IssueRepositoryError::IO)?;
+        iko_migrator
+            .migrate(&iko_migrations)
+            .await
+            .map_err(|_| IssueRepositoryError::IO)?;
 
         Ok(Self(pool))
     }
