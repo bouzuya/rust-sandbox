@@ -4,7 +4,8 @@ use sqlx::AnyPool;
 
 use crate::migration_status::Version;
 
-pub type Migrate = Box<dyn Fn(AnyPool) -> Pin<Box<dyn Future<Output = Result<()>>>>>;
+type MigrateRet = Pin<Box<dyn Future<Output = Result<()>> + 'static>>;
+pub type Migrate = Box<dyn Fn(AnyPool) -> MigrateRet>;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -12,6 +13,8 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub enum Error {
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
+    #[error("unknown: {0}")]
+    Unknown(String),
 }
 
 pub struct Migration {
@@ -32,11 +35,19 @@ impl Migration {
 impl<F, Fut> From<(u32, F)> for Migration
 where
     F: Fn(AnyPool) -> Fut + 'static,
-    Fut: Future<Output = Result<()>> + 'static,
+    Fut: Future<
+        Output = std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>,
+    >,
 {
     fn from((version, migrate): (u32, F)) -> Self {
         Self {
-            migrate: Box::new(move |pool: AnyPool| Box::pin(migrate(pool))),
+            migrate: Box::new(move |pool: AnyPool| -> MigrateRet {
+                Box::pin(async {
+                    migrate(pool)
+                        .await
+                        .map_err(|e| Error::Unknown(e.to_string()))
+                })
+            }),
             version: Version::from(version),
         }
     }
@@ -49,7 +60,13 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        async fn migrate(_pool: AnyPool) -> Result<()> {
+        // #[derive(Debug, thiserror::Error)]
+        // #[error("error")]
+        // struct UserError;
+        async fn migrate(
+            _pool: AnyPool,
+        ) -> std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
+            // Err(UserError)?
             Ok(())
         }
 
