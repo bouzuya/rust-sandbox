@@ -4,10 +4,12 @@ use sqlx::AnyPool;
 
 use crate::migration_status::Version;
 
-type MigrateRet = Pin<Box<dyn Future<Output = Result<()>> + 'static>>;
-pub type Migrate = Box<dyn Fn(AnyPool) -> MigrateRet>;
+type BoxFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub type MigrateArg = AnyPool;
+pub type MigrateResult = Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>;
+pub type Migrate = Box<dyn Fn(MigrateArg) -> BoxFuture<'static, Result<()>>>;
 
-pub type Result<T, E = Error> = std::result::Result<T, E>;
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -34,19 +36,14 @@ impl Migration {
 
 impl<F, Fut> From<(u32, F)> for Migration
 where
-    F: Fn(AnyPool) -> Fut + 'static,
-    Fut: Future<
-        Output = std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>,
-    >,
+    F: Clone + 'static + Fn(AnyPool) -> Fut,
+    Fut: Future<Output = MigrateResult>,
 {
     fn from((version, migrate): (u32, F)) -> Self {
         Self {
-            migrate: Box::new(move |pool: AnyPool| -> MigrateRet {
-                Box::pin(async {
-                    migrate(pool)
-                        .await
-                        .map_err(|e| Error::Unknown(e.to_string()))
-                })
+            migrate: Box::new(move |pool: AnyPool| -> BoxFuture<'static, Result<()>> {
+                let f = migrate.clone();
+                Box::pin(async move { f(pool).await.map_err(|e| Error::Unknown(e.to_string())) })
             }),
             version: Version::from(version),
         }

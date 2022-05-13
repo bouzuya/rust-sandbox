@@ -1,9 +1,8 @@
-use iko::{MigrateError, Migrations, Migrator};
-use sqlx::AnyPool;
+use iko::{MigrateArg, MigrateResult, Migrations, Migrator};
 
 #[tokio::test]
 async fn test() -> anyhow::Result<()> {
-    async fn migrate1(pool: AnyPool) -> Result<(), MigrateError> {
+    async fn migrate1(pool: MigrateArg) -> MigrateResult {
         println!("migrate1");
 
         let mut transaction = pool.begin().await?;
@@ -17,7 +16,7 @@ async fn test() -> anyhow::Result<()> {
         Ok(())
     }
 
-    async fn migrate2(pool: AnyPool) -> Result<(), MigrateError> {
+    async fn migrate2(pool: MigrateArg) -> MigrateResult {
         println!("migrate2");
 
         let mut transaction = pool.begin().await?;
@@ -42,7 +41,7 @@ async fn test() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test2() -> anyhow::Result<()> {
-    async fn migrate1(pool: AnyPool) -> Result<(), MigrateError> {
+    async fn migrate1(pool: MigrateArg) -> MigrateResult {
         println!("migrate1");
 
         let mut transaction = pool.begin().await?;
@@ -56,7 +55,7 @@ async fn test2() -> anyhow::Result<()> {
         Ok(())
     }
 
-    async fn migrate2(pool: AnyPool) -> Result<(), MigrateError> {
+    async fn migrate2(pool: MigrateArg) -> MigrateResult {
         println!("migrate2");
 
         let mut transaction = pool.begin().await?;
@@ -70,7 +69,7 @@ async fn test2() -> anyhow::Result<()> {
         Ok(())
     }
 
-    async fn migrate3(pool: AnyPool) -> Result<(), MigrateError> {
+    async fn migrate3(pool: MigrateArg) -> MigrateResult {
         println!("migrate3");
 
         let mut transaction = pool.begin().await?;

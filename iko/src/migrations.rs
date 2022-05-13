@@ -38,7 +38,7 @@ impl Migrations {
 
     pub fn push<F, Fut>(&mut self, version: u32, migrate: F) -> Result<()>
     where
-        F: Fn(AnyPool) -> Fut + 'static,
+        F: Clone + 'static + Fn(AnyPool) -> Fut,
         Fut: Future<
             Output = std::result::Result<(), Box<dyn std::error::Error + Send + Sync + 'static>>,
         >,
