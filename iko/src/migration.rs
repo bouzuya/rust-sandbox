@@ -12,12 +12,8 @@ pub type Migrate = Box<dyn Fn(MigrateArg) -> BoxFuture<'static, Result<()>>>;
 type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("sqlx error: {0}")]
-    Sqlx(#[from] sqlx::Error),
-    #[error("unknown: {0}")]
-    Unknown(String),
-}
+#[error("{0}")]
+pub struct Error(String);
 
 pub struct Migration {
     migrate: Migrate,
@@ -43,7 +39,7 @@ where
         Self {
             migrate: Box::new(move |pool: AnyPool| -> BoxFuture<'static, Result<()>> {
                 let f = migrate.clone();
-                Box::pin(async move { f(pool).await.map_err(|e| Error::Unknown(e.to_string())) })
+                Box::pin(async move { f(pool).await.map_err(|e| Error(e.to_string())) })
             }),
             version: Version::from(version),
         }
