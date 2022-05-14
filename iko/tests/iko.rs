@@ -1,4 +1,4 @@
-use iko::{MigrateArg, MigrateResult, Migrations, Migrator};
+use iko::{MigrateArg, MigrateResult, Migrations, MigrationsError, Migrator, MigratorError};
 
 #[tokio::test]
 async fn test() -> anyhow::Result<()> {
@@ -91,6 +91,22 @@ async fn test2() -> anyhow::Result<()> {
 
     migrations.push(3, migrate3)?;
     migrator.migrate(&migrations).await?;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn export_test() -> anyhow::Result<()> {
+    async fn migrate1(_pool: MigrateArg) -> MigrateResult {
+        Ok(())
+    }
+
+    let mut migrations = Migrations::default();
+    let result: Result<(), MigrationsError> = migrations.push(1, migrate1);
+    result?;
+    let migrator = Migrator::new("sqlite::memory:")?;
+    let result: Result<(), MigratorError> = migrator.migrate(&migrations).await;
+    result?;
 
     Ok(())
 }

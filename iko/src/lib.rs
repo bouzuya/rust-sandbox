@@ -5,5 +5,5 @@ mod migrator;
 mod query;
 
 pub use migration::{MigrateArg, MigrateResult};
-pub use migrations::Migrations;
-pub use migrator::Migrator;
+pub use migrations::{Error as MigrationsError, Migrations};
+pub use migrator::{Error as MigratorError, Migrator};
