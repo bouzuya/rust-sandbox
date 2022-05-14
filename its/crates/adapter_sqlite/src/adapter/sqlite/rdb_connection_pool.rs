@@ -7,6 +7,22 @@ use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
 
 use super::command_migration_source::CommandMigrationSource;
 
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("issue repository error: {0}")]
+    IssueRepository(#[from] IssueRepositoryError),
+    #[error("issue block link repository error: {0}")]
+    IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
+    #[error("migrate error: {0}")]
+    Migrate(#[from] iko::MigratorError),
+    #[error("migrations error: {0}")]
+    Migrations(#[from] iko::MigrationsError),
+    #[error("sqlx error: {0}")]
+    Sqlx(#[from] sqlx::Error),
+}
+
 #[derive(Clone, Debug)]
 pub struct RdbConnectionPool(AnyPool);
 
@@ -18,14 +34,12 @@ impl From<RdbConnectionPool> for AnyPool {
 
 impl RdbConnectionPool {
     // TODO: Error
-    pub async fn new(connection_uri: &str) -> Result<Self, IssueRepositoryError> {
-        let options =
-            AnyConnectOptions::from_str(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
-        let pool = AnyPool::connect_with(options)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
-
-        async fn migrate1(pool: AnyPool) -> Result<(), iko::MigrateError> {
+    pub async fn new(connection_uri: &str) -> Result<Self> {
+        let options = AnyConnectOptions::from_str(connection_uri)?;
+        let pool = AnyPool::connect_with(options).await?;
+        async fn migrate1(
+            pool: AnyPool,
+        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
             // FIXME: unwrap
             let migrator = Migrator::new(CommandMigrationSource::default())
                 .await
@@ -34,27 +48,19 @@ impl RdbConnectionPool {
             Ok(())
         }
 
-        let iko_migrator =
-            iko::Migrator::new(connection_uri).map_err(|_| IssueRepositoryError::IO)?;
+        let iko_migrator = iko::Migrator::new(connection_uri)?;
         let mut iko_migrations = iko::Migrations::default();
-        iko_migrations
-            .push(1, migrate1)
-            .map_err(|_| IssueRepositoryError::IO)?;
-        iko_migrator
-            .migrate(&iko_migrations)
-            .await
-            .map_err(|_| IssueRepositoryError::IO)?;
+        iko_migrations.push(1, migrate1)?;
+        iko_migrator.migrate(&iko_migrations).await?;
 
         Ok(Self(pool))
     }
 
-    pub fn issue_block_link_repository(
-        &self,
-    ) -> Result<SqliteIssueBlockLinkRepository, IssueBlockLinkRepositoryError> {
-        SqliteIssueBlockLinkRepository::new(self.clone())
+    pub fn issue_block_link_repository(&self) -> Result<SqliteIssueBlockLinkRepository> {
+        Ok(SqliteIssueBlockLinkRepository::new(self.clone())?)
     }
 
-    pub fn issue_repository(&self) -> Result<SqliteIssueRepository, IssueRepositoryError> {
-        SqliteIssueRepository::new(self.clone())
+    pub fn issue_repository(&self) -> Result<SqliteIssueRepository> {
+        Ok(SqliteIssueRepository::new(self.clone())?)
     }
 }
