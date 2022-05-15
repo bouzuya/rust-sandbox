@@ -33,18 +33,15 @@ impl From<RdbConnectionPool> for AnyPool {
 }
 
 impl RdbConnectionPool {
-    // TODO: Error
     pub async fn new(connection_uri: &str) -> Result<Self> {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
+
         async fn migrate1(
             pool: AnyPool,
         ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            // FIXME: unwrap
-            let migrator = Migrator::new(CommandMigrationSource::default())
-                .await
-                .unwrap();
-            migrator.run(&pool).await.unwrap();
+            let migrator = Migrator::new(CommandMigrationSource::default()).await?;
+            migrator.run(&pool).await?;
             Ok(())
         }
 
