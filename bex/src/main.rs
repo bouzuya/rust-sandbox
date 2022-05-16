@@ -25,12 +25,21 @@ async fn main() -> anyhow::Result<()> {
     let state = "state1";
 
     // Step 2: Obtain a request token
-    let url = "https://getpocket.com/v3/oauth/request";
-    let mut body = HashMap::new();
-    body.entry("consumer_key").or_insert(consumer_key.as_str());
-    body.entry("redirect_uri").or_insert(redirect_uri);
-    body.entry("state").or_insert(state);
-    let resp = post(url, &body).await?;
+    #[derive(Debug, Serialize)]
+    struct OAuthRequestRequestBody<'a> {
+        consumer_key: &'a str,
+        redirect_uri: &'a str,
+        state: Option<&'a str>,
+    }
+    let resp = post(
+        "https://getpocket.com/v3/oauth/request",
+        &OAuthRequestRequestBody {
+            consumer_key: consumer_key.as_str(),
+            redirect_uri,
+            state: Some(state),
+        },
+    )
+    .await?;
     // TODO: check status code
     // <https://getpocket.com/developer/docs/authentication>
     println!("{:#?}", resp);
@@ -56,11 +65,19 @@ async fn main() -> anyhow::Result<()> {
     io::stdin().read_line(&mut buffer)?;
 
     // Step 5: Convert a request token into a Pocket access token
-    let url = "https://getpocket.com/v3/oauth/authorize";
-    let mut body = HashMap::new();
-    body.entry("consumer_key").or_insert(consumer_key.as_str());
-    body.entry("code").or_insert(request_token);
-    let resp = post(url, &body).await?;
+    #[derive(Debug, Serialize)]
+    struct OAuthAuthorizeRequestBody<'a> {
+        consumer_key: &'a str,
+        code: &'a str,
+    }
+    let resp = post(
+        "https://getpocket.com/v3/oauth/authorize",
+        &OAuthAuthorizeRequestBody {
+            consumer_key: consumer_key.as_str(),
+            code: request_token,
+        },
+    )
+    .await?;
     println!("{:#?}", resp);
 
     // "{\"access_token\":\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxx\",\"username\":\"xxxxxxx\",\"state\":\"state1\"}"
