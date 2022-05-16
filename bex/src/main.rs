@@ -1,6 +1,21 @@
-use std::{collections::HashMap, env, io};
+use std::{collections::HashMap, env, future::Future, io};
 
 use anyhow::Context;
+use reqwest::Response;
+use serde::Serialize;
+
+fn post<T>(url: &str, body: &T) -> impl Future<Output = Result<Response, reqwest::Error>>
+where
+    T: Serialize + ?Sized,
+{
+    let client = reqwest::Client::new();
+    client
+        .post(url)
+        .header("Content-Type", "application/json; charset=UTF8")
+        .header("X-Accept", "application/json")
+        .json(&body)
+        .send()
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -11,20 +26,11 @@ async fn main() -> anyhow::Result<()> {
 
     // Step 2: Obtain a request token
     let url = "https://getpocket.com/v3/oauth/request";
-    let client = reqwest::Client::new();
     let mut body = HashMap::new();
     body.entry("consumer_key").or_insert(consumer_key.as_str());
     body.entry("redirect_uri").or_insert(redirect_uri);
     body.entry("state").or_insert(state);
-
-    // TODO: state
-    let resp = client
-        .post(url)
-        .header("Content-Type", "application/json")
-        .header("X-Accept", "application/json")
-        .json(&body)
-        .send()
-        .await?;
+    let resp = post(url, &body).await?;
     // TODO: check status code
     // <https://getpocket.com/developer/docs/authentication>
     println!("{:#?}", resp);
@@ -54,13 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let mut body = HashMap::new();
     body.entry("consumer_key").or_insert(consumer_key.as_str());
     body.entry("code").or_insert(request_token);
-    let resp = client
-        .post(url)
-        .header("Content-Type", "application/json")
-        .header("X-Accept", "application/json")
-        .json(&body)
-        .send()
-        .await?;
+    let resp = post(url, &body).await?;
     println!("{:#?}", resp);
 
     // "{\"access_token\":\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxx\",\"username\":\"xxxxxxx\",\"state\":\"state1\"}"
