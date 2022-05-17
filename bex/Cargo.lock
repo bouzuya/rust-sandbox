@@ -28,6 +28,7 @@ dependencies = [
  "hyper",
  "reqwest",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
 ]

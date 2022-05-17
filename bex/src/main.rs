@@ -1,7 +1,8 @@
 use std::{env, io};
 
 use crate::request::{
-    access_token_request, authorization_request, AccessTokenRequest, AuthorizationRequest,
+    access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
+    AuthorizationRequest, RetrieveRequest,
 };
 
 mod request;
@@ -55,6 +56,13 @@ async fn main() -> anyhow::Result<()> {
     println!("access_token = {}", access_token);
     let username = response_body.username;
     println!("username = {}", username);
+
+    let response_body = retrieve_request(&RetrieveRequest {
+        consumer_key: consumer_key.as_str(),
+        access_token: access_token.as_str(),
+    })
+    .await?;
+    println!("{:#?}", response_body);
 
     Ok(())
 }

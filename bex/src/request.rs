@@ -1,6 +1,9 @@
+use std::collections::HashMap;
+
 use hyper::StatusCode;
 use reqwest::Response;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -51,6 +54,19 @@ pub async fn access_token_request(
     request: &AccessTokenRequest<'_>,
 ) -> Result<AccessTokenResponse, Error> {
     post("https://getpocket.com/v3/oauth/authorize", request).await
+}
+
+#[derive(Debug, Serialize)]
+pub struct RetrieveRequest<'a> {
+    pub consumer_key: &'a str,
+    pub access_token: &'a str,
+    // ...
+}
+
+pub type RetrieveResponse = HashMap<String, Value>;
+
+pub async fn retrieve_request(request: &RetrieveRequest<'_>) -> Result<RetrieveResponse, Error> {
+    post("https://getpocket.com/v3/get", request).await
 }
 
 fn check_status_code(response: &Response) -> Option<Error> {
