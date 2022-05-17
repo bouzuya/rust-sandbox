@@ -1,20 +1,25 @@
-use std::{collections::HashMap, env, future::Future, io};
+use std::{env, io};
 
-use anyhow::Context;
-use reqwest::Response;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
-fn post<T>(url: &str, body: &T) -> impl Future<Output = Result<Response, reqwest::Error>>
+async fn post<T, U>(url: &str, body: &T) -> Result<U, reqwest::Error>
 where
     T: Serialize + ?Sized,
+    U: DeserializeOwned,
 {
     let client = reqwest::Client::new();
-    client
+    let response = client
         .post(url)
         .header("Content-Type", "application/json; charset=UTF8")
         .header("X-Accept", "application/json")
         .json(&body)
         .send()
+        .await?;
+    // TODO: check status code
+    // <https://getpocket.com/developer/docs/authentication>
+    println!("{:#?}", response);
+    let response_body = response.json::<U>().await?;
+    Ok(response_body)
 }
 
 #[tokio::main]
@@ -31,7 +36,11 @@ async fn main() -> anyhow::Result<()> {
         redirect_uri: &'a str,
         state: Option<&'a str>,
     }
-    let resp = post(
+    #[derive(Debug, Deserialize)]
+    struct OAuthRequestResponseBody {
+        code: String,
+    }
+    let response_body: OAuthRequestResponseBody = post(
         "https://getpocket.com/v3/oauth/request",
         &OAuthRequestRequestBody {
             consumer_key: consumer_key.as_str(),
@@ -40,16 +49,8 @@ async fn main() -> anyhow::Result<()> {
         },
     )
     .await?;
-    // TODO: check status code
-    // <https://getpocket.com/developer/docs/authentication>
-    println!("{:#?}", resp);
-    // TODO: deserialize
-    let json = resp.json::<HashMap<String, String>>().await?;
-    println!("{:?}", json);
-    let request_token = json
-        .get("code")
-        .map(|code| code.as_str())
-        .context("$.code not found")?;
+    println!("{:#?}", response_body);
+    let request_token = response_body.code;
     println!("request_token = {}", request_token);
 
     // Step 3: Redirect user to Pocket to continue authorization
@@ -70,19 +71,33 @@ async fn main() -> anyhow::Result<()> {
         consumer_key: &'a str,
         code: &'a str,
     }
-    let resp = post(
+    #[derive(Debug, Deserialize)]
+    struct OAuthAuthorizeResponseBody {
+        access_token: String,
+        username: String,
+        state: Option<String>,
+    }
+    let response_body: OAuthAuthorizeResponseBody = post(
         "https://getpocket.com/v3/oauth/authorize",
         &OAuthAuthorizeRequestBody {
             consumer_key: consumer_key.as_str(),
-            code: request_token,
+            code: request_token.as_str(),
         },
     )
     .await?;
-    println!("{:#?}", resp);
-
-    // "{\"access_token\":\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxx\",\"username\":\"xxxxxxx\",\"state\":\"state1\"}"
-    let json = resp.json::<HashMap<String, String>>().await?;
-    println!("{:?}", json);
+    println!("{:#?}", response_body);
+    if response_body.state.as_deref() != Some(state) {
+        // TODO: Error
+        println!(
+            "state does not match: expected {}, actual {:?}",
+            state,
+            response_body.state.as_deref()
+        );
+    }
+    let access_token = response_body.access_token;
+    println!("access_token = {}", access_token);
+    let username = response_body.username;
+    println!("username = {}", username);
 
     Ok(())
 }
