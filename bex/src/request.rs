@@ -60,10 +60,21 @@ pub async fn access_token_request(
 pub struct RetrieveRequest<'a> {
     pub consumer_key: &'a str,
     pub access_token: &'a str,
+    pub state: Option<RetrieveRequestState>,
     pub count: Option<usize>,
     #[serde(rename = "detailType")]
     pub detail_type: Option<RetrieveRequestDetailType>,
     // ...
+}
+
+#[derive(Debug, Serialize)]
+pub enum RetrieveRequestState {
+    #[serde(rename = "unread")]
+    Unread,
+    #[serde(rename = "archive")]
+    Archive,
+    #[serde(rename = "all")]
+    All,
 }
 
 #[derive(Debug, Serialize)]
@@ -134,6 +145,7 @@ mod tests {
         let request = RetrieveRequest {
             consumer_key: "consumer_key1",
             access_token: "access_token1",
+            state: Some(RetrieveRequestState::Unread),
             count: Some(123),
             detail_type: Some(RetrieveRequestDetailType::Simple),
         };
@@ -142,10 +154,59 @@ mod tests {
             r#"{
   "consumer_key": "consumer_key1",
   "access_token": "access_token1",
+  "state": "unread",
   "count": 123,
   "detailType": "simple"
 }"#
         );
         Ok(())
+    }
+
+    #[test]
+    fn retrieve_request_state() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+        request.state = Some(RetrieveRequestState::Unread);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "state": "unread"
+}"#
+        );
+
+        request.state = Some(RetrieveRequestState::Archive);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "state": "archive"
+}"#
+        );
+
+        request.state = Some(RetrieveRequestState::All);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "state": "all"
+}"#
+        );
+        Ok(())
+    }
+
+    fn build_retrieve_request<'a>(
+        consumer_key: &'a str,
+        access_token: &'a str,
+    ) -> RetrieveRequest<'a> {
+        RetrieveRequest {
+            consumer_key,
+            access_token,
+            state: None,
+            count: None,
+            detail_type: None,
+        }
     }
 }

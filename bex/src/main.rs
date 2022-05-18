@@ -2,7 +2,7 @@ use std::{env, io};
 
 use crate::request::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
-    AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType,
+    AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
 
 mod request;
@@ -60,6 +60,7 @@ async fn main() -> anyhow::Result<()> {
     let response_body = retrieve_request(&RetrieveRequest {
         consumer_key: consumer_key.as_str(),
         access_token: access_token.as_str(),
+        state: Some(RetrieveRequestState::Unread),
         count: Some(3),
         detail_type: Some(RetrieveRequestDetailType::Simple),
     })
