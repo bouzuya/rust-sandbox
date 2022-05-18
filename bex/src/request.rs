@@ -60,11 +60,23 @@ pub async fn access_token_request(
 pub struct RetrieveRequest<'a> {
     pub consumer_key: &'a str,
     pub access_token: &'a str,
+    pub count: Option<usize>,
+    #[serde(rename = "detailType")]
+    pub detail_type: Option<RetrieveRequestDetailType>,
     // ...
+}
+
+#[derive(Debug, Serialize)]
+pub enum RetrieveRequestDetailType {
+    #[serde(rename = "simple")]
+    Simple,
+    #[serde(rename = "complete")]
+    Complete,
 }
 
 pub type RetrieveResponse = HashMap<String, Value>;
 
+// <https://getpocket.com/developer/docs/v3/retrieve>
 pub async fn retrieve_request(request: &RetrieveRequest<'_>) -> Result<RetrieveResponse, Error> {
     post("https://getpocket.com/v3/get", request).await
 }
@@ -111,4 +123,29 @@ where
     }
     let response_body = response.json::<U>().await?;
     Ok(response_body)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let request = RetrieveRequest {
+            consumer_key: "consumer_key1",
+            access_token: "access_token1",
+            count: Some(123),
+            detail_type: Some(RetrieveRequestDetailType::Simple),
+        };
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "count": 123,
+  "detailType": "simple"
+}"#
+        );
+        Ok(())
+    }
 }
