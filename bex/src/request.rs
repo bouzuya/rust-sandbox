@@ -4,6 +4,7 @@ use hyper::StatusCode;
 use reqwest::Response;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use serde_json::Value;
+use serde_repr::Serialize_repr;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -61,6 +62,7 @@ pub struct RetrieveRequest<'a> {
     pub consumer_key: &'a str,
     pub access_token: &'a str,
     pub state: Option<RetrieveRequestState>,
+    pub favorite: Option<RetrieveRequestFavorite>,
     pub count: Option<usize>,
     #[serde(rename = "detailType")]
     pub detail_type: Option<RetrieveRequestDetailType>,
@@ -75,6 +77,13 @@ pub enum RetrieveRequestState {
     Archive,
     #[serde(rename = "all")]
     All,
+}
+
+#[derive(Debug, Serialize_repr)]
+#[repr(u8)]
+pub enum RetrieveRequestFavorite {
+    UnFavorited = 0,
+    Favorited = 1,
 }
 
 #[derive(Debug, Serialize)]
@@ -145,7 +154,8 @@ mod tests {
         let request = RetrieveRequest {
             consumer_key: "consumer_key1",
             access_token: "access_token1",
-            state: Some(RetrieveRequestState::Unread),
+            state: None,
+            favorite: None,
             count: Some(123),
             detail_type: Some(RetrieveRequestDetailType::Simple),
         };
@@ -154,7 +164,6 @@ mod tests {
             r#"{
   "consumer_key": "consumer_key1",
   "access_token": "access_token1",
-  "state": "unread",
   "count": 123,
   "detailType": "simple"
 }"#
@@ -197,6 +206,33 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_favorite() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.favorite = Some(RetrieveRequestFavorite::UnFavorited);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "favorite": 0
+}"#
+        );
+
+        request.favorite = Some(RetrieveRequestFavorite::Favorited);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "favorite": 1
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -205,6 +241,7 @@ mod tests {
             consumer_key,
             access_token,
             state: None,
+            favorite: None,
             count: None,
             detail_type: None,
         }
