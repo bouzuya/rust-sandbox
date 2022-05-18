@@ -62,6 +62,7 @@ async fn main() -> anyhow::Result<()> {
         access_token: access_token.as_str(),
         state: Some(RetrieveRequestState::Unread),
         favorite: None,
+        tag: None,
         count: Some(3),
         detail_type: Some(RetrieveRequestDetailType::Simple),
     })

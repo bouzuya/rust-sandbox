@@ -61,12 +61,18 @@ pub async fn access_token_request(
 pub struct RetrieveRequest<'a> {
     pub consumer_key: &'a str,
     pub access_token: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<RetrieveRequestState>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub favorite: Option<RetrieveRequestFavorite>,
-    pub count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag: Option<RetrieveRequestTag<'a>>,
     #[serde(rename = "detailType")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub detail_type: Option<RetrieveRequestDetailType>,
-    // ...
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub count: Option<usize>,
+    // offset 	integer 		Used only with count; start returning from offset position of results
 }
 
 #[derive(Debug, Serialize)]
@@ -84,6 +90,24 @@ pub enum RetrieveRequestState {
 pub enum RetrieveRequestFavorite {
     UnFavorited = 0,
     Favorited = 1,
+}
+
+#[derive(Debug)]
+pub enum RetrieveRequestTag<'a> {
+    Tagged(&'a str),
+    Untagged(&'a str),
+}
+
+impl<'a> Serialize for RetrieveRequestTag<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            RetrieveRequestTag::Tagged(s) => serializer.serialize_str(s),
+            RetrieveRequestTag::Untagged(s) => serializer.serialize_str(&format!("_{}_", s)),
+        }
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -156,16 +180,17 @@ mod tests {
             access_token: "access_token1",
             state: None,
             favorite: None,
-            count: Some(123),
+            tag: None,
             detail_type: Some(RetrieveRequestDetailType::Simple),
+            count: Some(123),
         };
         assert_eq!(
             serde_json::to_string_pretty(&request)?,
             r#"{
   "consumer_key": "consumer_key1",
   "access_token": "access_token1",
-  "count": 123,
-  "detailType": "simple"
+  "detailType": "simple",
+  "count": 123
 }"#
         );
         Ok(())
@@ -233,6 +258,33 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_tag() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.tag = Some(RetrieveRequestTag::Tagged("tag1"));
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "tag": "tag1"
+}"#
+        );
+
+        request.tag = Some(RetrieveRequestTag::Untagged("tag1"));
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "tag": "_tag1_"
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -242,6 +294,7 @@ mod tests {
             access_token,
             state: None,
             favorite: None,
+            tag: None,
             count: None,
             detail_type: None,
         }
