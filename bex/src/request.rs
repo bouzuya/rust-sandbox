@@ -79,7 +79,8 @@ pub struct RetrieveRequest<'a> {
     pub search: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub domain: Option<&'a str>,
-    // since 	timestamp 		Only return items modified since the given since unix timestamp
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub since: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
     // offset 	integer 		Used only with count; start returning from offset position of results
@@ -218,6 +219,7 @@ mod tests {
             detail_type: Some(RetrieveRequestDetailType::Simple),
             search: None,
             domain: None,
+            since: None,
             count: Some(123),
         };
         assert_eq!(
@@ -439,6 +441,23 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_since() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.since = Some(1_234_567_890_u64);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "since": 1234567890
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -454,6 +473,7 @@ mod tests {
             detail_type: None,
             search: None,
             domain: None,
+            since: None,
             count: None,
         }
     }
