@@ -64,6 +64,7 @@ async fn main() -> anyhow::Result<()> {
         favorite: None,
         tag: None,
         content_type: None,
+        sort: None,
         count: Some(3),
         detail_type: Some(RetrieveRequestDetailType::Simple),
     })

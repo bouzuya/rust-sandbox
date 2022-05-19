@@ -73,7 +73,8 @@ pub struct RetrieveRequest<'a> {
     #[serde(rename = "detailType")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail_type: Option<RetrieveRequestDetailType>,
-    // sort 	string 		See below for valid values
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<RetrieveRequestSort>,
     // search 	string 		Only return items whose title or url contain the search string
     // domain 	string 		Only return items from a particular domain
     // since 	timestamp 		Only return items modified since the given since unix timestamp
@@ -125,6 +126,18 @@ pub enum RetrieveRequestContentType {
     Video,
     #[serde(rename = "image")]
     Image,
+}
+
+#[derive(Debug, Serialize)]
+pub enum RetrieveRequestSort {
+    #[serde(rename = "newest")]
+    Newest,
+    #[serde(rename = "oldest")]
+    Oldest,
+    #[serde(rename = "title")]
+    Title,
+    #[serde(rename = "site")]
+    Site,
 }
 
 #[derive(Debug, Serialize)]
@@ -199,6 +212,7 @@ mod tests {
             favorite: None,
             tag: None,
             content_type: None,
+            sort: None,
             detail_type: Some(RetrieveRequestDetailType::Simple),
             count: Some(123),
         };
@@ -340,6 +354,53 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_sort() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.sort = Some(RetrieveRequestSort::Newest);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "sort": "newest"
+}"#
+        );
+
+        request.sort = Some(RetrieveRequestSort::Oldest);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "sort": "oldest"
+}"#
+        );
+
+        request.sort = Some(RetrieveRequestSort::Title);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "sort": "title"
+}"#
+        );
+
+        request.sort = Some(RetrieveRequestSort::Site);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "sort": "site"
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -351,6 +412,7 @@ mod tests {
             favorite: None,
             tag: None,
             content_type: None,
+            sort: None,
             count: None,
             detail_type: None,
         }
