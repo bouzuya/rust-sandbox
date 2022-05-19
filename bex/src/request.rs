@@ -107,7 +107,7 @@ pub enum RetrieveRequestFavorite {
 #[derive(Debug)]
 pub enum RetrieveRequestTag<'a> {
     Tagged(&'a str),
-    Untagged(&'a str),
+    Untagged,
 }
 
 impl<'a> Serialize for RetrieveRequestTag<'a> {
@@ -117,7 +117,7 @@ impl<'a> Serialize for RetrieveRequestTag<'a> {
     {
         match self {
             RetrieveRequestTag::Tagged(s) => serializer.serialize_str(s),
-            RetrieveRequestTag::Untagged(s) => serializer.serialize_str(&format!("_{}_", s)),
+            RetrieveRequestTag::Untagged => serializer.serialize_str("_untagged_"),
         }
     }
 }
@@ -296,13 +296,13 @@ mod tests {
 }"#
         );
 
-        request.tag = Some(RetrieveRequestTag::Untagged("tag1"));
+        request.tag = Some(RetrieveRequestTag::Untagged);
         assert_eq!(
             serde_json::to_string_pretty(&request)?,
             r#"{
   "consumer_key": "consumer_key1",
   "access_token": "access_token1",
-  "tag": "_tag1_"
+  "tag": "_untagged_"
 }"#
         );
 
