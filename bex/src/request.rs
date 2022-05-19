@@ -208,29 +208,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() -> anyhow::Result<()> {
-        let request = RetrieveRequest {
-            consumer_key: "consumer_key1",
-            access_token: "access_token1",
-            state: None,
-            favorite: None,
-            tag: None,
-            content_type: None,
-            sort: None,
-            detail_type: Some(RetrieveRequestDetailType::Simple),
-            search: None,
-            domain: None,
-            since: None,
-            count: Some(123),
-            offset: None,
-        };
+    fn retrieve_request_default() -> anyhow::Result<()> {
+        let request = build_retrieve_request("consumer_key1", "access_token1");
         assert_eq!(
             serde_json::to_string_pretty(&request)?,
             r#"{
   "consumer_key": "consumer_key1",
-  "access_token": "access_token1",
-  "detailType": "simple",
-  "count": 123
+  "access_token": "access_token1"
 }"#
         );
         Ok(())
@@ -410,6 +394,33 @@ mod tests {
     }
 
     #[test]
+    fn retrieve_request_detail_type() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.detail_type = Some(RetrieveRequestDetailType::Simple);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "detailType": "simple"
+}"#
+        );
+
+        request.detail_type = Some(RetrieveRequestDetailType::Complete);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "detailType": "complete"
+}"#
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn retrieve_request_search() -> anyhow::Result<()> {
         let mut request = build_retrieve_request("consumer_key1", "access_token1");
 
@@ -454,6 +465,23 @@ mod tests {
   "consumer_key": "consumer_key1",
   "access_token": "access_token1",
   "since": 1234567890
+}"#
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn retrieve_request_count() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.count = Some(10);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "count": 10
 }"#
         );
 
