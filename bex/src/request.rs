@@ -83,7 +83,8 @@ pub struct RetrieveRequest<'a> {
     pub since: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
-    // offset 	integer 		Used only with count; start returning from offset position of results
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub offset: Option<usize>,
 }
 
 #[derive(Debug, Serialize)]
@@ -221,6 +222,7 @@ mod tests {
             domain: None,
             since: None,
             count: Some(123),
+            offset: None,
         };
         assert_eq!(
             serde_json::to_string_pretty(&request)?,
@@ -458,6 +460,23 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_offset() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.offset = Some(10);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "offset": 10
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -475,6 +494,7 @@ mod tests {
             domain: None,
             since: None,
             count: None,
+            offset: None,
         }
     }
 }

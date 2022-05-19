@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
         domain: None,
         since: None,
         count: Some(3),
+        offset: None,
     })
     .await?;
     println!("{:#?}", response_body);
