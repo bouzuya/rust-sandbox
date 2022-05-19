@@ -63,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
         state: Some(RetrieveRequestState::Unread),
         favorite: None,
         tag: None,
+        content_type: None,
         count: Some(3),
         detail_type: Some(RetrieveRequestDetailType::Simple),
     })

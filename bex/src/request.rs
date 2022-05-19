@@ -67,9 +67,16 @@ pub struct RetrieveRequest<'a> {
     pub favorite: Option<RetrieveRequestFavorite>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tag: Option<RetrieveRequestTag<'a>>,
+    #[serde(rename = "contentType")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content_type: Option<RetrieveRequestContentType>,
     #[serde(rename = "detailType")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail_type: Option<RetrieveRequestDetailType>,
+    // sort 	string 		See below for valid values
+    // search 	string 		Only return items whose title or url contain the search string
+    // domain 	string 		Only return items from a particular domain
+    // since 	timestamp 		Only return items modified since the given since unix timestamp
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
     // offset 	integer 		Used only with count; start returning from offset position of results
@@ -108,6 +115,16 @@ impl<'a> Serialize for RetrieveRequestTag<'a> {
             RetrieveRequestTag::Untagged(s) => serializer.serialize_str(&format!("_{}_", s)),
         }
     }
+}
+
+#[derive(Debug, Serialize)]
+pub enum RetrieveRequestContentType {
+    #[serde(rename = "article")]
+    Article,
+    #[serde(rename = "video")]
+    Video,
+    #[serde(rename = "image")]
+    Image,
 }
 
 #[derive(Debug, Serialize)]
@@ -181,6 +198,7 @@ mod tests {
             state: None,
             favorite: None,
             tag: None,
+            content_type: None,
             detail_type: Some(RetrieveRequestDetailType::Simple),
             count: Some(123),
         };
@@ -285,6 +303,43 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_content_type() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.content_type = Some(RetrieveRequestContentType::Article);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "contentType": "article"
+}"#
+        );
+
+        request.content_type = Some(RetrieveRequestContentType::Video);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "contentType": "video"
+}"#
+        );
+
+        request.content_type = Some(RetrieveRequestContentType::Image);
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "contentType": "image"
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -295,6 +350,7 @@ mod tests {
             state: None,
             favorite: None,
             tag: None,
+            content_type: None,
             count: None,
             detail_type: None,
         }
