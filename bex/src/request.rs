@@ -70,12 +70,13 @@ pub struct RetrieveRequest<'a> {
     #[serde(rename = "contentType")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_type: Option<RetrieveRequestContentType>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<RetrieveRequestSort>,
     #[serde(rename = "detailType")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail_type: Option<RetrieveRequestDetailType>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub sort: Option<RetrieveRequestSort>,
-    // search 	string 		Only return items whose title or url contain the search string
+    pub search: Option<&'a str>,
     // domain 	string 		Only return items from a particular domain
     // since 	timestamp 		Only return items modified since the given since unix timestamp
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -213,6 +214,7 @@ mod tests {
             tag: None,
             content_type: None,
             sort: None,
+            search: None,
             detail_type: Some(RetrieveRequestDetailType::Simple),
             count: Some(123),
         };
@@ -401,6 +403,23 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_search() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.search = Some("s");
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "search": "s"
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -413,8 +432,9 @@ mod tests {
             tag: None,
             content_type: None,
             sort: None,
-            count: None,
             detail_type: None,
+            search: None,
+            count: None,
         }
     }
 }
