@@ -67,6 +67,7 @@ async fn main() -> anyhow::Result<()> {
         sort: None,
         detail_type: Some(RetrieveRequestDetailType::Simple),
         search: None,
+        domain: None,
         count: Some(3),
     })
     .await?;

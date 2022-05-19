@@ -77,7 +77,8 @@ pub struct RetrieveRequest<'a> {
     pub detail_type: Option<RetrieveRequestDetailType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub search: Option<&'a str>,
-    // domain 	string 		Only return items from a particular domain
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub domain: Option<&'a str>,
     // since 	timestamp 		Only return items modified since the given since unix timestamp
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<usize>,
@@ -214,8 +215,9 @@ mod tests {
             tag: None,
             content_type: None,
             sort: None,
-            search: None,
             detail_type: Some(RetrieveRequestDetailType::Simple),
+            search: None,
+            domain: None,
             count: Some(123),
         };
         assert_eq!(
@@ -420,6 +422,23 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn retrieve_request_domain() -> anyhow::Result<()> {
+        let mut request = build_retrieve_request("consumer_key1", "access_token1");
+
+        request.domain = Some("example.com");
+        assert_eq!(
+            serde_json::to_string_pretty(&request)?,
+            r#"{
+  "consumer_key": "consumer_key1",
+  "access_token": "access_token1",
+  "domain": "example.com"
+}"#
+        );
+
+        Ok(())
+    }
+
     fn build_retrieve_request<'a>(
         consumer_key: &'a str,
         access_token: &'a str,
@@ -434,6 +453,7 @@ mod tests {
             sort: None,
             detail_type: None,
             search: None,
+            domain: None,
             count: None,
         }
     }
