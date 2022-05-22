@@ -165,7 +165,7 @@ pub struct RetrieveResponse {
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RetrieveItemResponse {
     pub authors: Option<Value>,
-    pub domain_metadata: Option<Value>,
+    pub domain_metadata: Option<RetrieveItemDomainMetadataResponse>,
     pub excerpt: Option<String>,
     pub favorite: String,
     pub given_title: String,
@@ -193,6 +193,13 @@ pub struct RetrieveItemResponse {
     pub top_image_url: Option<String>,
     pub videos: Option<HashMap<String, Value>>,
     pub word_count: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemDomainMetadataResponse {
+    greyscale_logo: String,
+    logo: String,
+    name: String,
 }
 
 // <https://getpocket.com/developer/docs/v3/retrieve>
