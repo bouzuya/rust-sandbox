@@ -172,7 +172,7 @@ pub struct RetrieveItemResponse {
     pub given_url: String,
     pub has_image: Option<String>,
     pub has_video: Option<String>,
-    pub image: Option<Value>,
+    pub image: Option<RetrieveItemImageResponse>,
     pub images: Option<HashMap<String, Value>>,
     pub is_article: Option<String>,
     pub is_index: Option<String>,
@@ -208,6 +208,14 @@ pub struct RetrieveItemDomainMetadataResponse {
     greyscale_logo: String,
     logo: String,
     name: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemImageResponse {
+    height: String,
+    item_id: String,
+    src: String,
+    width: String,
 }
 
 // <https://getpocket.com/developer/docs/v3/retrieve>
