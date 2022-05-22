@@ -164,7 +164,7 @@ pub struct RetrieveResponse {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RetrieveItemResponse {
-    pub authors: Option<Value>,
+    pub authors: Option<HashMap<String, RetrieveItemAuthorResponse>>,
     pub domain_metadata: Option<RetrieveItemDomainMetadataResponse>,
     pub excerpt: Option<String>,
     pub favorite: String,
@@ -193,6 +193,14 @@ pub struct RetrieveItemResponse {
     pub top_image_url: Option<String>,
     pub videos: Option<HashMap<String, Value>>,
     pub word_count: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemAuthorResponse {
+    author_id: String,
+    item_id: String,
+    name: String,
+    url: String,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
