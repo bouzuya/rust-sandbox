@@ -152,7 +152,48 @@ pub enum RetrieveRequestDetailType {
     Complete,
 }
 
-pub type RetrieveResponse = HashMap<String, Value>;
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveResponse {
+    complete: Option<u16>,
+    error: Option<Value>,
+    list: HashMap<String, RetrieveItemResponse>,
+    search_meta: Option<Value>,
+    since: Option<u64>,
+    status: u16,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemResponse {
+    pub authors: Option<Value>,
+    pub domain_metadata: Option<Value>,
+    pub excerpt: Option<String>,
+    pub favorite: String,
+    pub given_title: String,
+    pub given_url: String,
+    pub has_image: Option<String>,
+    pub has_video: Option<String>,
+    pub image: Option<Value>,
+    pub images: Option<HashMap<String, Value>>,
+    pub is_article: Option<String>,
+    pub is_index: Option<String>,
+    pub item_id: String,
+    pub lang: Option<String>,
+    pub listen_duration_estimate: Option<u16>,
+    pub resolved_id: String,
+    pub resolved_title: Option<String>,
+    pub resolved_url: Option<String>,
+    pub sort_id: Option<u64>,
+    pub status: String,
+    pub tags: Option<HashMap<String, Value>>,
+    pub time_added: Option<String>,
+    pub time_favorited: Option<String>,
+    pub time_read: Option<String>,
+    pub time_to_read: Option<u64>,
+    pub time_updated: Option<String>,
+    pub top_image_url: Option<String>,
+    pub videos: Option<HashMap<String, Value>>,
+    pub word_count: Option<String>,
+}
 
 // <https://getpocket.com/developer/docs/v3/retrieve>
 pub async fn retrieve_request(request: &RetrieveRequest<'_>) -> Result<RetrieveResponse, Error> {
