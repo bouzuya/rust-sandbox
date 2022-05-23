@@ -154,12 +154,12 @@ pub enum RetrieveRequestDetailType {
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RetrieveResponse {
-    complete: Option<u16>,
-    error: Option<Value>,
-    list: HashMap<String, RetrieveItemResponse>,
-    search_meta: Option<Value>,
-    since: Option<u64>,
-    status: u16,
+    pub complete: Option<u16>,
+    pub error: Option<Value>,
+    pub list: HashMap<String, RetrieveItemResponse>,
+    pub search_meta: Option<Value>,
+    pub since: Option<u64>,
+    pub status: u16,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
