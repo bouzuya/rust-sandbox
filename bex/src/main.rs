@@ -120,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
             credential
         }
     };
-    println!("{:#?}", credential);
+    // println!("{:#?}", credential);
 
     let access_token = credential.access_token;
     let response_body = retrieve_request(&RetrieveRequest {
@@ -139,8 +139,25 @@ async fn main() -> anyhow::Result<()> {
         offset: None,
     })
     .await?;
+    // println!("{:#?}", response_body);
 
-    println!("{:#?}", response_body);
+    #[derive(Debug, Serialize)]
+    struct Item {
+        title: String,
+        url: String,
+        added_at: String,
+    }
+
+    let items = response_body
+        .list
+        .into_iter()
+        .map(|(_, item)| Item {
+            title: item.given_title,
+            url: item.given_url,
+            added_at: item.time_added.unwrap(),
+        })
+        .collect::<Vec<Item>>();
+    serde_json::to_writer(io::stdout(), &items)?;
 
     Ok(())
 }
