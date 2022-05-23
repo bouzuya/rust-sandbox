@@ -184,7 +184,7 @@ pub struct RetrieveItemResponse {
     pub resolved_url: Option<String>,
     pub sort_id: Option<u64>,
     pub status: String,
-    pub tags: Option<HashMap<String, Value>>,
+    pub tags: Option<HashMap<String, RetrieveItemTagsItemResponse>>,
     pub time_added: Option<String>,
     pub time_favorited: Option<String>,
     pub time_read: Option<String>,
@@ -227,6 +227,12 @@ pub struct RetrieveItemImagesItemResponse {
     item_id: String,
     src: String,
     width: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemTagsItemResponse {
+    item_id: String,
+    tag: String,
 }
 
 // <https://getpocket.com/developer/docs/v3/retrieve>
