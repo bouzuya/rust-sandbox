@@ -173,7 +173,7 @@ pub struct RetrieveItemResponse {
     pub has_image: Option<String>,
     pub has_video: Option<String>,
     pub image: Option<RetrieveItemImageResponse>,
-    pub images: Option<HashMap<String, Value>>,
+    pub images: Option<HashMap<String, RetrieveItemImagesItemResponse>>,
     pub is_article: Option<String>,
     pub is_index: Option<String>,
     pub item_id: String,
@@ -213,6 +213,17 @@ pub struct RetrieveItemDomainMetadataResponse {
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub struct RetrieveItemImageResponse {
     height: String,
+    item_id: String,
+    src: String,
+    width: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemImagesItemResponse {
+    caption: String,
+    credit: String,
+    height: String,
+    image_id: String,
     item_id: String,
     src: String,
     width: String,
