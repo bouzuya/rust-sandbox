@@ -191,7 +191,7 @@ pub struct RetrieveItemResponse {
     pub time_to_read: Option<u64>,
     pub time_updated: Option<String>,
     pub top_image_url: Option<String>,
-    pub videos: Option<HashMap<String, Value>>,
+    pub videos: Option<HashMap<String, RetrieveItemVideosItemResponse>>,
     pub word_count: Option<String>,
 }
 
@@ -233,6 +233,19 @@ pub struct RetrieveItemImagesItemResponse {
 pub struct RetrieveItemTagsItemResponse {
     item_id: String,
     tag: String,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveItemVideosItemResponse {
+    height: String,
+    item_id: String,
+    // It seems to be required but is not included in the examples in the document.
+    length: Option<String>,
+    src: String,
+    r#type: String,
+    vid: String,
+    video_id: String,
+    width: String,
 }
 
 // <https://getpocket.com/developer/docs/v3/retrieve>
