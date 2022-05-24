@@ -6,16 +6,13 @@ use std::{
     str::FromStr,
 };
 
-use serde::{Deserialize, Serialize};
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use xdg::BaseDirectories;
-
-use crate::request::{
+use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
-
-mod request;
+use serde::{Deserialize, Serialize};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use xdg::BaseDirectories;
 
 fn state_dir() -> anyhow::Result<PathBuf> {
     let prefix = "net.bouzuya.rust-sandbox.bex";

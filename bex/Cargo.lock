@@ -25,12 +25,9 @@ name = "bex"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "hyper",
- "reqwest",
+ "pocket",
  "serde",
  "serde_json",
- "serde_repr",
- "thiserror",
  "time",
  "tokio",
  "xdg",
@@ -552,6 +549,20 @@ name = "pkg-config"
 version = "0.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1df8c4ec4b0627e53bdf214615ad287367e482558cf84b109250b37464dc03ae"
+
+[[package]]
+name = "pocket"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "hyper",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "thiserror",
+ "tokio",
+]
 
 [[package]]
 name = "proc-macro2"
