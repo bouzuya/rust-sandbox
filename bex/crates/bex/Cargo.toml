@@ -1,0 +1,18 @@
+[package]
+name = "bex"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.57"
+hyper = "0.14.18"
+reqwest = { version = "0.11", features = ["json"] }
+serde = { version = "1.0.137", features = ["derive"] }
+serde_json = "1.0.81"
+serde_repr = "0.1.8"
+thiserror = "1.0.31"
+time = { version = "0.3.9", features = ["formatting"] }
+tokio = { version = "1", features = ["full"] }
+xdg = "2.4.1"
