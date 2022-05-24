@@ -5,12 +5,12 @@ use pocket::RetrieveItemResponse;
 use serde::Serialize;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub struct Biscuit {
+    added_at: BiscuitTimestamp,
     id: String,
     title: String,
     url: String,
-    added_at: BiscuitTimestamp,
 }
 
 impl TryFrom<RetrieveItemResponse> for Biscuit {
@@ -28,7 +28,7 @@ impl TryFrom<RetrieveItemResponse> for Biscuit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
 pub struct BiscuitTimestamp(OffsetDateTime);
 
 impl Display for BiscuitTimestamp {

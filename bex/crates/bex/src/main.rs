@@ -1,9 +1,9 @@
 mod biscuit;
 mod credential_store;
 
-use std::{env, io, path::PathBuf, str::FromStr};
+use std::{env, io, path::PathBuf};
 
-use biscuit::{Biscuit, BiscuitTimestamp};
+use biscuit::Biscuit;
 use credential_store::Credential;
 use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
@@ -101,12 +101,13 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     // println!("{:#?}", response_body);
 
-    let items = response_body
+    let mut biscuits = response_body
         .list
         .into_iter()
         .map(|(_, item)| Biscuit::try_from(item))
         .collect::<anyhow::Result<Vec<Biscuit>>>()?;
-    serde_json::to_writer(io::stdout(), &items)?;
+    biscuits.sort();
+    serde_json::to_writer(io::stdout(), &biscuits)?;
 
     Ok(())
 }
