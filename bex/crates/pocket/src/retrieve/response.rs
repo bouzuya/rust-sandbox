@@ -8,9 +8,14 @@ pub struct RetrieveResponse {
     pub complete: Option<u16>,
     pub error: Option<Value>,
     pub list: HashMap<String, RetrieveItemResponse>,
-    pub search_meta: Option<Value>,
+    pub search_meta: Option<RetrieveSearchMetaResponse>,
     pub since: Option<u64>,
     pub status: u16,
+}
+
+#[derive(Debug, Deserialize, Eq, PartialEq)]
+pub struct RetrieveSearchMetaResponse {
+    search_type: String,
 }
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
