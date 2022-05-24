@@ -143,6 +143,7 @@ async fn main() -> anyhow::Result<()> {
 
     #[derive(Debug, Serialize)]
     struct Item {
+        id: String,
         title: String,
         url: String,
         added_at: String,
@@ -152,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
         .list
         .into_iter()
         .map(|(_, item)| Item {
+            id: item.item_id,
             title: item.given_title,
             url: item.given_url,
             added_at: item.time_added.unwrap(),
