@@ -1,7 +1,9 @@
+mod authorization;
 mod retrieve_request;
 
 use std::collections::HashMap;
 
+pub use authorization::*;
 use hyper::StatusCode;
 use reqwest::Response;
 pub use retrieve_request::*;
@@ -20,24 +22,6 @@ pub enum Error {
         x_error_code: Option<String>,
         x_error: Option<String>,
     },
-}
-
-#[derive(Debug, Serialize)]
-pub struct AuthorizationRequest<'a> {
-    pub consumer_key: &'a str,
-    pub redirect_uri: &'a str,
-    pub state: Option<&'a str>,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct AuthorizationResponse {
-    pub code: String,
-}
-
-pub async fn authorization_request(
-    request: &AuthorizationRequest<'_>,
-) -> Result<AuthorizationResponse, Error> {
-    post("https://getpocket.com/v3/oauth/request", request).await
 }
 
 #[derive(Debug, Serialize)]
