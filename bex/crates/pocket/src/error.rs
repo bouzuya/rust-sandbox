@@ -1,5 +1,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("invalid request")]
+    InvalidRequest,
     #[error("request {0}")]
     Request(#[from] reqwest::Error),
     #[error(

@@ -88,7 +88,7 @@ pub enum RetrieveRequestSort {
     Site,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Eq, PartialEq, Serialize)]
 pub enum RetrieveRequestDetailType {
     #[serde(rename = "simple")]
     Simple,

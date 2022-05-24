@@ -4,10 +4,10 @@ use serde::Deserialize;
 use serde_json::Value;
 
 #[derive(Debug, Deserialize, Eq, PartialEq)]
-pub struct RetrieveResponse {
+pub struct RetrieveResponse<T> {
     pub complete: Option<u16>,
     pub error: Option<Value>,
-    pub list: HashMap<String, RetrieveItemResponse>,
+    pub list: HashMap<String, T>,
     pub search_meta: Option<RetrieveSearchMetaResponse>,
     pub since: Option<u64>,
     pub status: u16,
