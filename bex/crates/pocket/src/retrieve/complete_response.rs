@@ -40,6 +40,7 @@ pub struct RetrieveCompleteItemRawResponse {
     pub word_count: Option<String>,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug, Deserialize, Eq, PartialEq)]
 pub enum RetrieveCompleteItemResponse {
     Resolved(RetrieveCompleteResolvedItemResponse),
