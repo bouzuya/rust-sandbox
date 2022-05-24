@@ -1,9 +1,13 @@
 use std::{
-    env, fs, io,
+    env,
+    fmt::Display,
+    fs, io,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use serde::{Deserialize, Serialize};
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use xdg::BaseDirectories;
 
 use crate::request::{
@@ -142,23 +146,57 @@ async fn main() -> anyhow::Result<()> {
     // println!("{:#?}", response_body);
 
     #[derive(Debug, Serialize)]
-    struct Item {
+    struct Biscuit {
         id: String,
         title: String,
         url: String,
-        added_at: String,
+        added_at: BiscuitTimestamp,
+    }
+
+    #[derive(Debug)]
+    struct BiscuitTimestamp(OffsetDateTime);
+
+    impl Display for BiscuitTimestamp {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(
+                f,
+                "{}",
+                self.0.format(&Rfc3339).map_err(|_| std::fmt::Error)?
+            )
+        }
+    }
+
+    impl FromStr for BiscuitTimestamp {
+        type Err = anyhow::Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            let unix_timestamp = s.parse::<i64>()?;
+            let offset_date_time = OffsetDateTime::from_unix_timestamp(unix_timestamp)?;
+            Ok(Self(offset_date_time))
+        }
+    }
+
+    impl Serialize for BiscuitTimestamp {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer,
+        {
+            serializer.collect_str(self.to_string().as_str())
+        }
     }
 
     let items = response_body
         .list
         .into_iter()
-        .map(|(_, item)| Item {
-            id: item.item_id,
-            title: item.given_title,
-            url: item.given_url,
-            added_at: item.time_added.unwrap(),
+        .map(|(_, item)| {
+            Ok(Biscuit {
+                id: item.item_id,
+                title: item.given_title,
+                url: item.given_url,
+                added_at: BiscuitTimestamp::from_str(item.time_added.unwrap().as_str())?,
+            })
         })
-        .collect::<Vec<Item>>();
+        .collect::<anyhow::Result<Vec<Biscuit>>>()?;
     serde_json::to_writer(io::stdout(), &items)?;
 
     Ok(())
