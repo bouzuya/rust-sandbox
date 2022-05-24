@@ -1,14 +1,14 @@
+mod biscuit;
 mod credential_store;
 
-use std::{env, fmt::Display, io, path::PathBuf, str::FromStr};
+use std::{env, io, path::PathBuf, str::FromStr};
 
+use biscuit::{Biscuit, BiscuitTimestamp};
 use credential_store::Credential;
 use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
-use serde::Serialize;
-use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use xdg::BaseDirectories;
 
 use crate::credential_store::CredentialStore;
@@ -101,57 +101,10 @@ async fn main() -> anyhow::Result<()> {
     .await?;
     // println!("{:#?}", response_body);
 
-    #[derive(Debug, Serialize)]
-    struct Biscuit {
-        id: String,
-        title: String,
-        url: String,
-        added_at: BiscuitTimestamp,
-    }
-
-    #[derive(Debug)]
-    struct BiscuitTimestamp(OffsetDateTime);
-
-    impl Display for BiscuitTimestamp {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            write!(
-                f,
-                "{}",
-                self.0.format(&Rfc3339).map_err(|_| std::fmt::Error)?
-            )
-        }
-    }
-
-    impl FromStr for BiscuitTimestamp {
-        type Err = anyhow::Error;
-
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            let unix_timestamp = s.parse::<i64>()?;
-            let offset_date_time = OffsetDateTime::from_unix_timestamp(unix_timestamp)?;
-            Ok(Self(offset_date_time))
-        }
-    }
-
-    impl Serialize for BiscuitTimestamp {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.collect_str(self.to_string().as_str())
-        }
-    }
-
     let items = response_body
         .list
         .into_iter()
-        .map(|(_, item)| {
-            Ok(Biscuit {
-                id: item.item_id,
-                title: item.given_title,
-                url: item.given_url,
-                added_at: BiscuitTimestamp::from_str(item.time_added.unwrap().as_str())?,
-            })
-        })
+        .map(|(_, item)| Biscuit::try_from(item))
         .collect::<anyhow::Result<Vec<Biscuit>>>()?;
     serde_json::to_writer(io::stdout(), &items)?;
 
