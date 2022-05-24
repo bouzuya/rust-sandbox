@@ -1,18 +1,17 @@
-use std::{
-    env,
-    fmt::Display,
-    fs, io,
-    path::{Path, PathBuf},
-    str::FromStr,
-};
+mod credential_store;
 
+use std::{env, fmt::Display, io, path::PathBuf, str::FromStr};
+
+use credential_store::Credential;
 use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use xdg::BaseDirectories;
+
+use crate::credential_store::CredentialStore;
 
 fn state_dir() -> anyhow::Result<PathBuf> {
     let prefix = "net.bouzuya.rust-sandbox.bex";
@@ -20,12 +19,6 @@ fn state_dir() -> anyhow::Result<PathBuf> {
         Some(state_dir) => PathBuf::from(state_dir),
         None => BaseDirectories::with_prefix(prefix)?.get_state_home(),
     })
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Credential {
-    access_token: String,
-    username: String,
 }
 
 async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
@@ -69,43 +62,9 @@ async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
         );
     }
 
-    let credential = Credential {
-        access_token: response_body.access_token,
-        username: response_body.username,
-    };
+    let credential = Credential::new(response_body.access_token, response_body.username);
 
     Ok(credential)
-}
-
-struct CredentialStore {
-    path: PathBuf,
-}
-
-impl CredentialStore {
-    fn new<P: AsRef<Path>>(dir: P) -> Self {
-        Self {
-            path: dir.as_ref().join("credential.json"),
-        }
-    }
-
-    fn load(&self) -> anyhow::Result<Option<Credential>> {
-        let p = self.path.as_path();
-        if p.exists() {
-            let s = fs::read_to_string(p)?;
-            Ok(serde_json::from_str(&s)?)
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn store(&self, credential: &Credential) -> anyhow::Result<()> {
-        let p = self.path.as_path();
-        if let Some(dir) = p.parent() {
-            fs::create_dir_all(dir)?;
-        }
-        fs::write(p, serde_json::to_string(credential)?)?;
-        Ok(())
-    }
 }
 
 #[tokio::main]
