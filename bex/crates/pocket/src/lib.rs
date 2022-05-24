@@ -1,27 +1,15 @@
 mod access_token;
 mod authorization;
+mod error;
 mod retrieve;
 
 pub use access_token::*;
 pub use authorization::*;
+pub use error::*;
 use hyper::StatusCode;
 use reqwest::Response;
 pub use retrieve::*;
 use serde::{de::DeserializeOwned, Serialize};
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("request {0}")]
-    Request(#[from] reqwest::Error),
-    #[error(
-        "status X-Error: {x_error:?}, X-Error-Code: {x_error_code:?}, HTTP Status: {status_code}"
-    )]
-    Status {
-        status_code: u16,
-        x_error_code: Option<String>,
-        x_error: Option<String>,
-    },
-}
 
 fn check_status_code(response: &Response) -> Option<Error> {
     let status = response.status();
