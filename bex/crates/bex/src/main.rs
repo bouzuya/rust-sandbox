@@ -4,6 +4,7 @@ mod credential_store;
 use std::{env, io, path::PathBuf};
 
 use biscuit::Biscuit;
+use clap::{Parser, Subcommand};
 use credential_store::Credential;
 use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
@@ -67,8 +68,27 @@ async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
     Ok(credential)
 }
 
+#[derive(Debug, Parser)]
+#[clap(version)]
+struct Args {
+    #[clap(subcommand)]
+    command: Commands,
+}
+
+#[derive(Debug, Subcommand)]
+enum Commands {
+    Delete,
+    List,
+    Login,
+    Logout,
+    Open,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let args: Args = Args::parse();
+    println!("{:?}", args);
+
     let consumer_key = env::var("CONSUMER_KEY")?;
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
