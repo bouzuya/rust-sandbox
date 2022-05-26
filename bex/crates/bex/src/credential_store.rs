@@ -31,6 +31,14 @@ impl CredentialStore {
         }
     }
 
+    pub fn delete(&self) -> anyhow::Result<()> {
+        let p = self.path.as_path();
+        if p.exists() {
+            fs::remove_file(p)?;
+        }
+        Ok(())
+    }
+
     pub fn load(&self) -> anyhow::Result<Option<Credential>> {
         let p = self.path.as_path();
         if p.exists() {

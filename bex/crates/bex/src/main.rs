@@ -87,47 +87,58 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args: Args = Args::parse();
-    println!("{:?}", args);
 
-    let consumer_key = env::var("CONSUMER_KEY")?;
-    let state_dir = state_dir()?;
-    let credential_store = CredentialStore::new(state_dir.as_path());
-    let credential = match credential_store.load()? {
-        Some(c) => c,
-        None => {
-            let credential = authorize(consumer_key.as_str()).await?;
-            credential_store.store(&credential)?;
-            credential
+    match args.command {
+        Commands::Delete => todo!(),
+        Commands::List => {
+            let consumer_key = env::var("CONSUMER_KEY")?;
+            let state_dir = state_dir()?;
+            let credential_store = CredentialStore::new(state_dir.as_path());
+            let credential = match credential_store.load()? {
+                Some(c) => c,
+                None => {
+                    let credential = authorize(consumer_key.as_str()).await?;
+                    credential_store.store(&credential)?;
+                    credential
+                }
+            };
+            // println!("{:#?}", credential);
+
+            let access_token = credential.access_token;
+            let response_body = retrieve_request(&RetrieveRequest {
+                consumer_key: consumer_key.as_str(),
+                access_token: access_token.as_str(),
+                state: Some(RetrieveRequestState::Unread),
+                favorite: None,
+                tag: None,
+                content_type: None,
+                sort: None,
+                detail_type: Some(RetrieveRequestDetailType::Simple),
+                search: None,
+                domain: None,
+                since: None,
+                count: Some(3),
+                offset: None,
+            })
+            .await?;
+            // println!("{:#?}", response_body);
+
+            let mut biscuits = response_body
+                .list
+                .into_iter()
+                .map(|(_, item)| Biscuit::try_from(item))
+                .collect::<anyhow::Result<Vec<Biscuit>>>()?;
+            biscuits.sort();
+            serde_json::to_writer(io::stdout(), &biscuits)?;
         }
-    };
-    // println!("{:#?}", credential);
-
-    let access_token = credential.access_token;
-    let response_body = retrieve_request(&RetrieveRequest {
-        consumer_key: consumer_key.as_str(),
-        access_token: access_token.as_str(),
-        state: Some(RetrieveRequestState::Unread),
-        favorite: None,
-        tag: None,
-        content_type: None,
-        sort: None,
-        detail_type: Some(RetrieveRequestDetailType::Simple),
-        search: None,
-        domain: None,
-        since: None,
-        count: Some(3),
-        offset: None,
-    })
-    .await?;
-    // println!("{:#?}", response_body);
-
-    let mut biscuits = response_body
-        .list
-        .into_iter()
-        .map(|(_, item)| Biscuit::try_from(item))
-        .collect::<anyhow::Result<Vec<Biscuit>>>()?;
-    biscuits.sort();
-    serde_json::to_writer(io::stdout(), &biscuits)?;
-
+        Commands::Login => todo!(),
+        Commands::Logout => {
+            let state_dir = state_dir()?;
+            let credential_store = CredentialStore::new(state_dir.as_path());
+            credential_store.delete()?;
+            println!("Logged out");
+        }
+        Commands::Open => todo!(),
+    }
     Ok(())
 }
