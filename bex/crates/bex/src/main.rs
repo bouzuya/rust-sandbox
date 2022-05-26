@@ -3,6 +3,7 @@ mod credential_store;
 
 use std::{env, io, path::PathBuf};
 
+use anyhow::Context;
 use biscuit::Biscuit;
 use clap::{Parser, Subcommand};
 use credential_store::Credential;
@@ -78,8 +79,14 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Delete,
-    List,
-    Login,
+    List {
+        #[clap(long)]
+        consumer_key: Option<String>,
+    },
+    Login {
+        #[clap(long)]
+        consumer_key: Option<String>,
+    },
     Logout,
     Open,
 }
@@ -90,55 +97,73 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Delete => todo!(),
-        Commands::List => {
-            let consumer_key = env::var("CONSUMER_KEY")?;
-            let state_dir = state_dir()?;
-            let credential_store = CredentialStore::new(state_dir.as_path());
-            let credential = match credential_store.load()? {
-                Some(c) => c,
-                None => {
-                    let credential = authorize(consumer_key.as_str()).await?;
-                    credential_store.store(&credential)?;
-                    credential
-                }
-            };
-            // println!("{:#?}", credential);
-
-            let access_token = credential.access_token;
-            let response_body = retrieve_request(&RetrieveRequest {
-                consumer_key: consumer_key.as_str(),
-                access_token: access_token.as_str(),
-                state: Some(RetrieveRequestState::Unread),
-                favorite: None,
-                tag: None,
-                content_type: None,
-                sort: None,
-                detail_type: Some(RetrieveRequestDetailType::Simple),
-                search: None,
-                domain: None,
-                since: None,
-                count: Some(3),
-                offset: None,
-            })
-            .await?;
-            // println!("{:#?}", response_body);
-
-            let mut biscuits = response_body
-                .list
-                .into_iter()
-                .map(|(_, item)| Biscuit::try_from(item))
-                .collect::<anyhow::Result<Vec<Biscuit>>>()?;
-            biscuits.sort();
-            serde_json::to_writer(io::stdout(), &biscuits)?;
-        }
-        Commands::Login => todo!(),
-        Commands::Logout => {
-            let state_dir = state_dir()?;
-            let credential_store = CredentialStore::new(state_dir.as_path());
-            credential_store.delete()?;
-            println!("Logged out");
-        }
+        Commands::List { consumer_key } => list(consumer_key).await?,
+        Commands::Login { consumer_key } => login(consumer_key).await?,
+        Commands::Logout => logout().await?,
         Commands::Open => todo!(),
     }
+    Ok(())
+}
+
+async fn list(consumer_key: Option<String>) -> anyhow::Result<()> {
+    let consumer_key = consumer_key
+        .or_else(|| env::var("CONSUMER_KEY").ok())
+        .context("consumer_key is not specified")?;
+    let state_dir = state_dir()?;
+    let credential_store = CredentialStore::new(state_dir.as_path());
+    let credential = credential_store.load()?.context("Not logged in")?;
+    let access_token = credential.access_token;
+    let response_body = retrieve_request(&RetrieveRequest {
+        consumer_key: consumer_key.as_str(),
+        access_token: access_token.as_str(),
+        state: Some(RetrieveRequestState::Unread),
+        favorite: None,
+        tag: None,
+        content_type: None,
+        sort: None,
+        detail_type: Some(RetrieveRequestDetailType::Simple),
+        search: None,
+        domain: None,
+        since: None,
+        count: Some(3),
+        offset: None,
+    })
+    .await?;
+    // println!("{:#?}", response_body);
+
+    let mut biscuits = response_body
+        .list
+        .into_iter()
+        .map(|(_, item)| Biscuit::try_from(item))
+        .collect::<anyhow::Result<Vec<Biscuit>>>()?;
+    biscuits.sort();
+    serde_json::to_writer(io::stdout(), &biscuits)?;
+    Ok(())
+}
+
+async fn login(consumer_key: Option<String>) -> anyhow::Result<()> {
+    let consumer_key = consumer_key
+        .or_else(|| env::var("CONSUMER_KEY").ok())
+        .context("consumer_key is not specified")?;
+    let state_dir = state_dir()?;
+    let credential_store = CredentialStore::new(state_dir.as_path());
+    match credential_store.load()? {
+        Some(_) => {
+            // do nothing
+        }
+        None => {
+            let credential = authorize(consumer_key.as_str()).await?;
+            credential_store.store(&credential)?
+        }
+    }
+    println!("Logged in");
+    Ok(())
+}
+
+async fn logout() -> anyhow::Result<()> {
+    let state_dir = state_dir()?;
+    let credential_store = CredentialStore::new(state_dir.as_path());
+    credential_store.delete()?;
+    println!("Logged out");
     Ok(())
 }
