@@ -1,9 +1,8 @@
-use std::{
-    fs,
-    path::{Path, PathBuf},
-};
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
+
+use crate::store::Store;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Credential {
@@ -30,32 +29,13 @@ impl CredentialStore {
             path: dir.as_ref().join("credential.json"),
         }
     }
+}
 
-    pub fn delete(&self) -> anyhow::Result<()> {
-        let p = self.path.as_path();
-        if p.exists() {
-            fs::remove_file(p)?;
-        }
-        Ok(())
-    }
+impl Store for CredentialStore {
+    type Item = Credential;
 
-    pub fn load(&self) -> anyhow::Result<Option<Credential>> {
-        let p = self.path.as_path();
-        if p.exists() {
-            let s = fs::read_to_string(p)?;
-            Ok(serde_json::from_str(&s)?)
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub fn store(&self, credential: &Credential) -> anyhow::Result<()> {
-        let p = self.path.as_path();
-        if let Some(dir) = p.parent() {
-            fs::create_dir_all(dir)?;
-        }
-        fs::write(p, serde_json::to_string(credential)?)?;
-        Ok(())
+    fn path(&self) -> &Path {
+        self.path.as_path()
     }
 }
 

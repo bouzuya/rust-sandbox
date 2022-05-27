@@ -1,5 +1,6 @@
 mod biscuit;
 mod credential_store;
+mod store;
 
 use std::{
     env, fs, io,
@@ -15,6 +16,7 @@ use pocket::{
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
 use serde::{Deserialize, Serialize};
+use store::Store;
 use xdg::BaseDirectories;
 
 use crate::credential_store::CredentialStore;
@@ -198,7 +200,7 @@ async fn login(consumer_key: Option<String>) -> anyhow::Result<()> {
         }
         None => {
             let credential = authorize(consumer_key.as_str()).await?;
-            credential_store.store(&credential)?
+            credential_store.save(&credential)?
         }
     }
     println!("Logged in");
