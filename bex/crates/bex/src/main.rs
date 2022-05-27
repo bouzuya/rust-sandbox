@@ -1,11 +1,9 @@
 mod biscuit;
+mod config_store;
 mod credential_store;
 mod store;
 
-use std::{
-    env, fs, io,
-    path::{Path, PathBuf},
-};
+use std::{env, io, path::PathBuf};
 
 use anyhow::Context;
 use biscuit::Biscuit;
@@ -15,11 +13,10 @@ use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
-use serde::{Deserialize, Serialize};
 use store::Store;
 use xdg::BaseDirectories;
 
-use crate::credential_store::CredentialStore;
+use crate::{config_store::ConfigStore, credential_store::CredentialStore};
 
 fn config_dir() -> anyhow::Result<PathBuf> {
     let prefix = "net.bouzuya.rust-sandbox.bex";
@@ -27,34 +24,6 @@ fn config_dir() -> anyhow::Result<PathBuf> {
         Some(config_dir) => PathBuf::from(config_dir),
         None => BaseDirectories::with_prefix(prefix)?.get_config_home(),
     })
-}
-
-fn config_file<P: AsRef<Path>>(dir: P) -> PathBuf {
-    dir.as_ref().join("config.json")
-}
-
-#[derive(Debug, Deserialize, Serialize)]
-struct Config {
-    consumer_key: String,
-}
-
-fn load_config_file<P: AsRef<Path>>(config_file: P) -> anyhow::Result<Option<Config>> {
-    let p = config_file.as_ref();
-    if p.exists() {
-        let s = fs::read_to_string(p)?;
-        Ok(serde_json::from_str(&s)?)
-    } else {
-        Ok(None)
-    }
-}
-
-fn store_config_file<P: AsRef<Path>>(config_file: P, config: &Config) -> anyhow::Result<()> {
-    let p = config_file.as_ref();
-    if let Some(dir) = p.parent() {
-        fs::create_dir_all(dir)?;
-    }
-    fs::write(p, serde_json::to_string_pretty(config)?)?;
-    Ok(())
 }
 
 fn state_dir() -> anyhow::Result<PathBuf> {
@@ -185,8 +154,8 @@ async fn list(consumer_key: Option<String>) -> anyhow::Result<()> {
 
 async fn login(consumer_key: Option<String>) -> anyhow::Result<()> {
     let config_dir = config_dir()?;
-    let config_file = config_file(config_dir);
-    let config_consumer_key = load_config_file(config_file)?.map(|config| config.consumer_key);
+    let config_store = ConfigStore::new(config_dir);
+    let config_consumer_key = config_store.load()?.map(|config| config.consumer_key);
     let consumer_key = consumer_key
         .or_else(|| env::var("CONSUMER_KEY").ok())
         .or(config_consumer_key)
