@@ -94,7 +94,10 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Delete,
-    List,
+    List {
+        #[clap(long)]
+        count: Option<usize>,
+    },
     Login {
         #[clap(long)]
         consumer_key: Option<String>,
@@ -109,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Delete => todo!(),
-        Commands::List => list().await?,
+        Commands::List { count } => list(count).await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
         Commands::Open => todo!(),
@@ -117,7 +120,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list() -> anyhow::Result<()> {
+async fn list(count: Option<usize>) -> anyhow::Result<()> {
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
     let credential = credential_store.load()?.context("Not logged in")?;
@@ -136,7 +139,7 @@ async fn list() -> anyhow::Result<()> {
         search: None,
         domain: None,
         since: None,
-        count: Some(3),
+        count,
         offset: None,
     })
     .await?;
