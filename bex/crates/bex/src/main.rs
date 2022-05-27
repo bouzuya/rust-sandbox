@@ -94,10 +94,7 @@ struct Args {
 #[derive(Debug, Subcommand)]
 enum Commands {
     Delete,
-    List {
-        #[clap(long)]
-        consumer_key: Option<String>,
-    },
+    List,
     Login {
         #[clap(long)]
         consumer_key: Option<String>,
@@ -112,7 +109,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Delete => todo!(),
-        Commands::List { consumer_key } => list(consumer_key).await?,
+        Commands::List => list().await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
         Commands::Open => todo!(),
@@ -120,10 +117,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list(consumer_key: Option<String>) -> anyhow::Result<()> {
-    let consumer_key = consumer_key
-        .or_else(|| env::var("CONSUMER_KEY").ok())
-        .context("consumer_key is not specified")?;
+async fn list() -> anyhow::Result<()> {
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
     let credential = match credential_store.load() {
@@ -137,6 +131,7 @@ async fn list(consumer_key: Option<String>) -> anyhow::Result<()> {
     }
     .context("Not logged in")?;
 
+    let consumer_key = credential.consumer_key;
     let access_token = credential.access_token;
     let response_body = retrieve_request(&RetrieveRequest {
         consumer_key: consumer_key.as_str(),
