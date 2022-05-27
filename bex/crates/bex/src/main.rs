@@ -120,16 +120,7 @@ async fn main() -> anyhow::Result<()> {
 async fn list() -> anyhow::Result<()> {
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
-    let credential = match credential_store.load() {
-        Ok(c) => c,
-        Err(e) => {
-            println!("{}", e);
-            println!("Delete stored credentials");
-            credential_store.delete()?;
-            None
-        }
-    }
-    .context("Not logged in")?;
+    let credential = credential_store.load()?.context("Not logged in")?;
 
     let consumer_key = credential.consumer_key;
     let access_token = credential.access_token;
@@ -172,25 +163,15 @@ async fn login(consumer_key: Option<String>) -> anyhow::Result<()> {
 
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
-    match credential_store.load() {
-        Ok(credential) => {
-            match credential {
-                Some(_) => {
-                    // do nothing
-                }
-                None => {
-                    let credential = authorize(consumer_key.as_str()).await?;
-                    credential_store.save(&credential)?;
-                }
-            };
-            Ok(())
+    match credential_store.load()? {
+        Some(_) => {
+            // do nothing
         }
-        Err(e) => {
-            println!("{}", e);
-            println!("Delete stored credentials");
-            credential_store.delete()
+        None => {
+            let credential = authorize(consumer_key.as_str()).await?;
+            credential_store.save(&credential)?;
         }
-    }?;
+    };
     println!("Logged in");
     Ok(())
 }
