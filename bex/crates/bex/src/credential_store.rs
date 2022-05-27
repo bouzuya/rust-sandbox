@@ -7,13 +7,15 @@ use crate::store::Store;
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Credential {
     pub access_token: String,
+    pub consumer_key: String,
     pub username: String,
 }
 
 impl Credential {
-    pub(crate) fn new(access_token: String, username: String) -> Credential {
+    pub(crate) fn new(access_token: String, consumer_key: String, username: String) -> Credential {
         Self {
             access_token,
+            consumer_key,
             username,
         }
     }

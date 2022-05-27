@@ -75,7 +75,11 @@ async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
         );
     }
 
-    let credential = Credential::new(response_body.access_token, response_body.username);
+    let credential = Credential::new(
+        response_body.access_token,
+        consumer_key.to_owned(),
+        response_body.username,
+    );
 
     Ok(credential)
 }
@@ -122,7 +126,17 @@ async fn list(consumer_key: Option<String>) -> anyhow::Result<()> {
         .context("consumer_key is not specified")?;
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
-    let credential = credential_store.load()?.context("Not logged in")?;
+    let credential = match credential_store.load() {
+        Ok(c) => c,
+        Err(e) => {
+            println!("{}", e);
+            println!("Delete stored credentials");
+            credential_store.delete()?;
+            None
+        }
+    }
+    .context("Not logged in")?;
+
     let access_token = credential.access_token;
     let response_body = retrieve_request(&RetrieveRequest {
         consumer_key: consumer_key.as_str(),
@@ -163,15 +177,25 @@ async fn login(consumer_key: Option<String>) -> anyhow::Result<()> {
 
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
-    match credential_store.load()? {
-        Some(_) => {
-            // do nothing
+    match credential_store.load() {
+        Ok(credential) => {
+            match credential {
+                Some(_) => {
+                    // do nothing
+                }
+                None => {
+                    let credential = authorize(consumer_key.as_str()).await?;
+                    credential_store.save(&credential)?;
+                }
+            };
+            Ok(())
         }
-        None => {
-            let credential = authorize(consumer_key.as_str()).await?;
-            credential_store.save(&credential)?
+        Err(e) => {
+            println!("{}", e);
+            println!("Delete stored credentials");
+            credential_store.delete()
         }
-    }
+    }?;
     println!("Logged in");
     Ok(())
 }
