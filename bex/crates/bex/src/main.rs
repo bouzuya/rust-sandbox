@@ -13,6 +13,7 @@ use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
+use rand::{thread_rng, RngCore};
 use store::Store;
 use xdg::BaseDirectories;
 
@@ -34,16 +35,23 @@ fn state_dir() -> anyhow::Result<PathBuf> {
     })
 }
 
+fn generate_state() -> String {
+    let mut rng = rand::thread_rng();
+    let mut bytes = vec![0; 32];
+    rng.fill_bytes(&mut bytes);
+    base32::encode(base32::Alphabet::Crockford, &bytes)
+}
+
 async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
     // Step 1: Obtain a platform consumer key
     let redirect_uri = "pocketapp1234:authorizationFinished";
-    let state = "state1";
+    let state = generate_state();
 
     // Step 2: Obtain a request token
     let response_body = authorization_request(&AuthorizationRequest {
         consumer_key,
         redirect_uri,
-        state: Some(state),
+        state: Some(state.as_str()),
     })
     .await?;
     let request_token = response_body.code;
@@ -66,7 +74,7 @@ async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
         code: request_token.as_str(),
     })
     .await?;
-    if response_body.state.as_deref() != Some(state) {
+    if response_body.state.as_deref() != Some(state.as_str()) {
         // TODO: Error
         println!(
             "state does not match: expected {}, actual {:?}",
