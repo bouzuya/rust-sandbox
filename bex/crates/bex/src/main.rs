@@ -17,6 +17,7 @@ use credential_store::Credential;
 use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
+    RetrieveRequestTag,
 };
 use rand::RngCore;
 use store::Store;
@@ -124,6 +125,8 @@ enum Commands {
     List {
         #[clap(long)]
         count: Option<usize>,
+        #[clap(long)]
+        tag: Option<String>,
     },
     Login {
         #[clap(long)]
@@ -139,7 +142,7 @@ async fn main() -> anyhow::Result<()> {
 
     match args.command {
         Commands::Delete => todo!(),
-        Commands::List { count } => list(count).await?,
+        Commands::List { count, tag } => list(count, tag).await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
         Commands::Open => todo!(),
@@ -147,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn list(count: Option<usize>) -> anyhow::Result<()> {
+async fn list(count: Option<usize>, tag: Option<String>) -> anyhow::Result<()> {
     let state_dir = state_dir()?;
     let credential_store = CredentialStore::new(state_dir.as_path());
     let credential = credential_store.load()?.context("Not logged in")?;
@@ -159,7 +162,13 @@ async fn list(count: Option<usize>) -> anyhow::Result<()> {
         access_token: access_token.as_str(),
         state: Some(RetrieveRequestState::Unread),
         favorite: None,
-        tag: None,
+        tag: tag.as_deref().map(|s| {
+            if s == "_untagged_" {
+                RetrieveRequestTag::Untagged
+            } else {
+                RetrieveRequestTag::Tagged(s)
+            }
+        }),
         content_type: None,
         sort: None,
         detail_type: Some(RetrieveRequestDetailType::Simple),
