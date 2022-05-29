@@ -27,10 +27,10 @@ A client for Pocket (<https://getpocket.com>).
 
 ## TODO
 
-- ☐ `bex login`
-- ☐ `bex logout`
-- ☐ `bex list`
-  - ☐ `--count <COUNT>` ... default: 10
+- ☑ `bex login`
+- ☑ `bex logout`
+- ☑ `bex list`
+  - ☑ `--count <COUNT>`
   - ☐ `--tags <TAGS>` ... comma separated tags. default: empty
 - ☐ `bex delete <ID>`
 - ☐ `bex open <ID>`
