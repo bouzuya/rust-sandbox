@@ -9,15 +9,15 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use axum::{routing, Extension, Router, Server};
 use biscuit::Biscuit;
 use clap::{Parser, Subcommand};
 use credential_store::Credential;
 use pocket::{
-    access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
-    AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
-    RetrieveRequestTag,
+    access_token_request, authorization_request, modify_request, retrieve_request,
+    AccessTokenRequest, AuthorizationRequest, ModifyRequestAction, RetrieveRequest,
+    RetrieveRequestDetailType, RetrieveRequestState, RetrieveRequestTag,
 };
 use rand::RngCore;
 use store::Store;
@@ -121,7 +121,9 @@ struct Args {
 
 #[derive(Debug, Subcommand)]
 enum Commands {
-    Delete,
+    Delete {
+        id: String,
+    },
     List {
         #[clap(long)]
         count: Option<usize>,
@@ -141,12 +143,38 @@ async fn main() -> anyhow::Result<()> {
     let args: Args = Args::parse();
 
     match args.command {
-        Commands::Delete => todo!(),
+        Commands::Delete { id } => delete(id).await?,
         Commands::List { count, tag } => list(count, tag).await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
         Commands::Open => todo!(),
     }
+    Ok(())
+}
+
+async fn delete(id: String) -> anyhow::Result<()> {
+    let state_dir = state_dir()?;
+    let credential_store = CredentialStore::new(state_dir.as_path());
+    let credential = credential_store.load()?.context("Not logged in")?;
+
+    let consumer_key = credential.consumer_key;
+    let access_token = credential.access_token;
+    let response_body = modify_request(&pocket::ModifyRequest {
+        consumer_key: &consumer_key,
+        access_token: &access_token,
+        actions: vec![ModifyRequestAction::Archive {
+            item_id: &id,
+            time: None,
+        }],
+    })
+    .await?;
+
+    ensure!(
+        response_body.action_results[0],
+        "$.action_results[0] is false"
+    );
+
+    println!("Deleted {}", id);
     Ok(())
 }
 

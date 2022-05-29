@@ -23,8 +23,8 @@ pub enum ModifyRequestAction<'a> {
 
 #[derive(Debug, Deserialize)]
 pub struct ModifyResponse {
-    action_results: Vec<bool>,
-    status: u16,
+    pub action_results: Vec<bool>,
+    pub status: u16,
 }
 
 // <https://getpocket.com/developer/docs/v3/modify>
