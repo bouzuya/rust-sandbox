@@ -31,6 +31,6 @@ A client for Pocket (<https://getpocket.com>).
 - ☑ `bex logout`
 - ☑ `bex list`
   - ☑ `--count <COUNT>`
-  - ☐ `--tags <TAGS>` ... comma separated tags. default: empty
+  - ☑ `--tag <TAG>` ... タグなしのみは `--tag '_untagged_'`
 - ☐ `bex delete <ID>`
 - ☐ `bex open <ID>`
