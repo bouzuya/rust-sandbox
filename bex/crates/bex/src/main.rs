@@ -3,9 +3,14 @@ mod config_store;
 mod credential_store;
 mod store;
 
-use std::{env, io, path::PathBuf};
+use std::{
+    env, io,
+    path::PathBuf,
+    sync::{Arc, Mutex},
+};
 
 use anyhow::Context;
+use axum::{routing, Extension, Router, Server};
 use biscuit::Biscuit;
 use clap::{Parser, Subcommand};
 use credential_store::Credential;
@@ -13,7 +18,7 @@ use pocket::{
     access_token_request, authorization_request, retrieve_request, AccessTokenRequest,
     AuthorizationRequest, RetrieveRequest, RetrieveRequestDetailType, RetrieveRequestState,
 };
-use rand::{thread_rng, RngCore};
+use rand::RngCore;
 use store::Store;
 use xdg::BaseDirectories;
 
@@ -42,15 +47,30 @@ fn generate_state() -> String {
     base32::encode(base32::Alphabet::Crockford, &bytes)
 }
 
+async fn handler(Extension(state): Extension<Arc<Mutex<tokio::sync::broadcast::Sender<()>>>>) {
+    // TODO
+    state.lock().unwrap().send(()).unwrap();
+}
+
 async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
+    let (tx, mut rx) = tokio::sync::broadcast::channel::<()>(1);
+    let app = Router::new()
+        .route("/", routing::get(handler))
+        .layer(Extension(Arc::new(Mutex::new(tx))));
+    let server = Server::bind(&"0.0.0.0:0".parse()?).serve(app.into_make_service());
+    let addr = server.local_addr();
+    let server = server.with_graceful_shutdown(async {
+        rx.recv().await.ok();
+    });
+
     // Step 1: Obtain a platform consumer key
-    let redirect_uri = "pocketapp1234:authorizationFinished";
+    let redirect_uri = format!("http://localhost:{}/", addr.port());
     let state = generate_state();
 
     // Step 2: Obtain a request token
     let response_body = authorization_request(&AuthorizationRequest {
         consumer_key,
-        redirect_uri,
+        redirect_uri: redirect_uri.as_str(),
         state: Some(state.as_str()),
     })
     .await?;
@@ -65,8 +85,7 @@ async fn authorize(consumer_key: &str) -> anyhow::Result<Credential> {
     println!("{}", redirect_url);
 
     // Step 4: Receive the callback from Pocket
-    let mut buffer = String::new();
-    io::stdin().read_line(&mut buffer)?;
+    server.await?;
 
     // Step 5: Convert a request token into a Pocket access token
     let response_body = access_token_request(&AccessTokenRequest {
