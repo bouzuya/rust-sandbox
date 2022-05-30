@@ -2,6 +2,46 @@
 
 A client for Pocket (<https://getpocket.com>).
 
+## Usage
+
+```console
+$ bex login
+https://getpocket.com/auth/authorize?request_token=ffffffff-ffff-ffff-ffff-ffffff&redirect_uri=http://localhost:53039/
+Logged in
+
+$ list=$(bex list --count 1)
+
+$ echo "${list}" | jq .
+[
+  {
+    "added_at": "2022-05-30T13:29:13Z",
+    "id": "3629325863",
+    "title": "2022-05-29 2022-W21 ふりかえり - blog.bouzuya.net",
+    "url": "https://blog.bouzuya.net/2022/05/29/"
+  }
+]
+
+$ echo "${list}" | jq -r '.[] | .url' | xargs open
+
+$ echo "${list}" | jq -r '.[] | .id' | xargs bex delete
+Deleted 3629325863
+
+$ bex logout
+Logged out
+```
+
+## TODO
+
+- v0.1.0:
+  - ☑ `bex login`
+  - ☑ `bex logout`
+  - ☑ `bex list`
+    - ☑ `--count <COUNT>`
+    - ☑ `--tag <TAG>` ... タグなしのみは `--tag '_untagged_'`
+  - ☑ `bex delete <ID>`
+- v0.2.0:
+  - ☐ offline cache
+
 ## メモ
 
 - Pocket <https://getpocket.com> から情報を得る
@@ -24,12 +64,3 @@ A client for Pocket (<https://getpocket.com>).
     - 他のユーザーとのつながり……要る？
   - スマホなら Pocket のアプリを使えばいい
     - リストの高さが一定じゃない時点で目が滑ってつらい
-
-## TODO
-
-- ☑ `bex login`
-- ☑ `bex logout`
-- ☑ `bex list`
-  - ☑ `--count <COUNT>`
-  - ☑ `--tag <TAG>` ... タグなしのみは `--tag '_untagged_'`
-- ☑ `bex delete <ID>`
