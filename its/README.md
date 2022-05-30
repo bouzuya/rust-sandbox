@@ -19,3 +19,4 @@ its: issue tracking system
 - ☑ query: ある issue が block している issue の一覧を取得する (A blocks X)
 - ☑ query: ある issue を block している issue の一覧を取得する (A is blocked by X)
 - feature: restore query db
+  - EventId の追加
