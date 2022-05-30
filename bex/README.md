@@ -32,5 +32,4 @@ A client for Pocket (<https://getpocket.com>).
 - ☑ `bex list`
   - ☑ `--count <COUNT>`
   - ☑ `--tag <TAG>` ... タグなしのみは `--tag '_untagged_'`
-- ☐ `bex delete <ID>`
-- ☐ `bex open <ID>`
+- ☑ `bex delete <ID>`
