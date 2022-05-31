@@ -135,7 +135,6 @@ enum Commands {
         consumer_key: Option<String>,
     },
     Logout,
-    Open,
 }
 
 #[tokio::main]
@@ -147,7 +146,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::List { count, tag } => list(count, tag).await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
-        Commands::Open => todo!(),
     }
     Ok(())
 }
