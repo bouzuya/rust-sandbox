@@ -18,5 +18,29 @@ its: issue tracking system
 - ☑ command: ある issue link を削除する
 - ☑ query: ある issue が block している issue の一覧を取得する (A blocks X)
 - ☑ query: ある issue を block している issue の一覧を取得する (A is blocked by X)
-- feature: restore query db
-  - EventId の追加
+- ☐ feature: restore query db
+- ☐ command: ある issue のタイトルを変更する
+- ☐ command: ある issue の詳細 (?) を追加する
+
+## メモ
+
+- 間隔があいて何も思い出せないのでメモする
+- `its issue finish` の表示を改善したい
+- `finish_issue` はコマンドでクエリではない
+- CLI としての利便性を考えてコマンド→クエリを自動で実行してくれると親切だ
+- 理想は JSON で Issue の状態を返してほしい
+- もしかするとその操作の詳細がほしい……かもしれない (=EventId の指定)
+- もしかするとその操作の直後の状態がほしい……かもしれない (=AggregateVersion の指定)
+- 現状は UseCase から返された `Vec<IssueManagementContextEvent>` を `{:?}` で表示している
+- (脱線) UseCase から何を返すべきかに迷いがある
+- (脱線) UseCase の戻り値は詳細な情報ではなく情報のキーを返すほうが良いのではないか？
+- (脱線) 現状は `pub struct IssueManagementContextEvent(DomainEvent);` で `DomainEvent` と 1 対 1 。
+- (脱線) 少なくとも永続化のためのイベントではなく他のコンテキストに提供すべき情報になるはず
+- EventId に相当するものは EventStreamId + EventStreamSeq (UNIQUE)
+- (脱線) 現状は EventId が存在しないので追加しておいたほうが良い
+- (脱線) どこまで読み込んだかの判定が難しいので EventSeq も同時に追加しておいたほうが良い
+- (脱線) EventSeq は DB のみに存在するもので良い
+- AggregateId + AggregateVersion があれば任意の状態を復元できるはずだが query db は最新状態にしか対応していなさそう
+- ひとまず「 UseCase からの戻り値は EventId および AggregateId を含める」「 AggregateId で最新の状態を得て表示する」で良さそう
+- (脱線) 現状は AggregateId ≒ EventStreamId (1 対 1) になっている
+- ...
