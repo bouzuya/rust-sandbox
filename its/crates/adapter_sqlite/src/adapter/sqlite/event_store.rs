@@ -8,6 +8,7 @@ mod event_stream_seq;
 
 pub use self::error::Error;
 pub use self::event::Event;
+pub use self::event_id::*;
 use self::event_row::EventRow;
 pub use self::event_stream_id::*;
 use self::event_stream_row::EventStreamRow;
@@ -110,7 +111,9 @@ mod tests {
 
     use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
 
-    use crate::adapter::sqlite::command_migration_source::CommandMigrationSource;
+    use crate::adapter::sqlite::{
+        command_migration_source::CommandMigrationSource, event_store::event_id::EventId,
+    };
 
     use super::*;
 
@@ -130,9 +133,11 @@ mod tests {
         let events = find_events(&mut transaction).await?;
         assert!(events.is_empty());
 
+        let event_id = EventId::generate();
         let event_stream_id = EventStreamId::generate();
         let version = EventStreamSeq::from(1_u32);
         let create_event = Event {
+            id: event_id,
             stream_id: event_stream_id,
             data: r#"{"type":"issue_created"}"#.to_string(),
             stream_seq: version,
@@ -155,6 +160,7 @@ mod tests {
         assert!(events.is_empty());
 
         let update_event = Event {
+            id: event_id,
             stream_id: event_stream_id,
             data: r#"{"type":"issue_updated"}"#.to_string(),
             stream_seq: EventStreamSeq::from(2_u32),

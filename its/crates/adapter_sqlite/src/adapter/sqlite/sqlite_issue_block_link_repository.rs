@@ -12,7 +12,7 @@ use crate::RdbConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
 
-use super::event_store::{self, Event, EventStreamId, EventStreamSeq};
+use super::event_store::{self, Event, EventId, EventStreamId, EventStreamSeq};
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {
@@ -129,6 +129,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     &mut transaction,
                     version.prev().map(event_stream_version_from).transpose()?,
                     Event {
+                        id: EventId::generate(),
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
                         stream_seq: event_stream_version_from(version)?,
@@ -143,6 +144,7 @@ impl IssueBlockLinkRepository for SqliteIssueBlockLinkRepository {
                     &mut transaction,
                     None,
                     Event {
+                        id: EventId::generate(),
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event.clone()).to_string(),
                         stream_seq: event_stream_version_from(version)?,

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
-use super::{Event, EventStreamId, EventStreamSeq};
+use super::{event_id::EventId, Event, EventStreamId, EventStreamSeq};
 
 #[derive(Debug)]
 pub(super) struct EventRow {
@@ -39,9 +39,11 @@ impl<'r> FromRow<'r, AnyRow> for EventRow {
 impl From<EventRow> for Event {
     fn from(row: EventRow) -> Self {
         Self {
+            // FIXME
+            id: EventId::generate(),
             stream_id: row.event_stream_id(),
-            data: row.data(),
             stream_seq: row.version(),
+            data: row.data(),
         }
     }
 }

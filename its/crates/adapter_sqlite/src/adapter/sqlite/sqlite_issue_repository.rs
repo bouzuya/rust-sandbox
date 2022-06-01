@@ -16,7 +16,7 @@ use crate::adapter::sqlite::event_store::{Event, EventStreamSeq};
 use self::issue_id_row::IssueIdRow;
 
 use super::{
-    event_store::{self, EventStreamId},
+    event_store::{self, EventId, EventStreamId},
     rdb_connection_pool::RdbConnectionPool,
 };
 
@@ -201,9 +201,10 @@ impl SqliteIssueRepository {
                         .map(Self::version_to_event_stream_version)
                         .transpose()?,
                     Event {
+                        id: EventId::generate(),
                         stream_id: event_stream_id,
-                        data: DomainEvent::from(event).to_string(),
                         stream_seq: Self::version_to_event_stream_version(version)?,
+                        data: DomainEvent::from(event).to_string(),
                     },
                 )
                 .await?
@@ -215,6 +216,7 @@ impl SqliteIssueRepository {
                     &mut transaction,
                     None,
                     Event {
+                        id: EventId::generate(),
                         stream_id: event_stream_id,
                         data: DomainEvent::from(event).to_string(),
                         stream_seq: Self::version_to_event_stream_version(version)?,
