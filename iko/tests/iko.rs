@@ -1,4 +1,5 @@
 use iko::{MigrateArg, MigrateResult, Migrations, MigrationsError, Migrator, MigratorError};
+use sqlx::AnyPool;
 
 #[tokio::test]
 async fn test() -> anyhow::Result<()> {
@@ -30,10 +31,11 @@ async fn test() -> anyhow::Result<()> {
         Ok(())
     }
 
+    let pool = AnyPool::connect("sqlite::memory::").await?;
     let mut migrations = Migrations::default();
     migrations.push(1, migrate1)?;
     migrations.push(2, migrate2)?;
-    let migrator = Migrator::new("sqlite::memory:")?;
+    let migrator = Migrator::new(pool);
     migrator.migrate(&migrations).await?;
 
     Ok(())
@@ -83,10 +85,11 @@ async fn test2() -> anyhow::Result<()> {
         Ok(())
     }
 
+    let pool = AnyPool::connect("sqlite::memory::").await?;
     let mut migrations = Migrations::default();
     migrations.push(1, migrate1)?;
     migrations.push(2, migrate2)?;
-    let migrator = Migrator::new("sqlite::memory:")?;
+    let migrator = Migrator::new(pool);
     migrator.migrate(&migrations).await?;
 
     migrations.push(3, migrate3)?;
@@ -101,10 +104,11 @@ async fn export_test() -> anyhow::Result<()> {
         Ok(())
     }
 
+    let pool = AnyPool::connect("sqlite::memory::").await?;
     let mut migrations = Migrations::default();
     let result: Result<(), MigrationsError> = migrations.push(1, migrate1);
     result?;
-    let migrator = Migrator::new("sqlite::memory:")?;
+    let migrator = Migrator::new(pool);
     let result: Result<(), MigratorError> = migrator.migrate(&migrations).await;
     result?;
 

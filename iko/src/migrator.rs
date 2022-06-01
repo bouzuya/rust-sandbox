@@ -21,10 +21,8 @@ pub struct Migrator {
 }
 
 impl Migrator {
-    pub fn new(uri: &str) -> Result<Self> {
-        Ok(Self {
-            pool: AnyPool::connect_lazy(uri)?,
-        })
+    pub fn new(pool: AnyPool) -> Self {
+        Self { pool }
     }
 
     pub async fn revert(&self) -> Result<()> {
