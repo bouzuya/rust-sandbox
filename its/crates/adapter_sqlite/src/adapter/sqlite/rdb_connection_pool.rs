@@ -45,7 +45,7 @@ impl RdbConnectionPool {
             Ok(())
         }
 
-        let iko_migrator = iko::Migrator::new(connection_uri)?;
+        let iko_migrator = iko::Migrator::new(pool.clone());
         let mut iko_migrations = iko::Migrations::default();
         iko_migrations.push(1, migrate1)?;
         iko_migrator.migrate(&iko_migrations).await?;
