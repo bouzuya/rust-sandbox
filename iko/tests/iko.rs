@@ -31,7 +31,7 @@ async fn test() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let pool = AnyPool::connect("sqlite::memory::").await?;
+    let pool = AnyPool::connect("sqlite::memory:").await?;
     let mut migrations = Migrations::default();
     migrations.push(1, migrate1)?;
     migrations.push(2, migrate2)?;
@@ -85,7 +85,7 @@ async fn test2() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let pool = AnyPool::connect("sqlite::memory::").await?;
+    let pool = AnyPool::connect("sqlite::memory:").await?;
     let mut migrations = Migrations::default();
     migrations.push(1, migrate1)?;
     migrations.push(2, migrate2)?;
@@ -104,7 +104,7 @@ async fn export_test() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let pool = AnyPool::connect("sqlite::memory::").await?;
+    let pool = AnyPool::connect("sqlite::memory:").await?;
     let mut migrations = Migrations::default();
     let result: Result<(), MigrationsError> = migrations.push(1, migrate1);
     result?;
