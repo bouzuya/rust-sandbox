@@ -1,11 +1,14 @@
 use std::str::FromStr;
+mod migrate1;
+mod migrate2;
 
-use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
+use migrate1::*;
+use migrate2::*;
+
+use sqlx::{any::AnyConnectOptions, AnyPool};
 use use_case::{IssueBlockLinkRepositoryError, IssueRepositoryError};
 
 use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
-
-use super::command_migration_source::CommandMigrationSource;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -37,17 +40,10 @@ impl RdbConnectionPool {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
 
-        async fn migrate1(
-            pool: AnyPool,
-        ) -> Result<(), Box<dyn std::error::Error + Send + Sync + 'static>> {
-            let migrator = Migrator::new(CommandMigrationSource::default()).await?;
-            migrator.run(&pool).await?;
-            Ok(())
-        }
-
         let iko_migrator = iko::Migrator::new(pool.clone());
         let mut iko_migrations = iko::Migrations::default();
         iko_migrations.push(1, migrate1)?;
+        iko_migrations.push(2, migrate2)?;
         iko_migrator.migrate(&iko_migrations).await?;
 
         Ok(Self(pool))
