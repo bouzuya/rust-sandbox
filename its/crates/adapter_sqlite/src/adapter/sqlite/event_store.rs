@@ -75,6 +75,7 @@ pub async fn save(
 
     let query: Query<Any, AnyArguments> =
         sqlx::query(include_str!("../../../sql/command/insert_event.sql"))
+            .bind(event.id.to_string())
             .bind(event.stream_id.to_string())
             .bind(i64::from(event.stream_seq))
             .bind(event.data);
@@ -111,8 +112,11 @@ mod tests {
 
     use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
 
-    use crate::adapter::sqlite::{
-        command_migration_source::CommandMigrationSource, event_store::event_id::EventId,
+    use crate::{
+        adapter::sqlite::{
+            command_migration_source::CommandMigrationSource, event_store::event_id::EventId,
+        },
+        migrate1, migrate2,
     };
 
     use super::*;
@@ -121,6 +125,13 @@ mod tests {
     async fn read_and_write_test() -> anyhow::Result<()> {
         let options = AnyConnectOptions::from_str("sqlite::memory:")?;
         let pool = AnyPool::connect_with(options).await?;
+
+        // FIXME: migration
+        let iko_migrator = iko::Migrator::new(pool.clone());
+        let mut iko_migrations = iko::Migrations::default();
+        iko_migrations.push(1, migrate1)?;
+        iko_migrations.push(2, migrate2)?;
+        iko_migrator.migrate(&iko_migrations).await?;
 
         let migrator = Migrator::new(CommandMigrationSource::default()).await?;
         migrator.run(&pool).await?;
@@ -159,6 +170,7 @@ mod tests {
             find_events_by_event_stream_id(&mut transaction, EventStreamId::generate()).await?;
         assert!(events.is_empty());
 
+        let event_id = EventId::generate();
         let update_event = Event {
             id: event_id,
             stream_id: event_stream_id,

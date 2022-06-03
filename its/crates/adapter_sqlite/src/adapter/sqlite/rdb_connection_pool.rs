@@ -2,8 +2,8 @@ use std::str::FromStr;
 mod migrate1;
 mod migrate2;
 
-use migrate1::*;
-use migrate2::*;
+pub use migrate1::*;
+pub use migrate2::*;
 
 use sqlx::{any::AnyConnectOptions, AnyPool};
 use use_case::{IssueBlockLinkRepositoryError, IssueRepositoryError};
