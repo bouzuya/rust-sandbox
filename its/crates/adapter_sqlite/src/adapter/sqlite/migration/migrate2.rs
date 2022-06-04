@@ -43,9 +43,7 @@ pub async fn migrate2(
 
 #[cfg(test)]
 mod tests {
-    use crate::adapter::sqlite::{
-        event_store::EventStreamId, rdb_connection_pool::migrate1::migrate1,
-    };
+    use crate::adapter::sqlite::{event_store::EventStreamId, migration::migrate1::migrate1};
 
     use super::*;
 

@@ -1,14 +1,11 @@
 use std::str::FromStr;
-mod migrate1;
-mod migrate2;
-
-pub use migrate1::*;
-pub use migrate2::*;
 
 use sqlx::{any::AnyConnectOptions, AnyPool};
 use use_case::{IssueBlockLinkRepositoryError, IssueRepositoryError};
 
 use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
+
+use super::migration::migrate;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -18,10 +15,8 @@ pub enum Error {
     IssueRepository(#[from] IssueRepositoryError),
     #[error("issue block link repository error: {0}")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
-    #[error("migrate error: {0}")]
-    Migrate(#[from] iko::MigratorError),
-    #[error("migrations error: {0}")]
-    Migrations(#[from] iko::MigrationsError),
+    #[error("migration error: {0}")]
+    Migration(#[from] super::migration::Error),
     #[error("sqlx error: {0}")]
     Sqlx(#[from] sqlx::Error),
 }
@@ -40,11 +35,7 @@ impl RdbConnectionPool {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
 
-        let iko_migrator = iko::Migrator::new(pool.clone());
-        let mut iko_migrations = iko::Migrations::default();
-        iko_migrations.push(1, migrate1)?;
-        iko_migrations.push(2, migrate2)?;
-        iko_migrator.migrate(&iko_migrations).await?;
+        migrate(pool.clone()).await?;
 
         Ok(Self(pool))
     }

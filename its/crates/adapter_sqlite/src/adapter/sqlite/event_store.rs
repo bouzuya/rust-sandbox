@@ -112,11 +112,9 @@ mod tests {
 
     use sqlx::{any::AnyConnectOptions, migrate::Migrator, AnyPool};
 
-    use crate::{
-        adapter::sqlite::{
-            command_migration_source::CommandMigrationSource, event_store::event_id::EventId,
-        },
-        migrate1, migrate2,
+    use crate::adapter::sqlite::{
+        command_migration_source::CommandMigrationSource, event_store::event_id::EventId,
+        migration::migrate,
     };
 
     use super::*;
@@ -126,12 +124,7 @@ mod tests {
         let options = AnyConnectOptions::from_str("sqlite::memory:")?;
         let pool = AnyPool::connect_with(options).await?;
 
-        // FIXME: migration
-        let iko_migrator = iko::Migrator::new(pool.clone());
-        let mut iko_migrations = iko::Migrations::default();
-        iko_migrations.push(1, migrate1)?;
-        iko_migrations.push(2, migrate2)?;
-        iko_migrator.migrate(&iko_migrations).await?;
+        migrate(pool.clone()).await?;
 
         let migrator = Migrator::new(CommandMigrationSource::default()).await?;
         migrator.run(&pool).await?;
