@@ -38,9 +38,17 @@ its: issue tracking system
 - (脱線) 少なくとも永続化のためのイベントではなく他のコンテキストに提供すべき情報になるはず
 - EventId に相当するものは EventStreamId + EventStreamSeq (UNIQUE)
 - (脱線) 現状は EventId が存在しないので追加しておいたほうが良い
+  → 2022-06-05 done
 - (脱線) どこまで読み込んだかの判定が難しいので EventSeq も同時に追加しておいたほうが良い
+  → 2022-06-05 done
 - (脱線) EventSeq は DB のみに存在するもので良い
+  → 2022-06-05 done
 - AggregateId + AggregateVersion があれば任意の状態を復元できるはずだが query db は最新状態にしか対応していなさそう
 - ひとまず「 UseCase からの戻り値は EventId および AggregateId を含める」「 AggregateId で最新の状態を得て表示する」で良さそう
 - (脱線) 現状は AggregateId ≒ EventStreamId (1 対 1) になっている
+- UseCase の戻り値から情報を減らしたい
+- `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
+- update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
+- update_query_db を削除したい
+- events.seq の追加でどこまでイベントを処理したかを判断できるようになったのでそれを使う
 - ...
