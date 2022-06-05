@@ -90,7 +90,7 @@ impl From<event_store::Error> for QueryHandlerError {
 // SqliteQueryHandler
 
 pub struct SqliteQueryHandler {
-    pool: AnyPool,
+    query_pool: AnyPool,
     issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
 }
 
@@ -103,7 +103,7 @@ impl SqliteQueryHandler {
         let options = AnyConnectOptions::from_str(connection_uri)?;
         let pool = AnyPool::connect_with(options).await?;
         let created = Self {
-            pool,
+            query_pool: pool,
             issue_repository,
         };
 
@@ -113,7 +113,7 @@ impl SqliteQueryHandler {
     }
 
     pub async fn create_database(&self) -> Result<(), QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let migrator = Migrator::new(QueryMigrationSource::default()).await?;
         migrator.run(&mut *transaction).await?;
         transaction.commit().await?;
@@ -121,7 +121,7 @@ impl SqliteQueryHandler {
     }
 
     pub async fn drop_database(&self) -> Result<(), QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let sqls = vec![
             include_str!("../../../sql/query/drop_issue_block_links.sql"),
             include_str!("../../../sql/query/drop_issues.sql"),
@@ -137,7 +137,8 @@ impl SqliteQueryHandler {
         self.drop_database().await?;
         self.create_database().await?;
 
-        let mut transaction = self.pool.begin().await?;
+        // FIXME: use command_pool
+        let mut transaction = self.query_pool.begin().await?;
         for event in event_store::find_events(&mut transaction).await? {
             let domain_event = DomainEvent::from_str(event.data.as_str())
                 .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
@@ -189,7 +190,7 @@ impl SqliteQueryHandler {
     }
 
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<(), QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/delete_issue.sql"))
                 .bind(issue.id().to_string());
@@ -210,7 +211,7 @@ impl SqliteQueryHandler {
         &self,
         issue_block_link: IssueBlockLinkAggregate,
     ) -> Result<(), QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
             "../../../sql/query/delete_issue_block_link.sql"
         ))
@@ -252,7 +253,7 @@ impl SqliteQueryHandler {
     }
 
     pub async fn issue_list(&self) -> Result<Vec<QueryIssue>, QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let issues: Vec<QueryIssue> =
             sqlx::query_as(include_str!("../../../sql/query/select_issues.sql"))
                 .fetch_all(&mut transaction)
@@ -264,7 +265,7 @@ impl SqliteQueryHandler {
         &self,
         issue_id: &IssueId,
     ) -> Result<Option<QueryIssueWithLinks>, QueryHandlerError> {
-        let mut transaction = self.pool.begin().await?;
+        let mut transaction = self.query_pool.begin().await?;
         let issue: Option<QueryIssue> =
             sqlx::query_as(include_str!("../../../sql/query/select_issue.sql"))
                 .bind(issue_id.to_string())
