@@ -38,6 +38,14 @@ impl MigrationSource<'static> for QueryMigrationSource {
                         "../../../sql/query/migrations/20220417000003_alter_issues_add_resolution.sql"
                     )),
                 ),
+                Migration::new(
+                    20220605000001,
+                    Cow::from("create_last_event_id"),
+                    MigrationType::Simple,
+                    Cow::from(include_str!(
+                        "../../../sql/query/migrations/20220605000001_create_last_event_id.sql"
+                    )),
+                ),
             ];
             Ok(migrations)
         })

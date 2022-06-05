@@ -51,4 +51,5 @@ its: issue tracking system
 - update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
 - update_query_db を削除したい
 - events.seq の追加でどこまでイベントを処理したかを判断できるようになったのでそれを使う
+- query db に last event id を追加する
 - ...
