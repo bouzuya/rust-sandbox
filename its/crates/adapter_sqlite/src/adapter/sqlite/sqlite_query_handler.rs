@@ -22,6 +22,8 @@ use super::{
     query_migration_source::QueryMigrationSource,
 };
 
+pub type Result<T, E = QueryHandlerError> = std::result::Result<T, E>;
+
 // QueryIssue
 
 #[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
@@ -98,7 +100,7 @@ impl SqliteQueryHandler {
         command_pool: RdbConnectionPool,
         issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
         _issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
-    ) -> Result<Self, QueryHandlerError> {
+    ) -> Result<Self> {
         let query_pool = AnyPool::connect(connection_uri).await?;
         let created = Self {
             command_pool: AnyPool::from(command_pool),
@@ -111,7 +113,7 @@ impl SqliteQueryHandler {
         Ok(created)
     }
 
-    pub async fn create_database(&self) -> Result<(), QueryHandlerError> {
+    pub async fn create_database(&self) -> Result<()> {
         let mut transaction = self.query_pool.begin().await?;
         let migrator = Migrator::new(QueryMigrationSource::default()).await?;
         migrator.run(&mut *transaction).await?;
@@ -119,7 +121,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn drop_database(&self) -> Result<(), QueryHandlerError> {
+    pub async fn drop_database(&self) -> Result<()> {
         let mut transaction = self.query_pool.begin().await?;
         let sqls = vec![
             include_str!("../../../sql/query/drop_issue_block_links.sql"),
@@ -132,7 +134,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn reset_database(&self) -> Result<(), QueryHandlerError> {
+    pub async fn reset_database(&self) -> Result<()> {
         self.drop_database().await?;
         self.create_database().await?;
 
@@ -187,7 +189,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn save_issue(&self, issue: IssueAggregate) -> Result<(), QueryHandlerError> {
+    pub async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
         let mut transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/query/delete_issue.sql"))
@@ -208,7 +210,7 @@ impl SqliteQueryHandler {
     pub async fn save_issue_block_link(
         &self,
         issue_block_link: IssueBlockLinkAggregate,
-    ) -> Result<(), QueryHandlerError> {
+    ) -> Result<()> {
         let mut transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
             "../../../sql/query/delete_issue_block_link.sql"
@@ -250,7 +252,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn issue_list(&self) -> Result<Vec<QueryIssue>, QueryHandlerError> {
+    pub async fn issue_list(&self) -> Result<Vec<QueryIssue>> {
         let mut transaction = self.query_pool.begin().await?;
         let issues: Vec<QueryIssue> =
             sqlx::query_as(include_str!("../../../sql/query/select_issues.sql"))
@@ -259,10 +261,7 @@ impl SqliteQueryHandler {
         Ok(issues)
     }
 
-    pub async fn issue_view(
-        &self,
-        issue_id: &IssueId,
-    ) -> Result<Option<QueryIssueWithLinks>, QueryHandlerError> {
+    pub async fn issue_view(&self, issue_id: &IssueId) -> Result<Option<QueryIssueWithLinks>> {
         let mut transaction = self.query_pool.begin().await?;
         let issue: Option<QueryIssue> =
             sqlx::query_as(include_str!("../../../sql/query/select_issue.sql"))
