@@ -11,14 +11,11 @@ use domain::{
     DomainEvent, IssueId, ParseDomainEventError,
 };
 use serde::Serialize;
-use sqlx::{
-    any::{AnyArguments, AnyConnectOptions},
-    migrate::Migrator,
-    query::Query,
-    Any, AnyPool, FromRow,
-};
+use sqlx::{any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow};
 use thiserror::Error;
 use use_case::{IssueBlockLinkRepository, IssueRepository};
+
+use crate::RdbConnectionPool;
 
 use super::{
     event_store::{self},
@@ -90,6 +87,7 @@ impl From<event_store::Error> for QueryHandlerError {
 // SqliteQueryHandler
 
 pub struct SqliteQueryHandler {
+    command_pool: AnyPool,
     query_pool: AnyPool,
     issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
 }
@@ -97,13 +95,14 @@ pub struct SqliteQueryHandler {
 impl SqliteQueryHandler {
     pub async fn new(
         connection_uri: &str,
+        command_pool: RdbConnectionPool,
         issue_repository: Arc<Mutex<dyn IssueRepository + Send + Sync>>,
         _issue_block_link_repository: Arc<Mutex<dyn IssueBlockLinkRepository + Send + Sync>>,
     ) -> Result<Self, QueryHandlerError> {
-        let options = AnyConnectOptions::from_str(connection_uri)?;
-        let pool = AnyPool::connect_with(options).await?;
+        let query_pool = AnyPool::connect(connection_uri).await?;
         let created = Self {
-            query_pool: pool,
+            command_pool: AnyPool::from(command_pool),
+            query_pool,
             issue_repository,
         };
 
@@ -137,8 +136,7 @@ impl SqliteQueryHandler {
         self.drop_database().await?;
         self.create_database().await?;
 
-        // FIXME: use command_pool
-        let mut transaction = self.query_pool.begin().await?;
+        let mut transaction = self.command_pool.begin().await?;
         for event in event_store::find_events(&mut transaction).await? {
             let domain_event = DomainEvent::from_str(event.data.as_str())
                 .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
@@ -355,6 +353,7 @@ mod tests {
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
+            connection_pool,
             Arc::new(Mutex::new(issue_repository)),
             Arc::new(Mutex::new(issue_block_link_repository)),
         )
@@ -419,6 +418,7 @@ mod tests {
 
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
+            connection_pool,
             Arc::new(Mutex::new(issue_repository)),
             Arc::new(Mutex::new(issue_block_link_repository)),
         )

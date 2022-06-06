@@ -52,6 +52,7 @@ impl App {
         let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
         let query_handler = SqliteQueryHandler::new(
             &query_connection_uri,
+            connection_pool.clone(),
             Arc::new(Mutex::new(issue_repository)),
             Arc::new(Mutex::new(issue_block_link_repository)),
         )
