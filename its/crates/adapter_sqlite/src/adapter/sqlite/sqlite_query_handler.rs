@@ -12,7 +12,6 @@ use domain::{
 };
 use serde::Serialize;
 use sqlx::{any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow};
-use thiserror::Error;
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
 use crate::RdbConnectionPool;
@@ -22,7 +21,7 @@ use super::{
     query_migration_source::QueryMigrationSource,
 };
 
-pub type Result<T, E = QueryHandlerError> = std::result::Result<T, E>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // QueryIssue
 
@@ -62,25 +61,25 @@ pub struct QueryIssueBlockLink {
 
 // QueryHandlerError
 
-#[derive(Debug, Error)]
-pub enum QueryHandlerError {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
     #[error("Unknown {0}")]
     Unknown(String),
 }
 
-impl From<sqlx::Error> for QueryHandlerError {
+impl From<sqlx::Error> for Error {
     fn from(e: sqlx::Error) -> Self {
         Self::Unknown(e.to_string())
     }
 }
 
-impl From<sqlx::migrate::MigrateError> for QueryHandlerError {
+impl From<sqlx::migrate::MigrateError> for Error {
     fn from(e: sqlx::migrate::MigrateError) -> Self {
         Self::Unknown(e.to_string())
     }
 }
 
-impl From<event_store::Error> for QueryHandlerError {
+impl From<event_store::Error> for Error {
     fn from(e: event_store::Error) -> Self {
         Self::Unknown(e.to_string())
     }
@@ -141,7 +140,7 @@ impl SqliteQueryHandler {
         let mut transaction = self.command_pool.begin().await?;
         for event in event_store::find_events(&mut transaction).await? {
             let domain_event = DomainEvent::from_str(event.data.as_str())
-                .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+                .map_err(|e| Error::Unknown(e.to_string()))?;
             match domain_event {
                 DomainEvent::Issue(_) => {
                     // TODO: improve
@@ -155,12 +154,12 @@ impl SqliteQueryHandler {
                         .into_iter()
                         .map(|e| DomainEvent::from_str(e.data.as_str()))
                         .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .map_err(|e| Error::Unknown(e.to_string()))?
                         .into_iter()
                         .filter_map(|e| e.issue())
                         .collect::<Vec<IssueAggregateEvent>>();
                     let issue = IssueAggregate::from_events(&events)
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+                        .map_err(|e| Error::Unknown(e.to_string()))?;
                     self.save_issue(issue).await?;
                 }
                 DomainEvent::IssueBlockLink(_) => {
@@ -175,12 +174,12 @@ impl SqliteQueryHandler {
                         .into_iter()
                         .map(|e| DomainEvent::from_str(e.data.as_str()))
                         .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
+                        .map_err(|e| Error::Unknown(e.to_string()))?
                         .into_iter()
                         .filter_map(|e| e.issue_block_link())
                         .collect::<Vec<IssueBlockLinkAggregateEvent>>();
                     let issue_block_link = IssueBlockLinkAggregate::from_events(&events)
-                        .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?;
+                        .map_err(|e| Error::Unknown(e.to_string()))?;
                     self.save_issue_block_link(issue_block_link).await?;
                 }
             }
@@ -219,21 +218,22 @@ impl SqliteQueryHandler {
         .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut transaction).await?;
 
-        let issue_repository = self.issue_repository.lock().map_err(|e| {
-            QueryHandlerError::Unknown(format!("IssueRepository can't lock: {}", e))
-        })?;
+        let issue_repository = self
+            .issue_repository
+            .lock()
+            .map_err(|e| Error::Unknown(format!("IssueRepository can't lock: {}", e)))?;
         let issue_title = issue_repository
             .find_by_id(issue_block_link.id().issue_id())
             .await
-            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-            .ok_or_else(|| QueryHandlerError::Unknown("no issue".to_string()))?
+            .map_err(|e| Error::Unknown(e.to_string()))?
+            .ok_or_else(|| Error::Unknown("no issue".to_string()))?
             .title()
             .to_string();
         let blocked_issue_title = issue_repository
             .find_by_id(issue_block_link.id().blocked_issue_id())
             .await
-            .map_err(|e| QueryHandlerError::Unknown(e.to_string()))?
-            .ok_or_else(|| QueryHandlerError::Unknown("no issue".to_string()))?
+            .map_err(|e| Error::Unknown(e.to_string()))?
+            .ok_or_else(|| Error::Unknown("no issue".to_string()))?
             .title()
             .to_string();
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
@@ -245,7 +245,7 @@ impl SqliteQueryHandler {
         .bind(blocked_issue_title.to_string());
         let rows_affected = query.execute(&mut transaction).await?.rows_affected();
         if rows_affected != 1 {
-            return Err(QueryHandlerError::Unknown("rows_affected != 1".to_string()));
+            return Err(Error::Unknown("rows_affected != 1".to_string()));
         }
 
         transaction.commit().await?;
