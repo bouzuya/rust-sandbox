@@ -19,6 +19,19 @@ use sqlx::{any::AnyArguments, query::Query, Any};
 
 pub type Result<T, E = Error> = core::result::Result<T, E>;
 
+pub async fn find_events_by_event_id_after(
+    transaction: &mut Transaction<'_, Any>,
+    event_id: EventId,
+) -> Result<Vec<Event>> {
+    let event_rows: Vec<EventRow> = sqlx::query_as(include_str!(
+        "../../../sql/command/select_events_by_event_id_after.sql"
+    ))
+    .bind(event_id.to_string())
+    .fetch_all(&mut *transaction)
+    .await?;
+    Ok(event_rows.into_iter().map(Event::from).collect())
+}
+
 pub async fn find_events_by_event_stream_id(
     transaction: &mut Transaction<'_, Any>,
     event_stream_id: EventStreamId,
@@ -177,5 +190,9 @@ mod tests {
         assert_eq!(find_events(&mut transaction).await?.len(), 2);
 
         Ok(())
+    }
+
+    fn test_find_events_by_event_id_after() {
+        // TODO
     }
 }
