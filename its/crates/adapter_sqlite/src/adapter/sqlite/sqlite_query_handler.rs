@@ -11,13 +11,15 @@ use domain::{
     DomainEvent, IssueId, ParseDomainEventError,
 };
 use serde::Serialize;
-use sqlx::{any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow};
+use sqlx::{
+    any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow, Transaction,
+};
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
-use crate::RdbConnectionPool;
+use crate::{adapter::sqlite::event_store::EventId, RdbConnectionPool};
 
 use super::{
-    event_store::{self},
+    event_store::{self, Event},
     query_migration_source::QueryMigrationSource,
 };
 
@@ -112,6 +114,37 @@ impl SqliteQueryHandler {
         Ok(created)
     }
 
+    pub async fn update_database(&self) -> Result<()> {
+        let mut transaction = self.query_pool.begin().await?;
+
+        #[derive(FromRow)]
+        struct LastEventIdRow {
+            event_id: String,
+        }
+        let row: Option<LastEventIdRow> =
+            sqlx::query_as(include_str!("../../../sql/query/select_last_event_id.sql"))
+                .fetch_optional(&mut transaction)
+                .await?;
+        let event_id = row
+            .map(|r| r.event_id)
+            .and_then(|s| EventId::from_str(s.as_str()).ok());
+
+        let events = match event_id {
+            Some(event_id) => {
+                event_store::find_events_by_event_id_after(&mut transaction, event_id).await?
+            }
+            None => event_store::find_events(&mut transaction).await?,
+        };
+        for event in events {
+            self.handle_event(&mut transaction, event).await?;
+        }
+
+        // TODO: save last_event_id
+
+        transaction.commit().await?;
+        Ok(())
+    }
+
     pub async fn create_database(&self) -> Result<()> {
         let mut transaction = self.query_pool.begin().await?;
         let migrator = Migrator::new(QueryMigrationSource::default()).await?;
@@ -139,50 +172,7 @@ impl SqliteQueryHandler {
 
         let mut transaction = self.command_pool.begin().await?;
         for event in event_store::find_events(&mut transaction).await? {
-            let domain_event = DomainEvent::from_str(event.data.as_str())
-                .map_err(|e| Error::Unknown(e.to_string()))?;
-            match domain_event {
-                DomainEvent::Issue(_) => {
-                    // TODO: improve
-                    let events =
-                        event_store::find_events_by_event_stream_id_and_version_less_than_equal(
-                            &mut transaction,
-                            event.stream_id,
-                            event.stream_seq,
-                        )
-                        .await?
-                        .into_iter()
-                        .map(|e| DomainEvent::from_str(e.data.as_str()))
-                        .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
-                        .map_err(|e| Error::Unknown(e.to_string()))?
-                        .into_iter()
-                        .filter_map(|e| e.issue())
-                        .collect::<Vec<IssueAggregateEvent>>();
-                    let issue = IssueAggregate::from_events(&events)
-                        .map_err(|e| Error::Unknown(e.to_string()))?;
-                    self.save_issue(issue).await?;
-                }
-                DomainEvent::IssueBlockLink(_) => {
-                    // TODO: improve
-                    let events =
-                        event_store::find_events_by_event_stream_id_and_version_less_than_equal(
-                            &mut transaction,
-                            event.stream_id,
-                            event.stream_seq,
-                        )
-                        .await?
-                        .into_iter()
-                        .map(|e| DomainEvent::from_str(e.data.as_str()))
-                        .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
-                        .map_err(|e| Error::Unknown(e.to_string()))?
-                        .into_iter()
-                        .filter_map(|e| e.issue_block_link())
-                        .collect::<Vec<IssueBlockLinkAggregateEvent>>();
-                    let issue_block_link = IssueBlockLinkAggregate::from_events(&events)
-                        .map_err(|e| Error::Unknown(e.to_string()))?;
-                    self.save_issue_block_link(issue_block_link).await?;
-                }
-            }
+            self.handle_event(&mut transaction, event).await?;
         }
 
         Ok(())
@@ -306,6 +296,58 @@ impl SqliteQueryHandler {
             }
             None => Ok(None),
         }
+    }
+
+    async fn handle_event(
+        &self,
+        transaction: &mut Transaction<'_, Any>,
+        event: Event,
+    ) -> Result<()> {
+        let domain_event = DomainEvent::from_str(event.data.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        match domain_event {
+            DomainEvent::Issue(_) => {
+                // TODO: improve
+                let events =
+                    event_store::find_events_by_event_stream_id_and_version_less_than_equal(
+                        transaction,
+                        event.stream_id,
+                        event.stream_seq,
+                    )
+                    .await?
+                    .into_iter()
+                    .map(|e| DomainEvent::from_str(e.data.as_str()))
+                    .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?
+                    .into_iter()
+                    .filter_map(|e| e.issue())
+                    .collect::<Vec<IssueAggregateEvent>>();
+                let issue = IssueAggregate::from_events(&events)
+                    .map_err(|e| Error::Unknown(e.to_string()))?;
+                self.save_issue(issue).await?;
+            }
+            DomainEvent::IssueBlockLink(_) => {
+                // TODO: improve
+                let events =
+                    event_store::find_events_by_event_stream_id_and_version_less_than_equal(
+                        transaction,
+                        event.stream_id,
+                        event.stream_seq,
+                    )
+                    .await?
+                    .into_iter()
+                    .map(|e| DomainEvent::from_str(e.data.as_str()))
+                    .collect::<Result<Vec<DomainEvent>, ParseDomainEventError>>()
+                    .map_err(|e| Error::Unknown(e.to_string()))?
+                    .into_iter()
+                    .filter_map(|e| e.issue_block_link())
+                    .collect::<Vec<IssueBlockLinkAggregateEvent>>();
+                let issue_block_link = IssueBlockLinkAggregate::from_events(&events)
+                    .map_err(|e| Error::Unknown(e.to_string()))?;
+                self.save_issue_block_link(issue_block_link).await?;
+            }
+        }
+        Ok(())
     }
 }
 
