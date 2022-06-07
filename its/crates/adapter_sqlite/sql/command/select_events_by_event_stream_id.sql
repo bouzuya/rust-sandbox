@@ -4,3 +4,4 @@ SELECT events.id AS id,
   events.data AS data
 FROM events
 WHERE events.event_stream_id = $1
+ORDER BY events.seq ASC

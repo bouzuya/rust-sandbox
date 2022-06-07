@@ -5,3 +5,4 @@ SELECT events.id AS id,
 FROM events
 WHERE events.event_stream_id = $1
   AND events.version <= $2
+ORDER BY events.seq ASC
