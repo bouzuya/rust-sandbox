@@ -125,7 +125,7 @@ impl SqliteQueryHandler {
             sqlx::query_as(include_str!("../../../sql/query/select_last_event_id.sql"))
                 .fetch_optional(&mut query_transaction)
                 .await?;
-        let event_id = row
+        let mut event_id = row
             .map(|r| r.event_id)
             .and_then(|s| EventId::from_str(s.as_str()).ok());
 
@@ -138,14 +138,45 @@ impl SqliteQueryHandler {
             None => event_store::find_events(&mut event_store_transaction).await?,
         };
         for event in events {
+            let id = event.id;
             let mut event_store_transaction = self.event_store_pool.begin().await?;
             self.handle_event(&mut event_store_transaction, event)
                 .await?;
             event_store_transaction.commit().await?;
+            self.save_last_event_id(id, event_id).await?;
+            event_id = Some(id);
         }
 
-        // TODO: save last_event_id
+        Ok(())
+    }
 
+    async fn save_last_event_id(
+        &self,
+        new_event_id: EventId,
+        old_event_id: Option<EventId>,
+    ) -> Result<()> {
+        let mut query_transaction = self.query_pool.begin().await?;
+        match old_event_id {
+            Some(event_id) => {
+                let query: Query<Any, AnyArguments> =
+                    sqlx::query(include_str!("../../../sql/query/update_last_event_id.sql"))
+                        .bind(new_event_id.to_string())
+                        .bind(event_id.to_string());
+                let rows_affected = query.execute(&mut query_transaction).await?.rows_affected();
+                if rows_affected != 1 {
+                    return Err(Error::Unknown(
+                        "update_last_event_id rows_affected != 1".to_string(),
+                    ));
+                }
+            }
+            None => {
+                let query: Query<Any, AnyArguments> =
+                    sqlx::query(include_str!("../../../sql/query/insert_last_event_id.sql"))
+                        .bind(new_event_id.to_string());
+                query.execute(&mut query_transaction).await?;
+            }
+        }
+        query_transaction.commit().await?;
         Ok(())
     }
 
