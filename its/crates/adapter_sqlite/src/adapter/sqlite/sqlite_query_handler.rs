@@ -158,6 +158,7 @@ impl SqliteQueryHandler {
         let sqls = vec![
             include_str!("../../../sql/query/drop_issue_block_links.sql"),
             include_str!("../../../sql/query/drop_issues.sql"),
+            include_str!("../../../sql/query/drop_last_event_id.sql"),
         ];
         for sql in sqls {
             sqlx::query(sql).execute(&mut *transaction).await?;
