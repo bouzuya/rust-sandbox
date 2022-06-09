@@ -22,6 +22,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "adapter_sqlite_event_store"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "ulid",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

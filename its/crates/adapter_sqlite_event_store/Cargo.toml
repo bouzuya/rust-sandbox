@@ -1,0 +1,16 @@
+[package]
+name = "adapter_sqlite_event_store"
+version = "0.0.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+sqlx = { version = "0.5.10", features = ["any", "migrate", "runtime-tokio-rustls", "sqlite"] }
+thiserror = "1.0.30"
+ulid = "0.5.0"
+
+[dev-dependencies]
+anyhow = "1.0.52"
+tempfile = "3.3.0"
+tokio = { version = "1.15.0", features = ["full"] }
