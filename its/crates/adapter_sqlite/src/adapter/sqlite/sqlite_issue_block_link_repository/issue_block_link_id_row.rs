@@ -2,9 +2,8 @@ use std::str::FromStr;
 
 // use domain::IssueBlockLinkId;
 
+use event_store::EventStreamId;
 use sqlx::{any::AnyRow, FromRow, Row};
-
-use super::event_store::EventStreamId;
 
 #[derive(Debug)]
 pub(super) struct IssueBlockLinkIdRow {

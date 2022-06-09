@@ -8,17 +8,13 @@ use domain::{
     DomainEvent, IssueId, ParseDomainEventError, Version,
 };
 
+use event_store::{Event, EventId, EventStreamId, EventStreamSeq};
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueRepository, IssueRepositoryError};
 
-use crate::adapter::sqlite::event_store::{Event, EventStreamSeq};
-
 use self::issue_id_row::IssueIdRow;
 
-use super::{
-    event_store::{self, EventId, EventStreamId},
-    rdb_connection_pool::RdbConnectionPool,
-};
+use super::rdb_connection_pool::RdbConnectionPool;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {

@@ -5,14 +5,13 @@ use std::str::FromStr;
 use async_trait::async_trait;
 use domain::{aggregate::IssueBlockLinkAggregate, DomainEvent, IssueBlockLinkId, Version};
 
+use event_store::{Event, EventId, EventStreamId, EventStreamSeq};
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
 use use_case::{IssueBlockLinkRepository, IssueBlockLinkRepositoryError};
 
 use crate::RdbConnectionPool;
 
 use self::issue_block_link_id_row::IssueBlockLinkIdRow;
-
-use super::event_store::{self, Event, EventId, EventStreamId, EventStreamSeq};
 
 #[derive(Debug)]
 pub struct SqliteIssueBlockLinkRepository {

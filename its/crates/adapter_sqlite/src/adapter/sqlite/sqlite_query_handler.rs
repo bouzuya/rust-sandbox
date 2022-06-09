@@ -10,18 +10,16 @@ use domain::{
     },
     DomainEvent, IssueId, ParseDomainEventError,
 };
+use event_store::{Event, EventId};
 use serde::Serialize;
 use sqlx::{
     any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow, Transaction,
 };
 use use_case::{IssueBlockLinkRepository, IssueRepository};
 
-use crate::{adapter::sqlite::event_store::EventId, RdbConnectionPool};
+use crate::RdbConnectionPool;
 
-use super::{
-    event_store::{self, Event},
-    query_migration_source::QueryMigrationSource,
-};
+use super::query_migration_source::QueryMigrationSource;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 

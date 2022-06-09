@@ -1,6 +1,5 @@
+use event_store::EventId;
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Row};
-
-use crate::adapter::sqlite::event_store::EventId;
 
 pub async fn migrate2(
     pool: AnyPool,
@@ -43,7 +42,9 @@ pub async fn migrate2(
 
 #[cfg(test)]
 mod tests {
-    use crate::adapter::sqlite::{event_store::EventStreamId, migration::migrate1::migrate1};
+    use event_store::EventStreamId;
+
+    use crate::adapter::sqlite::migration::migrate1::migrate1;
 
     use super::*;
 

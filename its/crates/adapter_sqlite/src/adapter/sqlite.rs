@@ -1,5 +1,4 @@
 mod command_migration_source;
-mod event_store;
 mod migration;
 mod query_migration_source;
 mod rdb_connection_pool;

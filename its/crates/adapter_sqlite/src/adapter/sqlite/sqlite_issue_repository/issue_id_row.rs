@@ -1,9 +1,8 @@
 use std::str::FromStr;
 
 use domain::IssueId;
+use event_store::EventStreamId;
 use sqlx::{any::AnyRow, FromRow, Row};
-
-use crate::adapter::sqlite::event_store::EventStreamId;
 
 #[derive(Debug)]
 pub(super) struct IssueIdRow {

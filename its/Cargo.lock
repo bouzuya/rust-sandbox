@@ -9,6 +9,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "domain",
+ "event_store",
  "iko",
  "limited-date-time",
  "serde",
