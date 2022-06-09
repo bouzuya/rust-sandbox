@@ -22,18 +22,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "adapter_sqlite_event_store"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "sqlx",
- "tempfile",
- "thiserror",
- "tokio",
- "ulid",
-]
-
-[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -368,6 +356,18 @@ name = "event-listener"
 version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77f3309417938f28bf8228fcff79a4a37103981e3e186d2ccd19c74b38f4eb71"
+
+[[package]]
+name = "event_store"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "ulid",
+]
 
 [[package]]
 name = "fastrand"
