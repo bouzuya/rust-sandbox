@@ -10,11 +10,10 @@ use adapter_sqlite::{
 };
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use domain::{DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
+use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
 use use_case::{
     HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
-    IssueBlockLinkRepository, IssueManagementContextEvent, IssueManagementContextUseCase,
-    IssueRepository,
+    IssueManagementContextUseCase,
 };
 use xdg::BaseDirectories;
 
@@ -67,25 +66,8 @@ impl App {
     }
 
     // TODO: remove
-    async fn update_query_db(&self, event: IssueManagementContextEvent) -> anyhow::Result<()> {
-        if let DomainEvent::Issue(event) = DomainEvent::from(event.clone()) {
-            if let Some(issue) = self.issue_repository().find_by_id(event.issue_id()).await? {
-                self.query_handler.save_issue(issue).await?;
-                // TODO: update query.issue_block_links.issue_title
-                // TODO: update query.issue_block_links.blocked_issue_title
-            }
-        }
-        if let DomainEvent::IssueBlockLink(event) = DomainEvent::from(event.clone()) {
-            if let Some(issue_block_link) = self
-                .issue_block_link_repository()
-                .find_by_id(event.key().0)
-                .await?
-            {
-                self.query_handler
-                    .save_issue_block_link(issue_block_link)
-                    .await?;
-            }
-        }
+    async fn update_query_db(&self) -> anyhow::Result<()> {
+        self.query_handler.update_database().await?;
         Ok(())
     }
 
@@ -138,7 +120,7 @@ async fn issue_block(
     let command = use_case.block_issue(issue_id, blocked_issue_id).into();
     let events = use_case.handle(command).await?;
     // FIXME:
-    app.update_query_db(events.first().unwrap().clone()).await?;
+    app.update_query_db().await?;
     println!("issue blocked : {:?}", events);
     Ok(())
 }
@@ -160,7 +142,7 @@ async fn issue_create(
     let command = use_case.create_issue(issue_title, issue_due).into();
     let events = use_case.handle(command).await?;
     // FIXME:
-    app.update_query_db(events.first().unwrap().clone()).await?;
+    app.update_query_db().await?;
     println!("issue created : {:?}", events);
     Ok(())
 }
@@ -185,7 +167,7 @@ async fn issue_finish(
     let command = use_case.finish_issue(issue_id, resolution).into();
     let events = use_case.handle(command).await?;
     // FIXME:
-    app.update_query_db(events.first().unwrap().clone()).await?;
+    app.update_query_db().await?;
     println!("issue finished : {:?}", events);
     Ok(())
 }
@@ -223,7 +205,7 @@ async fn issue_unblock(
     let command = use_case.unblock_issue(issue_block_link_id).into();
     let events = use_case.handle(command).await?;
     // FIXME:
-    app.update_query_db(events.first().unwrap().clone()).await?;
+    app.update_query_db().await?;
     println!("issue unblocked : {:?}", events);
     Ok(())
 }
@@ -248,7 +230,7 @@ async fn issue_update(
         .handle(command)
         .await?;
     // FIXME:
-    app.update_query_db(events.first().unwrap().clone()).await?;
+    app.update_query_db().await?;
     println!("issue updated : {:?}", events);
     Ok(())
 }
