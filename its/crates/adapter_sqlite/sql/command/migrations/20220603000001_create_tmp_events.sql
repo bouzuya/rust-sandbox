@@ -1,6 +1,6 @@
 -- This migration is used by iko.
 CREATE TABLE IF NOT EXISTS tmp_events (
-  seq INTEGER AUTO_INCREMENT PRIMARY KEY,
+  seq INTEGER PRIMARY KEY AUTOINCREMENT,
   id CHAR(26) NOT NULL,
   event_stream_id CHAR(26) NOT NULL,
   version BIGINT NOT NULL,
