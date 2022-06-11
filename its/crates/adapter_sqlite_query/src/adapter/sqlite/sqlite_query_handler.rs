@@ -4,6 +4,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 
+use adapter_sqlite::RdbConnectionPool;
 use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateEvent, IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent,
@@ -16,8 +17,6 @@ use sqlx::{
     any::AnyArguments, migrate::Migrator, query::Query, Any, AnyPool, FromRow, Transaction,
 };
 use use_case::{IssueBlockLinkRepository, IssueRepository};
-
-use crate::RdbConnectionPool;
 
 use super::query_migration_source::QueryMigrationSource;
 
@@ -120,7 +119,7 @@ impl SqliteQueryHandler {
             event_id: String,
         }
         let row: Option<LastEventIdRow> =
-            sqlx::query_as(include_str!("../../../sql/query/select_last_event_id.sql"))
+            sqlx::query_as(include_str!("../../../sql/select_last_event_id.sql"))
                 .fetch_optional(&mut query_transaction)
                 .await?;
         let mut event_id = row
@@ -157,7 +156,7 @@ impl SqliteQueryHandler {
         match old_event_id {
             Some(event_id) => {
                 let query: Query<Any, AnyArguments> =
-                    sqlx::query(include_str!("../../../sql/query/update_last_event_id.sql"))
+                    sqlx::query(include_str!("../../../sql/update_last_event_id.sql"))
                         .bind(new_event_id.to_string())
                         .bind(event_id.to_string());
                 let rows_affected = query.execute(&mut query_transaction).await?.rows_affected();
@@ -169,7 +168,7 @@ impl SqliteQueryHandler {
             }
             None => {
                 let query: Query<Any, AnyArguments> =
-                    sqlx::query(include_str!("../../../sql/query/insert_last_event_id.sql"))
+                    sqlx::query(include_str!("../../../sql/insert_last_event_id.sql"))
                         .bind(new_event_id.to_string());
                 query.execute(&mut query_transaction).await?;
             }
@@ -189,9 +188,9 @@ impl SqliteQueryHandler {
     pub async fn drop_database(&self) -> Result<()> {
         let mut query_transaction = self.query_pool.begin().await?;
         let sqls = vec![
-            include_str!("../../../sql/query/drop_issue_block_links.sql"),
-            include_str!("../../../sql/query/drop_issues.sql"),
-            include_str!("../../../sql/query/drop_last_event_id.sql"),
+            include_str!("../../../sql/drop_issue_block_links.sql"),
+            include_str!("../../../sql/drop_issues.sql"),
+            include_str!("../../../sql/drop_last_event_id.sql"),
         ];
         for sql in sqls {
             sqlx::query(sql).execute(&mut *query_transaction).await?;
@@ -210,11 +209,10 @@ impl SqliteQueryHandler {
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
         let mut query_transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/query/delete_issue.sql"))
-                .bind(issue.id().to_string());
+            sqlx::query(include_str!("../../../sql/delete_issue.sql")).bind(issue.id().to_string());
         query.execute(&mut query_transaction).await?;
         let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/query/insert_issue.sql"))
+            sqlx::query(include_str!("../../../sql/insert_issue.sql"))
                 .bind(issue.id().to_string())
                 .bind(issue.resolution().map(|s| s.to_string()))
                 .bind(issue.status().to_string())
@@ -230,11 +228,10 @@ impl SqliteQueryHandler {
         issue_block_link: IssueBlockLinkAggregate,
     ) -> Result<()> {
         let mut query_transaction = self.query_pool.begin().await?;
-        let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
-            "../../../sql/query/delete_issue_block_link.sql"
-        ))
-        .bind(issue_block_link.id().issue_id().to_string())
-        .bind(issue_block_link.id().blocked_issue_id().to_string());
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/delete_issue_block_link.sql"))
+                .bind(issue_block_link.id().issue_id().to_string())
+                .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut query_transaction).await?;
 
         let issue_repository = self
@@ -255,13 +252,12 @@ impl SqliteQueryHandler {
             .ok_or_else(|| Error::Unknown("no issue".to_string()))?
             .title()
             .to_string();
-        let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
-            "../../../sql/query/insert_issue_block_link.sql"
-        ))
-        .bind(issue_block_link.id().issue_id().to_string())
-        .bind(issue_title.to_string())
-        .bind(issue_block_link.id().blocked_issue_id().to_string())
-        .bind(blocked_issue_title.to_string());
+        let query: Query<Any, AnyArguments> =
+            sqlx::query(include_str!("../../../sql/insert_issue_block_link.sql"))
+                .bind(issue_block_link.id().issue_id().to_string())
+                .bind(issue_title.to_string())
+                .bind(issue_block_link.id().blocked_issue_id().to_string())
+                .bind(blocked_issue_title.to_string());
         let rows_affected = query.execute(&mut query_transaction).await?.rows_affected();
         if rows_affected != 1 {
             return Err(Error::Unknown("rows_affected != 1".to_string()));
@@ -274,7 +270,7 @@ impl SqliteQueryHandler {
     pub async fn issue_list(&self) -> Result<Vec<QueryIssue>> {
         let mut query_transaction = self.query_pool.begin().await?;
         let issues: Vec<QueryIssue> =
-            sqlx::query_as(include_str!("../../../sql/query/select_issues.sql"))
+            sqlx::query_as(include_str!("../../../sql/select_issues.sql"))
                 .fetch_all(&mut query_transaction)
                 .await?;
         Ok(issues)
@@ -283,20 +279,20 @@ impl SqliteQueryHandler {
     pub async fn issue_view(&self, issue_id: &IssueId) -> Result<Option<QueryIssueWithLinks>> {
         let mut query_transaction = self.query_pool.begin().await?;
         let issue: Option<QueryIssue> =
-            sqlx::query_as(include_str!("../../../sql/query/select_issue.sql"))
+            sqlx::query_as(include_str!("../../../sql/select_issue.sql"))
                 .bind(issue_id.to_string())
                 .fetch_optional(&mut query_transaction)
                 .await?;
         match issue {
             Some(issue) => {
                 let blocks: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
-                    "../../../sql/query/select_issue_block_links_by_issue_id.sql"
+                    "../../../sql/select_issue_block_links_by_issue_id.sql"
                 ))
                 .bind(issue_id.to_string())
                 .fetch_all(&mut query_transaction)
                 .await?;
                 let is_blocked_by: Vec<QueryIssueBlockLink> = sqlx::query_as(include_str!(
-                    "../../../sql/query/select_issue_block_links_by_blocked_issue_id.sql"
+                    "../../../sql/select_issue_block_links_by_blocked_issue_id.sql"
                 ))
                 .bind(issue_id.to_string())
                 .fetch_all(&mut query_transaction)
@@ -386,8 +382,6 @@ mod tests {
 
     use anyhow::Context;
     use limited_date_time::Instant;
-
-    use crate::RdbConnectionPool;
 
     use super::*;
 

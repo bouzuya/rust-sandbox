@@ -19,7 +19,7 @@ impl MigrationSource<'static> for QueryMigrationSource {
                     Cow::from("create_issues"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/query/migrations/20220417000001_create_issues.sql"
+                        "../../../sql/migrations/20220417000001_create_issues.sql"
                     )),
                 ),
                 Migration::new(
@@ -27,7 +27,7 @@ impl MigrationSource<'static> for QueryMigrationSource {
                     Cow::from("create_issue_block_links"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/query/migrations/20220417000002_create_issue_block_links.sql"
+                        "../../../sql/migrations/20220417000002_create_issue_block_links.sql"
                     )),
                 ),
                 Migration::new(
@@ -35,7 +35,7 @@ impl MigrationSource<'static> for QueryMigrationSource {
                     Cow::from("alter_issues_add_resolution"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/query/migrations/20220417000003_alter_issues_add_resolution.sql"
+                        "../../../sql/migrations/20220417000003_alter_issues_add_resolution.sql"
                     )),
                 ),
                 Migration::new(
@@ -43,7 +43,7 @@ impl MigrationSource<'static> for QueryMigrationSource {
                     Cow::from("create_last_event_id"),
                     MigrationType::Simple,
                     Cow::from(include_str!(
-                        "../../../sql/query/migrations/20220605000001_create_last_event_id.sql"
+                        "../../../sql/migrations/20220605000001_create_last_event_id.sql"
                     )),
                 ),
             ];

@@ -23,6 +23,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "adapter_sqlite_query"
+version = "0.0.0"
+dependencies = [
+ "adapter_sqlite",
+ "anyhow",
+ "async-trait",
+ "domain",
+ "event_store",
+ "iko",
+ "limited-date-time",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "tempfile",
+ "thiserror",
+ "tokio",
+ "ulid",
+ "use_case",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -53,6 +74,7 @@ name = "application"
 version = "0.16.0"
 dependencies = [
  "adapter_sqlite",
+ "adapter_sqlite_query",
  "anyhow",
  "assert_cmd",
  "clap",

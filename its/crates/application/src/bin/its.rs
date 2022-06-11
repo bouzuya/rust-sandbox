@@ -5,9 +5,8 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use adapter_sqlite::{
-    RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository, SqliteQueryHandler,
-};
+use adapter_sqlite::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository};
+use adapter_sqlite_query::SqliteQueryHandler;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};

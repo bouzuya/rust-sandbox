@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 adapter_sqlite = { path = "../adapter_sqlite" }
+adapter_sqlite_query = { path = "../adapter_sqlite_query" }
 anyhow = "1.0.52"
 clap = { version = "3.1.8", features = ["derive"] }
 domain = { path = "../domain" }
