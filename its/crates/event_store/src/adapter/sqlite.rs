@@ -1,3 +1,3 @@
 mod event_store;
 
-pub use event_store::*;
+pub use self::event_store::*;
