@@ -79,7 +79,7 @@ mod tests {
         let rows = sqlx::query("SELECT seq, id, event_stream_id, version, data FROM events")
             .fetch_all(&mut transaction)
             .await?;
-        assert_eq!(rows[0].get::<'_, i64, _>("seq"), 0_i64);
+        assert_eq!(rows[0].get::<'_, i64, _>("seq"), 1_i64);
         assert!(!rows[0].get::<'_, String, _>("id").is_empty());
         assert_eq!(
             rows[0].get::<'_, String, _>("event_stream_id"),
