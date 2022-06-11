@@ -85,17 +85,14 @@ fn its_issue_finish() -> anyhow::Result<()> {
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
         .stdout(predicates::str::contains("issue finished"))
+        .stdout(predicates::str::contains(r#""id":"1""#))
         .success();
     Command::cargo_bin("its")?
         .args(&["issue", "finish", "--resolution", "duplicate", "2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
         .stdout(predicates::str::contains("issue finished"))
-        .success();
-    Command::cargo_bin("its")?
-        .args(&["issue", "view", "2"])
-        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .assert()
+        .stdout(predicates::str::contains(r#""id":"2""#))
         .stdout(predicates::str::contains(r#""resolution":"duplicate""#))
         .success();
     Ok(())

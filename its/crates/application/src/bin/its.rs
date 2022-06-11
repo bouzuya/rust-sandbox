@@ -163,11 +163,12 @@ async fn issue_finish(
         .as_deref()
         .map(IssueResolution::from_str)
         .transpose()?;
-    let command = use_case.finish_issue(issue_id, resolution).into();
-    let events = use_case.handle(command).await?;
+    let command = use_case.finish_issue(issue_id.clone(), resolution).into();
+    use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
-    println!("issue finished : {:?}", events);
+    let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
+    println!("issue finished : {}", serde_json::to_string(&issue)?);
     Ok(())
 }
 

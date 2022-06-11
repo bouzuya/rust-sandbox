@@ -24,9 +24,20 @@ its: issue tracking system
 
 ## メモ
 
-### やりたいこと / `its issue finish` の表示を改善したい
+### やりたいこと / UseCase の戻り値から情報を減らしたい
+
+- UseCase の戻り値から情報を減らしたい
+- `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
+  → 2022-06-12 done
+- update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
+  → 2022-06-12 done
+- (脱線) query db は EventStore と Event に依存していて Command db に依存するわけではない
+- (脱線) command db から index として使用しているテーブルと event store との関係を切る
+
+### 完了: やりたいこと / `its issue finish` の表示を改善したい
 
 - `its issue finish` の表示を改善したい
+  → 2022-06-12 done
 - `finish_issue` はコマンドであってクエリではない
 - CLI としての利便性を考えるとコマンド→クエリを自動で実行してくれると良い
 - JSON で Issue の状態を返してほしい
@@ -36,13 +47,6 @@ its: issue tracking system
 - AggregateId + AggregateVersion があれば任意の状態を復元できるはずだが query db は最新状態にしか対応していなさそう
 - ひとまず「 UseCase からの戻り値は EventId および AggregateId を含める」「 AggregateId で最新の状態を得て表示する」で良さそう
 - (脱線) 現状は AggregateId ≒ EventStreamId (1 対 1) になっている
-- UseCase の戻り値から情報を減らしたい
-- `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
-  → 2022-06-12 done
-- update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
-  → 2022-06-12 done
-- (脱線) query db は EventStore と Event に依存していて Command db に依存するわけではない
-- (脱線) command db から index として使用しているテーブルと event store との関係を切る
 
 ### 迷い / UseCase から何を返すべきか
 
