@@ -39,16 +39,8 @@ its: issue tracking system
 - UseCase の戻り値から情報を減らしたい
 - `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
 - update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
-- update_query_db を削除したい
-- events.seq の追加でどこまでイベントを処理したかを判断できるようになったのでそれを使う
-- query db に last event id を追加する
-  → 2022-06-05 done
-- (脱線) query をもっと分離すべき
-- (脱線) EventStore をもっと分離すべき
-- (脱線) command db に EventStore が埋め込まれている
 - (脱線) query db は EventStore と Event に依存していて Command db に依存するわけではない
 - (脱線) command db から index として使用しているテーブルと event store との関係を切る
-- (脱線) EventStore を別 crate にして setup / teardown / ... を提供する
 
 ### 迷い / UseCase から何を返すべきか
 
@@ -72,3 +64,9 @@ its: issue tracking system
 - `events.id` がある理由は何か
 - `events.event_stream_id` + `events.version` (=event_stream_seq) で指定するのがわずらわしいから
 - EventStream によらず Event 全体を対象に操作する場合に EventStreamId + EventStreamSeq だと扱いづらいため
+
+### Command 側および Query 側が EventStore と (Domain) Event に依存する理由
+
+- command 側の model に query 側が引きずられるのは良くないと判断したため
+- query 側を作成する際に command 側の model に追加したくなったり、その逆を避けるため
+- domain event は aggregate ごとに区切られているので command への依存を切るのはすこし怪しい
