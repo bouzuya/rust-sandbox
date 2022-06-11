@@ -8,9 +8,3 @@ impl From<DomainEvent> for IssueManagementContextEvent {
         IssueManagementContextEvent(event)
     }
 }
-
-impl From<IssueManagementContextEvent> for DomainEvent {
-    fn from(event: IssueManagementContextEvent) -> Self {
-        event.0
-    }
-}

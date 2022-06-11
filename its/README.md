@@ -38,7 +38,9 @@ its: issue tracking system
 - (脱線) 現状は AggregateId ≒ EventStreamId (1 対 1) になっている
 - UseCase の戻り値から情報を減らしたい
 - `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
+  → 2022-06-12 done
 - update_query_db が `impl From<IssueManagementContextEvent> for DomainEvent` を使用している
+  → 2022-06-12 done
 - (脱線) query db は EventStore と Event に依存していて Command db に依存するわけではない
 - (脱線) command db から index として使用しているテーブルと event store との関係を切る
 
