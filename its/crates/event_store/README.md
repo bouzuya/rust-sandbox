@@ -15,13 +15,12 @@ CREATE TABLE IF NOT EXISTS event_streams (
 );
 
 CREATE TABLE IF NOT EXISTS events (
-    seq             INTEGER  NOT NULL AUTO_INCREMENT,
+    seq             INTEGER  PRIMARY KEY AUTOINCREMENT,
     id              CHAR(26) NOT NULL,
     event_stream_id CHAR(26) NOT NULL,
     version         INTEGER  NOT NULL,
     data            TEXT     NOT NULL,
 
-    CONSTRAINT events_pk PRIMARY KEY (seq),
     CONSTRAINT events_uk1 UNIQUE (id),
     CONSTRAINT events_uk2 UNIQUE (event_stream_id, version),
     CONSTRAINT events_fk1 FOREIGN KEY (event_stream_id) REFERENCES event_streams (id)
