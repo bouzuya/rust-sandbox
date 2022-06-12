@@ -272,7 +272,28 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         &self,
         command: UpdateIssueTitle,
     ) -> Result<Vec<IssueManagementContextEvent>> {
-        todo!()
+        // io
+        let issue = self
+            .issue_repository()
+            .find_by_id(&command.issue_id)
+            .await?
+            .ok_or(Error::IssueNotFound(command.issue_id))?;
+        let issue_title = command.issue_title;
+        let at = Instant::now();
+
+        // pure
+        let updated = issue.update_title(issue_title, at)?;
+
+        // io
+        self.issue_repository().save(&updated).await?;
+
+        Ok(updated
+            .events()
+            .iter()
+            .cloned()
+            .map(DomainEvent::from)
+            .map(IssueManagementContextEvent::from)
+            .collect::<Vec<IssueManagementContextEvent>>())
     }
 }
 

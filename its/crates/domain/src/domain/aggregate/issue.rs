@@ -172,6 +172,14 @@ impl IssueAggregate {
         })
     }
 
+    pub fn update_title(
+        &self,
+        issue_title: IssueTitle,
+        at: Instant,
+    ) -> Result<IssueAggregate, IssueAggregateError> {
+        todo!()
+    }
+
     pub fn truncate_events(self) -> Self {
         Self {
             events: vec![],
