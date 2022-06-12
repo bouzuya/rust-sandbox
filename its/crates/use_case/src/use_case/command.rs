@@ -7,6 +7,7 @@ pub enum IssueManagementContextCommand {
     FinishIssue(FinishIssue),
     UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),
+    UpdateIssueTitle(UpdateIssueTitle),
 }
 
 impl From<BlockIssue> for IssueManagementContextCommand {
@@ -66,4 +67,10 @@ pub struct UnblockIssue {
 pub struct UpdateIssue {
     pub issue_id: IssueId,
     pub issue_due: Option<IssueDue>,
+}
+
+#[derive(Debug)]
+pub struct UpdateIssueTitle {
+    pub issue_id: IssueId,
+    pub issue_title: IssueTitle,
 }
