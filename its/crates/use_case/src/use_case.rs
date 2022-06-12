@@ -17,6 +17,8 @@ use domain::{
 use limited_date_time::Instant;
 use thiserror::Error;
 
+pub type Result<T, E = IssueManagementContextError> = std::result::Result<T, E>;
+
 #[derive(Debug, Error)]
 pub enum IssueManagementContextError {
     #[error("IssueAggregate")]
@@ -40,7 +42,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle(
         &self,
         command: IssueManagementContextCommand,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         match command {
             IssueManagementContextCommand::BlockIssue(command) => {
                 self.handle_block_issue(command).await
@@ -156,7 +158,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle_create_issue(
         &self,
         command: CreateIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         // io
         let issue_number = self
             .issue_repository()
@@ -185,7 +187,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle_finish_issue(
         &self,
         command: FinishIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         // io
         let issue = self
             .issue_repository()
@@ -215,7 +217,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
         UnblockIssue {
             issue_block_link_id,
         }: UnblockIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         // io
         let at = Instant::now();
         let issue_block_link = self
@@ -244,7 +246,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle_update_issue(
         &self,
         command: UpdateIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         // io
         let issue = self
             .issue_repository()
@@ -272,7 +274,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle_update_issue_title(
         &self,
         command: UpdateIssueTitle,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>> {
         todo!()
     }
 }
