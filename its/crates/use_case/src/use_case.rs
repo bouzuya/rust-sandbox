@@ -15,12 +15,11 @@ use domain::{
     ParseIssueBlockLinkError,
 };
 use limited_date_time::Instant;
-use thiserror::Error;
 
-pub type Result<T, E = IssueManagementContextError> = std::result::Result<T, E>;
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-#[derive(Debug, Error)]
-pub enum IssueManagementContextError {
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
     #[error("IssueAggregate")]
     IssueAggregate(#[from] IssueAggregateError),
     #[error("IssueBlockLinkAggregate")]
@@ -112,7 +111,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             issue_id,
             blocked_issue_id,
         }: BlockIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, IssueManagementContextError> {
+    ) -> Result<Vec<IssueManagementContextEvent>, Error> {
         // io
         let at = Instant::now();
         let issue_block_link_id =
@@ -129,12 +128,12 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
                     .issue_repository()
                     .find_by_id(&issue_id)
                     .await?
-                    .ok_or(IssueManagementContextError::IssueNotFound(issue_id))?;
+                    .ok_or(Error::IssueNotFound(issue_id))?;
                 let blocked_issue = self
                     .issue_repository()
                     .find_by_id(&blocked_issue_id)
                     .await?
-                    .ok_or(IssueManagementContextError::IssueNotFound(blocked_issue_id))?;
+                    .ok_or(Error::IssueNotFound(blocked_issue_id))?;
 
                 // pure
                 issue.block(blocked_issue, at)?
@@ -193,7 +192,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .issue_repository()
             .find_by_id(&command.issue_id)
             .await?
-            .ok_or(IssueManagementContextError::IssueNotFound(command.issue_id))?;
+            .ok_or(Error::IssueNotFound(command.issue_id))?;
         let resolution = command.resolution;
         let at = Instant::now();
 
@@ -224,9 +223,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .issue_block_link_repository()
             .find_by_id(&issue_block_link_id)
             .await?
-            .ok_or(IssueManagementContextError::IssueBlockLinkNotFound(
-                issue_block_link_id,
-            ))?;
+            .ok_or(Error::IssueBlockLinkNotFound(issue_block_link_id))?;
 
         // pure
         let updated = issue_block_link.unblock(at)?;
@@ -252,7 +249,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .issue_repository()
             .find_by_id(&command.issue_id)
             .await?
-            .ok_or(IssueManagementContextError::IssueNotFound(command.issue_id))?;
+            .ok_or(Error::IssueNotFound(command.issue_id))?;
         let issue_due = command.issue_due;
         let at = Instant::now();
 
