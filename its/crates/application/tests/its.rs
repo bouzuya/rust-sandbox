@@ -165,6 +165,26 @@ fn its_issue_update() -> anyhow::Result<()> {
 }
 
 #[test]
+fn its_issue_update_title() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue", "create", "--title", "title1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue", "update-title", "1", "title2"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert();
+    Command::cargo_bin("its")?
+        .args(&["issue", "view", "1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains(r#""title":"title2""#))
+        .success();
+    Ok(())
+}
+
+#[test]
 fn its_issue_view() -> anyhow::Result<()> {
     let temp_dir = tempfile::tempdir()?;
     Command::cargo_bin("its")?

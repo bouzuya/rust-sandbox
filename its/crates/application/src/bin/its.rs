@@ -146,6 +146,31 @@ async fn issue_create(
     Ok(())
 }
 
+async fn issue_update_title(
+    issue_id: String,
+    title: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let issue_title = IssueTitle::try_from(title)?;
+    let command = use_case
+        .update_issue_title(issue_id.clone(), issue_title)
+        .into();
+    use_case.handle(command).await?;
+    // FIXME:
+    app.update_query_db().await?;
+    let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
+    println!("{}", serde_json::to_string(&issue)?);
+    Ok(())
+}
+
 async fn issue_finish(
     issue_id: String,
     resolution: Option<String>,
@@ -322,6 +347,14 @@ enum Command {
         #[clap(long)]
         query_database_connection_uri: Option<String>,
     },
+    UpdateTitle {
+        issue_id: String,
+        title: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
     View {
         issue_id: String,
         #[clap(long)]
@@ -411,6 +444,20 @@ async fn main() -> anyhow::Result<()> {
                 issue_update(
                     issue_id,
                     due,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+            Command::UpdateTitle {
+                issue_id,
+                title,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_update_title(
+                    issue_id,
+                    title,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )
