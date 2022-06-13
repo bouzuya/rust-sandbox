@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 use sqlx::{any::AnyRow, FromRow, Row};
 
+use crate::EventStreamSeq;
+
 use super::EventStreamId;
 
 #[derive(Debug)]
@@ -18,8 +20,14 @@ impl<'r> FromRow<'r, AnyRow> for EventStreamRow {
         })
     }
 }
+
 impl EventStreamRow {
     pub(super) fn id(&self) -> EventStreamId {
         EventStreamId::from_str(self.id.as_str()).expect("event_streams.id is not well-formed")
+    }
+
+    #[allow(dead_code)]
+    pub(super) fn version(&self) -> EventStreamSeq {
+        EventStreamSeq::try_from(self.version).expect("event_streams.version is not well-formed")
     }
 }
