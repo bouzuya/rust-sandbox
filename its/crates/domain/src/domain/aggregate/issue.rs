@@ -11,6 +11,7 @@ use crate::IssueNumber;
 use crate::IssueResolution;
 use crate::IssueStatus;
 use crate::IssueTitle;
+use crate::IssueTitleUpdated;
 use crate::IssueUpdated;
 use crate::{
     domain::{entity::Issue, event::IssueFinished},
@@ -36,6 +37,7 @@ impl IssueAggregate {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
                 IssueAggregateEvent::Finished(_) => Err(Error::InvalidEventSequence),
+                IssueAggregateEvent::TitleUpdated(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::Updated(_) => Err(Error::InvalidEventSequence),
             },
             None => Err(Error::InvalidEventSequence),
@@ -74,6 +76,25 @@ impl IssueAggregate {
                             .issue
                             .finish(resolution.clone())
                             .map_err(|_| Error::InvalidEventSequence)?,
+                        version: *version,
+                    }
+                }
+                IssueAggregateEvent::TitleUpdated(IssueTitleUpdated {
+                    at: _,
+                    issue_id,
+                    issue_title,
+                    version,
+                }) => {
+                    if issue.issue.id() != issue_id {
+                        return Err(Error::InvalidEventSequence);
+                    }
+                    if issue.version.next() != Some(*version) {
+                        return Err(Error::InvalidEventSequence);
+                    }
+
+                    issue = IssueAggregate {
+                        events: vec![],
+                        issue: issue.issue.change_title(issue_title.clone()),
                         version: *version,
                     }
                 }

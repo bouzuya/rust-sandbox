@@ -3,9 +3,9 @@ use std::str::FromStr;
 use crate::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
     DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDue, IssueFinished, IssueId,
-    IssueResolution, IssueTitle, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError,
-    ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError, ParseIssueResolutionError,
-    TryFromIssueTitleError, Version,
+    IssueResolution, IssueTitle, IssueTitleUpdated, IssueUnblocked, IssueUpdated,
+    ParseIssueBlockLinkError, ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError,
+    ParseIssueResolutionError, ParseIssueTitleError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -25,6 +25,8 @@ pub enum TryFromEventDtoError {
     IssueResolution(#[from] ParseIssueResolutionError),
     #[error("IssueTitle")]
     IssueTitle(#[from] TryFromIssueTitleError),
+    #[error("IssueTitle parse")]
+    IssueTitleParse(#[from] ParseIssueTitleError),
     #[error("IssueBlockLink")]
     IssueBlockLink(#[from] ParseIssueBlockLinkError),
     #[error("NotIssueAggregate")]
@@ -64,6 +66,13 @@ pub enum EventDto {
         blocked_issue_id: String,
         version: u64,
     },
+    #[serde(rename = "issue_title_updated")]
+    IssueTitleUpdated {
+        at: String,
+        issue_id: String,
+        issue_title: String,
+        version: u64,
+    },
     #[serde(rename = "issue_updated")]
     IssueUpdated {
         at: String,
@@ -97,6 +106,12 @@ impl From<DomainEvent> for EventDto {
                     at: event.at().to_string(),
                     issue_id: event.issue_id().to_string(),
                     issue_due: event.issue_due().map(|d| d.to_string()),
+                    version: u64::from(event.version()),
+                },
+                IssueAggregateEvent::TitleUpdated(event) => EventDto::IssueTitleUpdated {
+                    at: event.at().to_string(),
+                    issue_id: event.issue_id().to_string(),
+                    issue_title: event.issue_title().to_string(),
                     version: u64::from(event.version()),
                 },
             },
@@ -186,6 +201,20 @@ impl TryFrom<EventDto> for DomainEvent {
                         IssueId::from_str(issue_id.as_str())?,
                         IssueId::from_str(blocked_issue_id.as_str())?,
                     )?,
+                    Version::from(version),
+                ))
+                .into(),
+            ),
+            EventDto::IssueTitleUpdated {
+                at,
+                issue_id,
+                issue_title,
+                version,
+            } => Ok(
+                IssueAggregateEvent::TitleUpdated(IssueTitleUpdated::from_trusted_data(
+                    Instant::from_str(at.as_str())?,
+                    IssueId::from_str(issue_id.as_str())?,
+                    IssueTitle::from_str(issue_title.as_str())?,
                     Version::from(version),
                 ))
                 .into(),
