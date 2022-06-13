@@ -63,6 +63,16 @@ impl Issue {
         }
     }
 
+    pub(crate) fn change_title(&self, title: IssueTitle) -> Self {
+        Self {
+            id: self.id.clone(),
+            resolution: self.resolution.clone(),
+            status: self.status,
+            title,
+            due: self.due(),
+        }
+    }
+
     pub(crate) fn id(&self) -> &IssueId {
         &self.id
     }
@@ -110,11 +120,19 @@ mod tests {
     }
 
     #[test]
-    fn change_due() -> anyhow::Result<()> {
+    fn change_due_test() -> anyhow::Result<()> {
         let issue = new()?;
         assert_eq!(issue.change_due(None).due(), None);
         let due = IssueDue::from_str("1970-01-01T00:00:00Z")?;
         assert_eq!(issue.change_due(Some(due)).due(), Some(due));
+        Ok(())
+    }
+
+    #[test]
+    fn change_title_test() -> anyhow::Result<()> {
+        let issue = new()?;
+        let title = IssueTitle::from_str("title2")?;
+        assert_eq!(issue.change_title(title.clone()).title(), &title);
         Ok(())
     }
 
