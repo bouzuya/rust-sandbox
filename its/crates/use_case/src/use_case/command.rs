@@ -40,6 +40,12 @@ impl From<UpdateIssue> for IssueManagementContextCommand {
     }
 }
 
+impl From<UpdateIssueTitle> for IssueManagementContextCommand {
+    fn from(command: UpdateIssueTitle) -> Self {
+        Self::UpdateIssueTitle(command)
+    }
+}
+
 #[derive(Debug)]
 pub struct BlockIssue {
     pub issue_id: IssueId,
