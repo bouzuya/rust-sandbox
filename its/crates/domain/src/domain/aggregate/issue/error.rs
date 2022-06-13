@@ -1,7 +1,5 @@
-use thiserror::Error;
-
-#[derive(Clone, Debug, Error)]
-pub enum IssueAggregateError {
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum Error {
     #[error("InvalidEventSequence")]
     InvalidEventSequence,
     #[error("Unknown")]

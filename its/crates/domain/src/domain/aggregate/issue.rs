@@ -20,6 +20,8 @@ use crate::{
 use super::IssueBlockLinkAggregate;
 use super::IssueBlockLinkAggregateError;
 
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueAggregate {
     events: Vec<IssueAggregateEvent>,
@@ -28,15 +30,15 @@ pub struct IssueAggregate {
 }
 
 impl IssueAggregate {
-    pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self, IssueAggregateError> {
+    pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self> {
         let first_event = match events.first() {
             Some(event) => match event {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
-                IssueAggregateEvent::Finished(_) => Err(IssueAggregateError::InvalidEventSequence),
-                IssueAggregateEvent::Updated(_) => Err(IssueAggregateError::InvalidEventSequence),
+                IssueAggregateEvent::Finished(_) => Err(Error::InvalidEventSequence),
+                IssueAggregateEvent::Updated(_) => Err(Error::InvalidEventSequence),
             },
-            None => Err(IssueAggregateError::InvalidEventSequence),
+            None => Err(Error::InvalidEventSequence),
         }?;
         let version = first_event.version;
         let issue = Issue::from_event(first_event);
@@ -48,10 +50,10 @@ impl IssueAggregate {
         for event in events.iter().skip(1) {
             match event {
                 IssueAggregateEvent::Created(_) => {
-                    return Err(IssueAggregateError::InvalidEventSequence);
+                    return Err(Error::InvalidEventSequence);
                 }
                 IssueAggregateEvent::CreatedV2(_) => {
-                    return Err(IssueAggregateError::InvalidEventSequence);
+                    return Err(Error::InvalidEventSequence);
                 }
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
@@ -60,10 +62,10 @@ impl IssueAggregate {
                     version,
                 }) => {
                     if issue.issue.id() != issue_id {
-                        return Err(IssueAggregateError::InvalidEventSequence);
+                        return Err(Error::InvalidEventSequence);
                     }
                     if issue.version.next() != Some(*version) {
-                        return Err(IssueAggregateError::InvalidEventSequence);
+                        return Err(Error::InvalidEventSequence);
                     }
 
                     issue = IssueAggregate {
@@ -71,7 +73,7 @@ impl IssueAggregate {
                         issue: issue
                             .issue
                             .finish(resolution.clone())
-                            .map_err(|_| IssueAggregateError::InvalidEventSequence)?,
+                            .map_err(|_| Error::InvalidEventSequence)?,
                         version: *version,
                     }
                 }
@@ -82,10 +84,10 @@ impl IssueAggregate {
                     version,
                 }) => {
                     if issue.issue.id() != issue_id {
-                        return Err(IssueAggregateError::InvalidEventSequence);
+                        return Err(Error::InvalidEventSequence);
                     }
                     if issue.version.next() != Some(*version) {
-                        return Err(IssueAggregateError::InvalidEventSequence);
+                        return Err(Error::InvalidEventSequence);
                     }
 
                     issue = IssueAggregate {
@@ -104,7 +106,7 @@ impl IssueAggregate {
         issue_number: IssueNumber,
         issue_title: IssueTitle,
         issue_due: Option<IssueDue>,
-    ) -> Result<Self, IssueAggregateError> {
+    ) -> Result<Self> {
         let issue_id = IssueId::new(issue_number);
         let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
         let version = Version::from(1_u64);
@@ -125,16 +127,12 @@ impl IssueAggregate {
         Ok(issue)
     }
 
-    pub fn finish(
-        &self,
-        resolution: Option<IssueResolution>,
-        at: Instant,
-    ) -> Result<IssueAggregate, IssueAggregateError> {
+    pub fn finish(&self, resolution: Option<IssueResolution>, at: Instant) -> Result<Self> {
         let updated_issue = self
             .issue
             .finish(resolution.clone())
-            .map_err(|_| IssueAggregateError::Unknown)?;
-        let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
+            .map_err(|_| Error::Unknown)?;
+        let updated_version = self.version.next().ok_or(Error::Unknown)?;
         let event = IssueFinished {
             at,
             issue_id: self.id().clone(),
@@ -150,13 +148,9 @@ impl IssueAggregate {
         })
     }
 
-    pub fn update(
-        &self,
-        issue_due: Option<IssueDue>,
-        at: Instant,
-    ) -> Result<IssueAggregate, IssueAggregateError> {
+    pub fn update(&self, issue_due: Option<IssueDue>, at: Instant) -> Result<Self> {
         let updated_issue = self.issue.change_due(issue_due);
-        let updated_version = self.version.next().ok_or(IssueAggregateError::Unknown)?;
+        let updated_version = self.version.next().ok_or(Error::Unknown)?;
         let event = IssueUpdated {
             at,
             issue_id: self.id().clone(),
@@ -172,11 +166,7 @@ impl IssueAggregate {
         })
     }
 
-    pub fn update_title(
-        &self,
-        issue_title: IssueTitle,
-        at: Instant,
-    ) -> Result<IssueAggregate, IssueAggregateError> {
+    pub fn update_title(&self, issue_title: IssueTitle, at: Instant) -> Result<Self> {
         todo!()
     }
 
@@ -216,6 +206,7 @@ impl IssueAggregate {
         self.version
     }
 
+    // factory for IssueBlockLinkAggregate
     pub fn block(
         &self,
         blocked_issue: IssueAggregate,
