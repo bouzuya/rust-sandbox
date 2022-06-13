@@ -188,7 +188,21 @@ impl IssueAggregate {
     }
 
     pub fn update_title(&self, issue_title: IssueTitle, at: Instant) -> Result<Self> {
-        todo!()
+        let updated_issue = self.issue.change_title(issue_title);
+        let updated_version = self.version.next().ok_or(Error::Unknown)?;
+        let event = IssueTitleUpdated {
+            at,
+            issue_id: self.id().clone(),
+            issue_title: updated_issue.title().clone(),
+            version: updated_version,
+        }
+        .into();
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(IssueAggregate {
+            events,
+            issue: updated_issue,
+            version: updated_version,
+        })
     }
 
     pub fn truncate_events(self) -> Self {
@@ -280,6 +294,20 @@ mod tests {
         )?;
         let _ = issue.update(None, Instant::now())?;
         // TODO: assert
+        Ok(())
+    }
+
+    #[test]
+    fn update_title_test() -> anyhow::Result<()> {
+        let issue = IssueAggregate::new(
+            Instant::now(),
+            IssueNumber::from_str("123")?,
+            IssueTitle::from_str("title")?,
+            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+        )?;
+        let title = IssueTitle::from_str("title2")?;
+        let updated = issue.update_title(title.clone(), Instant::now())?;
+        assert_eq!(updated.title(), &title);
         Ok(())
     }
 
