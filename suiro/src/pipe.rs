@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::direction::Direction;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Pipe {
     I(u8),
@@ -8,6 +10,95 @@ pub enum Pipe {
 }
 
 impl Pipe {
+    pub fn is_open(&self, dir: Direction) -> bool {
+        match dir {
+            Direction::T => match self {
+                Pipe::I(d) => match d {
+                    0 => true,
+                    1 => false,
+                    _ => unreachable!(),
+                },
+                Pipe::L(d) => match d {
+                    0 => true,
+                    1 => false,
+                    2 => false,
+                    3 => true,
+                    _ => unreachable!(),
+                },
+                Pipe::T(d) => match d {
+                    0 => false,
+                    1 => true,
+                    2 => true,
+                    3 => true,
+                    _ => unreachable!(),
+                },
+            },
+            Direction::B => match self {
+                Pipe::I(d) => match d {
+                    0 => true,
+                    1 => false,
+                    _ => unreachable!(),
+                },
+                Pipe::L(d) => match d {
+                    0 => false,
+                    1 => true,
+                    2 => true,
+                    3 => false,
+                    _ => unreachable!(),
+                },
+                Pipe::T(d) => match d {
+                    0 => true,
+                    1 => true,
+                    2 => false,
+                    3 => true,
+                    _ => unreachable!(),
+                },
+            },
+            Direction::L => match self {
+                Pipe::I(d) => match d {
+                    0 => false,
+                    1 => true,
+                    _ => unreachable!(),
+                },
+                Pipe::L(d) => match d {
+                    0 => false,
+                    1 => false,
+                    2 => true,
+                    3 => true,
+                    _ => unreachable!(),
+                },
+                Pipe::T(d) => match d {
+                    0 => true,
+                    1 => true,
+                    2 => true,
+                    3 => false,
+                    _ => unreachable!(),
+                },
+            },
+            Direction::R => match self {
+                Pipe::I(d) => match d {
+                    0 => false,
+                    1 => true,
+                    _ => unreachable!(),
+                },
+                Pipe::L(d) => match d {
+                    0 => true,
+                    1 => true,
+                    2 => false,
+                    3 => false,
+                    _ => unreachable!(),
+                },
+                Pipe::T(d) => match d {
+                    0 => true,
+                    1 => false,
+                    2 => true,
+                    3 => true,
+                    _ => unreachable!(),
+                },
+            },
+        }
+    }
+
     pub fn rotate(&self) -> Pipe {
         match self {
             Pipe::I(d) => Pipe::I((d + 1) % 2),
@@ -47,6 +138,15 @@ impl Display for Pipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn is_open_test() {
+        assert!(Pipe::I(0).is_open(Direction::B));
+        assert!(!Pipe::I(0).is_open(Direction::L));
+        assert!(!Pipe::I(0).is_open(Direction::R));
+        assert!(Pipe::I(0).is_open(Direction::T));
+        // ...
+    }
 
     #[test]
     fn rotate_test() {
