@@ -1,4 +1,5 @@
 mod area;
+mod direction;
 mod pipe;
 mod point;
 
