@@ -35,17 +35,6 @@ impl Area {
         self.height
     }
 
-    pub fn print(&self) {
-        let w = usize::from(self.width);
-        let h = usize::from(self.height);
-        for i in 0..h {
-            for j in 0..w {
-                print!("{}", self.pipes[i * w + j]);
-            }
-            println!();
-        }
-    }
-
     pub fn pipe(&self, point: Point) -> Pipe {
         let x = usize::from(point.x());
         let y = usize::from(point.y());
