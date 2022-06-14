@@ -1,15 +1,11 @@
 mod area;
-mod block;
+mod pipe;
 
 use self::area::Area;
-use self::block::Block;
+use self::pipe::Pipe;
 
 fn main() -> anyhow::Result<()> {
-    let mut area = Area::new(
-        2,
-        2,
-        vec![Block::I(1), Block::L(0), Block::T(0), Block::L(0)],
-    )?;
+    let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
     area.print();
     println!();
 

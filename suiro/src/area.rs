@@ -1,4 +1,4 @@
-use crate::Block;
+use crate::Pipe;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -11,11 +11,11 @@ pub enum Error {
 pub struct Area {
     width: u8,
     height: u8,
-    pipes: Vec<Block>,
+    pipes: Vec<Pipe>,
 }
 
 impl Area {
-    pub fn new(width: u8, height: u8, pipes: Vec<Block>) -> Result<Self, Error> {
+    pub fn new(width: u8, height: u8, pipes: Vec<Pipe>) -> Result<Self, Error> {
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
         match length.cmp(&(u16::from(width) * u16::from(height))) {
             std::cmp::Ordering::Less => Err(Error::TooFewPipes),
@@ -40,7 +40,7 @@ impl Area {
         }
     }
 
-    pub fn pipe(&self, x: u8, y: u8) -> Block {
+    pub fn pipe(&self, x: u8, y: u8) -> Pipe {
         let x = usize::from(x);
         let y = usize::from(y);
         let w = usize::from(self.width);
@@ -61,33 +61,25 @@ mod tests {
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
-        let area = Area::new(
-            2,
-            2,
-            vec![Block::I(1), Block::L(0), Block::T(0), Block::L(0)],
-        )?;
-        assert_eq!(area.pipe(0, 0), Block::I(1));
-        assert_eq!(area.pipe(1, 0), Block::L(0));
-        assert_eq!(area.pipe(0, 1), Block::T(0));
-        assert_eq!(area.pipe(1, 1), Block::L(0));
+        let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        assert_eq!(area.pipe(0, 0), Pipe::I(1));
+        assert_eq!(area.pipe(1, 0), Pipe::L(0));
+        assert_eq!(area.pipe(0, 1), Pipe::T(0));
+        assert_eq!(area.pipe(1, 1), Pipe::L(0));
         Ok(())
     }
 
     #[test]
     fn rotate_test() -> anyhow::Result<()> {
-        let mut area = Area::new(
-            2,
-            2,
-            vec![Block::I(1), Block::L(0), Block::T(0), Block::L(0)],
-        )?;
-        assert_eq!(area.pipe(0, 0), Block::I(1));
-        assert_eq!(area.pipe(1, 0), Block::L(0));
-        assert_eq!(area.pipe(0, 1), Block::T(0));
-        assert_eq!(area.pipe(1, 1), Block::L(0));
+        let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        assert_eq!(area.pipe(0, 0), Pipe::I(1));
+        assert_eq!(area.pipe(1, 0), Pipe::L(0));
+        assert_eq!(area.pipe(0, 1), Pipe::T(0));
+        assert_eq!(area.pipe(1, 1), Pipe::L(0));
         area.rotate(0, 1);
-        assert_eq!(area.pipe(0, 1), Block::T(1));
+        assert_eq!(area.pipe(0, 1), Pipe::T(1));
         area.rotate(0, 0);
-        assert_eq!(area.pipe(0, 0), Block::I(0));
+        assert_eq!(area.pipe(0, 0), Pipe::I(0));
         Ok(())
     }
 }
