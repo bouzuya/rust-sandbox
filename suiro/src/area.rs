@@ -31,6 +31,10 @@ impl Area {
         })
     }
 
+    pub fn height(&self) -> u8 {
+        self.height
+    }
+
     pub fn print(&self) {
         let w = usize::from(self.width);
         let h = usize::from(self.height);
@@ -135,6 +139,10 @@ impl Area {
                 .collect::<Vec<bool>>(),
         )
     }
+
+    pub fn width(&self) -> u8 {
+        self.width
+    }
 }
 
 #[cfg(test)]
@@ -148,6 +156,13 @@ mod tests {
         assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
         assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
         assert_eq!(area.pipe(Point::new(1, 1)), Pipe::L(0));
+        Ok(())
+    }
+
+    #[test]
+    fn height_test() -> anyhow::Result<()> {
+        let area = Area::new(1, 2, vec![Pipe::I(1), Pipe::L(0)])?;
+        assert_eq!(area.height(), 2);
         Ok(())
     }
 
@@ -176,6 +191,13 @@ mod tests {
         let (ng, flow) = area.test();
         assert_eq!(ng, vec![false, false, false, false]);
         assert_eq!(flow, vec![true, true, false, true]);
+        Ok(())
+    }
+
+    #[test]
+    fn width_test() -> anyhow::Result<()> {
+        let area = Area::new(1, 2, vec![Pipe::I(1), Pipe::L(0)])?;
+        assert_eq!(area.width(), 1);
         Ok(())
     }
 }
