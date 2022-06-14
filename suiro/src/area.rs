@@ -1,4 +1,4 @@
-use crate::Pipe;
+use crate::{point::Point, Pipe};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -40,16 +40,16 @@ impl Area {
         }
     }
 
-    pub fn pipe(&self, x: u8, y: u8) -> Pipe {
-        let x = usize::from(x);
-        let y = usize::from(y);
+    pub fn pipe(&self, point: Point) -> Pipe {
+        let x = usize::from(point.x());
+        let y = usize::from(point.y());
         let w = usize::from(self.width);
         self.pipes[y * w + x]
     }
 
-    pub fn rotate(&mut self, x: u8, y: u8) {
-        let x = usize::from(x);
-        let y = usize::from(y);
+    pub fn rotate(&mut self, point: Point) {
+        let x = usize::from(point.x());
+        let y = usize::from(point.y());
         let w = usize::from(self.width);
         self.pipes[y * w + x] = self.pipes[y * w + x].rotate();
     }
@@ -62,24 +62,24 @@ mod tests {
     #[test]
     fn new_test() -> anyhow::Result<()> {
         let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-        assert_eq!(area.pipe(0, 0), Pipe::I(1));
-        assert_eq!(area.pipe(1, 0), Pipe::L(0));
-        assert_eq!(area.pipe(0, 1), Pipe::T(0));
-        assert_eq!(area.pipe(1, 1), Pipe::L(0));
+        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
+        assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
+        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
+        assert_eq!(area.pipe(Point::new(1, 1)), Pipe::L(0));
         Ok(())
     }
 
     #[test]
     fn rotate_test() -> anyhow::Result<()> {
         let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-        assert_eq!(area.pipe(0, 0), Pipe::I(1));
-        assert_eq!(area.pipe(1, 0), Pipe::L(0));
-        assert_eq!(area.pipe(0, 1), Pipe::T(0));
-        assert_eq!(area.pipe(1, 1), Pipe::L(0));
-        area.rotate(0, 1);
-        assert_eq!(area.pipe(0, 1), Pipe::T(1));
-        area.rotate(0, 0);
-        assert_eq!(area.pipe(0, 0), Pipe::I(0));
+        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
+        assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
+        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
+        assert_eq!(area.pipe(Point::new(1, 1)), Pipe::L(0));
+        area.rotate(Point::new(0, 1));
+        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(1));
+        area.rotate(Point::new(0, 0));
+        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(0));
         Ok(())
     }
 }
