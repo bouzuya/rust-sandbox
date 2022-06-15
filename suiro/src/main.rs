@@ -7,6 +7,24 @@ use self::area::Area;
 use self::pipe::Pipe;
 use self::point::Point;
 
+use crossterm::{
+    event::{DisableMouseCapture, EnableMouseCapture},
+    terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
+    ExecutableCommand,
+};
+use std::{
+    io::{self},
+    thread,
+    time::Duration,
+};
+use tui::{
+    backend::{Backend, CrosstermBackend},
+    style::{Color, Modifier, Style},
+    text::Span,
+    widgets::{Block, Borders},
+    Frame, Terminal,
+};
+
 fn print(area: &Area) {
     let w = area.width();
     let h = area.height();
@@ -50,13 +68,32 @@ fn print(area: &Area) {
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-    print(&area);
+    terminal::enable_raw_mode()?;
+    let mut stdout = io::stdout();
+    stdout
+        .execute(EnterAlternateScreen)?
+        .execute(EnableMouseCapture)?;
+    let backend = CrosstermBackend::new(stdout);
+    let mut terminal = Terminal::new(backend)?;
+    terminal.draw(|f| ui(f))?;
 
-    let operations = vec![Point::new(1, 0), Point::new(1, 0)];
-    for o in operations.iter().copied() {
-        area.rotate(o);
-        print(&area);
-    }
+    thread::sleep(Duration::from_millis(5000));
+
+    terminal::disable_raw_mode()?;
+    terminal
+        .backend_mut()
+        .execute(LeaveAlternateScreen)?
+        .execute(DisableMouseCapture)?;
+    terminal.show_cursor()?;
+
     Ok(())
+}
+
+fn ui<B: Backend>(f: &mut Frame<B>) {
+    let size = f.size();
+    let block = Block::default()
+        .border_type(tui::widgets::BorderType::Rounded)
+        .borders(Borders::ALL)
+        .title("suiro");
+    f.render_widget(block, size);
 }
