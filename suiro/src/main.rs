@@ -10,9 +10,39 @@ use self::point::Point;
 fn print(area: &Area) {
     let w = area.width();
     let h = area.height();
-    for i in 0..h {
-        for j in 0..w {
-            print!("{}", area.pipe(Point::new(j, i)));
+    let (_, flow) = area.test();
+    for y in 0..h {
+        for x in 0..w {
+            let p = area.pipe(Point::new(x, y));
+            let c = if flow[usize::from(y) * usize::from(w) + usize::from(x)] {
+                format!(
+                    "{}",
+                    match p {
+                        Pipe::I(d) => match d {
+                            0 => '┃',
+                            1 => '━',
+                            _ => unreachable!(),
+                        },
+                        Pipe::L(d) => match d {
+                            0 => '┗',
+                            1 => '┏',
+                            2 => '┓',
+                            3 => '┛',
+                            _ => unreachable!(),
+                        },
+                        Pipe::T(d) => match d {
+                            0 => '┳',
+                            1 => '┫',
+                            2 => '┻',
+                            3 => '┣',
+                            _ => unreachable!(),
+                        },
+                    }
+                )
+            } else {
+                format!("{}", p)
+            };
+            print!("{}", c);
         }
         println!();
     }
