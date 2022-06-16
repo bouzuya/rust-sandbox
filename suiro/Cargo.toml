@@ -7,6 +7,5 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.57"
-crossterm = "0.23.2"
+termion = "1.5.6"
 thiserror = "1.0.31"
-tui = "0.18.0"
