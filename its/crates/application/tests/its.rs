@@ -174,10 +174,6 @@ fn its_issue_update_title() -> anyhow::Result<()> {
     Command::cargo_bin("its")?
         .args(&["issue", "update-title", "1", "title2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .assert();
-    Command::cargo_bin("its")?
-        .args(&["issue", "view", "1"])
-        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
         .stdout(predicates::str::contains(r#""title":"title2""#))
         .success();
