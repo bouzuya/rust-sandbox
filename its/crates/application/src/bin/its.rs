@@ -193,7 +193,7 @@ async fn issue_finish(
     // FIXME:
     app.update_query_db().await?;
     let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
-    println!("issue finished : {}", serde_json::to_string(&issue)?);
+    println!("{}", serde_json::to_string(&issue)?);
     Ok(())
 }
 
