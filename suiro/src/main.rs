@@ -10,15 +10,12 @@ use self::point::Point;
 
 use cursor::Cursor;
 use std::io::{self, StdoutLock, Write};
-use termion::{
-    input::TermRead,
-    raw::{IntoRawMode, RawTerminal},
-};
+use termion::{input::TermRead, raw::IntoRawMode};
 
 fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result<()> {
     let w = area.width();
     let h = area.height();
-    let (_, flow) = area.test();
+    let (ng, flow) = area.test();
     for y in 0..h {
         write!(stdout, "{}", termion::cursor::Goto(1, 1 + u16::from(y)))?;
 
@@ -60,6 +57,13 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result
             } else {
                 format!("{}", p)
             };
+            if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
+                let _ = write!(
+                    stdout,
+                    "{}",
+                    termion::color::Fg(termion::color::Rgb(255, 0, 0))
+                )?;
+            }
             let _ = stdout.write(
                 format!(
                     "{}{}",
@@ -74,6 +78,9 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result
                 )
                 .as_bytes(),
             )?;
+            if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
+                let _ = write!(stdout, "{}", termion::color::Fg(termion::color::Reset))?;
+            }
         }
     }
     Ok(())
