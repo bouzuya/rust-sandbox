@@ -15,13 +15,21 @@ use termion::{
     raw::{IntoRawMode, RawTerminal},
 };
 
-fn print(stdout: &mut StdoutLock, area: &Area) -> anyhow::Result<()> {
+fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result<()> {
     let w = area.width();
     let h = area.height();
     let (_, flow) = area.test();
     for y in 0..h {
         write!(stdout, "{}", termion::cursor::Goto(1, 1 + u16::from(y)))?;
-        let _ = stdout.write(" ".as_bytes())?;
+
+        let _ = stdout.write(
+            if cursor.x == 0 && cursor.y == y {
+                "["
+            } else {
+                " "
+            }
+            .as_bytes(),
+        )?;
         for x in 0..w {
             let p = area.pipe(Point::new(x, y));
             let c = if flow[usize::from(y) * usize::from(w) + usize::from(x)] {
@@ -52,50 +60,46 @@ fn print(stdout: &mut StdoutLock, area: &Area) -> anyhow::Result<()> {
             } else {
                 format!("{}", p)
             };
-            let _ = stdout.write(format!("{} ", c).as_bytes())?;
+            let _ = stdout.write(
+                format!(
+                    "{}{}",
+                    c,
+                    if cursor.x == x && cursor.y == y {
+                        "]"
+                    } else if cursor.x == x + 1 && cursor.y == y {
+                        "["
+                    } else {
+                        " "
+                    }
+                )
+                .as_bytes(),
+            )?;
         }
     }
     Ok(())
 }
 
 fn main() -> anyhow::Result<()> {
-    let clear_cursor =
-        |stdout: &mut RawTerminal<StdoutLock>, area: &Area, cursor: Cursor| -> anyhow::Result<()> {
-            write!(
-                stdout,
-                "{}",
-                termion::cursor::Goto(1 + u16::from(cursor.x) * 2, 1 + u16::from(cursor.y))
-            )?;
-            let _ = stdout.write(format!(" {} ", area.pipe(cursor.into())).as_bytes())?;
-            Ok(())
-        };
-
-    let redraw_cursor =
-        |stdout: &mut RawTerminal<StdoutLock>, area: &Area, cursor: Cursor| -> anyhow::Result<()> {
-            write!(
-                stdout,
-                "{}",
-                termion::cursor::Goto(1 + u16::from(cursor.x) * 2, 1 + u16::from(cursor.y))
-            )?;
-            let _ = stdout.write(format!("[{}]", area.pipe(cursor.into())).as_bytes())?;
-            Ok(())
-        };
-
     let stdout = io::stdout().lock();
     let stdin = io::stdin().lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
 
     let mut cursor = Cursor::new(0, 0);
+    // let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+    let mut area = Area::new(
+        24,
+        24,
+        (0..24 * 24)
+            .into_iter()
+            .map(|_| Pipe::I(1))
+            .collect::<Vec<Pipe>>(),
+    )?;
 
     write!(stdout, "{}", termion::clear::All)?;
-
     write!(stdout, "{}", termion::cursor::Hide)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
-    let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-    print(&mut stdout, &area)?;
-    clear_cursor(&mut stdout, &area, cursor)?;
-    redraw_cursor(&mut stdout, &area, cursor)?;
 
+    print(&mut stdout, &area, cursor)?;
     stdout.flush()?;
 
     let mut keys = stdin.keys();
@@ -104,41 +108,32 @@ fn main() -> anyhow::Result<()> {
         use termion::event::Key::*;
         match b {
             Char(' ') => {
-                clear_cursor(&mut stdout, &area, cursor)?;
                 area.rotate(cursor.into());
-                redraw_cursor(&mut stdout, &area, cursor)?;
             }
             Char('h') => {
-                clear_cursor(&mut stdout, &area, cursor)?;
                 if cursor.x > 0 {
                     cursor.x -= 1
                 }
-                redraw_cursor(&mut stdout, &area, cursor)?;
             }
             Char('j') => {
-                clear_cursor(&mut stdout, &area, cursor)?;
                 if cursor.y < area.height() - 1 {
                     cursor.y += 1
                 }
-                redraw_cursor(&mut stdout, &area, cursor)?;
             }
             Char('k') => {
-                clear_cursor(&mut stdout, &area, cursor)?;
                 if cursor.y > 0 {
                     cursor.y -= 1
                 }
-                redraw_cursor(&mut stdout, &area, cursor)?;
             }
             Char('l') => {
-                clear_cursor(&mut stdout, &area, cursor)?;
                 if cursor.x < area.width() - 1 {
                     cursor.x += 1
                 }
-                redraw_cursor(&mut stdout, &area, cursor)?;
             }
             Char('q') => break,
             _ => {}
         }
+        print(&mut stdout, &area, cursor)?;
         stdout.flush()?;
     }
 
