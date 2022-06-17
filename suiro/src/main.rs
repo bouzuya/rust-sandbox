@@ -146,5 +146,6 @@ fn main() -> anyhow::Result<()> {
         stdout.flush()?;
     }
 
+    write!(stdout, "{}", termion::cursor::Show)?;
     Ok(())
 }
