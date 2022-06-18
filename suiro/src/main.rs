@@ -12,12 +12,14 @@ use cursor::Cursor;
 use std::io::{self, StdoutLock, Write};
 use termion::{input::TermRead, raw::IntoRawMode};
 
-fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result<()> {
+fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor, count: usize) -> anyhow::Result<()> {
     let w = area.width();
     let h = area.height();
     let (ng, flow) = area.test();
+    write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
+    write!(stdout, " count: {}", count)?;
     for y in 0..h {
-        write!(stdout, "{}", termion::cursor::Goto(1, 1 + u16::from(y)))?;
+        write!(stdout, "{}", termion::cursor::Goto(1, 2 + u16::from(y)))?;
 
         let _ = stdout.write(
             if cursor.x == 0 && cursor.y == y {
@@ -91,6 +93,7 @@ fn main() -> anyhow::Result<()> {
     let stdin = io::stdin().lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
 
+    let mut count = 0_usize;
     let mut cursor = Cursor::new(0, 0);
     // let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
     let mut area = Area::new(
@@ -106,7 +109,7 @@ fn main() -> anyhow::Result<()> {
     write!(stdout, "{}", termion::cursor::Hide)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
 
-    print(&mut stdout, &area, cursor)?;
+    print(&mut stdout, &area, cursor, count)?;
     stdout.flush()?;
 
     let mut keys = stdin.keys();
@@ -116,6 +119,7 @@ fn main() -> anyhow::Result<()> {
         match b {
             Char(' ') => {
                 area.rotate(cursor.into());
+                count += 1;
             }
             Char('h') => {
                 if cursor.x > 0 {
@@ -140,7 +144,7 @@ fn main() -> anyhow::Result<()> {
             Char('q') => break,
             _ => {}
         }
-        print(&mut stdout, &area, cursor)?;
+        print(&mut stdout, &area, cursor, count)?;
         stdout.flush()?;
     }
 
