@@ -57,17 +57,20 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result
             } else {
                 format!("{}", p)
             };
-            if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
-                let _ = write!(
-                    stdout,
-                    "{}",
-                    termion::color::Fg(termion::color::Rgb(255, 0, 0))
-                )?;
-            }
             let _ = stdout.write(
                 format!(
-                    "{}{}",
+                    "{}{}{}{}",
+                    if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
+                        termion::color::Fg(termion::color::Rgb(255, 0, 0)).to_string()
+                    } else {
+                        String::default()
+                    },
                     c,
+                    if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
+                        termion::color::Fg(termion::color::Reset).to_string()
+                    } else {
+                        String::default()
+                    },
                     if cursor.x == x && cursor.y == y {
                         "]"
                     } else if cursor.x == x + 1 && cursor.y == y {
@@ -78,9 +81,6 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor) -> anyhow::Result
                 )
                 .as_bytes(),
             )?;
-            if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
-                let _ = write!(stdout, "{}", termion::color::Fg(termion::color::Reset))?;
-            }
         }
     }
     Ok(())
