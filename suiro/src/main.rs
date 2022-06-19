@@ -12,7 +12,8 @@ use cursor::Cursor;
 use std::io::{self, StdoutLock, Write};
 use termion::{input::TermRead, raw::IntoRawMode};
 
-fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor, count: usize) -> anyhow::Result<()> {
+fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
+    let (area, cursor, count) = (&game.area, game.cursor, game.count);
     let w = area.width();
     let h = area.height();
     let (ng, flow) = area.test();
@@ -84,28 +85,74 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor, count: usize) -> 
     Ok(())
 }
 
+struct Game {
+    area: Area,
+    count: usize,
+    cursor: Cursor,
+}
+
+impl Game {
+    fn new() -> anyhow::Result<Self> {
+        let count = 0_usize;
+        let cursor = Cursor::new(0, 0);
+        // let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        let area = Area::new(
+            24,
+            24,
+            (0..24 * 24)
+                .into_iter()
+                .map(|_| Pipe::I(1))
+                .collect::<Vec<Pipe>>(),
+        )?;
+        Ok(Self {
+            area,
+            count,
+            cursor,
+        })
+    }
+
+    fn rotate(&mut self) {
+        self.area.rotate(self.cursor.into());
+        self.count += 1;
+    }
+
+    fn left(&mut self) {
+        if self.cursor.x > 0 {
+            self.cursor.x -= 1
+        }
+    }
+
+    fn down(&mut self) {
+        if self.cursor.y < self.area.height() - 1 {
+            self.cursor.y += 1
+        }
+    }
+
+    fn up(&mut self) {
+        if self.cursor.y > 0 {
+            self.cursor.y -= 1
+        }
+    }
+
+    fn right(&mut self) {
+        if self.cursor.x < self.area.width() - 1 {
+            self.cursor.x += 1
+        }
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let stdout = io::stdout().lock();
     let stdin = io::stdin().lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
 
-    let mut count = 0_usize;
-    let mut cursor = Cursor::new(0, 0);
-    // let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-    let mut area = Area::new(
-        24,
-        24,
-        (0..24 * 24)
-            .into_iter()
-            .map(|_| Pipe::I(1))
-            .collect::<Vec<Pipe>>(),
-    )?;
-
     write!(stdout, "{}", termion::clear::All)?;
     write!(stdout, "{}", termion::cursor::Hide)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
 
-    print(&mut stdout, &area, cursor, count)?;
+    let mut game = Game::new()?;
+
+    print(&mut stdout, &game)?;
     stdout.flush()?;
 
     let mut keys = stdin.keys();
@@ -113,34 +160,15 @@ fn main() -> anyhow::Result<()> {
         let b = keys.next().unwrap().unwrap();
         use termion::event::Key::*;
         match b {
-            Char(' ') => {
-                area.rotate(cursor.into());
-                count += 1;
-            }
-            Char('h') => {
-                if cursor.x > 0 {
-                    cursor.x -= 1
-                }
-            }
-            Char('j') => {
-                if cursor.y < area.height() - 1 {
-                    cursor.y += 1
-                }
-            }
-            Char('k') => {
-                if cursor.y > 0 {
-                    cursor.y -= 1
-                }
-            }
-            Char('l') => {
-                if cursor.x < area.width() - 1 {
-                    cursor.x += 1
-                }
-            }
+            Char(' ') => game.rotate(),
+            Char('h') => game.left(),
+            Char('j') => game.down(),
+            Char('k') => game.up(),
+            Char('l') => game.right(),
             Char('q') => break,
             _ => {}
         }
-        print(&mut stdout, &area, cursor, count)?;
+        print(&mut stdout, &game)?;
         stdout.flush()?;
     }
 
