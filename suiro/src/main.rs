@@ -33,7 +33,12 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor, count: usize) -> 
             let p = area.pipe(Point::new(x, y));
             let c = if flow[usize::from(y) * usize::from(w) + usize::from(x)] {
                 format!(
-                    "{}",
+                    "{}{}{}",
+                    if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
+                        termion::color::Fg(termion::color::Red).to_string()
+                    } else {
+                        termion::color::Fg(termion::color::LightBlue).to_string()
+                    },
                     match p {
                         Pipe::I(d) => match d {
                             0 => '┃',
@@ -54,25 +59,16 @@ fn print(stdout: &mut StdoutLock, area: &Area, cursor: Cursor, count: usize) -> 
                             3 => '┣',
                             _ => unreachable!(),
                         },
-                    }
+                    },
+                    termion::color::Fg(termion::color::Reset),
                 )
             } else {
                 format!("{}", p)
             };
             let _ = stdout.write(
                 format!(
-                    "{}{}{}{}",
-                    if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
-                        termion::color::Fg(termion::color::Rgb(255, 0, 0)).to_string()
-                    } else {
-                        String::default()
-                    },
+                    "{}{}",
                     c,
-                    if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
-                        termion::color::Fg(termion::color::Reset).to_string()
-                    } else {
-                        String::default()
-                    },
                     if cursor.x == x && cursor.y == y {
                         "]"
                     } else if cursor.x == x + 1 && cursor.y == y {
