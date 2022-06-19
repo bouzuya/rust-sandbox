@@ -19,9 +19,23 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
     let (ng, flow) = area.test();
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
     write!(stdout, " count: {}", count)?;
+    write!(stdout, "{}", termion::cursor::Goto(1, 2))?;
+    write!(
+        stdout,
+        "{}",
+        (0..w * 2 + 2 + 1)
+            .map(|x| if x == 0 {
+                '╔'
+            } else if x + 1 == w * 2 + 2 + 1 {
+                '╗'
+            } else {
+                '═'
+            })
+            .collect::<String>()
+    )?;
     for y in 0..h {
-        write!(stdout, "{}", termion::cursor::Goto(1, 2 + u16::from(y)))?;
-
+        write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(y)))?;
+        write!(stdout, "{}", if y == 0 { '━' } else { '║' })?;
         let _ = stdout.write(
             if cursor.x == 0 && cursor.y == y {
                 "["
@@ -81,7 +95,22 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
                 .as_bytes(),
             )?;
         }
+        write!(stdout, "{}", if y + 1 == h { '━' } else { '║' })?;
     }
+    write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(h)))?;
+    write!(
+        stdout,
+        "{}",
+        (0..w * 2 + 2 + 1)
+            .map(|x| if x == 0 {
+                '╚'
+            } else if x + 1 == w * 2 + 2 + 1 {
+                '╝'
+            } else {
+                '═'
+            })
+            .collect::<String>()
+    )?;
     Ok(())
 }
 
