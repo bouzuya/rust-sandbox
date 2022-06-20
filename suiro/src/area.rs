@@ -6,52 +6,58 @@ use crate::{direction::Direction, point::Point, Pipe};
 pub enum Error {
     #[error("too few pipes")]
     TooFewPipes,
+    #[error("invalid height")]
+    InvalidHeight,
+    #[error("invalid width")]
+    InvalidWidth,
     #[error("too many pipes")]
     TooManyPipes,
 }
 
 pub struct Area {
-    width: u8,
-    height: u8,
+    size: u8,
     pipes: Vec<Pipe>,
 }
 
 impl Area {
     pub fn new(width: u8, height: u8, pipes: Vec<Pipe>) -> Result<Self, Error> {
+        if !(1..=16).contains(&height) {
+            return Err(Error::InvalidHeight);
+        }
+        if !(1..=16).contains(&width) {
+            return Err(Error::InvalidWidth);
+        }
+        let size = ((width - 1) << 4) | (height - 1);
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
         match length.cmp(&(u16::from(width) * u16::from(height))) {
             std::cmp::Ordering::Less => Err(Error::TooFewPipes),
             std::cmp::Ordering::Greater => Err(Error::TooManyPipes),
             std::cmp::Ordering::Equal => Ok(()),
         }?;
-        Ok(Self {
-            width,
-            height,
-            pipes,
-        })
+        Ok(Self { size, pipes })
     }
 
     pub fn height(&self) -> u8 {
-        self.height
+        (self.size & 0x0F) + 1
     }
 
     pub fn pipe(&self, point: Point) -> Pipe {
         let x = usize::from(point.x());
         let y = usize::from(point.y());
-        let w = usize::from(self.width);
+        let w = usize::from(self.width());
         self.pipes[y * w + x]
     }
 
     pub fn rotate(&mut self, point: Point) {
         let x = usize::from(point.x());
         let y = usize::from(point.y());
-        let w = usize::from(self.width);
+        let w = usize::from(self.width());
         self.pipes[y * w + x] = self.pipes[y * w + x].rotate();
     }
 
     pub fn test(&self) -> (Vec<bool>, Vec<bool>) {
-        let w = usize::from(self.width);
-        let h = usize::from(self.height);
+        let w = usize::from(self.width());
+        let h = usize::from(self.height());
         let mut ng = vec![false; w * h];
         let mut checked = vec![None; w * h];
         if self.pipes.is_empty() {
@@ -130,7 +136,7 @@ impl Area {
     }
 
     pub fn width(&self) -> u8 {
-        self.width
+        ((self.size >> 4) & 0x0F) + 1
     }
 }
 

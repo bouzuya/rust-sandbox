@@ -126,9 +126,9 @@ impl Game {
         let cursor = Cursor::new(0, 0);
         // let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
         let area = Area::new(
-            24,
-            24,
-            (0..24 * 24)
+            16,
+            16,
+            (0..16 * 16)
                 .into_iter()
                 .map(|_| Pipe::I(1))
                 .collect::<Vec<Pipe>>(),
