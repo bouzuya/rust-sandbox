@@ -10,6 +10,7 @@ use self::pipe::Pipe;
 use self::point::Point;
 
 use cursor::Cursor;
+use size::Size;
 use std::io::{self, StdoutLock, Write};
 use termion::{input::TermRead, raw::IntoRawMode};
 
@@ -19,7 +20,7 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
     let h = area.height();
     let (ng, flow) = area.test();
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
-    write!(stdout, " count: {}", count)?;
+    write!(stdout, " count: {}, space: rotate, q: quit", count)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 2))?;
     write!(
         stdout,
@@ -124,7 +125,8 @@ struct Game {
 impl Game {
     fn new() -> anyhow::Result<Self> {
         let count = 0_usize;
-        let cursor = Cursor::new(0, 0);
+        let size = Size::new(16, 16)?;
+        let cursor = Cursor::new(size, 0, 0);
         // let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
         let area = Area::new(
             16,
@@ -147,27 +149,19 @@ impl Game {
     }
 
     fn left(&mut self) {
-        if self.cursor.x > 0 {
-            self.cursor.x -= 1
-        }
+        self.cursor.left()
     }
 
     fn down(&mut self) {
-        if self.cursor.y < self.area.height() - 1 {
-            self.cursor.y += 1
-        }
+        self.cursor.down()
     }
 
     fn up(&mut self) {
-        if self.cursor.y > 0 {
-            self.cursor.y -= 1
-        }
+        self.cursor.up()
     }
 
     fn right(&mut self) {
-        if self.cursor.x < self.area.width() - 1 {
-            self.cursor.x += 1
-        }
+        self.cursor.right()
     }
 }
 
