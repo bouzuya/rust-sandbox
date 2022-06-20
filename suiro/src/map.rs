@@ -12,16 +12,15 @@ pub enum Error {
     TooManyPipes,
 }
 
-pub struct Area {
+pub struct Map {
     size: Size,
     pipes: Vec<Pipe>,
 }
 
-impl Area {
-    pub fn new(width: u8, height: u8, pipes: Vec<Pipe>) -> Result<Self, Error> {
-        let size = Size::new(width, height)?;
+impl Map {
+    pub fn new(size: Size, pipes: Vec<Pipe>) -> Result<Self, Error> {
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
-        match length.cmp(&(u16::from(width) * u16::from(height))) {
+        match length.cmp(&(u16::from(size.width()) * u16::from(size.height()))) {
             std::cmp::Ordering::Less => Err(Error::TooFewPipes),
             std::cmp::Ordering::Greater => Err(Error::TooManyPipes),
             std::cmp::Ordering::Equal => Ok(()),
@@ -138,7 +137,10 @@ mod tests {
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
-        let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        let area = Map::new(
+            Size::new(2, 2)?,
+            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
+        )?;
         assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
         assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
         assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
@@ -148,14 +150,17 @@ mod tests {
 
     #[test]
     fn height_test() -> anyhow::Result<()> {
-        let area = Area::new(1, 2, vec![Pipe::I(1), Pipe::L(0)])?;
+        let area = Map::new(Size::new(1, 2)?, vec![Pipe::I(1), Pipe::L(0)])?;
         assert_eq!(area.height(), 2);
         Ok(())
     }
 
     #[test]
     fn rotate_test() -> anyhow::Result<()> {
-        let mut area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        let mut area = Map::new(
+            Size::new(2, 2)?,
+            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
+        )?;
         assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
         assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
         assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
@@ -169,12 +174,18 @@ mod tests {
 
     #[test]
     fn test_test() -> anyhow::Result<()> {
-        let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        let area = Map::new(
+            Size::new(2, 2)?,
+            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
+        )?;
         let (ng, flow) = area.test();
         assert_eq!(ng, vec![true, false, false, false]);
         assert_eq!(flow, vec![true, false, false, false]);
 
-        let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(2), Pipe::T(0), Pipe::L(0)])?;
+        let area = Map::new(
+            Size::new(2, 2)?,
+            vec![Pipe::I(1), Pipe::L(2), Pipe::T(0), Pipe::L(0)],
+        )?;
         let (ng, flow) = area.test();
         assert_eq!(ng, vec![false, false, false, false]);
         assert_eq!(flow, vec![true, true, false, true]);
@@ -183,7 +194,7 @@ mod tests {
 
     #[test]
     fn width_test() -> anyhow::Result<()> {
-        let area = Area::new(1, 2, vec![Pipe::I(1), Pipe::L(0)])?;
+        let area = Map::new(Size::new(1, 2)?, vec![Pipe::I(1), Pipe::L(0)])?;
         assert_eq!(area.width(), 1);
         Ok(())
     }

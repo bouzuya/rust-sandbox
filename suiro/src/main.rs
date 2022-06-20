@@ -1,11 +1,11 @@
-mod area;
 mod cursor;
 mod direction;
+mod map;
 mod pipe;
 mod point;
 mod size;
 
-use self::area::Area;
+use self::map::Map;
 use self::pipe::Pipe;
 use self::point::Point;
 
@@ -15,7 +15,7 @@ use std::io::{self, StdoutLock, Write};
 use termion::{input::TermRead, raw::IntoRawMode};
 
 fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
-    let (area, cursor, count) = (&game.area, game.cursor, game.count);
+    let (area, cursor, count) = (&game.map, game.cursor, game.count);
     let w = area.width();
     let h = area.height();
     let (ng, flow) = area.test();
@@ -117,7 +117,7 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
 }
 
 struct Game {
-    area: Area,
+    map: Map,
     count: usize,
     cursor: Cursor,
 }
@@ -127,24 +127,19 @@ impl Game {
         let count = 0_usize;
         let size = Size::new(16, 16)?;
         let cursor = Cursor::new(size, 0, 0);
-        // let area = Area::new(2, 2, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-        let area = Area::new(
-            16,
-            16,
-            (0..16 * 16)
+        // let map = Map::new(Size::new(2, 2)?, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
+        let map = Map::new(
+            size,
+            (0..u16::from(size.width()) * u16::from(size.height()))
                 .into_iter()
                 .map(|_| Pipe::I(1))
                 .collect::<Vec<Pipe>>(),
         )?;
-        Ok(Self {
-            area,
-            count,
-            cursor,
-        })
+        Ok(Self { map, count, cursor })
     }
 
     fn rotate(&mut self) {
-        self.area.rotate(self.cursor.into());
+        self.map.rotate(self.cursor.into());
         self.count += 1;
     }
 
