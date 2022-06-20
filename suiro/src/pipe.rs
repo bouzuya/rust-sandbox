@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use anyhow::bail;
+
 use crate::direction::Direction;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -7,6 +9,29 @@ pub enum Pipe {
     I(u8),
     L(u8),
     T(u8),
+}
+
+impl TryFrom<u8> for Pipe {
+    type Error = anyhow::Error;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        let dir = value & 0x03;
+        let typ = (value & 0x0C) >> 2;
+        let reserved = value & 0xF0;
+        if reserved != 0 {
+            bail!("invalid byte");
+        }
+        match typ {
+            0b00 => bail!("invalid byte"),
+            0b01 => match dir {
+                d @ (0b00 | 0b01) => Ok(Pipe::I(d)),
+                _ => bail!("invalid byte"),
+            },
+            0b10 => Ok(Pipe::L(dir)),
+            0b11 => Ok(Pipe::T(dir)),
+            _ => unreachable!(),
+        }
+    }
 }
 
 impl Pipe {
@@ -138,6 +163,26 @@ impl Display for Pipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[allow(clippy::bool_assert_comparison)]
+    #[test]
+    fn try_from_u8_test() -> anyhow::Result<()> {
+        assert_eq!(Pipe::try_from(0b00000000).is_err(), true);
+        assert_eq!(Pipe::try_from(0b00000100)?, Pipe::I(0));
+        assert_eq!(Pipe::try_from(0b00000101)?, Pipe::I(1));
+        assert_eq!(Pipe::try_from(0b00000110).is_err(), true);
+        assert_eq!(Pipe::try_from(0b00000111).is_err(), true);
+        assert_eq!(Pipe::try_from(0b00001000)?, Pipe::L(0));
+        assert_eq!(Pipe::try_from(0b00001001)?, Pipe::L(1));
+        assert_eq!(Pipe::try_from(0b00001010)?, Pipe::L(2));
+        assert_eq!(Pipe::try_from(0b00001011)?, Pipe::L(3));
+        assert_eq!(Pipe::try_from(0b00001100)?, Pipe::T(0));
+        assert_eq!(Pipe::try_from(0b00001101)?, Pipe::T(1));
+        assert_eq!(Pipe::try_from(0b00001110)?, Pipe::T(2));
+        assert_eq!(Pipe::try_from(0b00001111)?, Pipe::T(3));
+        assert_eq!(Pipe::try_from(0b00010000).is_err(), true);
+        Ok(())
+    }
 
     #[test]
     fn is_open_test() {
