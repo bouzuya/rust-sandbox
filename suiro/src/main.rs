@@ -3,6 +3,7 @@ mod cursor;
 mod direction;
 mod pipe;
 mod point;
+mod size;
 
 use self::area::Area;
 use self::pipe::Pipe;

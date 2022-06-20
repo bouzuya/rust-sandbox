@@ -1,33 +1,25 @@
 use std::collections::VecDeque;
 
-use crate::{direction::Direction, point::Point, Pipe};
+use crate::{direction::Direction, point::Point, size::Size, Pipe};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("too few pipes")]
     TooFewPipes,
     #[error("invalid height")]
-    InvalidHeight,
-    #[error("invalid width")]
-    InvalidWidth,
+    InvalidSize(#[from] crate::size::Error),
     #[error("too many pipes")]
     TooManyPipes,
 }
 
 pub struct Area {
-    size: u8,
+    size: Size,
     pipes: Vec<Pipe>,
 }
 
 impl Area {
     pub fn new(width: u8, height: u8, pipes: Vec<Pipe>) -> Result<Self, Error> {
-        if !(1..=16).contains(&height) {
-            return Err(Error::InvalidHeight);
-        }
-        if !(1..=16).contains(&width) {
-            return Err(Error::InvalidWidth);
-        }
-        let size = ((width - 1) << 4) | (height - 1);
+        let size = Size::new(width, height)?;
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
         match length.cmp(&(u16::from(width) * u16::from(height))) {
             std::cmp::Ordering::Less => Err(Error::TooFewPipes),
@@ -38,7 +30,7 @@ impl Area {
     }
 
     pub fn height(&self) -> u8 {
-        (self.size & 0x0F) + 1
+        self.size.height()
     }
 
     pub fn pipe(&self, point: Point) -> Pipe {
@@ -136,7 +128,7 @@ impl Area {
     }
 
     pub fn width(&self) -> u8 {
-        ((self.size >> 4) & 0x0F) + 1
+        self.size.width()
     }
 }
 
