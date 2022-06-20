@@ -184,12 +184,12 @@ fn main() -> anyhow::Result<()> {
         let b = keys.next().unwrap().unwrap();
         use termion::event::Key::*;
         match b {
-            Char(' ') => game.rotate(),
-            Char('h') => game.left(),
-            Char('j') => game.down(),
-            Char('k') => game.up(),
-            Char('l') => game.right(),
-            Char('q') => break,
+            Char(' ') | Char('\n') => game.rotate(),
+            Char('h') | Left => game.left(),
+            Char('j') | Down => game.down(),
+            Char('k') | Up => game.up(),
+            Char('l') | Right => game.right(),
+            Char('q') | Esc => break,
             _ => {}
         }
         print(&mut stdout, &game)?;
