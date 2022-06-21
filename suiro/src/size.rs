@@ -16,6 +16,18 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct Size(u8);
 
+impl From<Size> for u8 {
+    fn from(value: Size) -> Self {
+        value.0
+    }
+}
+
+impl From<u8> for Size {
+    fn from(value: u8) -> Self {
+        Self(value)
+    }
+}
+
 impl Size {
     pub fn new(width: u8, height: u8) -> Result<Self, Error> {
         if height < 1 {
@@ -45,6 +57,18 @@ impl Size {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn u8_conversion_test() -> anyhow::Result<()> {
+        assert_eq!(u8::from(Size::new(1, 1)?), 0b00000000);
+        assert_eq!(u8::from(Size::new(2, 1)?), 0b00010000);
+        assert_eq!(u8::from(Size::new(1, 2)?), 0b00000001);
+        assert_eq!(u8::from(Size::new(16, 16)?), 0b11111111);
+        for byte in std::u8::MIN..=std::u8::MAX {
+            assert_eq!(u8::from(Size::from(byte)), byte);
+        }
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
