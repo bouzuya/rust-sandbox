@@ -1,8 +1,16 @@
 use std::fmt::Display;
 
-use anyhow::bail;
-
 use crate::direction::Direction;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("invalid pipe type: {0}")]
+    InvalidPipeType(u8),
+    #[error("invalid pipe direction: {0}")]
+    InvalidPipeDirection(u8),
+    #[error("reserved bits are used")]
+    ReservedBitsUsed(u8),
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Pipe {
@@ -12,20 +20,20 @@ pub enum Pipe {
 }
 
 impl TryFrom<u8> for Pipe {
-    type Error = anyhow::Error;
+    type Error = Error;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         let dir = value & 0x03;
         let typ = (value & 0x0C) >> 2;
         let reserved = value & 0xF0;
         if reserved != 0 {
-            bail!("invalid byte");
+            return Err(Self::Error::ReservedBitsUsed(value));
         }
         match typ {
-            0b00 => bail!("invalid byte"),
+            0b00 => Err(Self::Error::InvalidPipeType(value)),
             0b01 => match dir {
                 d @ (0b00 | 0b01) => Ok(Pipe::I(d)),
-                _ => bail!("invalid byte"),
+                _ => Err(Self::Error::InvalidPipeDirection(value)),
             },
             0b10 => Ok(Pipe::L(dir)),
             0b11 => Ok(Pipe::T(dir)),
