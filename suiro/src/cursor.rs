@@ -3,8 +3,8 @@ use crate::{point::Point, size::Size};
 #[derive(Clone, Copy, Debug)]
 pub struct Cursor {
     size: Size,
-    pub x: u8,
-    pub y: u8,
+    x: u8,
+    y: u8,
 }
 
 impl Cursor {
@@ -34,6 +34,14 @@ impl Cursor {
         if self.y > 0 {
             self.y -= 1
         }
+    }
+
+    pub fn x(&self) -> u8 {
+        self.x
+    }
+
+    pub fn y(&self) -> u8 {
+        self.y
     }
 }
 

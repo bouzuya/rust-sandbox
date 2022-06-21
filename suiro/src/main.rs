@@ -40,7 +40,7 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
         write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(y)))?;
         write!(stdout, "{}", if y == 0 { '━' } else { '║' })?;
         let _ = stdout.write(
-            if cursor.x == 0 && cursor.y == y {
+            if cursor.x() == 0 && cursor.y() == y {
                 "["
             } else {
                 " "
@@ -87,9 +87,9 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
                 format!(
                     "{}{}",
                     c,
-                    if cursor.x == x && cursor.y == y {
+                    if cursor.x() == x && cursor.y() == y {
                         "]"
-                    } else if cursor.x == x + 1 && cursor.y == y {
+                    } else if cursor.x() == x + 1 && cursor.y() == y {
                         "["
                     } else {
                         " "
@@ -206,11 +206,9 @@ fn main() -> anyhow::Result<()> {
     print(&mut stdout, &game)?;
     stdout.flush()?;
 
-    let mut keys = stdin.keys();
-    loop {
-        let b = keys.next().unwrap().unwrap();
+    for key in stdin.keys() {
         use termion::event::Key::*;
-        match b {
+        match key? {
             Char(' ') | Char('\n') => game.rotate(),
             Char('h') | Left => game.left(),
             Char('j') | Down => game.down(),
