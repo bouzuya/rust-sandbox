@@ -12,26 +12,42 @@ impl Cursor {
         Self { size, x, y }
     }
 
-    pub fn down(&mut self) {
-        if self.y < self.size.height() - 1 {
+    pub fn is_bottom_edge(&self) -> bool {
+        self.y == self.size.height() - 1
+    }
+
+    pub fn is_left_edge(&self) -> bool {
+        self.x == 0
+    }
+
+    pub fn is_right_edge(&self) -> bool {
+        self.x == self.size.width() - 1
+    }
+
+    pub fn is_top_edge(&self) -> bool {
+        self.y == 0
+    }
+
+    pub fn move_down(&mut self) {
+        if !self.is_bottom_edge() {
             self.y += 1
         }
     }
 
-    pub fn left(&mut self) {
-        if self.x > 0 {
+    pub fn move_left(&mut self) {
+        if !self.is_left_edge() {
             self.x -= 1
         }
     }
 
-    pub fn right(&mut self) {
-        if self.x < self.size.width() - 1 {
+    pub fn move_right(&mut self) {
+        if !self.is_right_edge() {
             self.x += 1
         }
     }
 
-    pub fn up(&mut self) {
-        if self.y > 0 {
+    pub fn move_up(&mut self) {
+        if !self.is_top_edge() {
             self.y -= 1
         }
     }
@@ -60,36 +76,40 @@ mod tests {
         let size = Size::new(3, 3)?;
         let mut cursor = Cursor::new(size, 0, 0);
 
-        cursor.down();
-        assert_eq!(cursor.y, 1);
-        cursor.down();
-        assert_eq!(cursor.y, 2);
-        cursor.down();
-        assert_eq!(cursor.y, 2);
+        cursor.move_down();
+        assert_eq!(cursor.y(), 1);
+        cursor.move_down();
+        assert_eq!(cursor.y(), 2);
+        cursor.move_down();
+        assert_eq!(cursor.y(), 2);
+        assert!(cursor.is_bottom_edge());
 
-        cursor.right();
-        assert_eq!(cursor.x, 1);
-        cursor.right();
-        assert_eq!(cursor.x, 2);
-        cursor.right();
-        assert_eq!(cursor.x, 2);
+        cursor.move_right();
+        assert_eq!(cursor.x(), 1);
+        cursor.move_right();
+        assert_eq!(cursor.x(), 2);
+        cursor.move_right();
+        assert_eq!(cursor.x(), 2);
+        assert!(cursor.is_right_edge());
 
-        cursor.left();
-        assert_eq!(cursor.x, 1);
-        cursor.left();
-        assert_eq!(cursor.x, 0);
-        cursor.left();
-        assert_eq!(cursor.x, 0);
+        cursor.move_left();
+        assert_eq!(cursor.x(), 1);
+        cursor.move_left();
+        assert_eq!(cursor.x(), 0);
+        cursor.move_left();
+        assert_eq!(cursor.x(), 0);
+        assert!(cursor.is_left_edge());
 
-        cursor.up();
-        assert_eq!(cursor.y, 1);
-        cursor.up();
-        assert_eq!(cursor.y, 0);
-        cursor.up();
-        assert_eq!(cursor.y, 0);
+        cursor.move_up();
+        assert_eq!(cursor.y(), 1);
+        cursor.move_up();
+        assert_eq!(cursor.y(), 0);
+        cursor.move_up();
+        assert_eq!(cursor.y(), 0);
+        assert!(cursor.is_top_edge());
 
-        cursor.down();
-        cursor.right();
+        cursor.move_down();
+        cursor.move_right();
         assert_eq!(Point::from(cursor), Point::new(1, 1));
 
         Ok(())

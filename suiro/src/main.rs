@@ -40,7 +40,7 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
         write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(y)))?;
         write!(stdout, "{}", if y == 0 { '━' } else { '║' })?;
         let _ = stdout.write(
-            if cursor.x() == 0 && cursor.y() == y {
+            if cursor.is_left_edge() && cursor.y() == y {
                 "["
             } else {
                 " "
@@ -136,19 +136,19 @@ impl Game {
     }
 
     fn left(&mut self) {
-        self.cursor.left()
+        self.cursor.move_left()
     }
 
     fn down(&mut self) {
-        self.cursor.down()
+        self.cursor.move_down()
     }
 
     fn up(&mut self) {
-        self.cursor.up()
+        self.cursor.move_up()
     }
 
     fn right(&mut self) {
-        self.cursor.right()
+        self.cursor.move_right()
     }
 }
 
