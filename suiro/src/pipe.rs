@@ -19,6 +19,16 @@ pub enum Pipe {
     T(u8),
 }
 
+impl From<Pipe> for u8 {
+    fn from(pipe: Pipe) -> Self {
+        match pipe {
+            Pipe::I(d) => (0b01 << 2) | d,
+            Pipe::L(d) => (0b10 << 2) | d,
+            Pipe::T(d) => (0b11 << 2) | d,
+        }
+    }
+}
+
 impl TryFrom<u8> for Pipe {
     type Error = Error;
 
@@ -171,6 +181,21 @@ impl Display for Pipe {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[allow(clippy::bool_assert_comparison)]
+    #[test]
+    fn from_pipe_for_u8_test() {
+        assert_eq!(0b00000100, u8::from(Pipe::I(0)));
+        assert_eq!(0b00000101, u8::from(Pipe::I(1)));
+        assert_eq!(0b00001000, u8::from(Pipe::L(0)));
+        assert_eq!(0b00001001, u8::from(Pipe::L(1)));
+        assert_eq!(0b00001010, u8::from(Pipe::L(2)));
+        assert_eq!(0b00001011, u8::from(Pipe::L(3)));
+        assert_eq!(0b00001100, u8::from(Pipe::T(0)));
+        assert_eq!(0b00001101, u8::from(Pipe::T(1)));
+        assert_eq!(0b00001110, u8::from(Pipe::T(2)));
+        assert_eq!(0b00001111, u8::from(Pipe::T(3)));
+    }
 
     #[allow(clippy::bool_assert_comparison)]
     #[test]
