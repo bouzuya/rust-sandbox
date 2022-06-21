@@ -9,6 +9,7 @@ use self::map::Map;
 use self::pipe::Pipe;
 use self::point::Point;
 
+use clap::Parser;
 use cursor::Cursor;
 use size::Size;
 use std::io::{self, StdoutLock, Write};
@@ -123,18 +124,9 @@ struct Game {
 }
 
 impl Game {
-    fn new() -> anyhow::Result<Self> {
+    fn new(map: Map) -> anyhow::Result<Self> {
         let count = 0_usize;
-        let size = Size::new(16, 16)?;
-        let cursor = Cursor::new(size, 0, 0);
-        // let map = Map::new(Size::new(2, 2)?, vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)])?;
-        let map = Map::new(
-            size,
-            (0..u16::from(size.width()) * u16::from(size.height()))
-                .into_iter()
-                .map(|_| Pipe::I(1))
-                .collect::<Vec<Pipe>>(),
-        )?;
+        let cursor = Cursor::new(Size::new(map.width(), map.height())?, 0, 0);
         Ok(Self { map, count, cursor })
     }
 
@@ -160,7 +152,47 @@ impl Game {
     }
 }
 
+#[derive(Parser)]
+#[clap(version)]
+struct Opt {
+    #[clap(long)]
+    map: Option<String>,
+}
+
 fn main() -> anyhow::Result<()> {
+    let opt: Opt = Opt::parse();
+    let map = opt
+        .map
+        .and_then(|s| base32::decode(base32::Alphabet::Crockford, s.as_str()))
+        .map_or_else(
+            || {
+                let size = Size::new(16, 16)?;
+                let map = Map::new(
+                    size,
+                    (0..u16::from(size.width()) * u16::from(size.height()))
+                        .into_iter()
+                        .map(|_| Pipe::I(1))
+                        .collect::<Vec<Pipe>>(),
+                )?;
+                Ok(map)
+            },
+            |b| {
+                if b.is_empty() {
+                    anyhow::bail!("bytes are empty")
+                } else {
+                    let size = Size::from(b[0]);
+                    let pipes = b
+                        .iter()
+                        .skip(1)
+                        .copied()
+                        .map(Pipe::try_from)
+                        .collect::<Result<Vec<Pipe>, pipe::Error>>()?;
+                    let map = Map::new(size, pipes)?;
+                    Ok(map)
+                }
+            },
+        )?;
+
     let stdout = io::stdout().lock();
     let stdin = io::stdin().lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
@@ -169,7 +201,7 @@ fn main() -> anyhow::Result<()> {
     write!(stdout, "{}", termion::cursor::Hide)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
 
-    let mut game = Game::new()?;
+    let mut game = Game::new(map)?;
 
     print(&mut stdout, &game)?;
     stdout.flush()?;
@@ -193,4 +225,29 @@ fn main() -> anyhow::Result<()> {
 
     write!(stdout, "{}", termion::cursor::Show)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn map_test() {
+        // │
+        let s = base32::encode(base32::Alphabet::Crockford, &[0b00000000, 0b00000100]);
+        assert_eq!(s, "0020");
+
+        // ││
+        let s = base32::encode(
+            base32::Alphabet::Crockford,
+            &[0b00010000, 0b00000100, 0b00000100],
+        );
+        assert_eq!(s, "20208");
+
+        // │└
+        // │└
+        let s = base32::encode(
+            base32::Alphabet::Crockford,
+            &[0b00010001, 0b00000100, 0b00001000, 0b00000100, 0b00001000],
+        );
+        assert_eq!(s, "2420G108");
+    }
 }
