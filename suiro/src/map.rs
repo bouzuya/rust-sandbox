@@ -73,17 +73,20 @@ impl Map {
         self.pipes[y * w + x] = self.pipes[y * w + x].rotate();
     }
 
-    pub fn test(&self) -> (Vec<bool>, Vec<bool>) {
+    pub fn test(&self) -> (bool, Vec<bool>, Vec<bool>) {
         let w = usize::from(self.width());
         let h = usize::from(self.height());
+        let mut ok = true;
         let mut ng = vec![false; w * h];
         let mut checked = vec![None; w * h];
         if self.pipes.is_empty() {
-            return (ng, vec![]);
+            return (ok, ng, vec![]);
         }
         if !self.pipes[0].is_open(Direction::L) {
+            ok = false;
             ng[0] = true;
             return (
+                ok,
                 ng,
                 checked
                     .into_iter()
@@ -107,6 +110,7 @@ impl Map {
                                     deque.push_back((x, y - 1));
                                 }
                             } else {
+                                ok = false;
                                 ng[y * w + x] = true;
                             }
                         }
@@ -117,6 +121,7 @@ impl Map {
                                     deque.push_back((x, y + 1));
                                 }
                             } else {
+                                ok = false;
                                 ng[y * w + x] = true;
                             }
                         }
@@ -127,6 +132,7 @@ impl Map {
                                     deque.push_back((x - 1, y));
                                 }
                             } else if !(x == 0 && y == 0) {
+                                ok = false;
                                 ng[y * w + x] = true;
                             }
                         }
@@ -137,6 +143,7 @@ impl Map {
                                     deque.push_back((x + 1, y));
                                 }
                             } else if !(x + 1 == w && y + 1 == h) {
+                                ok = false;
                                 ng[y * w + x] = true;
                             }
                         }
@@ -145,6 +152,7 @@ impl Map {
             }
         }
         (
+            ok,
             ng,
             checked
                 .into_iter()
@@ -244,7 +252,8 @@ mod tests {
             Size::new(2, 2)?,
             vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
         )?;
-        let (ng, flow) = area.test();
+        let (ok, ng, flow) = area.test();
+        assert!(!ok);
         assert_eq!(ng, vec![true, false, false, false]);
         assert_eq!(flow, vec![true, false, false, false]);
 
@@ -252,7 +261,8 @@ mod tests {
             Size::new(2, 2)?,
             vec![Pipe::I(1), Pipe::L(2), Pipe::T(0), Pipe::L(0)],
         )?;
-        let (ng, flow) = area.test();
+        let (ok, ng, flow) = area.test();
+        assert!(ok);
         assert_eq!(ng, vec![false, false, false, false]);
         assert_eq!(flow, vec![true, true, false, true]);
         Ok(())

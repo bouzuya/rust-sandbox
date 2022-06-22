@@ -19,10 +19,12 @@ use std::{
 use termion::{input::TermRead, raw::IntoRawMode};
 
 fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
+    let color_flow = termion::color::Fg(termion::color::LightBlue);
+    let color_ng = termion::color::Fg(termion::color::Red);
     let (area, cursor, count) = (&game.map, game.cursor, game.count);
     let w = area.width();
     let h = area.height();
-    let (ng, flow) = area.test();
+    let (ok, ng, flow) = area.test();
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
     write!(stdout, " count: {}, space: rotate, q: quit", count)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 2))?;
@@ -41,7 +43,21 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
     )?;
     for y in 0..h {
         write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(y)))?;
-        write!(stdout, "{}", if y == 0 { '━' } else { '║' })?;
+        write!(
+            stdout,
+            "{}",
+            if y == 0 {
+                format!(
+                    "{}{}{}",
+                    color_flow,
+                    '━',
+                    termion::color::Fg(termion::color::Reset)
+                )
+            } else {
+                "║".to_string()
+            }
+        )?;
+
         let _ = stdout.write(
             if cursor.is_left_edge() && cursor.y() == y {
                 "["
@@ -56,9 +72,9 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
                 format!(
                     "{}{}{}",
                     if ng[usize::from(y) * usize::from(w) + usize::from(x)] {
-                        termion::color::Fg(termion::color::Red).to_string()
+                        color_ng.to_string()
                     } else {
-                        termion::color::Fg(termion::color::LightBlue).to_string()
+                        color_flow.to_string()
                     },
                     match p {
                         Pipe::I(d) => match d {
@@ -101,7 +117,24 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
                 .as_bytes(),
             )?;
         }
-        write!(stdout, "{}", if y + 1 == h { '━' } else { '║' })?;
+        write!(
+            stdout,
+            "{}",
+            if y + 1 == h {
+                format!(
+                    "{}{}{}",
+                    if ok {
+                        color_flow.to_string()
+                    } else {
+                        "".to_string()
+                    },
+                    '━',
+                    termion::color::Fg(termion::color::Reset)
+                )
+            } else {
+                "║".to_string()
+            }
+        )?;
     }
     write!(stdout, "{}", termion::cursor::Goto(1, 3 + u16::from(h)))?;
     write!(
