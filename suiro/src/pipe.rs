@@ -2,7 +2,7 @@ use std::fmt::Display;
 
 use crate::direction::Direction;
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("invalid pipe type: {0}")]
     InvalidPipeType(u8),

@@ -1,24 +1,51 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, str::FromStr};
 
 use crate::{direction::Direction, point::Point, size::Size, Pipe};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("too few pipes")]
     TooFewPipes,
-    #[error("invalid height")]
+    #[error("invalid format")]
+    InvalidFormat,
+    #[error("invalid pipe")]
+    InvalidPipe(#[from] crate::pipe::Error),
+    #[error("invalid size")]
     InvalidSize(#[from] crate::size::Error),
     #[error("too many pipes")]
     TooManyPipes,
 }
 
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
+#[derive(Debug, Eq, PartialEq)]
 pub struct Map {
     size: Size,
     pipes: Vec<Pipe>,
 }
 
+impl FromStr for Map {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let bytes =
+            base32::decode(base32::Alphabet::Crockford, s).ok_or(Self::Err::InvalidFormat)?;
+        if bytes.is_empty() {
+            return Err(Self::Err::InvalidFormat);
+        }
+        let size = Size::from(bytes[0]);
+        let pipes = bytes
+            .iter()
+            .skip(1)
+            .copied()
+            .map(|b| Pipe::try_from(b).map_err(Self::Err::from))
+            .collect::<Result<Vec<Pipe>>>()?;
+        Map::new(size, pipes)
+    }
+}
+
 impl Map {
-    pub fn new(size: Size, pipes: Vec<Pipe>) -> Result<Self, Error> {
+    pub fn new(size: Size, pipes: Vec<Pipe>) -> Result<Self> {
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
         match length.cmp(&(u16::from(size.width()) * u16::from(size.height()))) {
             std::cmp::Ordering::Less => Err(Error::TooFewPipes),
@@ -134,6 +161,45 @@ impl Map {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn from_str_test() -> anyhow::Result<()> {
+        // │
+        let s = base32::encode(base32::Alphabet::Crockford, &[0b00000000, 0b00000100]);
+        assert_eq!(s, "0020");
+        assert_eq!(
+            Map::from_str(s.as_str()),
+            Map::new(Size::new(1, 1)?, vec![Pipe::I(0)])
+        );
+
+        // ││
+        let s = base32::encode(
+            base32::Alphabet::Crockford,
+            &[0b00010000, 0b00000100, 0b00000100],
+        );
+        assert_eq!(s, "20208");
+        assert_eq!(
+            Map::from_str(s.as_str()),
+            Map::new(Size::new(2, 1)?, vec![Pipe::I(0), Pipe::I(0)])
+        );
+
+        // │└
+        // │└
+        let s = base32::encode(
+            base32::Alphabet::Crockford,
+            &[0b00010001, 0b00000100, 0b00001000, 0b00000100, 0b00001000],
+        );
+        assert_eq!(s, "2420G108");
+        assert_eq!(
+            Map::from_str(s.as_str()),
+            Map::new(
+                Size::new(2, 2)?,
+                vec![Pipe::I(0), Pipe::L(0), Pipe::I(0), Pipe::L(0)]
+            )
+        );
+
+        Ok(())
+    }
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
