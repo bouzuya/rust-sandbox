@@ -73,9 +73,9 @@ mod tests {
     #[test]
     fn test() -> anyhow::Result<()> {
         assert_eq!(Size::new(0, 10), Err(Error::TooShortWidth));
-        assert_eq!(Size::new(16, 10), Err(Error::TooShortWidth));
+        assert_eq!(Size::new(17, 10), Err(Error::TooLongWidth));
         assert_eq!(Size::new(10, 0), Err(Error::TooShortHeight));
-        assert_eq!(Size::new(10, 16), Err(Error::TooShortHeight));
+        assert_eq!(Size::new(10, 17), Err(Error::TooLongHeight));
         let size = Size::new(6, 8)?;
         assert_eq!(size.width(), 6);
         assert_eq!(size.height(), 8);
