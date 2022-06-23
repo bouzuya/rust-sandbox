@@ -172,12 +172,15 @@ mod tests {
 
     #[test]
     fn from_str_test() -> anyhow::Result<()> {
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+
         // │
         let s = base32::encode(base32::Alphabet::Crockford, &[0b00000000, 0b00000100]);
         assert_eq!(s, "0020");
         assert_eq!(
             Map::from_str(s.as_str()),
-            Map::new(Size::new(1, 1)?, vec![Pipe::I(0)])
+            Map::new(Size::new(1, 1)?, vec![pipe_i])
         );
 
         // ││
@@ -188,7 +191,7 @@ mod tests {
         assert_eq!(s, "20208");
         assert_eq!(
             Map::from_str(s.as_str()),
-            Map::new(Size::new(2, 1)?, vec![Pipe::I(0), Pipe::I(0)])
+            Map::new(Size::new(2, 1)?, vec![pipe_i, pipe_i])
         );
 
         // │└
@@ -200,10 +203,7 @@ mod tests {
         assert_eq!(s, "2420G108");
         assert_eq!(
             Map::from_str(s.as_str()),
-            Map::new(
-                Size::new(2, 2)?,
-                vec![Pipe::I(0), Pipe::L(0), Pipe::I(0), Pipe::L(0)]
-            )
+            Map::new(Size::new(2, 2)?, vec![pipe_i, pipe_l, pipe_i, pipe_l])
         );
 
         Ok(())
@@ -211,46 +211,55 @@ mod tests {
 
     #[test]
     fn new_test() -> anyhow::Result<()> {
-        let area = Map::new(
-            Size::new(2, 2)?,
-            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
-        )?;
-        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
-        assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
-        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
-        assert_eq!(area.pipe(Point::new(1, 1)), Pipe::L(0));
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+        let pipe_t = Pipe::try_from('┬')?;
+
+        let area = Map::new(Size::new(2, 2)?, vec![pipe_i, pipe_l, pipe_t, pipe_l])?;
+        assert_eq!(area.pipe(Point::new(0, 0)), pipe_i);
+        assert_eq!(area.pipe(Point::new(1, 0)), pipe_l);
+        assert_eq!(area.pipe(Point::new(0, 1)), pipe_t);
+        assert_eq!(area.pipe(Point::new(1, 1)), pipe_l);
         Ok(())
     }
 
     #[test]
     fn height_test() -> anyhow::Result<()> {
-        let area = Map::new(Size::new(1, 2)?, vec![Pipe::I(1), Pipe::L(0)])?;
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+
+        let area = Map::new(Size::new(1, 2)?, vec![pipe_i, pipe_l])?;
         assert_eq!(area.height(), 2);
         Ok(())
     }
 
     #[test]
     fn rotate_test() -> anyhow::Result<()> {
-        let mut area = Map::new(
-            Size::new(2, 2)?,
-            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
-        )?;
-        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(1));
-        assert_eq!(area.pipe(Point::new(1, 0)), Pipe::L(0));
-        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(0));
-        assert_eq!(area.pipe(Point::new(1, 1)), Pipe::L(0));
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+        let pipe_t = Pipe::try_from('┬')?;
+
+        let mut area = Map::new(Size::new(2, 2)?, vec![pipe_i, pipe_l, pipe_t, pipe_l])?;
+        assert_eq!(area.pipe(Point::new(0, 0)), pipe_i);
+        assert_eq!(area.pipe(Point::new(1, 0)), pipe_l);
+        assert_eq!(area.pipe(Point::new(0, 1)), pipe_t);
+        assert_eq!(area.pipe(Point::new(1, 1)), pipe_l);
         area.rotate(Point::new(0, 1));
-        assert_eq!(area.pipe(Point::new(0, 1)), Pipe::T(1));
+        assert_eq!(area.pipe(Point::new(0, 1)), pipe_t.rotate());
         area.rotate(Point::new(0, 0));
-        assert_eq!(area.pipe(Point::new(0, 0)), Pipe::I(0));
+        assert_eq!(area.pipe(Point::new(0, 0)), pipe_i.rotate());
         Ok(())
     }
 
     #[test]
     fn test_test() -> anyhow::Result<()> {
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+        let pipe_t = Pipe::try_from('┬')?;
+
         let area = Map::new(
             Size::new(2, 2)?,
-            vec![Pipe::I(1), Pipe::L(0), Pipe::T(0), Pipe::L(0)],
+            vec![pipe_i.rotate(), pipe_l, pipe_t, pipe_l],
         )?;
         let (ok, ng, flow) = area.test();
         assert!(!ok);
@@ -259,7 +268,7 @@ mod tests {
 
         let area = Map::new(
             Size::new(2, 2)?,
-            vec![Pipe::I(1), Pipe::L(2), Pipe::T(0), Pipe::L(0)],
+            vec![pipe_i.rotate(), pipe_l.rotate().rotate(), pipe_t, pipe_l],
         )?;
         let (ok, ng, flow) = area.test();
         assert!(ok);
@@ -270,7 +279,9 @@ mod tests {
 
     #[test]
     fn width_test() -> anyhow::Result<()> {
-        let area = Map::new(Size::new(1, 2)?, vec![Pipe::I(1), Pipe::L(0)])?;
+        let pipe_i = Pipe::try_from('│')?;
+        let pipe_l = Pipe::try_from('└')?;
+        let area = Map::new(Size::new(1, 2)?, vec![pipe_i, pipe_l])?;
         assert_eq!(area.width(), 1);
         Ok(())
     }

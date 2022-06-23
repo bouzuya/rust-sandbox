@@ -94,26 +94,18 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
                     } else {
                         color_flow.to_string()
                     },
-                    match p {
-                        Pipe::I(d) => match d {
-                            0 => '┃',
-                            1 => '━',
-                            _ => unreachable!(),
-                        },
-                        Pipe::L(d) => match d {
-                            0 => '┗',
-                            1 => '┏',
-                            2 => '┓',
-                            3 => '┛',
-                            _ => unreachable!(),
-                        },
-                        Pipe::T(d) => match d {
-                            0 => '┳',
-                            1 => '┫',
-                            2 => '┻',
-                            3 => '┣',
-                            _ => unreachable!(),
-                        },
+                    match char::from(p) {
+                        '│' => '┃',
+                        '─' => '━',
+                        '└' => '┗',
+                        '┌' => '┏',
+                        '┐' => '┓',
+                        '┘' => '┛',
+                        '┬' => '┳',
+                        '┤' => '┫',
+                        '┴' => '┻',
+                        '├' => '┣',
+                        _ => unreachable!(),
                     },
                     termion::color::Fg(termion::color::Reset),
                 )
@@ -253,7 +245,7 @@ fn main() -> anyhow::Result<()> {
                 size,
                 (0..u16::from(size.width()) * u16::from(size.height()))
                     .into_iter()
-                    .map(|_| Pipe::I(1))
+                    .map(|_| Pipe::try_from('─').expect("pipe broken"))
                     .collect::<Vec<Pipe>>(),
             )
         })?;
