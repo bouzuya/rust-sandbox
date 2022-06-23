@@ -61,7 +61,11 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
             if y == 0 {
                 format!(
                     "{}{}{}",
-                    color_flow,
+                    if flow[0] {
+                        color_flow.to_string()
+                    } else {
+                        color_ng.to_string()
+                    },
                     '━',
                     termion::color::Fg(termion::color::Reset)
                 )
