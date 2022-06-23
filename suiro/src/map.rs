@@ -45,6 +45,15 @@ impl FromStr for Map {
 }
 
 impl Map {
+    pub fn gen(size: Size) -> Result<Self> {
+        // TODO:
+        let pipes = (0..u16::from(size.width()) * u16::from(size.height()))
+            .into_iter()
+            .map(|_| Pipe::try_from('─').expect("pipe broken"))
+            .collect::<Vec<Pipe>>();
+        Ok(Self { size, pipes })
+    }
+
     pub fn new(size: Size, pipes: Vec<Pipe>) -> Result<Self> {
         let length = u16::try_from(pipes.len()).map_err(|_| Error::TooManyPipes)?;
         match length.cmp(&(u16::from(size.width()) * u16::from(size.height()))) {

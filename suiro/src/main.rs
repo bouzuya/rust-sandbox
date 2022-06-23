@@ -13,6 +13,7 @@ use clap::Parser;
 use cursor::Cursor;
 use size::Size;
 use std::{
+    collections::VecDeque,
     io::{self, StdoutLock, Write},
     str::FromStr,
 };
@@ -241,13 +242,7 @@ fn main() -> anyhow::Result<()> {
         .map(|s| Map::from_str(s.as_str()))
         .unwrap_or_else(|| {
             let size = Size::new(16, 16).map_err(map::Error::from)?;
-            Map::new(
-                size,
-                (0..u16::from(size.width()) * u16::from(size.height()))
-                    .into_iter()
-                    .map(|_| Pipe::try_from('─').expect("pipe broken"))
-                    .collect::<Vec<Pipe>>(),
-            )
+            Map::gen(size)
         })?;
 
     let stdout = io::stdout().lock();
