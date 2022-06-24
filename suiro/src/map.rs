@@ -1,5 +1,7 @@
 use std::{collections::VecDeque, str::FromStr};
 
+use rand::Rng;
+
 use crate::{direction::Direction, point::Point, size::Size, Pipe};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -293,5 +295,68 @@ mod tests {
         let area = Map::new(Size::new(1, 2)?, vec![pipe_i, pipe_l])?;
         assert_eq!(area.width(), 1);
         Ok(())
+    }
+
+    #[test]
+    fn gen_test() {
+        let w = 7;
+        let h = 7;
+
+        let mut board = vec![vec!['#'; w]; h];
+
+        let mut rng = rand::thread_rng();
+        let mut cells = vec![(0, 0)];
+        while !cells.is_empty() {
+            let index = rng.gen_range(0..cells.len());
+            let (x, y) = cells[index];
+            cells = cells
+                .into_iter()
+                .enumerate()
+                .filter(|(i, _)| *i != index)
+                .map(|(_, c)| c)
+                .collect::<Vec<(usize, usize)>>();
+
+            let mut cand = vec![];
+
+            let dir = vec![(-1, 0), (0, -1), (0, 1), (1, 0)];
+            for (dr, dc) in dir {
+                let (r1, c1) = (y as i64 + dr, x as i64 + dc);
+                if !(0..h as i64).contains(&r1) || !(0..w as i64).contains(&c1) {
+                    continue;
+                }
+                let (r1, c1) = (r1 as usize, c1 as usize);
+                if board[r1][c1] == '.' {
+                    continue;
+                }
+                let (r2, c2) = (r1 as i64 + dr, c1 as i64 + dc);
+                if !(0..h as i64).contains(&r2) || !(0..w as i64).contains(&c2) {
+                    continue;
+                }
+                let (r2, c2) = (r2 as usize, c2 as usize);
+                if board[r2][c2] == '.' {
+                    continue;
+                }
+                cand.push(vec![(r1, c1), (r2, c2)]);
+            }
+
+            if cand.is_empty() {
+                continue;
+            }
+
+            let index = rng.gen_range(0..cand.len());
+            for (y, x) in cand[index].iter().copied().chain(std::iter::once((y, x))) {
+                board[y][x] = '.';
+                if y % 2 == 0 && x % 2 == 0 {
+                    cells.push((x, y));
+                }
+            }
+        }
+
+        for i in 0..h {
+            for j in 0..w {
+                print!("{}", board[i][j]);
+            }
+            println!();
+        }
     }
 }
