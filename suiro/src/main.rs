@@ -163,6 +163,8 @@ fn print(stdout: &mut StdoutLock, game: &Game) -> anyhow::Result<()> {
             })
             .collect::<String>()
     )?;
+
+    stdout.flush()?;
     Ok(())
 }
 
@@ -244,19 +246,16 @@ fn main() -> anyhow::Result<()> {
             let size = Size::new(16, 16).map_err(map::Error::from)?;
             Map::gen(size)
         })?;
+    let mut game = Game::new(map)?;
 
     let stdout = io::stdout().lock();
     let stdin = io::stdin().lock();
     let mut stdout = stdout.into_raw_mode().unwrap();
-
     write!(stdout, "{}", termion::clear::All)?;
     write!(stdout, "{}", termion::cursor::Hide)?;
     write!(stdout, "{}", termion::cursor::Goto(1, 1))?;
 
-    let mut game = Game::new(map)?;
-
     print(&mut stdout, &game)?;
-    stdout.flush()?;
 
     for key in stdin.keys() {
         use termion::event::Key::*;
@@ -270,7 +269,6 @@ fn main() -> anyhow::Result<()> {
             _ => {}
         }
         print(&mut stdout, &game)?;
-        stdout.flush()?;
     }
 
     write!(stdout, "{}", termion::cursor::Show)?;
