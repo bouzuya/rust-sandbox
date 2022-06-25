@@ -13,7 +13,6 @@ use clap::Parser;
 use cursor::Cursor;
 use size::Size;
 use std::{
-    collections::VecDeque,
     io::{self, StdoutLock, Write},
     str::FromStr,
 };
@@ -243,7 +242,7 @@ fn main() -> anyhow::Result<()> {
         .map
         .map(|s| Map::from_str(s.as_str()))
         .unwrap_or_else(|| {
-            let size = Size::new(16, 16).map_err(map::Error::from)?;
+            let size = Size::new(6, 6).map_err(map::Error::from)?;
             Map::gen(size)
         })?;
     let mut game = Game::new(map)?;

@@ -1,6 +1,11 @@
-use std::{collections::VecDeque, str::FromStr};
+use std::{
+    collections::{HashSet, VecDeque},
+    hash::Hash,
+    iter,
+    str::FromStr,
+};
 
-use rand::Rng;
+use rand::{prelude::ThreadRng, Rng};
 
 use crate::{direction::Direction, point::Point, size::Size, Pipe};
 
@@ -48,12 +53,53 @@ impl FromStr for Map {
 
 impl Map {
     pub fn gen(size: Size) -> Result<Self> {
-        // TODO:
-        let pipes = (0..u16::from(size.width()) * u16::from(size.height()))
-            .into_iter()
-            .map(|_| Pipe::try_from('─').expect("pipe broken"))
-            .collect::<Vec<Pipe>>();
-        Ok(Self { size, pipes })
+        let (w, h) = (usize::from(size.width()), usize::from(size.height()));
+        loop {
+            let mut ok = true;
+            let b1 = phase1(w, h);
+            let b2 = phase2(w, h, &b1);
+            let b3 = phase3(w, h, &b2);
+            let mut b4 = vec![];
+            for i in 0..h {
+                let mut r = vec![];
+                for j in 0..w {
+                    match b3[i][j] {
+                        0b0000 => unreachable!(),
+                        0b0001 => r.push(Pipe::try_from('─')?),
+                        0b0010 => r.push(Pipe::try_from('│')?),
+                        0b0100 => r.push(Pipe::try_from('─')?),
+                        0b1000 => r.push(Pipe::try_from('│')?),
+                        0b1010 => r.push(Pipe::try_from('│')?),
+                        0b0101 => r.push(Pipe::try_from('─')?),
+                        0b1100 => r.push(Pipe::try_from('└')?),
+                        0b0110 => r.push(Pipe::try_from('┌')?),
+                        0b0011 => r.push(Pipe::try_from('┐')?),
+                        0b1001 => r.push(Pipe::try_from('┘')?),
+                        0b0111 => r.push(Pipe::try_from('┬')?),
+                        0b1011 => r.push(Pipe::try_from('┤')?),
+                        0b1101 => r.push(Pipe::try_from('┴')?),
+                        0b1110 => r.push(Pipe::try_from('├')?),
+                        0b1111 => ok = false,
+                        _ => unreachable!(),
+                    }
+                }
+                b4.push(r);
+            }
+            if !ok {
+                continue;
+            }
+            let mut pipes = vec![];
+            let mut rng = rand::thread_rng();
+            for i in 0..h {
+                for j in 0..w {
+                    for _ in 0..rng.gen_range(1..4) {
+                        b4[i][j] = b4[i][j].rotate();
+                    }
+                    pipes.push(b4[i][j]);
+                }
+            }
+            return Ok(Self { size, pipes });
+        }
     }
 
     pub fn new(size: Size, pipes: Vec<Pipe>) -> Result<Self> {
@@ -177,6 +223,210 @@ impl Map {
     }
 }
 
+struct RandomSet<T: Clone + Eq + Hash> {
+    index: HashSet<T>,
+    items: Vec<T>,
+    rng: ThreadRng,
+}
+
+impl<T: Clone + Eq + Hash> RandomSet<T> {
+    pub fn new() -> Self {
+        Self {
+            index: HashSet::default(),
+            items: Vec::default(),
+            rng: rand::thread_rng(),
+        }
+    }
+
+    pub fn pop(&mut self) -> Option<T> {
+        if self.items.is_empty() {
+            return None;
+        }
+        let i = self.rng.gen_range(0..self.items.len());
+        let j = self.items.len() - 1;
+        self.items.swap(i, j);
+        let item = self.items.pop().expect("vec is not empty");
+        self.index.remove(&item);
+        Some(item)
+    }
+
+    pub fn push(&mut self, item: T) {
+        if self.index.contains(&item) {
+            return;
+        }
+        self.index.insert(item.clone());
+        self.items.push(item);
+    }
+}
+
+fn phase1(w: usize, h: usize) -> Vec<Vec<char>> {
+    if w == 0 || h == 0 {
+        return vec![];
+    }
+
+    let w = w * 2 - 1;
+    let h = h * 2 - 1;
+
+    let mut board = vec![vec!['#'; w]; h];
+    let mut start = RandomSet::new();
+    start.push((0, 0));
+    while let Some((x, y)) = start.pop() {
+        let mut cand = RandomSet::new();
+
+        let dir = vec![(-1, 0), (0, -1), (0, 1), (1, 0)];
+        for (dr, dc) in dir {
+            let (r1, c1) = (y as i64 + dr, x as i64 + dc);
+            if !(0..h as i64).contains(&r1) || !(0..w as i64).contains(&c1) {
+                continue;
+            }
+            let (r1, c1) = (r1 as usize, c1 as usize);
+            if board[r1][c1] == '.' {
+                continue;
+            }
+            let (r2, c2) = (r1 as i64 + dr, c1 as i64 + dc);
+            if !(0..h as i64).contains(&r2) || !(0..w as i64).contains(&c2) {
+                continue;
+            }
+            let (r2, c2) = (r2 as usize, c2 as usize);
+            if board[r2][c2] == '.' {
+                continue;
+            }
+            cand.push(vec![(r1, c1), (r2, c2)]);
+        }
+
+        if let Some(cand) = cand.pop() {
+            for (y, x) in iter::once((y, x)).chain(cand.into_iter()) {
+                board[y][x] = '.';
+                if y % 2 == 0 && x % 2 == 0 {
+                    start.push((x, y));
+                }
+            }
+        }
+    }
+
+    board
+}
+
+fn phase2(w: usize, h: usize, board: &[Vec<char>]) -> Vec<Vec<u8>> {
+    let w = w * 2 - 1;
+    let h = h * 2 - 1;
+    let mut b2 = vec![vec![0b0000_u8; w / 2 + 1]; h / 2 + 1];
+    for i in 0..h {
+        for j in 0..w {
+            if i % 2 == 0 && j % 2 == 0 {
+                let dir = vec![(-1, 0), (0, 1), (1, 0), (0, -1)]
+                    .into_iter()
+                    .enumerate()
+                    .fold(0_u8, |acc, (index, (dr, dc))| {
+                        let (nr, nc) = (i as i64 + dr, j as i64 + dc);
+                        if !(0..h as i64).contains(&nr) || !(0..w as i64).contains(&nc) {
+                            return acc;
+                        }
+                        let (nr, nc) = (nr as usize, nc as usize);
+                        acc | if board[nr][nc] == '.' {
+                            1 << (3 - index)
+                        } else {
+                            0
+                        }
+                    });
+                let dir = if i == 0 && j == 0 {
+                    dir | 0b0001
+                } else if i == h - 1 && j == w - 1 {
+                    dir | 0b0100
+                } else {
+                    dir
+                };
+                b2[i / 2][j / 2] = dir;
+            }
+        }
+    }
+    b2
+}
+
+fn phase3(w: usize, h: usize, board: &Vec<Vec<u8>>) -> Vec<Vec<u8>> {
+    fn dfs(
+        b: &[Vec<u8>],
+        b2: &mut Vec<Vec<Option<u8>>>,
+        (w, h): (usize, usize),
+        (i, j): (usize, usize),
+        p: (usize, usize),
+    ) {
+        if b2[i][j].is_some() {
+            return;
+        }
+        let c = b[i][j];
+        let mut ok = 0b0000_u8;
+        if (c & 0b1000) != 0 && i > 0 && (i - 1, j) != p && (b[i - 1][j] & 0b0010) != 0 {
+            dfs(b, b2, (w, h), (i - 1, j), (i, j));
+            ok |= if b2[i - 1][j].unwrap().count_ones() >= 2 {
+                0b1000
+            } else {
+                0b0000
+            };
+        }
+        if (c & 0b0100) != 0 && (i == h - 1) && (j == w - 1) {
+            ok |= 0b0100;
+        }
+        if (c & 0b0100) != 0 && j + 1 < w && (i, j + 1) != p && (b[i][j + 1] & 0b0001) != 0 {
+            dfs(b, b2, (w, h), (i, j + 1), (i, j));
+            ok |= if b2[i][j + 1].unwrap().count_ones() >= 2 {
+                0b0100
+            } else {
+                0b0000
+            };
+        }
+        if (c & 0b0010) != 0 && i + 1 < h && (i + 1, j) != p && (b[i + 1][j] & 0b1000) != 0 {
+            dfs(b, b2, (w, h), (i + 1, j), (i, j));
+            ok |= if b2[i + 1][j].unwrap().count_ones() >= 2 {
+                0b0010
+            } else {
+                0b0000
+            };
+        }
+        if (c & 0b0001) != 0 && (i == 0) && (j == 0) {
+            ok |= 0b0001;
+        }
+        if (c & 0b0001) != 0 && j > 0 && (i, j - 1) != p && (b[i][j - 1] & 0b0100) != 0 {
+            dfs(b, b2, (w, h), (i, j - 1), (i, j));
+            ok |= if b2[i][j - 1].unwrap().count_ones() >= 2 {
+                0b0001
+            } else {
+                0b0000
+            };
+        }
+        if ok.count_ones() > 0 {
+            ok |= if p.0 < i {
+                0b1000
+            } else if p.0 > i {
+                0b0010
+            } else if p.1 < j {
+                0b0001
+            } else if p.1 > j {
+                0b0100
+            } else {
+                0b0000
+            };
+        }
+        b2[i][j] = Some(ok);
+    }
+
+    let mut b2 = vec![vec![None; w]; h];
+
+    dfs(board, &mut b2, (w, h), (0, 0), (0, 0));
+
+    let mut b3 = board.clone();
+    for i in 0..h {
+        for j in 0..w {
+            if let Some(b) = b2[i][j] {
+                if b != 0 {
+                    b3[i][j] = b;
+                }
+            }
+        }
+    }
+    b3
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -297,66 +547,70 @@ mod tests {
         Ok(())
     }
 
-    #[test]
-    fn gen_test() {
-        let w = 7;
-        let h = 7;
-
-        let mut board = vec![vec!['#'; w]; h];
-
-        let mut rng = rand::thread_rng();
-        let mut cells = vec![(0, 0)];
-        while !cells.is_empty() {
-            let index = rng.gen_range(0..cells.len());
-            let (x, y) = cells[index];
-            cells = cells
-                .into_iter()
-                .enumerate()
-                .filter(|(i, _)| *i != index)
-                .map(|(_, c)| c)
-                .collect::<Vec<(usize, usize)>>();
-
-            let mut cand = vec![];
-
-            let dir = vec![(-1, 0), (0, -1), (0, 1), (1, 0)];
-            for (dr, dc) in dir {
-                let (r1, c1) = (y as i64 + dr, x as i64 + dc);
-                if !(0..h as i64).contains(&r1) || !(0..w as i64).contains(&c1) {
-                    continue;
-                }
-                let (r1, c1) = (r1 as usize, c1 as usize);
-                if board[r1][c1] == '.' {
-                    continue;
-                }
-                let (r2, c2) = (r1 as i64 + dr, c1 as i64 + dc);
-                if !(0..h as i64).contains(&r2) || !(0..w as i64).contains(&c2) {
-                    continue;
-                }
-                let (r2, c2) = (r2 as usize, c2 as usize);
-                if board[r2][c2] == '.' {
-                    continue;
-                }
-                cand.push(vec![(r1, c1), (r2, c2)]);
-            }
-
-            if cand.is_empty() {
-                continue;
-            }
-
-            let index = rng.gen_range(0..cand.len());
-            for (y, x) in cand[index].iter().copied().chain(std::iter::once((y, x))) {
-                board[y][x] = '.';
-                if y % 2 == 0 && x % 2 == 0 {
-                    cells.push((x, y));
-                }
-            }
-        }
-
+    #[allow(dead_code)]
+    fn print_phase1(w: usize, h: usize, board: &[Vec<char>]) {
+        let w = 4 * 2 - 1;
+        let h = 4 * 2 - 1;
         for i in 0..h {
             for j in 0..w {
                 print!("{}", board[i][j]);
             }
             println!();
         }
+        println!();
+    }
+
+    #[allow(dead_code)]
+    fn print_phase2(w: usize, h: usize, board: &[Vec<u8>]) {
+        for i in 0..h {
+            for j in 0..w {
+                print!(
+                    "{}",
+                    match board[i][j] {
+                        0b0000 => unreachable!(),
+                        0b0001 => '╴',
+                        0b0010 => '╷',
+                        0b0100 => '╶',
+                        0b1000 => '╵',
+                        0b1010 => '│',
+                        0b0101 => '─',
+                        0b1100 => '└',
+                        0b0110 => '┌',
+                        0b0011 => '┐',
+                        0b1001 => '┘',
+                        0b0111 => '┬',
+                        0b1011 => '┤',
+                        0b1101 => '┴',
+                        0b1110 => '├',
+                        0b1111 => '┼',
+                        _ => unreachable!(),
+                    }
+                );
+            }
+            println!();
+        }
+        println!();
+    }
+
+    #[allow(dead_code)]
+    fn print_phase2b(w: usize, h: usize, board: &[Vec<u8>]) {
+        for i in 0..h {
+            for j in 0..w {
+                print!("{:04b} ", board[i][j]);
+            }
+            println!();
+        }
+        println!();
+    }
+
+    #[test]
+    fn gen_test() {
+        let (w, h) = (6, 6);
+        let b1 = phase1(w, h);
+        let b2 = phase2(w, h, &b1);
+        // print_phase2(w, h, &b2);
+        // print_phase2b(w, h, &b2);
+        let b3 = phase3(w, h, &b2);
+        // print_phase2(w, h, &b3);
     }
 }
