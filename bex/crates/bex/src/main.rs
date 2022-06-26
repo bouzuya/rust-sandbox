@@ -135,6 +135,7 @@ enum Commands {
         consumer_key: Option<String>,
     },
     Logout,
+    Status,
 }
 
 #[tokio::main]
@@ -146,6 +147,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::List { count, tag } => list(count, tag).await?,
         Commands::Login { consumer_key } => login(consumer_key).await?,
         Commands::Logout => logout().await?,
+        Commands::Status => status().await?,
     }
     Ok(())
 }
@@ -246,5 +248,16 @@ async fn logout() -> anyhow::Result<()> {
     let credential_store = CredentialStore::new(state_dir.as_path());
     credential_store.delete()?;
     println!("Logged out");
+    Ok(())
+}
+
+async fn status() -> anyhow::Result<()> {
+    let state_dir = state_dir()?;
+    let credential_store = CredentialStore::new(state_dir.as_path());
+    let credential = credential_store.load()?;
+    match credential {
+        Some(credential) => println!("Logged into {}", credential.consumer_key),
+        None => println!("Not logged in"),
+    }
     Ok(())
 }
