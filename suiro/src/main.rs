@@ -242,7 +242,7 @@ fn main() -> anyhow::Result<()> {
         .map
         .map(|s| Map::from_str(s.as_str()))
         .unwrap_or_else(|| {
-            let size = Size::new(6, 6).map_err(map::Error::from)?;
+            let size = Size::new(4, 4).map_err(map::Error::from)?;
             Map::gen(size)
         })?;
     let mut game = Game::new(map)?;
