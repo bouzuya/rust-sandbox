@@ -233,16 +233,30 @@ impl Game {
 #[clap(version)]
 struct Opt {
     #[clap(long)]
+    generate: bool,
+    #[clap(long)]
     map: Option<String>,
+    #[clap(long)]
+    size: Option<u8>,
 }
 
 fn main() -> anyhow::Result<()> {
     let opt: Opt = Opt::parse();
+
+    if opt.generate {
+        let size = opt.size.unwrap_or(4_u8);
+        let size = Size::new(size, size)?;
+        let map = Map::gen(size)?;
+        println!("{}", map);
+        return Ok(());
+    }
+
     let map = opt
         .map
         .map(|s| Map::from_str(s.as_str()))
         .unwrap_or_else(|| {
-            let size = Size::new(4, 4).map_err(map::Error::from)?;
+            let size = opt.size.unwrap_or(4_u8);
+            let size = Size::new(size, size).map_err(map::Error::from)?;
             Map::gen(size)
         })?;
     let mut game = Game::new(map)?;
