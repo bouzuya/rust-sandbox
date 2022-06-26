@@ -1,5 +1,6 @@
 use std::{
     collections::{HashSet, VecDeque},
+    fmt::Display,
     hash::Hash,
     iter,
     str::FromStr,
@@ -29,6 +30,16 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub struct Map {
     size: Size,
     pipes: Vec<Pipe>,
+}
+
+impl Display for Map {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let bytes = iter::once(u8::from(self.size))
+            .chain(self.pipes.iter().map(|p| u8::from(*p)))
+            .collect::<Vec<u8>>();
+        let s = base32::encode(base32::Alphabet::Crockford, &bytes);
+        write!(f, "{}", s)
+    }
 }
 
 impl FromStr for Map {
