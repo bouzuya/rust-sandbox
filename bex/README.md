@@ -9,6 +9,9 @@ $ bex login
 https://getpocket.com/auth/authorize?request_token=ffffffff-ffff-ffff-ffff-ffffff&redirect_uri=http://localhost:53039/
 Logged in
 
+$ bex status
+Logged into xxxxxx-xxxxxxxxxxxxxxxxxxxxxxx
+
 $ list=$(bex list --count 1)
 
 $ echo "${list}" | jq .
@@ -40,6 +43,8 @@ Logged out
     - ☑ `--tag <TAG>` ... タグなしのみは `--tag '_untagged_'`
   - ☑ `bex delete <ID>`
 - v0.2.0:
+  - ☑ `bex status`
+- v0.x.0:
   - ☐ offline cache
 
 ## メモ
