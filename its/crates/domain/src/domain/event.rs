@@ -14,6 +14,7 @@ mod event_id;
 mod issue_blocked;
 mod issue_created;
 mod issue_created_v2;
+mod issue_description_updated;
 mod issue_finished;
 mod issue_title_updated;
 mod issue_unblocked;
