@@ -1,7 +1,8 @@
 use thiserror::Error;
 
 use crate::{
-    IssueCreatedV2, IssueDue, IssueId, IssueNumber, IssueResolution, IssueStatus, IssueTitle,
+    IssueCreatedV2, IssueDescription, IssueDue, IssueId, IssueNumber, IssueResolution, IssueStatus,
+    IssueTitle,
 };
 
 #[derive(Debug, Error)]
@@ -17,6 +18,7 @@ pub(crate) struct Issue {
     status: IssueStatus,
     title: IssueTitle,
     due: Option<IssueDue>,
+    description: Option<IssueDescription>,
 }
 
 impl Issue {
@@ -27,6 +29,7 @@ impl Issue {
             status: IssueStatus::Todo,
             title: event.issue_title,
             due: event.issue_due,
+            description: None,
         }
     }
 
@@ -37,6 +40,7 @@ impl Issue {
             status: IssueStatus::Todo,
             title,
             due,
+            description: None,
         }
     }
 
@@ -50,7 +54,19 @@ impl Issue {
             status: IssueStatus::Done,
             title: self.title.clone(),
             due: self.due,
+            description: self.description.clone(),
         })
+    }
+
+    pub(crate) fn change_description(&self, description: Option<IssueDescription>) -> Self {
+        Self {
+            id: self.id.clone(),
+            resolution: self.resolution.clone(),
+            status: self.status,
+            title: self.title.clone(),
+            due: self.due(),
+            description,
+        }
     }
 
     pub(crate) fn change_due(&self, due: Option<IssueDue>) -> Self {
@@ -60,6 +76,7 @@ impl Issue {
             status: self.status,
             title: self.title.clone(),
             due,
+            description: self.description.clone(),
         }
     }
 
@@ -70,6 +87,7 @@ impl Issue {
             status: self.status,
             title,
             due: self.due(),
+            description: self.description.clone(),
         }
     }
 
@@ -96,6 +114,10 @@ impl Issue {
     pub(crate) fn due(&self) -> Option<IssueDue> {
         self.due
     }
+
+    pub(crate) fn description(&self) -> Option<&IssueDescription> {
+        self.description.as_ref()
+    }
 }
 
 #[cfg(test)]
@@ -116,6 +138,19 @@ mod tests {
         assert_eq!(issue.status(), IssueStatus::Todo);
         assert_eq!(issue.title(), &title);
         assert_eq!(issue.due(), Some(due));
+        Ok(())
+    }
+
+    #[test]
+    fn change_description_test() -> anyhow::Result<()> {
+        let issue = new()?;
+        let description = IssueDescription::from_str("desc2")?;
+        assert_eq!(
+            issue
+                .change_description(Some(description.clone()))
+                .description(),
+            Some(description).as_ref()
+        );
         Ok(())
     }
 

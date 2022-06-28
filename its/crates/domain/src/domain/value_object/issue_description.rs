@@ -38,8 +38,8 @@ impl TryFrom<String> for IssueDescription {
 }
 
 impl From<IssueDescription> for String {
-    fn from(issue_Description: IssueDescription) -> Self {
-        issue_Description.0
+    fn from(issue_description: IssueDescription) -> Self {
+        issue_description.0
     }
 }
 
