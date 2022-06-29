@@ -74,9 +74,7 @@ impl IssueAggregate {
 
                     issue = IssueAggregate {
                         events: vec![],
-                        issue: issue
-                            .issue
-                            .change_description(Some(issue_description.clone())),
+                        issue: issue.issue.change_description(issue_description.clone()),
                         version: *version,
                     }
                 }

@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueDescription(String);
 
 impl std::fmt::Display for IssueDescription {
@@ -48,6 +48,12 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    #[test]
+    fn default_test() -> anyhow::Result<()> {
+        assert_eq!(IssueDescription::default(), IssueDescription::from_str("")?);
+        Ok(())
+    }
 
     #[test]
     fn string_conversion_test() -> anyhow::Result<()> {

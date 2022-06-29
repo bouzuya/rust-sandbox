@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use thiserror::Error;
 
 use crate::{
@@ -18,7 +20,7 @@ pub(crate) struct Issue {
     status: IssueStatus,
     title: IssueTitle,
     due: Option<IssueDue>,
-    description: Option<IssueDescription>,
+    description: IssueDescription,
 }
 
 impl Issue {
@@ -29,7 +31,7 @@ impl Issue {
             status: IssueStatus::Todo,
             title: event.issue_title,
             due: event.issue_due,
-            description: None,
+            description: IssueDescription::default(),
         }
     }
 
@@ -40,7 +42,7 @@ impl Issue {
             status: IssueStatus::Todo,
             title,
             due,
-            description: None,
+            description: IssueDescription::default(),
         }
     }
 
@@ -58,7 +60,7 @@ impl Issue {
         })
     }
 
-    pub(crate) fn change_description(&self, description: Option<IssueDescription>) -> Self {
+    pub(crate) fn change_description(&self, description: IssueDescription) -> Self {
         Self {
             id: self.id.clone(),
             resolution: self.resolution.clone(),
@@ -115,8 +117,8 @@ impl Issue {
         self.due
     }
 
-    pub(crate) fn description(&self) -> Option<&IssueDescription> {
-        self.description.as_ref()
+    pub(crate) fn description(&self) -> &IssueDescription {
+        &self.description
     }
 }
 
@@ -146,10 +148,8 @@ mod tests {
         let issue = new()?;
         let description = IssueDescription::from_str("desc2")?;
         assert_eq!(
-            issue
-                .change_description(Some(description.clone()))
-                .description(),
-            Some(description).as_ref()
+            issue.change_description(description.clone()).description(),
+            &description
         );
         Ok(())
     }
