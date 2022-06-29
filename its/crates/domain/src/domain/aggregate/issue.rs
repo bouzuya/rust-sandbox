@@ -6,6 +6,7 @@ use limited_date_time::Instant;
 pub use self::error::*;
 pub use self::event::*;
 use crate::IssueCreatedV2;
+use crate::IssueDescriptionUpdated;
 use crate::IssueDue;
 use crate::IssueNumber;
 use crate::IssueResolution;
@@ -36,7 +37,7 @@ impl IssueAggregate {
             Some(event) => match event {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
-                IssueAggregateEvent::DescriptionUpdated(_) => todo!(),
+                IssueAggregateEvent::DescriptionUpdated(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::Finished(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::TitleUpdated(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::Updated(_) => Err(Error::InvalidEventSequence),
@@ -58,7 +59,27 @@ impl IssueAggregate {
                 IssueAggregateEvent::CreatedV2(_) => {
                     return Err(Error::InvalidEventSequence);
                 }
-                IssueAggregateEvent::DescriptionUpdated(_) => todo!(),
+                IssueAggregateEvent::DescriptionUpdated(IssueDescriptionUpdated {
+                    issue_id,
+                    issue_description,
+                    version,
+                    ..
+                }) => {
+                    if issue.issue.id() != issue_id {
+                        return Err(Error::InvalidEventSequence);
+                    }
+                    if issue.version.next() != Some(*version) {
+                        return Err(Error::InvalidEventSequence);
+                    }
+
+                    issue = IssueAggregate {
+                        events: vec![],
+                        issue: issue
+                            .issue
+                            .change_description(Some(issue_description.clone())),
+                        version: *version,
+                    }
+                }
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
                     issue_id,
