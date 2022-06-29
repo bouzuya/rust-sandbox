@@ -61,6 +61,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             IssueManagementContextCommand::UpdateIssueTitle(command) => {
                 self.handle_update_issue_title(command).await
             }
+            IssueManagementContextCommand::UpdateIssueDescription(command) => {
+                self.handle_update_issue_description(command).await
+            }
         }
     }
 
@@ -266,6 +269,13 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             .map(DomainEvent::from)
             .map(IssueManagementContextEvent::from)
             .collect::<Vec<IssueManagementContextEvent>>())
+    }
+
+    async fn handle_update_issue_description(
+        &self,
+        _command: UpdateIssueDescription,
+    ) -> Result<Vec<IssueManagementContextEvent>> {
+        todo!()
     }
 
     async fn handle_update_issue_title(

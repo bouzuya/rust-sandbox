@@ -1,4 +1,4 @@
-use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
+use domain::{IssueBlockLinkId, IssueDescription, IssueDue, IssueId, IssueResolution, IssueTitle};
 
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
@@ -7,6 +7,7 @@ pub enum IssueManagementContextCommand {
     FinishIssue(FinishIssue),
     UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),
+    UpdateIssueDescription(UpdateIssueDescription),
     UpdateIssueTitle(UpdateIssueTitle),
 }
 
@@ -46,6 +47,12 @@ impl From<UpdateIssueTitle> for IssueManagementContextCommand {
     }
 }
 
+impl From<UpdateIssueDescription> for IssueManagementContextCommand {
+    fn from(command: UpdateIssueDescription) -> Self {
+        Self::UpdateIssueDescription(command)
+    }
+}
+
 #[derive(Debug)]
 pub struct BlockIssue {
     pub issue_id: IssueId,
@@ -79,4 +86,10 @@ pub struct UpdateIssue {
 pub struct UpdateIssueTitle {
     pub issue_id: IssueId,
     pub issue_title: IssueTitle,
+}
+
+#[derive(Debug)]
+pub struct UpdateIssueDescription {
+    pub issue_id: IssueId,
+    pub issue_description: IssueDescription,
 }
