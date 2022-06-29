@@ -36,6 +36,7 @@ impl IssueAggregate {
             Some(event) => match event {
                 IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
+                IssueAggregateEvent::DescriptionUpdated(_) => todo!(),
                 IssueAggregateEvent::Finished(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::TitleUpdated(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::Updated(_) => Err(Error::InvalidEventSequence),
@@ -57,6 +58,7 @@ impl IssueAggregate {
                 IssueAggregateEvent::CreatedV2(_) => {
                     return Err(Error::InvalidEventSequence);
                 }
+                IssueAggregateEvent::DescriptionUpdated(_) => todo!(),
                 IssueAggregateEvent::Finished(IssueFinished {
                     at: _,
                     issue_id,

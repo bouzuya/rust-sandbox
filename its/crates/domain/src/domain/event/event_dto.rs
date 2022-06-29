@@ -96,6 +96,7 @@ impl From<DomainEvent> for EventDto {
                     issue_due: event.issue_due().map(|d| d.to_string()),
                     version: u64::from(event.version()),
                 },
+                IssueAggregateEvent::DescriptionUpdated(_event) => todo!(),
                 IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
                     at: event.at().to_string(),
                     issue_id: event.issue_id().to_string(),

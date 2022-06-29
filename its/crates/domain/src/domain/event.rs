@@ -35,6 +35,7 @@ use crate::Version;
 pub use self::issue_blocked::*;
 pub use self::issue_created::*;
 pub use self::issue_created_v2::*;
+pub use self::issue_description_updated::*;
 pub use self::issue_finished::*;
 pub use self::issue_title_updated::*;
 pub use self::issue_unblocked::*;

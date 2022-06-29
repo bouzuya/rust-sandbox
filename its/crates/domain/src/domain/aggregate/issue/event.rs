@@ -1,12 +1,13 @@
 use crate::{
     domain::event::{IssueCreated, IssueCreatedV2, IssueFinished},
-    IssueId, IssueTitleUpdated, IssueUpdated, Version,
+    IssueDescriptionUpdated, IssueId, IssueTitleUpdated, IssueUpdated, Version,
 };
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IssueAggregateEvent {
     Created(IssueCreated),
     CreatedV2(IssueCreatedV2),
+    DescriptionUpdated(IssueDescriptionUpdated),
     Finished(IssueFinished),
     Updated(IssueUpdated),
     TitleUpdated(IssueTitleUpdated),
@@ -47,6 +48,9 @@ impl IssueAggregateEvent {
         match self {
             IssueAggregateEvent::Created(IssueCreated { issue_id, .. }) => issue_id,
             IssueAggregateEvent::CreatedV2(IssueCreatedV2 { issue_id, .. }) => issue_id,
+            IssueAggregateEvent::DescriptionUpdated(IssueDescriptionUpdated {
+                issue_id, ..
+            }) => issue_id,
             IssueAggregateEvent::Finished(IssueFinished { issue_id, .. }) => issue_id,
             IssueAggregateEvent::TitleUpdated(IssueTitleUpdated { issue_id, .. }) => issue_id,
             IssueAggregateEvent::Updated(IssueUpdated { issue_id, .. }) => issue_id,
@@ -57,6 +61,9 @@ impl IssueAggregateEvent {
         match self {
             IssueAggregateEvent::Created(IssueCreated { version, .. }) => *version,
             IssueAggregateEvent::CreatedV2(IssueCreatedV2 { version, .. }) => *version,
+            IssueAggregateEvent::DescriptionUpdated(IssueDescriptionUpdated {
+                version, ..
+            }) => *version,
             IssueAggregateEvent::Finished(IssueFinished { version, .. }) => *version,
             IssueAggregateEvent::TitleUpdated(IssueTitleUpdated { version, .. }) => *version,
             IssueAggregateEvent::Updated(IssueUpdated { version, .. }) => *version,
