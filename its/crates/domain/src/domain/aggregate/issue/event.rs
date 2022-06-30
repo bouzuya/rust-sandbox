@@ -3,6 +3,16 @@ use crate::{
     IssueDescriptionUpdated, IssueId, IssueTitleUpdated, IssueUpdated, Version,
 };
 
+macro_rules! impl_from_ty_for_issue_aggregate_event {
+    ($event_name:ty, $variant:expr) => {
+        impl From<$event_name> for IssueAggregateEvent {
+            fn from(event: $event_name) -> Self {
+                $variant(event)
+            }
+        }
+    };
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum IssueAggregateEvent {
     Created(IssueCreated),
@@ -13,35 +23,12 @@ pub enum IssueAggregateEvent {
     TitleUpdated(IssueTitleUpdated),
 }
 
-impl From<IssueCreated> for IssueAggregateEvent {
-    fn from(event: IssueCreated) -> Self {
-        Self::Created(event)
-    }
-}
-
-impl From<IssueCreatedV2> for IssueAggregateEvent {
-    fn from(event: IssueCreatedV2) -> Self {
-        Self::CreatedV2(event)
-    }
-}
-
-impl From<IssueFinished> for IssueAggregateEvent {
-    fn from(event: IssueFinished) -> Self {
-        Self::Finished(event)
-    }
-}
-
-impl From<IssueTitleUpdated> for IssueAggregateEvent {
-    fn from(event: IssueTitleUpdated) -> Self {
-        Self::TitleUpdated(event)
-    }
-}
-
-impl From<IssueUpdated> for IssueAggregateEvent {
-    fn from(event: IssueUpdated) -> Self {
-        Self::Updated(event)
-    }
-}
+impl_from_ty_for_issue_aggregate_event!(IssueCreated, Self::Created);
+impl_from_ty_for_issue_aggregate_event!(IssueCreatedV2, Self::CreatedV2);
+impl_from_ty_for_issue_aggregate_event!(IssueDescriptionUpdated, Self::DescriptionUpdated);
+impl_from_ty_for_issue_aggregate_event!(IssueFinished, Self::Finished);
+impl_from_ty_for_issue_aggregate_event!(IssueTitleUpdated, Self::TitleUpdated);
+impl_from_ty_for_issue_aggregate_event!(IssueUpdated, Self::Updated);
 
 impl IssueAggregateEvent {
     pub fn issue_id(&self) -> &IssueId {
