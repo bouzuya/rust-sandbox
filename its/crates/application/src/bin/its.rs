@@ -116,7 +116,7 @@ async fn issue_block(
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
-    let command = use_case.block_issue(issue_id, blocked_issue_id).into();
+    let command = use_case.block_issue(issue_id, blocked_issue_id);
     let events = use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
@@ -138,7 +138,7 @@ async fn issue_create(
     let use_case = app.issue_management_context_use_case();
     let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
     let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-    let command = use_case.create_issue(issue_title, issue_due).into();
+    let command = use_case.create_issue(issue_title, issue_due);
     let events = use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
@@ -160,9 +160,7 @@ async fn issue_update_title(
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let issue_title = IssueTitle::try_from(title)?;
-    let command = use_case
-        .update_issue_title(issue_id.clone(), issue_title)
-        .into();
+    let command = use_case.update_issue_title(issue_id.clone(), issue_title);
     use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
@@ -188,7 +186,7 @@ async fn issue_finish(
         .as_deref()
         .map(IssueResolution::from_str)
         .transpose()?;
-    let command = use_case.finish_issue(issue_id.clone(), resolution).into();
+    let command = use_case.finish_issue(issue_id.clone(), resolution);
     use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
@@ -227,7 +225,7 @@ async fn issue_unblock(
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
     let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
-    let command = use_case.unblock_issue(issue_block_link_id).into();
+    let command = use_case.unblock_issue(issue_block_link_id);
     let events = use_case.handle(command).await?;
     // FIXME:
     app.update_query_db().await?;
@@ -249,7 +247,7 @@ async fn issue_update(
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-    let command = use_case.update_issue(issue_id, issue_due).into();
+    let command = use_case.update_issue(issue_id, issue_due);
     let events = app
         .issue_management_context_use_case()
         .handle(command)

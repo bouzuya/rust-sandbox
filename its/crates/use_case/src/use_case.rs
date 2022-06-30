@@ -38,11 +38,11 @@ pub enum Error {
 
 #[async_trait]
 pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkRepository {
-    async fn handle(
+    async fn handle<C: Into<IssueManagementContextCommand> + Send>(
         &self,
-        command: IssueManagementContextCommand,
+        command: C,
     ) -> Result<Vec<IssueManagementContextEvent>> {
-        match command {
+        match command.into() {
             IssueManagementContextCommand::BlockIssue(command) => {
                 self.handle_block_issue(command).await
             }
