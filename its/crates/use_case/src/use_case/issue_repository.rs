@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use domain::{aggregate::IssueAggregate, IssueId, Version};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum IssueRepositoryError {
     #[error("IO")]
     IO,

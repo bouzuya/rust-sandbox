@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use domain::{aggregate::IssueBlockLinkAggregate, IssueBlockLinkId};
 use thiserror::Error;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum IssueBlockLinkRepositoryError {
     #[error("IO")]
     IO,

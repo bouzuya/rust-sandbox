@@ -1,0 +1,52 @@
+use domain::{aggregate::IssueBlockLinkAggregateError, DomainEvent, IssueBlockLinkId};
+use limited_date_time::Instant;
+
+use crate::{
+    HasIssueBlockLinkRepository, IssueBlockLinkRepository, IssueBlockLinkRepositoryError,
+    IssueManagementContextEvent,
+};
+
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+#[allow(clippy::enum_variant_names)]
+pub enum Error {
+    #[error("issue block link aggregate {0}")]
+    IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    #[error("issue block link repository {0}")]
+    IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
+    #[error("issue block link not found {0}")]
+    IssueBlockLinkNotFound(IssueBlockLinkId),
+}
+
+#[derive(Debug)]
+pub struct UnblockIssue {
+    pub issue_block_link_id: IssueBlockLinkId,
+}
+
+pub async fn unblock_issue<C: HasIssueBlockLinkRepository + ?Sized>(
+    context: &C,
+    UnblockIssue {
+        issue_block_link_id,
+    }: UnblockIssue,
+) -> Result<Vec<IssueManagementContextEvent>, Error> {
+    // io
+    let at = Instant::now();
+    let issue_block_link = context
+        .issue_block_link_repository()
+        .find_by_id(&issue_block_link_id)
+        .await?
+        .ok_or(Error::IssueBlockLinkNotFound(issue_block_link_id))?;
+
+    // pure
+    let updated = issue_block_link.unblock(at)?;
+
+    // io
+    context.issue_block_link_repository().save(&updated).await?;
+
+    Ok(updated
+        .events()
+        .iter()
+        .cloned()
+        .map(DomainEvent::from)
+        .map(IssueManagementContextEvent::from)
+        .collect::<Vec<IssueManagementContextEvent>>())
+}

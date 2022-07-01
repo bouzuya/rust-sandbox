@@ -1,4 +1,10 @@
-use domain::{IssueBlockLinkId, IssueDescription, IssueDue, IssueId, IssueResolution, IssueTitle};
+pub use super::command_handler::block_issue::BlockIssue;
+pub use super::command_handler::create_issue::CreateIssue;
+pub use super::command_handler::finish_issue::FinishIssue;
+pub use super::command_handler::unblock_issue::UnblockIssue;
+pub use super::command_handler::update_issue::UpdateIssue;
+pub use super::command_handler::update_issue_description::UpdateIssueDescription;
+pub use super::command_handler::update_issue_title::UpdateIssueTitle;
 
 #[derive(Debug)]
 pub enum IssueManagementContextCommand {
@@ -51,45 +57,4 @@ impl From<UpdateIssueDescription> for IssueManagementContextCommand {
     fn from(command: UpdateIssueDescription) -> Self {
         Self::UpdateIssueDescription(command)
     }
-}
-
-#[derive(Debug)]
-pub struct BlockIssue {
-    pub issue_id: IssueId,
-    pub blocked_issue_id: IssueId,
-}
-
-#[derive(Debug)]
-pub struct CreateIssue {
-    pub issue_title: IssueTitle,
-    pub issue_due: Option<IssueDue>,
-}
-
-#[derive(Debug)]
-pub struct FinishIssue {
-    pub issue_id: IssueId,
-    pub resolution: Option<IssueResolution>,
-}
-
-#[derive(Debug)]
-pub struct UnblockIssue {
-    pub issue_block_link_id: IssueBlockLinkId,
-}
-
-#[derive(Debug)]
-pub struct UpdateIssue {
-    pub issue_id: IssueId,
-    pub issue_due: Option<IssueDue>,
-}
-
-#[derive(Debug)]
-pub struct UpdateIssueTitle {
-    pub issue_id: IssueId,
-    pub issue_title: IssueTitle,
-}
-
-#[derive(Debug)]
-pub struct UpdateIssueDescription {
-    pub issue_id: IssueId,
-    pub issue_description: IssueDescription,
 }

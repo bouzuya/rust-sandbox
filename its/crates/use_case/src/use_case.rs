@@ -1,4 +1,5 @@
 mod command;
+mod command_handler;
 mod event;
 mod issue_block_link_repository;
 mod issue_repository;
@@ -8,13 +9,10 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
-use domain::IssueResolution;
 use domain::{
-    aggregate::{IssueAggregate, IssueAggregateError, IssueBlockLinkAggregateError},
-    DomainEvent, IssueBlockLinkId, IssueDue, IssueId, IssueNumber, IssueTitle,
-    ParseIssueBlockLinkError,
+    aggregate::{IssueAggregateError, IssueBlockLinkAggregateError},
+    IssueBlockLinkId, IssueId, ParseIssueBlockLinkError,
 };
-use limited_date_time::Instant;
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -34,6 +32,20 @@ pub enum Error {
     IssueRepository(#[from] IssueRepositoryError),
     #[error("InvalidIssueBlockLinkId")]
     InvalidIssueBlockLinkId(#[from] ParseIssueBlockLinkError),
+    #[error("block issue {0}")]
+    BlockIssue(#[from] command_handler::block_issue::Error),
+    #[error("create issue {0}")]
+    CreateIssue(#[from] command_handler::create_issue::Error),
+    #[error("finish issue {0}")]
+    FinishIssue(#[from] command_handler::finish_issue::Error),
+    #[error("unblock issue {0}")]
+    UnblockIssue(#[from] command_handler::unblock_issue::Error),
+    #[error("update issue {0}")]
+    UpdateIssue(#[from] command_handler::update_issue::Error),
+    #[error("update issue description {0}")]
+    UpdateIssueDescription(#[from] command_handler::update_issue_description::Error),
+    #[error("update issue title {0}")]
+    UpdateIssueTitle(#[from] command_handler::update_issue_title::Error),
 }
 
 #[async_trait]
@@ -44,266 +56,28 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     ) -> Result<Vec<IssueManagementContextEvent>> {
         match command.into() {
             IssueManagementContextCommand::BlockIssue(command) => {
-                self.handle_block_issue(command).await
+                Ok(command_handler::block_issue::block_issue(self, command).await?)
             }
             IssueManagementContextCommand::CreateIssue(command) => {
-                self.handle_create_issue(command).await
+                Ok(command_handler::create_issue::create_issue(self, command).await?)
             }
             IssueManagementContextCommand::FinishIssue(command) => {
-                self.handle_finish_issue(command).await
+                Ok(command_handler::finish_issue::finish_issue(self, command).await?)
             }
             IssueManagementContextCommand::UnblockIssue(command) => {
-                self.handle_unblock_issue(command).await
+                Ok(command_handler::unblock_issue::unblock_issue(self, command).await?)
             }
             IssueManagementContextCommand::UpdateIssue(command) => {
-                self.handle_update_issue(command).await
+                Ok(command_handler::update_issue::update_issue(self, command).await?)
             }
             IssueManagementContextCommand::UpdateIssueTitle(command) => {
-                self.handle_update_issue_title(command).await
+                Ok(command_handler::update_issue_title::update_issue_title(self, command).await?)
             }
-            IssueManagementContextCommand::UpdateIssueDescription(command) => {
-                self.handle_update_issue_description(command).await
-            }
+            IssueManagementContextCommand::UpdateIssueDescription(command) => Ok(
+                command_handler::update_issue_description::update_issue_description(self, command)
+                    .await?,
+            ),
         }
-    }
-
-    fn block_issue(&self, issue_id: IssueId, blocked_issue_id: IssueId) -> BlockIssue {
-        BlockIssue {
-            issue_id,
-            blocked_issue_id,
-        }
-    }
-
-    fn create_issue(&self, issue_title: IssueTitle, issue_due: Option<IssueDue>) -> CreateIssue {
-        CreateIssue {
-            issue_title,
-            issue_due,
-        }
-    }
-
-    fn finish_issue(&self, issue_id: IssueId, resolution: Option<IssueResolution>) -> FinishIssue {
-        FinishIssue {
-            issue_id,
-            resolution,
-        }
-    }
-
-    fn unblock_issue(&self, issue_block_link_id: IssueBlockLinkId) -> UnblockIssue {
-        UnblockIssue {
-            issue_block_link_id,
-        }
-    }
-
-    fn update_issue(&self, issue_id: IssueId, issue_due: Option<IssueDue>) -> UpdateIssue {
-        UpdateIssue {
-            issue_id,
-            issue_due,
-        }
-    }
-
-    fn update_issue_title(&self, issue_id: IssueId, issue_title: IssueTitle) -> UpdateIssueTitle {
-        UpdateIssueTitle {
-            issue_id,
-            issue_title,
-        }
-    }
-
-    async fn handle_block_issue(
-        &self,
-        BlockIssue {
-            issue_id,
-            blocked_issue_id,
-        }: BlockIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>, Error> {
-        // io
-        let at = Instant::now();
-        let issue_block_link_id =
-            IssueBlockLinkId::new(issue_id.clone(), blocked_issue_id.clone())?;
-        let issue_block_link = match self
-            .issue_block_link_repository()
-            .find_by_id(&issue_block_link_id)
-            .await?
-        {
-            Some(issue_block_link) => issue_block_link.block(at)?,
-            None => {
-                // io
-                let issue = self
-                    .issue_repository()
-                    .find_by_id(&issue_id)
-                    .await?
-                    .ok_or(Error::IssueNotFound(issue_id))?;
-                let blocked_issue = self
-                    .issue_repository()
-                    .find_by_id(&blocked_issue_id)
-                    .await?
-                    .ok_or(Error::IssueNotFound(blocked_issue_id))?;
-
-                // pure
-                issue.block(blocked_issue, at)?
-            }
-        };
-
-        // io
-        self.issue_block_link_repository()
-            .save(&issue_block_link)
-            .await?;
-
-        Ok(issue_block_link
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
-    }
-
-    async fn handle_create_issue(
-        &self,
-        command: CreateIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        // io
-        let issue_number = self
-            .issue_repository()
-            .last_created()
-            .await?
-            .map(|issue| issue.id().issue_number().next_number())
-            .unwrap_or_else(IssueNumber::start_number);
-        let at = Instant::now();
-
-        // pure
-        let created =
-            IssueAggregate::new(at, issue_number, command.issue_title, command.issue_due)?;
-
-        // io
-        self.issue_repository().save(&created).await?;
-
-        Ok(created
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
-    }
-
-    async fn handle_finish_issue(
-        &self,
-        command: FinishIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        // io
-        let issue = self
-            .issue_repository()
-            .find_by_id(&command.issue_id)
-            .await?
-            .ok_or(Error::IssueNotFound(command.issue_id))?;
-        let resolution = command.resolution;
-        let at = Instant::now();
-
-        // pure
-        let updated = issue.finish(resolution, at)?;
-
-        // io
-        self.issue_repository().save(&updated).await?;
-
-        Ok(updated
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
-    }
-
-    async fn handle_unblock_issue(
-        &self,
-        UnblockIssue {
-            issue_block_link_id,
-        }: UnblockIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        // io
-        let at = Instant::now();
-        let issue_block_link = self
-            .issue_block_link_repository()
-            .find_by_id(&issue_block_link_id)
-            .await?
-            .ok_or(Error::IssueBlockLinkNotFound(issue_block_link_id))?;
-
-        // pure
-        let updated = issue_block_link.unblock(at)?;
-
-        // io
-        self.issue_block_link_repository().save(&updated).await?;
-
-        Ok(updated
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
-    }
-
-    async fn handle_update_issue(
-        &self,
-        command: UpdateIssue,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        // io
-        let issue = self
-            .issue_repository()
-            .find_by_id(&command.issue_id)
-            .await?
-            .ok_or(Error::IssueNotFound(command.issue_id))?;
-        let issue_due = command.issue_due;
-        let at = Instant::now();
-
-        // pure
-        let updated = issue.update(issue_due, at)?;
-
-        // io
-        self.issue_repository().save(&updated).await?;
-
-        Ok(updated
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
-    }
-
-    async fn handle_update_issue_description(
-        &self,
-        _command: UpdateIssueDescription,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        todo!()
-    }
-
-    async fn handle_update_issue_title(
-        &self,
-        command: UpdateIssueTitle,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
-        // io
-        let issue = self
-            .issue_repository()
-            .find_by_id(&command.issue_id)
-            .await?
-            .ok_or(Error::IssueNotFound(command.issue_id))?;
-        let issue_title = command.issue_title;
-        let at = Instant::now();
-
-        // pure
-        let updated = issue.update_title(issue_title, at)?;
-
-        // io
-        self.issue_repository().save(&updated).await?;
-
-        Ok(updated
-            .events()
-            .iter()
-            .cloned()
-            .map(DomainEvent::from)
-            .map(IssueManagementContextEvent::from)
-            .collect::<Vec<IssueManagementContextEvent>>())
     }
 }
 

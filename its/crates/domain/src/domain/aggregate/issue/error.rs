@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("InvalidEventSequence")]
     InvalidEventSequence,

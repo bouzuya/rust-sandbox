@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use crate::{IssueId, ParseIssueIdError};
 
-#[derive(Debug, Error)]
+#[derive(Debug, Eq, PartialEq, Error)]
 pub enum ParseIssueBlockLinkError {
     #[error("InvalidFormat: {0}")]
     InvalidFormat(String),
