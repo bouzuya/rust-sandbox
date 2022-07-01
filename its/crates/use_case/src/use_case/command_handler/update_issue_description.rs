@@ -1,6 +1,9 @@
-use domain::{IssueDescription, IssueId};
+use domain::{DomainEvent, IssueDescription, IssueId};
+use limited_date_time::Instant;
 
-use crate::{HasIssueRepository, IssueManagementContextEvent, IssueRepositoryError};
+use crate::{
+    HasIssueRepository, IssueManagementContextEvent, IssueRepository, IssueRepositoryError,
+};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 #[allow(clippy::enum_variant_names)]
@@ -20,8 +23,29 @@ pub struct UpdateIssueDescription {
 }
 
 pub async fn update_issue_description<C: HasIssueRepository + ?Sized>(
-    _context: &C,
-    _command: UpdateIssueDescription,
+    context: &C,
+    command: UpdateIssueDescription,
 ) -> Result<Vec<IssueManagementContextEvent>, Error> {
-    todo!()
+    // io
+    let issue = context
+        .issue_repository()
+        .find_by_id(&command.issue_id)
+        .await?
+        .ok_or(Error::IssueNotFound(command.issue_id))?;
+    let issue_description = command.issue_description;
+    let at = Instant::now();
+
+    // pure
+    let updated = issue.update_description(issue_description, at)?;
+
+    // io
+    context.issue_repository().save(&updated).await?;
+
+    Ok(updated
+        .events()
+        .iter()
+        .cloned()
+        .map(DomainEvent::from)
+        .map(IssueManagementContextEvent::from)
+        .collect::<Vec<IssueManagementContextEvent>>())
 }

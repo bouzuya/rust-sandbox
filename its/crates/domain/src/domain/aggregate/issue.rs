@@ -6,6 +6,7 @@ use limited_date_time::Instant;
 pub use self::error::*;
 pub use self::event::*;
 use crate::IssueCreatedV2;
+use crate::IssueDescription;
 use crate::IssueDescriptionUpdated;
 use crate::IssueDue;
 use crate::IssueNumber;
@@ -208,6 +209,28 @@ impl IssueAggregate {
         })
     }
 
+    pub fn update_description(
+        &self,
+        issue_description: IssueDescription,
+        at: Instant,
+    ) -> Result<Self> {
+        let updated_issue = self.issue.change_description(issue_description);
+        let updated_version = self.version.next().ok_or(Error::Unknown)?;
+        let event = IssueDescriptionUpdated {
+            at,
+            issue_id: self.id().clone(),
+            issue_description: updated_issue.description().clone(),
+            version: updated_version,
+        }
+        .into();
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(IssueAggregate {
+            events,
+            issue: updated_issue,
+            version: updated_version,
+        })
+    }
+
     pub fn update_title(&self, issue_title: IssueTitle, at: Instant) -> Result<Self> {
         let updated_issue = self.issue.change_title(issue_title);
         let updated_version = self.version.next().ok_or(Error::Unknown)?;
@@ -232,6 +255,10 @@ impl IssueAggregate {
             issue: self.issue,
             version: self.version,
         }
+    }
+
+    pub fn description(&self) -> &IssueDescription {
+        self.issue.description()
     }
 
     pub fn events(&self) -> &Vec<IssueAggregateEvent> {
@@ -315,6 +342,20 @@ mod tests {
         )?;
         let _ = issue.update(None, Instant::now())?;
         // TODO: assert
+        Ok(())
+    }
+
+    #[test]
+    fn update_description_test() -> anyhow::Result<()> {
+        let issue = IssueAggregate::new(
+            Instant::now(),
+            IssueNumber::from_str("123")?,
+            IssueTitle::from_str("title")?,
+            Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+        )?;
+        let description = IssueDescription::from_str("desc2")?;
+        let updated = issue.update_description(description.clone(), Instant::now())?;
+        assert_eq!(updated.description(), &description);
         Ok(())
     }
 
