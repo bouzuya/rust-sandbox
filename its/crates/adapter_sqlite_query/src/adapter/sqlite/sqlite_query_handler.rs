@@ -31,6 +31,7 @@ pub struct QueryIssue {
     pub status: String,
     pub title: String,
     pub due: Option<String>,
+    pub description: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize)]
@@ -46,6 +47,7 @@ pub struct QueryIssueWithLinks {
     pub status: String,
     pub title: String,
     pub due: Option<String>,
+    pub description: String,
     pub blocks: Vec<QueryIssueIdWithTitle>,
     pub is_blocked_by: Vec<QueryIssueIdWithTitle>,
 }
@@ -207,7 +209,6 @@ impl SqliteQueryHandler {
     }
 
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
-        // FIXME: description support
         let mut query_transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/delete_issue.sql")).bind(issue.id().to_string());
@@ -218,7 +219,8 @@ impl SqliteQueryHandler {
                 .bind(issue.resolution().map(|s| s.to_string()))
                 .bind(issue.status().to_string())
                 .bind(issue.title().to_string())
-                .bind(issue.due().map(|d| d.to_string()));
+                .bind(issue.due().map(|d| d.to_string()))
+                .bind(issue.description().to_string());
         query.execute(&mut query_transaction).await?;
         query_transaction.commit().await?;
         Ok(())
@@ -304,6 +306,7 @@ impl SqliteQueryHandler {
                     status: issue.status,
                     title: issue.title,
                     due: issue.due,
+                    description: issue.description,
                     blocks: blocks
                         .into_iter()
                         .map(|issue_block_link| QueryIssueIdWithTitle {
@@ -443,6 +446,7 @@ mod tests {
                 status: "todo".to_string(),
                 title: "title".to_string(),
                 due: Some("2021-02-03T04:05:06Z".to_string()),
+                description: "".to_string(),
                 blocks: vec![],
                 is_blocked_by: vec![]
             }),
@@ -507,6 +511,7 @@ mod tests {
                 status: "todo".to_string(),
                 title: "title2".to_string(),
                 due: None,
+                description: "".to_string(),
                 blocks: vec![QueryIssueIdWithTitle {
                     id: "3".to_string(),
                     title: "title3".to_string(),

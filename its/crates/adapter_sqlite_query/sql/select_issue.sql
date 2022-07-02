@@ -2,6 +2,7 @@ SELECT id,
   resolution,
   status,
   title,
-  due
+  due,
+  description
 FROM issues
 WHERE id = ?
