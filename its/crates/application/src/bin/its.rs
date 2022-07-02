@@ -9,11 +9,11 @@ use adapter_sqlite::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIs
 use adapter_sqlite_query::SqliteQueryHandler;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use domain::{IssueBlockLinkId, IssueDue, IssueId, IssueResolution, IssueTitle};
+use domain::{IssueBlockLinkId, IssueDescription, IssueDue, IssueId, IssueResolution, IssueTitle};
 use use_case::{
     BlockIssue, CreateIssue, FinishIssue, HasIssueBlockLinkRepository,
     HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
-    UnblockIssue, UpdateIssue, UpdateIssueTitle,
+    UnblockIssue, UpdateIssue, UpdateIssueDescription, UpdateIssueTitle,
 };
 use xdg::BaseDirectories;
 
@@ -152,6 +152,33 @@ async fn issue_create(
     // FIXME:
     app.update_query_db().await?;
     println!("issue created : {:?}", events);
+    Ok(())
+}
+
+async fn issue_update_description(
+    issue_id: String,
+    description: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let issue_description = IssueDescription::try_from(description)?;
+    use_case
+        .handle(UpdateIssueDescription {
+            issue_id: issue_id.clone(),
+            issue_description,
+        })
+        .await?;
+    // FIXME:
+    app.update_query_db().await?;
+    let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
+    println!("{}", serde_json::to_string(&issue)?);
     Ok(())
 }
 
@@ -366,6 +393,14 @@ enum Command {
         #[clap(long)]
         query_database_connection_uri: Option<String>,
     },
+    UpdateDescription {
+        issue_id: String,
+        description: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
     UpdateTitle {
         issue_id: String,
         title: String,
@@ -463,6 +498,20 @@ async fn main() -> anyhow::Result<()> {
                 issue_update(
                     issue_id,
                     due,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+            Command::UpdateDescription {
+                issue_id,
+                description,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_update_description(
+                    issue_id,
+                    description,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )

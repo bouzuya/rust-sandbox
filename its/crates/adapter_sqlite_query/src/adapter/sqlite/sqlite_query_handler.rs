@@ -207,6 +207,7 @@ impl SqliteQueryHandler {
     }
 
     pub async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
+        // FIXME: description support
         let mut query_transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/delete_issue.sql")).bind(issue.id().to_string());
