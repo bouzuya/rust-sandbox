@@ -6,7 +6,7 @@ pub use super::command_handler::update_issue::UpdateIssue;
 pub use super::command_handler::update_issue_description::UpdateIssueDescription;
 pub use super::command_handler::update_issue_title::UpdateIssueTitle;
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub enum IssueManagementContextCommand {
     BlockIssue(BlockIssue),
     CreateIssue(CreateIssue),

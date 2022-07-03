@@ -17,7 +17,7 @@ pub enum Error {
     IssueBlockLinkNotFound(IssueBlockLinkId),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct UnblockIssue {
     pub issue_block_link_id: IssueBlockLinkId,
 }

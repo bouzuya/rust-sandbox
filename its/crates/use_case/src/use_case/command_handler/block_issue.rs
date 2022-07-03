@@ -24,7 +24,7 @@ pub enum Error {
     ParseIssueBlockLink(#[from] ParseIssueBlockLinkError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct BlockIssue {
     pub issue_id: IssueId,
     pub blocked_issue_id: IssueId,

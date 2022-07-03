@@ -13,7 +13,7 @@ pub enum Error {
     IssueRepository(#[from] IssueRepositoryError),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct CreateIssue {
     pub issue_title: IssueTitle,
     pub issue_due: Option<IssueDue>,
