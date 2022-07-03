@@ -1,6 +1,6 @@
 use limited_date_time::Instant;
 
-use crate::{IssueCreated, IssueDue, IssueId, IssueTitle, Version};
+use crate::{IssueCreated, IssueDescription, IssueDue, IssueId, IssueTitle, Version};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueCreatedV2 {
@@ -8,6 +8,7 @@ pub struct IssueCreatedV2 {
     pub(crate) issue_id: IssueId,
     pub(crate) issue_title: IssueTitle,
     pub(crate) issue_due: Option<IssueDue>,
+    pub(crate) issue_description: IssueDescription,
     pub(crate) version: Version,
 }
 
@@ -18,6 +19,7 @@ impl IssueCreatedV2 {
             event.issue_id,
             event.issue_title,
             None,
+            IssueDescription::default(),
             event.version,
         )
     }
@@ -29,7 +31,14 @@ impl IssueCreatedV2 {
         issue_due: Option<IssueDue>,
         version: Version,
     ) -> Self {
-        Self::new(at, issue_id, issue_title, issue_due, version)
+        Self::new(
+            at,
+            issue_id,
+            issue_title,
+            issue_due,
+            IssueDescription::default(),
+            version,
+        )
     }
 
     pub(crate) fn new(
@@ -37,6 +46,7 @@ impl IssueCreatedV2 {
         issue_id: IssueId,
         issue_title: IssueTitle,
         issue_due: Option<IssueDue>,
+        issue_description: IssueDescription,
         version: Version,
     ) -> Self {
         Self {
@@ -44,6 +54,7 @@ impl IssueCreatedV2 {
             issue_id,
             issue_title,
             issue_due,
+            issue_description,
             version,
         }
     }
@@ -62,6 +73,10 @@ impl IssueCreatedV2 {
 
     pub fn issue_due(&self) -> Option<IssueDue> {
         self.issue_due
+    }
+
+    pub fn issue_description(&self) -> &IssueDescription {
+        &self.issue_description
     }
 
     pub fn version(&self) -> Version {

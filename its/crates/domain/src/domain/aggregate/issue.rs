@@ -153,11 +153,13 @@ impl IssueAggregate {
         let issue_id = IssueId::new(issue_number);
         let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
         let version = Version::from(1_u64);
+        let issue_description = IssueDescription::default();
         let event = IssueCreatedV2 {
             at,
             issue_id,
             issue_title,
             issue_due,
+            issue_description,
             version,
         }
         .into();
