@@ -97,7 +97,7 @@ impl From<DomainEvent> for EventDto {
         match event {
             DomainEvent::Issue(event) => match event {
                 IssueAggregateEvent::Created(event) => EventDto::from(DomainEvent::from(
-                    IssueAggregateEvent::CreatedV2(IssueCreatedV2::from_v1(event)),
+                    IssueAggregateEvent::CreatedV2(IssueCreatedV2::from(event)),
                 )),
                 IssueAggregateEvent::CreatedV2(event) => EventDto::IssueCreatedV1 {
                     at: event.at().to_string(),

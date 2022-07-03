@@ -12,8 +12,8 @@ pub struct IssueCreatedV2 {
     pub(crate) version: Version,
 }
 
-impl IssueCreatedV2 {
-    pub(crate) fn from_v1(event: IssueCreated) -> Self {
+impl From<IssueCreated> for IssueCreatedV2 {
+    fn from(event: IssueCreated) -> Self {
         Self::new(
             event.at,
             event.issue_id,
@@ -23,7 +23,9 @@ impl IssueCreatedV2 {
             event.version,
         )
     }
+}
 
+impl IssueCreatedV2 {
     pub(crate) fn from_trusted_data(
         at: Instant,
         issue_id: IssueId,

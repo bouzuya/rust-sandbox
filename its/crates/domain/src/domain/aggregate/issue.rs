@@ -36,7 +36,7 @@ impl IssueAggregate {
     pub fn from_events(events: &[IssueAggregateEvent]) -> Result<Self> {
         let first_event = match events.first() {
             Some(event) => match event {
-                IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from_v1(event.clone())),
+                IssueAggregateEvent::Created(event) => Ok(IssueCreatedV2::from(event.clone())),
                 IssueAggregateEvent::CreatedV2(event) => Ok(event.clone()),
                 IssueAggregateEvent::DescriptionUpdated(_) => Err(Error::InvalidEventSequence),
                 IssueAggregateEvent::Finished(_) => Err(Error::InvalidEventSequence),
