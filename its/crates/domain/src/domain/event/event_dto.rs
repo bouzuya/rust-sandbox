@@ -53,6 +53,7 @@ pub enum EventDto {
         issue_id: String,
         issue_title: String,
         issue_due: Option<String>,
+        issue_description: Option<String>,
         version: u64,
     },
     #[serde(rename = "issue_description_updated")]
@@ -104,6 +105,7 @@ impl From<DomainEvent> for EventDto {
                     issue_id: event.issue_id().to_string(),
                     issue_title: event.issue_title().to_string(),
                     issue_due: event.issue_due().map(|d| d.to_string()),
+                    issue_description: Some(event.issue_description.to_string()),
                     version: u64::from(event.version()),
                 },
                 IssueAggregateEvent::DescriptionUpdated(event) => {
@@ -177,6 +179,7 @@ impl TryFrom<EventDto> for DomainEvent {
                 issue_id,
                 issue_title,
                 issue_due,
+                issue_description,
                 version,
             } => Ok(
                 IssueAggregateEvent::CreatedV2(IssueCreatedV2::from_trusted_data(
@@ -186,6 +189,10 @@ impl TryFrom<EventDto> for DomainEvent {
                     issue_due
                         .map(|s| IssueDue::from_str(s.as_str()))
                         .transpose()?,
+                    issue_description
+                        .map(|s| IssueDescription::from_str(s.as_str()))
+                        .transpose()?
+                        .unwrap_or_default(),
                     Version::from(version),
                 ))
                 .into(),
@@ -288,11 +295,12 @@ mod tests {
             issue_id: "2".to_string(),
             issue_title: "title1".to_string(),
             issue_due: None,
+            issue_description: None,
             version: 1_u64,
         };
         let serialized_v1_0 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","version":1}"#;
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_0)?, dto);
-        // removed
+        // serialization removed
         Ok(())
     }
 
@@ -304,11 +312,29 @@ mod tests {
             issue_id: "2".to_string(),
             issue_title: "title1".to_string(),
             issue_due: None,
+            issue_description: None,
             version: 1_u64,
         };
         let serialized_v1_1 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","issue_due":null,"version":1}"#;
         assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_1)?, dto);
-        assert_eq!(serde_json::to_string(&dto)?, serialized_v1_1);
+        // serialization removed
+        Ok(())
+    }
+
+    #[test]
+    fn issue_created_dto_v1_and_issue_created_serialized_v1_2_conversion_test() -> anyhow::Result<()>
+    {
+        let dto = EventDto::IssueCreatedV1 {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            issue_title: "title1".to_string(),
+            issue_due: None,
+            issue_description: Some("desc1".to_string()),
+            version: 1_u64,
+        };
+        let serialized_v1_2 = r#"{"type":"issue_created","at":"2021-02-03T04:05:06Z","issue_id":"2","issue_title":"title1","issue_due":null,"issue_description":"desc1","version":1}"#;
+        assert_eq!(serde_json::from_str::<'_, EventDto>(serialized_v1_2)?, dto);
+        assert_eq!(serde_json::to_string(&dto)?, serialized_v1_2);
         Ok(())
     }
 
@@ -327,10 +353,13 @@ mod tests {
             issue_id: "2".to_string(),
             issue_title: "title1".to_string(),
             issue_due: None,
+            // DomainEvent::from で CreatedV2 を経由するため None ではなく Some("") になる
+            // これで良いのか怪しい
+            issue_description: Some("".to_string()),
             version: 1_u64,
         };
         assert_eq!(EventDto::from(event), dto);
-        // removed
+        // serialization removed
         Ok(())
     }
 
@@ -342,6 +371,7 @@ mod tests {
                 IssueId::new(IssueNumber::try_from(2_usize)?),
                 IssueTitle::from_str("title1")?,
                 Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
+                IssueDescription::from_str("desc1")?,
                 Version::from(1_u64),
             ),
         ));
@@ -350,6 +380,28 @@ mod tests {
             issue_id: "2".to_string(),
             issue_title: "title1".to_string(),
             issue_due: Some("2021-02-03T04:05:07Z".to_string()),
+            issue_description: Some("desc1".to_string()),
+            version: 1_u64,
+        };
+        assert_eq!(EventDto::from(event.clone()), dto);
+        assert_eq!(DomainEvent::try_from(dto)?, event);
+
+        let event = DomainEvent::from(IssueAggregateEvent::CreatedV2(
+            IssueCreatedV2::from_trusted_data(
+                Instant::from_str("2021-02-03T04:05:06Z")?,
+                IssueId::new(IssueNumber::try_from(2_usize)?),
+                IssueTitle::from_str("title1")?,
+                Some(IssueDue::from_str("2021-02-03T04:05:07Z")?),
+                IssueDescription::default(),
+                Version::from(1_u64),
+            ),
+        ));
+        let dto = EventDto::IssueCreatedV1 {
+            at: "2021-02-03T04:05:06Z".to_string(),
+            issue_id: "2".to_string(),
+            issue_title: "title1".to_string(),
+            issue_due: Some("2021-02-03T04:05:07Z".to_string()),
+            issue_description: Some("".to_string()),
             version: 1_u64,
         };
         assert_eq!(EventDto::from(event.clone()), dto);

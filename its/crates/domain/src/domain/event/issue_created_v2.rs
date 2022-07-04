@@ -31,6 +31,7 @@ impl IssueCreatedV2 {
         issue_id: IssueId,
         issue_title: IssueTitle,
         issue_due: Option<IssueDue>,
+        issue_description: IssueDescription,
         version: Version,
     ) -> Self {
         Self::new(
@@ -38,7 +39,7 @@ impl IssueCreatedV2 {
             issue_id,
             issue_title,
             issue_due,
-            IssueDescription::default(),
+            issue_description,
             version,
         )
     }
