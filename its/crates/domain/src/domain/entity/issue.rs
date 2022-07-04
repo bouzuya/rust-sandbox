@@ -33,14 +33,19 @@ impl Issue {
         }
     }
 
-    pub(crate) fn new(id: IssueId, title: IssueTitle, due: Option<IssueDue>) -> Self {
+    pub(crate) fn new(
+        id: IssueId,
+        title: IssueTitle,
+        due: Option<IssueDue>,
+        description: IssueDescription,
+    ) -> Self {
         Self {
             id,
             resolution: None,
             status: IssueStatus::Todo,
             title,
             due,
-            description: IssueDescription::default(),
+            description,
         }
     }
 
@@ -132,12 +137,14 @@ mod tests {
         let title = IssueTitle::from_str("title1")?;
         let id = IssueId::new(number);
         let due = IssueDue::from_str("2021-02-03T04:05:06Z")?;
-        let issue = Issue::new(id.clone(), title.clone(), Some(due));
+        let description = IssueDescription::from_str("desc1")?;
+        let issue = Issue::new(id.clone(), title.clone(), Some(due), description.clone());
         assert_eq!(issue.id(), &id);
         assert_eq!(issue.number(), number);
         assert_eq!(issue.status(), IssueStatus::Todo);
         assert_eq!(issue.title(), &title);
         assert_eq!(issue.due(), Some(due));
+        assert_eq!(issue.description(), &description);
         Ok(())
     }
 
@@ -173,7 +180,8 @@ mod tests {
     fn finish_test() -> anyhow::Result<()> {
         let number = IssueNumber::try_from(1_usize)?;
         let title = IssueTitle::from_str("title1")?;
-        let issue = Issue::new(IssueId::new(number), title, None);
+        let description = IssueDescription::from_str("desc1")?;
+        let issue = Issue::new(IssueId::new(number), title, None, description);
         let resolution = IssueResolution::from_str("Duplicate")?;
         let updated = issue.finish(Some(resolution.clone()))?;
         assert_eq!(updated.status(), IssueStatus::Done);
@@ -186,6 +194,7 @@ mod tests {
         let title = IssueTitle::from_str("title1")?;
         let id = IssueId::new(number);
         let due = IssueDue::from_str("2021-02-03T04:05:06Z")?;
-        Ok(Issue::new(id, title, Some(due)))
+        let description = IssueDescription::from_str("desc1")?;
+        Ok(Issue::new(id, title, Some(due), description))
     }
 }

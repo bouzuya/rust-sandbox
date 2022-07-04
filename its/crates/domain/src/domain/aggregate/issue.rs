@@ -151,9 +151,14 @@ impl IssueAggregate {
         issue_due: Option<IssueDue>,
     ) -> Result<Self> {
         let issue_id = IssueId::new(issue_number);
-        let issue = Issue::new(issue_id.clone(), issue_title.clone(), issue_due);
-        let version = Version::from(1_u64);
         let issue_description = IssueDescription::default();
+        let issue = Issue::new(
+            issue_id.clone(),
+            issue_title.clone(),
+            issue_due,
+            issue_description.clone(),
+        );
+        let version = Version::from(1_u64);
         let event = IssueCreatedV2 {
             at,
             issue_id,
