@@ -149,9 +149,9 @@ impl IssueAggregate {
         issue_number: IssueNumber,
         issue_title: IssueTitle,
         issue_due: Option<IssueDue>,
+        issue_description: IssueDescription,
     ) -> Result<Self> {
         let issue_id = IssueId::new(issue_number);
-        let issue_description = IssueDescription::default();
         let issue = Issue::new(
             issue_id.clone(),
             issue_title.clone(),
@@ -317,11 +317,18 @@ mod tests {
         let issue_number = IssueNumber::from_str("123")?;
         let issue_title = IssueTitle::from_str("title")?;
         let issue_due = Some(IssueDue::from_str("2021-02-03T04:05:06Z")?);
-        let issue =
-            IssueAggregate::new(Instant::now(), issue_number, issue_title.clone(), issue_due)?;
+        let issue_description = IssueDescription::from_str("desc1")?;
+        let issue = IssueAggregate::new(
+            Instant::now(),
+            issue_number,
+            issue_title.clone(),
+            issue_due,
+            issue_description.clone(),
+        )?;
         assert_eq!(issue.id().issue_number(), issue_number);
         assert_eq!(issue.title(), &issue_title);
         assert_eq!(issue.due(), issue_due);
+        assert_eq!(issue.description(), &issue_description);
         Ok(())
     }
 
@@ -332,6 +339,7 @@ mod tests {
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+            IssueDescription::from_str("desc1")?,
         )?;
         let resolution = IssueResolution::from_str("Duplicate")?;
         let _ = issue.finish(Some(resolution), Instant::now())?;
@@ -346,6 +354,7 @@ mod tests {
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+            IssueDescription::from_str("desc1")?,
         )?;
         let _ = issue.update(None, Instant::now())?;
         // TODO: assert
@@ -359,6 +368,7 @@ mod tests {
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+            IssueDescription::from_str("desc1")?,
         )?;
         let description = IssueDescription::from_str("desc2")?;
         let updated = issue.update_description(description.clone(), Instant::now())?;
@@ -373,6 +383,7 @@ mod tests {
             IssueNumber::from_str("123")?,
             IssueTitle::from_str("title")?,
             Some(IssueDue::from_str("2021-02-03T04:05:06Z")?),
+            IssueDescription::from_str("desc1")?,
         )?;
         let title = IssueTitle::from_str("title2")?;
         let updated = issue.update_title(title.clone(), Instant::now())?;

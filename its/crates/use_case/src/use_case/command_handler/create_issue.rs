@@ -1,4 +1,6 @@
-use domain::{aggregate::IssueAggregate, DomainEvent, IssueDue, IssueNumber, IssueTitle};
+use domain::{
+    aggregate::IssueAggregate, DomainEvent, IssueDescription, IssueDue, IssueNumber, IssueTitle,
+};
 use limited_date_time::Instant;
 
 use crate::{
@@ -33,7 +35,13 @@ pub async fn create_issue<C: HasIssueRepository + ?Sized>(
     let at = Instant::now();
 
     // pure
-    let created = IssueAggregate::new(at, issue_number, command.issue_title, command.issue_due)?;
+    let created = IssueAggregate::new(
+        at,
+        issue_number,
+        command.issue_title,
+        command.issue_due,
+        IssueDescription::default(),
+    )?;
 
     // io
     context.issue_repository().save(&created).await?;

@@ -413,6 +413,7 @@ mod tests {
             "123".parse()?,
             "title".parse()?,
             Some("2021-02-03T04:05:06Z".parse()?),
+            "desc1".parse()?,
         )?;
 
         let issue_repository = connection_pool.issue_repository()?;
@@ -446,7 +447,7 @@ mod tests {
                 status: "todo".to_string(),
                 title: "title".to_string(),
                 due: Some("2021-02-03T04:05:06Z".to_string()),
-                description: "".to_string(),
+                description: "desc1".to_string(),
                 blocks: vec![],
                 is_blocked_by: vec![]
             }),
@@ -473,9 +474,27 @@ mod tests {
         let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
         let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
 
-        let issue1 = IssueAggregate::new(Instant::now(), "1".parse()?, "title1".parse()?, None)?;
-        let issue2 = IssueAggregate::new(Instant::now(), "2".parse()?, "title2".parse()?, None)?;
-        let issue3 = IssueAggregate::new(Instant::now(), "3".parse()?, "title3".parse()?, None)?;
+        let issue1 = IssueAggregate::new(
+            Instant::now(),
+            "1".parse()?,
+            "title1".parse()?,
+            None,
+            "desc1".parse()?,
+        )?;
+        let issue2 = IssueAggregate::new(
+            Instant::now(),
+            "2".parse()?,
+            "title2".parse()?,
+            None,
+            "desc2".parse()?,
+        )?;
+        let issue3 = IssueAggregate::new(
+            Instant::now(),
+            "3".parse()?,
+            "title3".parse()?,
+            None,
+            "desc3".parse()?,
+        )?;
         let issue_block_link1 = issue1.block(issue2.clone(), Instant::now())?;
         let issue_block_link2 = issue2.block(issue3.clone(), Instant::now())?;
 
@@ -511,7 +530,7 @@ mod tests {
                 status: "todo".to_string(),
                 title: "title2".to_string(),
                 due: None,
-                description: "".to_string(),
+                description: "desc2".to_string(),
                 blocks: vec![QueryIssueIdWithTitle {
                     id: "3".to_string(),
                     title: "title3".to_string(),

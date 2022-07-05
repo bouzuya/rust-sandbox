@@ -279,6 +279,7 @@ mod tests {
             "123".parse()?,
             "title".parse()?,
             Some("2021-02-03T04:05:06Z".parse()?),
+            "desc1".parse()?,
         )?;
         issue_repository.save(&created).await?;
 

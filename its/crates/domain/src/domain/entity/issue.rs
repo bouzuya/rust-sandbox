@@ -29,7 +29,7 @@ impl Issue {
             status: IssueStatus::Todo,
             title: event.issue_title,
             due: event.issue_due,
-            description: IssueDescription::default(),
+            description: event.issue_description,
         }
     }
 
