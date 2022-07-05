@@ -44,6 +44,19 @@ fn its_issue_create() -> anyhow::Result<()> {
 }
 
 #[test]
+fn its_issue_create_with_description() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .args(&["issue", "create", "--description", "desc1"])
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .assert()
+        .stdout(predicates::str::contains("issue created"))
+        .stdout(predicates::str::contains("desc1"))
+        .success();
+    Ok(())
+}
+
+#[test]
 fn its_issue_create_with_due() -> anyhow::Result<()> {
     let temp_dir = tempfile::tempdir()?;
     Command::cargo_bin("its")?

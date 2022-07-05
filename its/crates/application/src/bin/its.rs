@@ -132,6 +132,7 @@ async fn issue_block(
 async fn issue_create(
     title: Option<String>,
     due: Option<String>,
+    description: Option<String>,
     command_database_connection_uri: Option<String>,
     query_database_connection_uri: Option<String>,
 ) -> anyhow::Result<()> {
@@ -143,10 +144,15 @@ async fn issue_create(
     let use_case = app.issue_management_context_use_case();
     let issue_title = IssueTitle::try_from(title.unwrap_or_default())?;
     let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
+    let issue_description = description
+        .map(|s| IssueDescription::from_str(s.as_str()))
+        .transpose()?
+        .unwrap_or_default();
     let events = use_case
         .handle(CreateIssue {
             issue_title,
             issue_due,
+            issue_description,
         })
         .await?;
     // FIXME:
@@ -354,6 +360,8 @@ enum Command {
         title: Option<String>,
         #[clap(long = "due")]
         due: Option<String>,
+        #[clap(long = "description")]
+        description: Option<String>,
         #[clap(long)]
         command_database_connection_uri: Option<String>,
         #[clap(long)]
@@ -440,12 +448,14 @@ async fn main() -> anyhow::Result<()> {
             Command::Create {
                 title,
                 due,
+                description,
                 command_database_connection_uri,
                 query_database_connection_uri,
             } => {
                 issue_create(
                     title,
                     due,
+                    description,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )

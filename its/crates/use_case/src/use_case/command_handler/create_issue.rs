@@ -19,6 +19,7 @@ pub enum Error {
 pub struct CreateIssue {
     pub issue_title: IssueTitle,
     pub issue_due: Option<IssueDue>,
+    pub issue_description: IssueDescription,
 }
 
 pub async fn create_issue<C: HasIssueRepository + ?Sized>(
@@ -40,7 +41,7 @@ pub async fn create_issue<C: HasIssueRepository + ?Sized>(
         issue_number,
         command.issue_title,
         command.issue_due,
-        IssueDescription::default(),
+        command.issue_description,
     )?;
 
     // io
