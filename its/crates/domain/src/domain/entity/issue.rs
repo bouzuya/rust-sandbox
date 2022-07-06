@@ -1,12 +1,10 @@
-use thiserror::Error;
-
 use crate::{
     IssueCreatedV2, IssueDescription, IssueDue, IssueId, IssueNumber, IssueResolution, IssueStatus,
     IssueTitle,
 };
 
-#[derive(Debug, Error)]
-pub enum IssueError {
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
     #[error("AlreadyFinished")]
     AlreadyFinished,
 }
@@ -49,9 +47,9 @@ impl Issue {
         }
     }
 
-    pub(crate) fn finish(&self, resolution: Option<IssueResolution>) -> Result<Self, IssueError> {
+    pub(crate) fn finish(&self, resolution: Option<IssueResolution>) -> Result<Self, Error> {
         if self.status == IssueStatus::Done {
-            return Err(IssueError::AlreadyFinished);
+            return Err(Error::AlreadyFinished);
         }
         Ok(Self {
             id: self.id.clone(),
