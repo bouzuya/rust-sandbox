@@ -2,11 +2,11 @@ use std::str::FromStr;
 
 use crate::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
-    DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescription,
+    DomainEvent, Error, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescription,
     IssueDescriptionUpdated, IssueDue, IssueFinished, IssueId, IssueResolution, IssueTitle,
     IssueTitleUpdated, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError,
     ParseIssueDescriptionError, ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError,
-    ParseIssueResolutionError, ParseIssueTitleError, TryFromIssueTitleError, Version,
+    ParseIssueResolutionError, TryFromIssueTitleError, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ pub enum TryFromEventDtoError {
     #[error("IssueTitle")]
     IssueTitle(#[from] TryFromIssueTitleError),
     #[error("IssueTitle parse")]
-    IssueTitleParse(#[from] ParseIssueTitleError),
+    IssueTitleParse(#[from] crate::value_object::issue_title::Error),
     #[error("IssueBlockLink")]
     IssueBlockLink(#[from] ParseIssueBlockLinkError),
     #[error("NotIssueAggregate")]

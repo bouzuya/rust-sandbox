@@ -6,7 +6,7 @@ mod issue_id;
 mod issue_number;
 mod issue_resolution;
 mod issue_status;
-mod issue_title;
+pub mod issue_title;
 mod version;
 
 pub use self::issue_block_link_id::*;

@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueTitle(String);
 
@@ -9,19 +7,19 @@ impl std::fmt::Display for IssueTitle {
     }
 }
 
-#[derive(Debug, Eq, Error, PartialEq)]
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
 #[error("ParseIssueTitleError")]
-pub struct ParseIssueTitleError {}
+pub struct Error {}
 
-#[derive(Debug, Eq, Error, PartialEq)]
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
 #[error("TryFromIssueTitleError")]
 pub struct TryFromIssueTitleError {}
 
 impl std::str::FromStr for IssueTitle {
-    type Err = ParseIssueTitleError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string()).map_err(|_| ParseIssueTitleError {})
+        Self::try_from(s.to_string()).map_err(|_| Error {})
     }
 }
 
