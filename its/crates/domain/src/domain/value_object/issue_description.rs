@@ -1,5 +1,3 @@
-use thiserror::Error;
-
 #[derive(Clone, Debug, Default, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueDescription(String);
 
@@ -9,28 +7,26 @@ impl std::fmt::Display for IssueDescription {
     }
 }
 
-#[derive(Debug, Eq, Error, PartialEq)]
-#[error("ParseIssueDescriptionError")]
-pub struct ParseIssueDescriptionError {}
-
-#[derive(Debug, Eq, Error, PartialEq)]
-#[error("TryFromIssueDescriptionError")]
-pub struct TryFromIssueDescriptionError {}
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
+pub enum Error {
+    #[error("invalid length {0}")]
+    InvalidLength(usize),
+}
 
 impl std::str::FromStr for IssueDescription {
-    type Err = ParseIssueDescriptionError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string()).map_err(|_| ParseIssueDescriptionError {})
+        Self::try_from(s.to_string())
     }
 }
 
 impl TryFrom<String> for IssueDescription {
-    type Error = TryFromIssueDescriptionError;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.len() > 255 {
-            Err(TryFromIssueDescriptionError {})
+            Err(Error::InvalidLength(value.len()))
         } else {
             Ok(Self(value))
         }
