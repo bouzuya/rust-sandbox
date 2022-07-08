@@ -18,9 +18,9 @@ its: issue tracking system
 - ☑ command: ある issue link を削除する
 - ☑ query: ある issue が block している issue の一覧を取得する (A blocks X)
 - ☑ query: ある issue を block している issue の一覧を取得する (A is blocked by X)
-- ☐ feature: restore query db
+- ☑ feature: restore query db
 - ☑ command: ある issue のタイトルを変更する
-- ☐ command: ある issue の詳細 (?) を追加する
+- ☑ command: ある issue の詳細 (?) を追加する
 
 ## メモ
 
