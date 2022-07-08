@@ -31,8 +31,8 @@
 //! - Old: 集約コマンドは廃止された
 //!   - 対象の集約を Command に含めるよりも `aggregate.command()` のほうが簡潔になるため
 //!   - create / update を分離するだけでなく `Aggregate::transaction` を廃止した
-mod issue;
-mod issue_block_link;
+pub mod issue;
+pub mod issue_block_link;
 
 pub use self::issue::{Error as IssueAggregateError, IssueAggregate, IssueAggregateEvent};
 pub use self::issue_block_link::*;

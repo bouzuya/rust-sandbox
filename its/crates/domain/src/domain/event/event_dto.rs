@@ -2,11 +2,9 @@ use std::str::FromStr;
 
 use crate::{
     aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
-    DomainEvent, Error, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescription,
+    DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescription,
     IssueDescriptionUpdated, IssueDue, IssueFinished, IssueId, IssueResolution, IssueTitle,
-    IssueTitleUpdated, IssueUnblocked, IssueUpdated, ParseIssueBlockLinkError,
-    ParseIssueDescriptionError, ParseIssueDueError, ParseIssueIdError, ParseIssueNumberError,
-    ParseIssueResolutionError, TryFromIssueTitleError, Version,
+    IssueTitleUpdated, IssueUnblocked, IssueUpdated, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -17,21 +15,21 @@ pub enum TryFromEventDtoError {
     #[error("Instant")]
     Instant(#[from] ParseInstantError),
     #[error("IssueDescription")]
-    IssueDescription(#[from] ParseIssueDescriptionError),
+    IssueDescription(#[from] crate::issue_description::ParseIssueDescriptionError),
     #[error("IssueDue")]
-    IssueDue(#[from] ParseIssueDueError),
+    IssueDue(#[from] crate::issue_due::ParseIssueDueError),
     #[error("IssueId")]
-    IssueId(#[from] ParseIssueIdError),
+    IssueId(#[from] crate::issue_id::ParseIssueIdError),
     #[error("IssueNumber")]
-    IssueNumber(#[from] ParseIssueNumberError),
+    IssueNumber(#[from] crate::issue_number::ParseIssueNumberError),
     #[error("IssueResolution")]
-    IssueResolution(#[from] ParseIssueResolutionError),
+    IssueResolution(#[from] crate::issue_resolution::ParseIssueResolutionError),
     #[error("IssueTitle")]
-    IssueTitle(#[from] TryFromIssueTitleError),
+    IssueTitle(#[from] crate::issue_title::TryFromIssueTitleError),
     #[error("IssueTitle parse")]
-    IssueTitleParse(#[from] crate::value_object::issue_title::Error),
-    #[error("IssueBlockLink")]
-    IssueBlockLink(#[from] ParseIssueBlockLinkError),
+    IssueTitleParse(#[from] crate::issue_title::Error),
+    #[error("IssueBlockLinkId")]
+    IssueBlockLinkId(#[from] crate::issue_block_link_id::Error),
     #[error("NotIssueAggregate")]
     NotIssueAggregate,
 }

@@ -1,7 +1,4 @@
-use domain::{
-    aggregate::IssueBlockLinkAggregateError, DomainEvent, IssueBlockLinkId, IssueId,
-    ParseIssueBlockLinkError,
-};
+use domain::{aggregate::IssueBlockLinkAggregateError, DomainEvent, IssueBlockLinkId, IssueId};
 use limited_date_time::Instant;
 
 use crate::{
@@ -21,7 +18,7 @@ pub enum Error {
     #[error("issue repository {0}")]
     IssueRepository(#[from] IssueRepositoryError),
     #[error("parse issue block link id {0}")]
-    ParseIssueBlockLink(#[from] ParseIssueBlockLinkError),
+    ParseIssueBlockLinkId(#[from] domain::issue_block_link_id::Error),
 }
 
 #[derive(Debug, Eq, PartialEq)]

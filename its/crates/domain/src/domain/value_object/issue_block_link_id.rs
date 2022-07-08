@@ -1,18 +1,18 @@
 use std::{fmt::Display, str::FromStr};
 
-use thiserror::Error;
+use crate::IssueId;
 
-use crate::{IssueId, ParseIssueIdError};
-
-#[derive(Debug, Eq, PartialEq, Error)]
-pub enum ParseIssueBlockLinkError {
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
     #[error("InvalidFormat: {0}")]
     InvalidFormat(String),
     #[error("InvalidIssueId: {0}")]
-    InvalidIssueId(#[from] ParseIssueIdError),
+    InvalidIssueId(#[from] crate::issue_id::ParseIssueIdError),
     #[error("InvalidBlockedId: {0}")]
     InvalidBlockedIssueId(IssueId),
 }
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueBlockLinkId(IssueId, IssueId);
@@ -24,7 +24,7 @@ impl Display for IssueBlockLinkId {
 }
 
 impl FromStr for IssueBlockLinkId {
-    type Err = ParseIssueBlockLinkError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let splitted = s.split(" -> ").collect::<Vec<&str>>();
@@ -38,14 +38,9 @@ impl FromStr for IssueBlockLinkId {
 }
 
 impl IssueBlockLinkId {
-    pub fn new(
-        issue_id: IssueId,
-        blocked_issue_id: IssueId,
-    ) -> Result<Self, ParseIssueBlockLinkError> {
+    pub fn new(issue_id: IssueId, blocked_issue_id: IssueId) -> Result<Self> {
         if issue_id == blocked_issue_id {
-            return Err(ParseIssueBlockLinkError::InvalidBlockedIssueId(
-                blocked_issue_id,
-            ));
+            return Err(Error::InvalidBlockedIssueId(blocked_issue_id));
         }
         Ok(Self(issue_id, blocked_issue_id))
     }

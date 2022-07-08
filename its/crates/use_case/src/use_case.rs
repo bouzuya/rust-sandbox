@@ -11,7 +11,7 @@ pub use self::issue_repository::*;
 use async_trait::async_trait;
 use domain::{
     aggregate::{IssueAggregateError, IssueBlockLinkAggregateError},
-    IssueBlockLinkId, IssueId, ParseIssueBlockLinkError,
+    IssueBlockLinkId, IssueId,
 };
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -31,7 +31,7 @@ pub enum Error {
     #[error("IssueRepository")]
     IssueRepository(#[from] IssueRepositoryError),
     #[error("InvalidIssueBlockLinkId")]
-    InvalidIssueBlockLinkId(#[from] ParseIssueBlockLinkError),
+    InvalidIssueBlockLinkId(#[from] domain::issue_block_link_id::Error),
     #[error("block issue {0}")]
     BlockIssue(#[from] command_handler::block_issue::Error),
     #[error("create issue {0}")]
