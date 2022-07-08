@@ -17,7 +17,7 @@ pub enum TryFromEventDtoError {
     #[error("IssueDescription")]
     IssueDescription(#[from] crate::issue_description::Error),
     #[error("IssueDue")]
-    IssueDue(#[from] crate::issue_due::ParseIssueDueError),
+    IssueDue(#[from] crate::issue_due::Error),
     #[error("IssueId")]
     IssueId(#[from] crate::issue_id::ParseIssueIdError),
     #[error("IssueNumber")]

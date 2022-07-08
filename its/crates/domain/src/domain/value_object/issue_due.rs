@@ -1,12 +1,13 @@
-use limited_date_time::{Instant, OffsetDateTime};
-use thiserror::Error;
+use limited_date_time::{Instant, OffsetDateTime, ParseOffsetDateTimeError};
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueDue(Instant);
 
-#[derive(Debug, Eq, Error, PartialEq)]
-#[error("ParseIssueDueError")]
-pub struct ParseIssueDueError {}
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
+pub enum Error {
+    #[error("invalid format {0}")]
+    InvalidFormat(#[from] ParseOffsetDateTimeError),
+}
 
 impl std::fmt::Display for IssueDue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -15,11 +16,11 @@ impl std::fmt::Display for IssueDue {
 }
 
 impl std::str::FromStr for IssueDue {
-    type Err = ParseIssueDueError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = OffsetDateTime::from_str(s).map_err(|_| ParseIssueDueError {})?;
-        Self::try_from(value.instant()).map_err(|_| ParseIssueDueError {})
+        let value = OffsetDateTime::from_str(s)?;
+        Ok(Self::from(value.instant()))
     }
 }
 
