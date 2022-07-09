@@ -23,7 +23,7 @@ pub enum TryFromEventDtoError {
     #[error("IssueNumber")]
     IssueNumber(#[from] crate::issue_number::Error),
     #[error("IssueResolution")]
-    IssueResolution(#[from] crate::issue_resolution::ParseIssueResolutionError),
+    IssueResolution(#[from] crate::issue_resolution::Error),
     #[error("IssueTitle")]
     IssueTitle(#[from] crate::issue_title::TryFromIssueTitleError),
     #[error("IssueTitle parse")]
