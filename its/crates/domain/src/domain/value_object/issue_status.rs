@@ -20,20 +20,22 @@ impl std::fmt::Display for IssueStatus {
 }
 
 impl std::str::FromStr for IssueStatus {
-    type Err = ParseIssueStatusError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "todo" => Ok(IssueStatus::Todo),
             "done" => Ok(IssueStatus::Done),
-            _ => Err(ParseIssueStatusError {}),
+            _ => Err(Error::InvalidFormat),
         }
     }
 }
 
 #[derive(Debug, Eq, Error, PartialEq)]
-#[error("ParseIssueStatusError")]
-pub struct ParseIssueStatusError {}
+pub enum Error {
+    #[error("invalid format")]
+    InvalidFormat,
+}
 
 #[cfg(test)]
 mod tests {
