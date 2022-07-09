@@ -1,4 +1,4 @@
-use thiserror::Error;
+use std::num::ParseIntError;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct IssueNumber(usize);
@@ -22,29 +22,29 @@ impl IssueNumber {
     }
 }
 
-#[derive(Debug, Eq, Error, PartialEq)]
-#[error("ParseIssueNumberError")]
-pub struct ParseIssueNumberError {}
-
-#[derive(Debug, Eq, Error, PartialEq)]
-#[error("TryFromIssueNumberError")]
-pub struct TryFromIssueNumberError {}
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
+    #[error("invalid format {0}")]
+    InvalidFormat(#[from] ParseIntError),
+    #[error("out of range {0}")]
+    OutOfRange(usize),
+}
 
 impl std::str::FromStr for IssueNumber {
-    type Err = ParseIssueNumberError;
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let value = usize::from_str(s).map_err(|_| ParseIssueNumberError {})?;
-        Self::try_from(value).map_err(|_| ParseIssueNumberError {})
+        let value = usize::from_str(s)?;
+        Self::try_from(value)
     }
 }
 
 impl TryFrom<usize> for IssueNumber {
-    type Error = TryFromIssueNumberError;
+    type Error = Error;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
         if value == 0 {
-            Err(TryFromIssueNumberError {})
+            Err(Error::OutOfRange(value))
         } else {
             Ok(Self(value))
         }
