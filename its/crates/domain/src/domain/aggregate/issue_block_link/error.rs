@@ -1,7 +1,5 @@
-use thiserror::Error;
-
-#[derive(Clone, Debug, Eq, PartialEq, Error)]
-pub enum IssueBlockLinkAggregateError {
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
     #[error("Block")]
     Block,
     #[error("InvalidEventSequence")]

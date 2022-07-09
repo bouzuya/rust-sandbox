@@ -9,7 +9,7 @@ use crate::{
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("issue aggregate {0}")]
-    IssueAggregate(#[from] domain::aggregate::IssueAggregateError),
+    IssueAggregate(#[from] domain::aggregate::issue::Error),
     #[error("issue not found {0}")]
     IssueNotFound(IssueId),
     #[error("issue repository {0}")]

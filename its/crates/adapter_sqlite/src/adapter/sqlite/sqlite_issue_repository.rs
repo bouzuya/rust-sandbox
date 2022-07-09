@@ -4,7 +4,7 @@ use std::{num::TryFromIntError, str::FromStr};
 
 use async_trait::async_trait;
 use domain::{
-    aggregate::{IssueAggregate, IssueAggregateError, IssueAggregateEvent},
+    aggregate::{IssueAggregate, IssueAggregateEvent},
     DomainEvent, IssueId, ParseDomainEventError, Version,
 };
 
@@ -27,7 +27,7 @@ enum Error {
     #[error("InvalidVersion")]
     InvalidVersion(TryFromIntError),
     #[error("IssueAggregate")]
-    IssueAggregate(#[from] IssueAggregateError),
+    IssueAggregate(#[from] domain::aggregate::issue::Error),
     #[error("RowsAffectedNotEqualOne")]
     RowsAffectedNotEqualOne,
     #[error("Sqlx")]

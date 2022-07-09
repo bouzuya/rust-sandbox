@@ -34,5 +34,5 @@
 pub mod issue;
 pub mod issue_block_link;
 
-pub use self::issue::{Error as IssueAggregateError, IssueAggregate, IssueAggregateEvent};
-pub use self::issue_block_link::*;
+pub use self::issue::{IssueAggregate, IssueAggregateEvent};
+pub use self::issue_block_link::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent};

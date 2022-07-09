@@ -6,8 +6,10 @@ use limited_date_time::Instant;
 use crate::{domain::entity::IssueBlockLink, IssueBlockLinkId, IssueId, Version};
 use crate::{IssueBlocked, IssueUnblocked};
 
-pub use self::error::IssueBlockLinkAggregateError;
+pub use self::error::Error;
 pub use self::event::IssueBlockLinkAggregateEvent;
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueBlockLinkAggregate {
@@ -17,17 +19,13 @@ pub struct IssueBlockLinkAggregate {
 }
 
 impl IssueBlockLinkAggregate {
-    pub fn from_events(
-        events: &[IssueBlockLinkAggregateEvent],
-    ) -> Result<Self, IssueBlockLinkAggregateError> {
+    pub fn from_events(events: &[IssueBlockLinkAggregateEvent]) -> Result<Self> {
         let first_event = match events.first() {
             Some(event) => match event {
                 IssueBlockLinkAggregateEvent::Blocked(event) => Ok(event),
-                IssueBlockLinkAggregateEvent::Unblocked(_) => {
-                    Err(IssueBlockLinkAggregateError::InvalidEventSequence)
-                }
+                IssueBlockLinkAggregateEvent::Unblocked(_) => Err(Error::InvalidEventSequence),
             },
-            None => Err(IssueBlockLinkAggregateError::InvalidEventSequence),
+            None => Err(Error::InvalidEventSequence),
         }?;
         let mut issue_block_link = Self::from_event(first_event)?;
         for event in events.iter().skip(1) {
@@ -36,13 +34,8 @@ impl IssueBlockLinkAggregate {
         Ok(issue_block_link.truncate_events())
     }
 
-    pub fn new(
-        at: Instant,
-        issue_id: IssueId,
-        blocked_issue_id: IssueId,
-    ) -> Result<Self, IssueBlockLinkAggregateError> {
-        let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)
-            .map_err(|_| IssueBlockLinkAggregateError::Block)?;
+    pub fn new(at: Instant, issue_id: IssueId, blocked_issue_id: IssueId) -> Result<Self> {
+        let id = IssueBlockLinkId::new(issue_id, blocked_issue_id).map_err(|_| Error::Block)?;
         let issue_block_link = IssueBlockLink::new(id.clone());
         let version = Version::from(1_u64);
         Ok(Self {
@@ -56,7 +49,7 @@ impl IssueBlockLinkAggregate {
         })
     }
 
-    pub fn block(&self, at: Instant) -> Result<Self, IssueBlockLinkAggregateError> {
+    pub fn block(&self, at: Instant) -> Result<Self> {
         let event = IssueBlocked {
             at,
             issue_block_link_id: self.issue_block_link.id().clone(),
@@ -81,7 +74,7 @@ impl IssueBlockLinkAggregate {
         }
     }
 
-    pub fn unblock(&self, at: Instant) -> Result<Self, IssueBlockLinkAggregateError> {
+    pub fn unblock(&self, at: Instant) -> Result<Self> {
         let event = IssueUnblocked {
             at,
             issue_block_link_id: self.issue_block_link.id().clone(),
@@ -90,17 +83,14 @@ impl IssueBlockLinkAggregate {
         self.apply_event(event.into())
     }
 
-    fn apply_event(
-        &self,
-        event: IssueBlockLinkAggregateEvent,
-    ) -> Result<Self, IssueBlockLinkAggregateError> {
+    fn apply_event(&self, event: IssueBlockLinkAggregateEvent) -> Result<Self> {
         let events = [self.events.as_slice(), &[event.clone()]].concat();
         let (issue_block_link_id, version) = event.key();
         if issue_block_link_id != self.issue_block_link.id() {
-            return Err(IssueBlockLinkAggregateError::InvalidEventSequence);
+            return Err(Error::InvalidEventSequence);
         }
         if version != self.next_version()? {
-            return Err(IssueBlockLinkAggregateError::InvalidEventSequence);
+            return Err(Error::InvalidEventSequence);
         }
         let issue_block_link = match event {
             IssueBlockLinkAggregateEvent::Blocked(_) => self.issue_block_link.block(),
@@ -113,7 +103,7 @@ impl IssueBlockLinkAggregate {
         })
     }
 
-    fn from_event(event: &IssueBlocked) -> Result<Self, IssueBlockLinkAggregateError> {
+    fn from_event(event: &IssueBlocked) -> Result<Self> {
         Self::new(
             event.at(),
             event.issue_id().clone(),
@@ -122,10 +112,8 @@ impl IssueBlockLinkAggregate {
         .map(Self::truncate_events)
     }
 
-    fn next_version(&self) -> Result<Version, IssueBlockLinkAggregateError> {
-        self.version
-            .next()
-            .ok_or(IssueBlockLinkAggregateError::NoNextVersion)
+    fn next_version(&self) -> Result<Version> {
+        self.version.next().ok_or(Error::NoNextVersion)
     }
 }
 

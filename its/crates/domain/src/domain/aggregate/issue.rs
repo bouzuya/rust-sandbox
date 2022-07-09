@@ -20,8 +20,8 @@ use crate::{
     IssueId, Version,
 };
 
+pub use self::error::Error;
 use super::IssueBlockLinkAggregate;
-use super::IssueBlockLinkAggregateError;
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -301,7 +301,7 @@ impl IssueAggregate {
         &self,
         blocked_issue: IssueAggregate,
         at: Instant,
-    ) -> Result<IssueBlockLinkAggregate, IssueBlockLinkAggregateError> {
+    ) -> Result<IssueBlockLinkAggregate, super::issue_block_link::Error> {
         IssueBlockLinkAggregate::new(at, self.id().clone(), blocked_issue.id().clone())
     }
 }

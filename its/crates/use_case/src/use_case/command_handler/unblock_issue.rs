@@ -1,4 +1,4 @@
-use domain::{aggregate::IssueBlockLinkAggregateError, DomainEvent, IssueBlockLinkId};
+use domain::{DomainEvent, IssueBlockLinkId};
 use limited_date_time::Instant;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 #[allow(clippy::enum_variant_names)]
 pub enum Error {
     #[error("issue block link aggregate {0}")]
-    IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    IssueBlockLinkAggregate(#[from] domain::aggregate::issue_block_link::Error),
     #[error("issue block link repository {0}")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
     #[error("issue block link not found {0}")]

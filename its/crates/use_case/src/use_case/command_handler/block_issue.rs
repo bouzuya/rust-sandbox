@@ -1,4 +1,4 @@
-use domain::{aggregate::IssueBlockLinkAggregateError, DomainEvent, IssueBlockLinkId, IssueId};
+use domain::{DomainEvent, IssueBlockLinkId, IssueId};
 use limited_date_time::Instant;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("issue block link aggregate {0}")]
-    IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    IssueBlockLinkAggregate(#[from] domain::aggregate::issue_block_link::Error),
     #[error("issue block link repository {0}")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
     #[error("issue not found {0}")]

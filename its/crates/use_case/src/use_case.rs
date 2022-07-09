@@ -9,19 +9,16 @@ pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
-use domain::{
-    aggregate::{IssueAggregateError, IssueBlockLinkAggregateError},
-    IssueBlockLinkId, IssueId,
-};
+use domain::{IssueBlockLinkId, IssueId};
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("IssueAggregate")]
-    IssueAggregate(#[from] IssueAggregateError),
+    IssueAggregate(#[from] domain::aggregate::issue::Error),
     #[error("IssueBlockLinkAggregate")]
-    IssueBlockLinkAggregate(#[from] IssueBlockLinkAggregateError),
+    IssueBlockLinkAggregate(#[from] domain::aggregate::issue_block_link::Error),
     #[error("IssueBlockLinkNotFound")]
     IssueBlockLinkNotFound(IssueBlockLinkId),
     #[error("IssueBlockLinkRepository")]

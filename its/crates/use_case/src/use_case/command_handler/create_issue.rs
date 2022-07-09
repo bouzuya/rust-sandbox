@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("issue aggregate {0}")]
-    IssueAggregate(#[from] domain::aggregate::IssueAggregateError),
+    IssueAggregate(#[from] domain::aggregate::issue::Error),
     #[error("issue repository {0}")]
     IssueRepository(#[from] IssueRepositoryError),
 }
