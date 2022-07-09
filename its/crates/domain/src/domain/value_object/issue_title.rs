@@ -8,27 +8,25 @@ impl std::fmt::Display for IssueTitle {
 }
 
 #[derive(Debug, Eq, thiserror::Error, PartialEq)]
-#[error("ParseIssueTitleError")]
-pub struct Error {}
-
-#[derive(Debug, Eq, thiserror::Error, PartialEq)]
-#[error("TryFromIssueTitleError")]
-pub struct TryFromIssueTitleError {}
+pub enum Error {
+    #[error("invalid length {0}")]
+    InvalidLength(usize),
+}
 
 impl std::str::FromStr for IssueTitle {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string()).map_err(|_| Error {})
+        Self::try_from(s.to_string())
     }
 }
 
 impl TryFrom<String> for IssueTitle {
-    type Error = TryFromIssueTitleError;
+    type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.len() > 255 {
-            Err(TryFromIssueTitleError {})
+            Err(Error::InvalidLength(value.len()))
         } else {
             Ok(Self(value))
         }

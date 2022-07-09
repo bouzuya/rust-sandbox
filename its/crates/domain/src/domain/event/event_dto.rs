@@ -25,9 +25,7 @@ pub enum TryFromEventDtoError {
     #[error("IssueResolution")]
     IssueResolution(#[from] crate::issue_resolution::Error),
     #[error("IssueTitle")]
-    IssueTitle(#[from] crate::issue_title::TryFromIssueTitleError),
-    #[error("IssueTitle parse")]
-    IssueTitleParse(#[from] crate::issue_title::Error),
+    IssueTitle(#[from] crate::issue_title::Error),
     #[error("IssueBlockLinkId")]
     IssueBlockLinkId(#[from] crate::issue_block_link_id::Error),
     #[error("NotIssueAggregate")]
