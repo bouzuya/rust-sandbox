@@ -1,4 +1,4 @@
-use domain::{DomainEvent, IssueBlockLinkId};
+use domain::IssueBlockLinkId;
 use limited_date_time::Instant;
 
 use crate::{
@@ -27,7 +27,7 @@ pub async fn unblock_issue<C: HasIssueBlockLinkRepository + ?Sized>(
     UnblockIssue {
         issue_block_link_id,
     }: UnblockIssue,
-) -> Result<Vec<IssueManagementContextEvent>, Error> {
+) -> Result<IssueManagementContextEvent, Error> {
     // io
     let at = Instant::now();
     let issue_block_link = context
@@ -42,11 +42,13 @@ pub async fn unblock_issue<C: HasIssueBlockLinkRepository + ?Sized>(
     // io
     context.issue_block_link_repository().save(&updated).await?;
 
-    Ok(updated
+    let issue_block_link_id = updated
         .events()
         .iter()
-        .cloned()
-        .map(DomainEvent::from)
-        .map(IssueManagementContextEvent::from)
-        .collect::<Vec<IssueManagementContextEvent>>())
+        .next()
+        .map(|event| event.key().0.to_owned())
+        .expect("invalid event seq");
+    Ok(IssueManagementContextEvent::IssueUnblocked {
+        issue_block_link_id,
+    })
 }

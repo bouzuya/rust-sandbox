@@ -21,12 +21,13 @@ fn its_issue_block() -> anyhow::Result<()> {
     Command::cargo_bin("its")?
         .args(&["issue", "create", "--title", "title2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .assert();
+        .assert()
+        .stdout(predicates::str::contains(r#""blocks":[]"#));
     Command::cargo_bin("its")?
         .args(&["issue", "block", "1", "2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue blocked"))
+        .stdout(predicates::str::contains(r#""blocks":[{"id":"2""#))
         .success();
     Ok(())
 }
@@ -38,7 +39,7 @@ fn its_issue_create() -> anyhow::Result<()> {
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .args(&["issue", "create"])
         .assert()
-        .stdout(predicates::str::contains("issue created"))
+        .stdout(predicates::str::contains(r#""id":"#))
         .success();
     Ok(())
 }
@@ -50,8 +51,7 @@ fn its_issue_create_with_description() -> anyhow::Result<()> {
         .args(&["issue", "create", "--description", "desc1"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue created"))
-        .stdout(predicates::str::contains("desc1"))
+        .stdout(predicates::str::contains(r#""description":"desc1""#))
         .success();
     Ok(())
 }
@@ -63,8 +63,7 @@ fn its_issue_create_with_due() -> anyhow::Result<()> {
         .args(&["issue", "create", "--due", "2021-02-03T04:05:06+09:00"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue created"))
-        .stdout(predicates::str::contains("Instant(1612292706)")) // TODO
+        .stdout(predicates::str::contains("2021-02-02T19:05:06Z"))
         .success();
     Ok(())
 }
@@ -76,7 +75,6 @@ fn its_issue_create_with_title() -> anyhow::Result<()> {
         .args(&["issue", "create", "--title", "title1"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue created"))
         .stdout(predicates::str::contains("title1"))
         .success();
     Ok(())
@@ -143,16 +141,19 @@ fn its_issue_unblock() -> anyhow::Result<()> {
     Command::cargo_bin("its")?
         .args(&["issue", "create", "--title", "title2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .assert();
+        .assert()
+        .stdout(predicates::str::contains(r#""blocks":[]"#));
     Command::cargo_bin("its")?
         .args(&["issue", "block", "1", "2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .assert();
+        .assert()
+        .stdout(predicates::str::contains(r#""blocks":[{"id":"2""#));
     Command::cargo_bin("its")?
         .args(&["issue", "unblock", "1", "2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue unblocked"))
+        // FIXME
+        // .stdout(predicates::str::contains(r#""blocks":[]"#))
         .success();
     Ok(())
 }
@@ -172,8 +173,7 @@ fn its_issue_update() -> anyhow::Result<()> {
         .args(&["issue", "update", "--due", "2022-03-04T05:06:07Z", "1"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        .stdout(predicates::str::contains("issue updated"))
-        .stdout(predicates::str::contains("Instant(1646370367)")) // TODO
+        .stdout(predicates::str::contains("2022-03-04T05:06:07Z"))
         .success();
     Ok(())
 }

@@ -1,4 +1,4 @@
-use domain::{DomainEvent, IssueBlockLinkId, IssueId};
+use domain::{IssueBlockLinkId, IssueId};
 use limited_date_time::Instant;
 
 use crate::{
@@ -33,7 +33,7 @@ pub async fn block_issue<C: HasIssueBlockLinkRepository + HasIssueRepository + ?
         issue_id,
         blocked_issue_id,
     }: BlockIssue,
-) -> Result<Vec<IssueManagementContextEvent>, Error> {
+) -> Result<IssueManagementContextEvent, Error> {
     // io
     let at = Instant::now();
     let issue_block_link_id = IssueBlockLinkId::new(issue_id.clone(), blocked_issue_id.clone())?;
@@ -55,7 +55,6 @@ pub async fn block_issue<C: HasIssueBlockLinkRepository + HasIssueRepository + ?
                 .find_by_id(&blocked_issue_id)
                 .await?
                 .ok_or(Error::IssueNotFound(blocked_issue_id))?;
-
             // pure
             issue.block(blocked_issue, at)?
         }
@@ -67,11 +66,13 @@ pub async fn block_issue<C: HasIssueBlockLinkRepository + HasIssueRepository + ?
         .save(&issue_block_link)
         .await?;
 
-    Ok(issue_block_link
+    let issue_block_link_id = issue_block_link
         .events()
         .iter()
-        .cloned()
-        .map(DomainEvent::from)
-        .map(IssueManagementContextEvent::from)
-        .collect::<Vec<IssueManagementContextEvent>>())
+        .next()
+        .map(|event| event.key().0.to_owned())
+        .expect("invalid event seq");
+    Ok(IssueManagementContextEvent::IssueBlocked {
+        issue_block_link_id,
+    })
 }

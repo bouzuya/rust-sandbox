@@ -50,7 +50,7 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     async fn handle<C: Into<IssueManagementContextCommand> + Send>(
         &self,
         command: C,
-    ) -> Result<Vec<IssueManagementContextEvent>> {
+    ) -> Result<IssueManagementContextEvent> {
         match command.into() {
             IssueManagementContextCommand::BlockIssue(command) => {
                 Ok(command_handler::block_issue::block_issue(self, command).await?)

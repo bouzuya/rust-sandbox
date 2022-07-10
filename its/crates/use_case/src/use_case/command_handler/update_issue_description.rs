@@ -1,4 +1,4 @@
-use domain::{DomainEvent, IssueDescription, IssueId};
+use domain::{IssueDescription, IssueId};
 use limited_date_time::Instant;
 
 use crate::{
@@ -25,7 +25,7 @@ pub struct UpdateIssueDescription {
 pub async fn update_issue_description<C: HasIssueRepository + ?Sized>(
     context: &C,
     command: UpdateIssueDescription,
-) -> Result<Vec<IssueManagementContextEvent>, Error> {
+) -> Result<IssueManagementContextEvent, Error> {
     // io
     let issue = context
         .issue_repository()
@@ -41,11 +41,11 @@ pub async fn update_issue_description<C: HasIssueRepository + ?Sized>(
     // io
     context.issue_repository().save(&updated).await?;
 
-    Ok(updated
+    let issue_id = updated
         .events()
         .iter()
-        .cloned()
-        .map(DomainEvent::from)
-        .map(IssueManagementContextEvent::from)
-        .collect::<Vec<IssueManagementContextEvent>>())
+        .next()
+        .map(|event| event.issue_id().to_owned())
+        .expect("invalid event seq");
+    Ok(IssueManagementContextEvent::IssueUpdated { issue_id })
 }

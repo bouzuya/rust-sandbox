@@ -1,6 +1,4 @@
-use domain::{
-    aggregate::IssueAggregate, DomainEvent, IssueDescription, IssueDue, IssueNumber, IssueTitle,
-};
+use domain::{aggregate::IssueAggregate, IssueDescription, IssueDue, IssueNumber, IssueTitle};
 use limited_date_time::Instant;
 
 use crate::{
@@ -25,7 +23,7 @@ pub struct CreateIssue {
 pub async fn create_issue<C: HasIssueRepository + ?Sized>(
     context: &C,
     command: CreateIssue,
-) -> Result<Vec<IssueManagementContextEvent>, Error> {
+) -> Result<IssueManagementContextEvent, Error> {
     // io
     let issue_number = context
         .issue_repository()
@@ -47,11 +45,11 @@ pub async fn create_issue<C: HasIssueRepository + ?Sized>(
     // io
     context.issue_repository().save(&created).await?;
 
-    Ok(created
+    let issue_id = created
         .events()
         .iter()
-        .cloned()
-        .map(DomainEvent::from)
-        .map(IssueManagementContextEvent::from)
-        .collect::<Vec<IssueManagementContextEvent>>())
+        .next()
+        .map(|event| event.issue_id().to_owned())
+        .expect("invalid event seq");
+    Ok(IssueManagementContextEvent::IssueCreated { issue_id })
 }

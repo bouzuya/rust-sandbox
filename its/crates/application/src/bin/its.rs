@@ -117,15 +117,22 @@ async fn issue_block(
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
-    let events = use_case
+    let event = use_case
         .handle(BlockIssue {
             issue_id,
             blocked_issue_id,
         })
         .await?;
-    // FIXME:
-    app.update_query_db().await?;
-    println!("issue blocked : {:?}", events);
+    if let use_case::IssueManagementContextEvent::IssueBlocked {
+        issue_block_link_id,
+    } = event
+    {
+        // FIXME:
+        app.update_query_db().await?;
+        let issue_id = issue_block_link_id.issue_id();
+        let issue = app.query_handler.issue_view(issue_id).await?.unwrap();
+        println!("{}", serde_json::to_string(&issue)?);
+    }
     Ok(())
 }
 
@@ -148,16 +155,19 @@ async fn issue_create(
         .map(|s| IssueDescription::from_str(s.as_str()))
         .transpose()?
         .unwrap_or_default();
-    let events = use_case
+    let event = use_case
         .handle(CreateIssue {
             issue_title,
             issue_due,
             issue_description,
         })
         .await?;
-    // FIXME:
-    app.update_query_db().await?;
-    println!("issue created : {:?}", events);
+    if let use_case::IssueManagementContextEvent::IssueCreated { issue_id } = event {
+        // FIXME:
+        app.update_query_db().await?;
+        let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
+        println!("{}", serde_json::to_string(&issue)?);
+    }
     Ok(())
 }
 
@@ -275,14 +285,21 @@ async fn issue_unblock(
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let blocked_issue_id = IssueId::from_str(blocked_issue_id.as_str())?;
     let issue_block_link_id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
-    let events = use_case
+    let event = use_case
         .handle(UnblockIssue {
             issue_block_link_id,
         })
         .await?;
-    // FIXME:
-    app.update_query_db().await?;
-    println!("issue unblocked : {:?}", events);
+    if let use_case::IssueManagementContextEvent::IssueUnblocked {
+        issue_block_link_id,
+    } = event
+    {
+        // FIXME:
+        app.update_query_db().await?;
+        let issue_id = issue_block_link_id.issue_id();
+        let issue = app.query_handler.issue_view(issue_id).await?.unwrap();
+        println!("{}", serde_json::to_string(&issue)?);
+    }
     Ok(())
 }
 
@@ -300,15 +317,16 @@ async fn issue_update(
     let use_case = app.issue_management_context_use_case();
     let issue_id = IssueId::from_str(issue_id.as_str())?;
     let issue_due = due.map(|s| IssueDue::from_str(s.as_str())).transpose()?;
-    let events = use_case
+    use_case
         .handle(UpdateIssue {
-            issue_id,
+            issue_id: issue_id.clone(),
             issue_due,
         })
         .await?;
     // FIXME:
     app.update_query_db().await?;
-    println!("issue updated : {:?}", events);
+    let issue = app.query_handler.issue_view(&issue_id).await?.unwrap();
+    println!("{}", serde_json::to_string(&issue)?);
     Ok(())
 }
 
