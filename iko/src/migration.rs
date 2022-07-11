@@ -1,6 +1,6 @@
 use std::{future::Future, pin::Pin};
 
-use sqlx::AnyPool;
+use sqlx::any::AnyPool;
 
 use crate::migration_status::Version;
 
