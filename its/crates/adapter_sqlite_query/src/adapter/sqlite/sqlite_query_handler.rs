@@ -237,6 +237,7 @@ impl SqliteQueryHandler {
                 .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut query_transaction).await?;
 
+        // FIXME
         let issue_repository = self
             .issue_repository
             .lock()
