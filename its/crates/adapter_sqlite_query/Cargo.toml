@@ -14,7 +14,7 @@ iko = { path = "../../../iko" }
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.17.0" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.74"
-sqlx = { version = "0.5.10", features = ["any", "migrate", "runtime-tokio-rustls", "sqlite"] }
+sqlx = { version = "0.6.0", features = ["any", "migrate", "runtime-tokio-rustls", "sqlite"] }
 thiserror = "1.0.30"
 tokio = { version = "1.15.0", features = ["full"] }
 ulid = "0.5.0"

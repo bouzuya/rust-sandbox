@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-sqlx = { version = "0.5.10", features = ["any", "migrate", "runtime-tokio-rustls", "sqlite"] }
+sqlx = { version = "0.6.0", features = ["any", "migrate", "runtime-tokio-rustls", "sqlite"] }
 thiserror = "1.0.30"
 ulid = "0.5.0"
 
