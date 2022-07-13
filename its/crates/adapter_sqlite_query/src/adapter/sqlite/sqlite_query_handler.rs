@@ -208,7 +208,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
+    async fn save_issue(&self, issue: IssueAggregate) -> Result<()> {
         let mut query_transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/delete_issue.sql")).bind(issue.id().to_string());
@@ -226,10 +226,7 @@ impl SqliteQueryHandler {
         Ok(())
     }
 
-    pub async fn save_issue_block_link(
-        &self,
-        issue_block_link: IssueBlockLinkAggregate,
-    ) -> Result<()> {
+    async fn save_issue_block_link(&self, issue_block_link: IssueBlockLinkAggregate) -> Result<()> {
         let mut query_transaction = self.query_pool.begin().await?;
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/delete_issue_block_link.sql"))
