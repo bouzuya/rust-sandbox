@@ -24,7 +24,12 @@ its: issue tracking system
 
 ## メモ
 
-### やりたいこと / UseCase の戻り値から情報を減らしたい
+### やりたいこと / Command と Query のモデルを分離する
+
+- 重複は起きるが完全に別系統にしたい
+- Command のモデルに Query 用の getter を追加している点が気になる
+
+### 完了： やりたいこと / UseCase の戻り値から情報を減らしたい
 
 - UseCase の戻り値から情報を減らしたい
 - `impl From<IssueManagementContextEvent> for DomainEvent` を削除したい
