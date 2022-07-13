@@ -152,8 +152,7 @@ fn its_issue_unblock() -> anyhow::Result<()> {
         .args(&["issue", "unblock", "1", "2"])
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .assert()
-        // FIXME
-        // .stdout(predicates::str::contains(r#""blocks":[]"#))
+        .stdout(predicates::str::contains(r#""blocks":[]"#))
         .success();
     Ok(())
 }

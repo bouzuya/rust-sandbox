@@ -237,34 +237,36 @@ impl SqliteQueryHandler {
                 .bind(issue_block_link.id().blocked_issue_id().to_string());
         query.execute(&mut query_transaction).await?;
 
-        // FIXME
-        let issue_repository = self
-            .issue_repository
-            .lock()
-            .map_err(|e| Error::Unknown(format!("IssueRepository can't lock: {}", e)))?;
-        let issue_title = issue_repository
-            .find_by_id(issue_block_link.id().issue_id())
-            .await
-            .map_err(|e| Error::Unknown(e.to_string()))?
-            .ok_or_else(|| Error::Unknown("no issue".to_string()))?
-            .title()
-            .to_string();
-        let blocked_issue_title = issue_repository
-            .find_by_id(issue_block_link.id().blocked_issue_id())
-            .await
-            .map_err(|e| Error::Unknown(e.to_string()))?
-            .ok_or_else(|| Error::Unknown("no issue".to_string()))?
-            .title()
-            .to_string();
-        let query: Query<Any, AnyArguments> =
-            sqlx::query(include_str!("../../../sql/insert_issue_block_link.sql"))
-                .bind(issue_block_link.id().issue_id().to_string())
-                .bind(issue_title.to_string())
-                .bind(issue_block_link.id().blocked_issue_id().to_string())
-                .bind(blocked_issue_title.to_string());
-        let rows_affected = query.execute(&mut query_transaction).await?.rows_affected();
-        if rows_affected != 1 {
-            return Err(Error::Unknown("rows_affected != 1".to_string()));
+        if issue_block_link.is_blocked() {
+            // FIXME
+            let issue_repository = self
+                .issue_repository
+                .lock()
+                .map_err(|e| Error::Unknown(format!("IssueRepository can't lock: {}", e)))?;
+            let issue_title = issue_repository
+                .find_by_id(issue_block_link.id().issue_id())
+                .await
+                .map_err(|e| Error::Unknown(e.to_string()))?
+                .ok_or_else(|| Error::Unknown("no issue".to_string()))?
+                .title()
+                .to_string();
+            let blocked_issue_title = issue_repository
+                .find_by_id(issue_block_link.id().blocked_issue_id())
+                .await
+                .map_err(|e| Error::Unknown(e.to_string()))?
+                .ok_or_else(|| Error::Unknown("no issue".to_string()))?
+                .title()
+                .to_string();
+            let query: Query<Any, AnyArguments> =
+                sqlx::query(include_str!("../../../sql/insert_issue_block_link.sql"))
+                    .bind(issue_block_link.id().issue_id().to_string())
+                    .bind(issue_title.to_string())
+                    .bind(issue_block_link.id().blocked_issue_id().to_string())
+                    .bind(blocked_issue_title.to_string());
+            let rows_affected = query.execute(&mut query_transaction).await?.rows_affected();
+            if rows_affected != 1 {
+                return Err(Error::Unknown("rows_affected != 1".to_string()));
+            }
         }
 
         query_transaction.commit().await?;
