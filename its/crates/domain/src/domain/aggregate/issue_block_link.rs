@@ -66,6 +66,11 @@ impl IssueBlockLinkAggregate {
         self.issue_block_link.id()
     }
 
+    // query
+    pub fn is_blocked(&self) -> bool {
+        self.issue_block_link.is_blocked()
+    }
+
     pub fn truncate_events(self) -> Self {
         Self {
             events: vec![],
@@ -161,6 +166,17 @@ mod tests {
         )?;
         let id = IssueBlockLinkId::new(issue_id, blocked_issue_id)?;
         assert_eq!(created.id(), &id);
+        Ok(())
+    }
+
+    #[test]
+    fn is_blocked_test() -> anyhow::Result<()> {
+        let issue_id = IssueId::from_str("123")?;
+        let blocked_issue_id = IssueId::from_str("456")?;
+        let created = IssueBlockLinkAggregate::new(Instant::now(), issue_id, blocked_issue_id)?;
+        assert!(created.is_blocked());
+        let updated = created.unblock(Instant::now())?;
+        assert!(!updated.is_blocked());
         Ok(())
     }
 
