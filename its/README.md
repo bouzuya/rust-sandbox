@@ -24,6 +24,10 @@ its: issue tracking system
 
 ## メモ
 
+### やりたいこと / コメントをつけられるようにする
+
+[docs/comment.md](./docs/comment.md)
+
 ### やりたいこと / Command と Query のモデルを分離する
 
 - 重複は起きるが完全に別系統にしたい
