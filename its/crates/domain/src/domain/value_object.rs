@@ -1,5 +1,6 @@
 pub mod issue_block_link_id;
 pub mod issue_block_link_status;
+pub mod issue_comment_id;
 pub mod issue_description;
 pub mod issue_due;
 pub mod issue_id;
