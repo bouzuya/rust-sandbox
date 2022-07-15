@@ -1,6 +1,7 @@
 pub mod issue_block_link_id;
 pub mod issue_block_link_status;
 pub mod issue_comment_id;
+pub mod issue_comment_text;
 pub mod issue_description;
 pub mod issue_due;
 pub mod issue_id;
@@ -12,6 +13,8 @@ pub mod version;
 
 pub use self::issue_block_link_id::IssueBlockLinkId;
 pub use self::issue_block_link_status::IssueBlockLinkStatus;
+pub use self::issue_comment_id::IssueCommentId;
+pub use self::issue_comment_text::IssueCommentText;
 pub use self::issue_description::IssueDescription;
 pub use self::issue_due::IssueDue;
 pub use self::issue_id::IssueId;
