@@ -12,6 +12,7 @@
 mod event_dto;
 mod event_id;
 mod issue_blocked;
+pub mod issue_comment_created;
 mod issue_created;
 mod issue_created_v2;
 mod issue_description_updated;
