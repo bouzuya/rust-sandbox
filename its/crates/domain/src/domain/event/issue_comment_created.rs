@@ -1,6 +1,8 @@
 use limited_date_time::Instant;
 
-use crate::{IssueCommentId, IssueCommentText, IssueId, Version};
+use crate::{
+    aggregate::issue_comment::attribute::IssueCommentText, IssueCommentId, IssueId, Version,
+};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueCommentCreated {

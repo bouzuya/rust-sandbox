@@ -1,4 +1,5 @@
-use crate::{IssueBlockLinkId, IssueBlockLinkStatus, IssueId};
+use super::super::attribute::IssueBlockLinkStatus;
+use crate::{IssueBlockLinkId, IssueId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct IssueBlockLink {

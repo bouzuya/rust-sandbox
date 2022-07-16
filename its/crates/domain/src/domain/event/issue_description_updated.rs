@@ -1,6 +1,6 @@
 use limited_date_time::Instant;
 
-use crate::{IssueDescription, IssueId, Version};
+use crate::{aggregate::issue::IssueDescription, IssueId, Version};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueDescriptionUpdated {

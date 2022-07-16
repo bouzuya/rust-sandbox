@@ -1,7 +1,9 @@
-use crate::{
-    IssueCreatedV2, IssueDescription, IssueDue, IssueId, IssueNumber, IssueResolution, IssueStatus,
-    IssueTitle,
-};
+use super::super::attribute::IssueDescription;
+use super::super::attribute::IssueDue;
+use super::super::attribute::IssueResolution;
+use crate::aggregate::issue::attribute::IssueStatus;
+use crate::aggregate::issue::IssueTitle;
+use crate::{IssueCreatedV2, IssueId, IssueNumber};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {

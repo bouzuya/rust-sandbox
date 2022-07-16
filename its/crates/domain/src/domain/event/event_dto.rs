@@ -1,10 +1,15 @@
 use std::str::FromStr;
 
 use crate::{
-    aggregate::{IssueAggregateEvent, IssueBlockLinkAggregateEvent},
-    DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescription,
-    IssueDescriptionUpdated, IssueDue, IssueFinished, IssueId, IssueResolution, IssueTitle,
-    IssueTitleUpdated, IssueUnblocked, IssueUpdated, Version,
+    aggregate::{
+        issue::{
+            attribute::{IssueDue, IssueResolution},
+            IssueDescription, IssueTitle,
+        },
+        IssueAggregateEvent, IssueBlockLinkAggregateEvent,
+    },
+    DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescriptionUpdated,
+    IssueFinished, IssueId, IssueTitleUpdated, IssueUnblocked, IssueUpdated, Version,
 };
 use limited_date_time::{Instant, ParseInstantError};
 use serde::{Deserialize, Serialize};
@@ -15,17 +20,17 @@ pub enum TryFromEventDtoError {
     #[error("Instant")]
     Instant(#[from] ParseInstantError),
     #[error("IssueDescription")]
-    IssueDescription(#[from] crate::issue_description::Error),
+    IssueDescription(#[from] crate::aggregate::issue::attribute::issue_description::Error),
     #[error("IssueDue")]
-    IssueDue(#[from] crate::issue_due::Error),
+    IssueDue(#[from] crate::aggregate::issue::attribute::issue_due::Error),
     #[error("IssueId")]
     IssueId(#[from] crate::issue_id::ParseIssueIdError),
     #[error("IssueNumber")]
     IssueNumber(#[from] crate::issue_number::Error),
     #[error("IssueResolution")]
-    IssueResolution(#[from] crate::issue_resolution::Error),
+    IssueResolution(#[from] crate::aggregate::issue::attribute::issue_resolution::Error),
     #[error("IssueTitle")]
-    IssueTitle(#[from] crate::issue_title::Error),
+    IssueTitle(#[from] crate::aggregate::issue::attribute::issue_title::Error),
     #[error("IssueBlockLinkId")]
     IssueBlockLinkId(#[from] crate::issue_block_link_id::Error),
     #[error("NotIssueAggregate")]
@@ -278,7 +283,7 @@ impl TryFrom<EventDto> for DomainEvent {
 mod tests {
     use std::str::FromStr;
 
-    use crate::{IssueCreated, IssueId, IssueNumber, IssueResolution, IssueTitle, Version};
+    use crate::{IssueCreated, IssueId, IssueNumber, Version};
     use limited_date_time::Instant;
 
     use super::*;

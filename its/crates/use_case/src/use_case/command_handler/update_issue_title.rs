@@ -1,4 +1,4 @@
-use domain::{IssueId, IssueTitle};
+use domain::{aggregate::issue::IssueTitle, IssueId};
 use limited_date_time::Instant;
 
 use crate::{

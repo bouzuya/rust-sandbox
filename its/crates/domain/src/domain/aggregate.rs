@@ -33,6 +33,7 @@
 //!   - create / update を分離するだけでなく `Aggregate::transaction` を廃止した
 pub mod issue;
 pub mod issue_block_link;
+pub mod issue_comment;
 
 pub use self::issue::{IssueAggregate, IssueAggregateEvent};
 pub use self::issue_block_link::{IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent};

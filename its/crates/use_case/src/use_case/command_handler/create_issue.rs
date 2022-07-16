@@ -1,4 +1,10 @@
-use domain::{aggregate::IssueAggregate, IssueDescription, IssueDue, IssueNumber, IssueTitle};
+use domain::{
+    aggregate::{
+        issue::{attribute::IssueDue, IssueDescription, IssueTitle},
+        IssueAggregate,
+    },
+    IssueNumber,
+};
 use limited_date_time::Instant;
 
 use crate::{

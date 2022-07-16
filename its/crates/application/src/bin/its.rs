@@ -9,7 +9,10 @@ use adapter_sqlite::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIs
 use adapter_sqlite_query::SqliteQueryHandler;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
-use domain::{IssueBlockLinkId, IssueDescription, IssueDue, IssueId, IssueResolution, IssueTitle};
+use domain::{
+    aggregate::issue::{IssueDescription, IssueDue, IssueResolution, IssueTitle},
+    IssueBlockLinkId, IssueId,
+};
 use use_case::{
     BlockIssue, CreateIssue, FinishIssue, HasIssueBlockLinkRepository,
     HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,

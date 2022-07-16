@@ -1,20 +1,21 @@
+pub mod attribute;
 mod entity;
 mod error;
 mod event;
 
 use limited_date_time::Instant;
 
+pub use self::attribute::issue_description::IssueDescription;
+pub use self::attribute::IssueDue;
+pub use self::attribute::IssueResolution;
+pub use self::attribute::IssueStatus;
+pub use self::attribute::IssueTitle;
 use self::entity::issue::Issue;
 pub use self::error::*;
 pub use self::event::*;
 use crate::IssueCreatedV2;
-use crate::IssueDescription;
 use crate::IssueDescriptionUpdated;
-use crate::IssueDue;
 use crate::IssueNumber;
-use crate::IssueResolution;
-use crate::IssueStatus;
-use crate::IssueTitle;
 use crate::IssueTitleUpdated;
 use crate::IssueUpdated;
 use crate::{domain::event::IssueFinished, IssueId, Version};

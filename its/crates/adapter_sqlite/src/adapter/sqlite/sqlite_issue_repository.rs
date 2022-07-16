@@ -263,7 +263,7 @@ impl IssueRepository for SqliteIssueRepository {
 
 #[cfg(test)]
 mod tests {
-    use domain::IssueResolution;
+    use domain::aggregate::issue::IssueResolution;
     use limited_date_time::Instant;
 
     use super::*;
