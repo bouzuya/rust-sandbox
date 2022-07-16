@@ -1,8 +1,10 @@
+mod entity;
 mod error;
 mod event;
 
 use limited_date_time::Instant;
 
+use self::entity::issue::Issue;
 pub use self::error::*;
 pub use self::event::*;
 use crate::IssueCreatedV2;
@@ -15,10 +17,7 @@ use crate::IssueStatus;
 use crate::IssueTitle;
 use crate::IssueTitleUpdated;
 use crate::IssueUpdated;
-use crate::{
-    domain::{entity::Issue, event::IssueFinished},
-    IssueId, Version,
-};
+use crate::{domain::event::IssueFinished, IssueId, Version};
 
 pub use self::error::Error;
 use super::IssueBlockLinkAggregate;

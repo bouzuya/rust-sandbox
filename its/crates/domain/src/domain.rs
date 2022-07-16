@@ -1,5 +1,4 @@
 pub mod aggregate;
-mod entity;
 mod event;
 pub mod value_object;
 

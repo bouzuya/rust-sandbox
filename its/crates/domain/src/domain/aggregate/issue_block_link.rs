@@ -1,11 +1,13 @@
+mod entity;
 mod error;
 mod event;
 
 use limited_date_time::Instant;
 
-use crate::{domain::entity::IssueBlockLink, IssueBlockLinkId, IssueId, Version};
+use crate::{IssueBlockLinkId, IssueId, Version};
 use crate::{IssueBlocked, IssueUnblocked};
 
+use self::entity::issue_block_link::IssueBlockLink;
 pub use self::error::Error;
 pub use self::event::IssueBlockLinkAggregateEvent;
 
