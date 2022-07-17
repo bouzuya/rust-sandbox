@@ -10,14 +10,14 @@ use domain::{
 
 use event_store::{Event, EventId, EventStreamId, EventStreamSeq};
 use sqlx::{any::AnyArguments, query::Query, Any, AnyPool, Transaction};
-use use_case::{IssueRepository, IssueRepositoryError};
+use use_case::IssueRepository;
 
 use self::issue_id_row::IssueIdRow;
 
 use super::rdb_connection_pool::RdbConnectionPool;
 
 #[derive(Debug, thiserror::Error)]
-enum Error {
+pub enum Error {
     #[error("EventStore")]
     EventStore(#[from] event_store::Error),
     #[error("InvalidDomainEvent")]
@@ -36,17 +36,20 @@ enum Error {
     UnknownAggregateEvent,
 }
 
-impl From<Error> for IssueRepositoryError {
+type Result<T, E = Error> = std::result::Result<T, E>;
+
+impl From<Error> for use_case::issue_repository::Error {
     fn from(e: Error) -> Self {
+        use use_case::issue_repository::Error as E;
         match e {
-            Error::EventStore(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::InvalidDomainEvent(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::InvalidIssueId(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::InvalidVersion(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::IssueAggregate(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::RowsAffectedNotEqualOne => IssueRepositoryError::Unknown(e.to_string()),
-            Error::Sqlx(e) => IssueRepositoryError::Unknown(e.to_string()),
-            Error::UnknownAggregateEvent => IssueRepositoryError::Unknown(e.to_string()),
+            Error::EventStore(e) => E::Unknown(e.to_string()),
+            Error::InvalidDomainEvent(e) => E::Unknown(e.to_string()),
+            Error::InvalidIssueId(e) => E::Unknown(e.to_string()),
+            Error::InvalidVersion(e) => E::Unknown(e.to_string()),
+            Error::IssueAggregate(e) => E::Unknown(e.to_string()),
+            Error::RowsAffectedNotEqualOne => E::Unknown(e.to_string()),
+            Error::Sqlx(e) => E::Unknown(e.to_string()),
+            Error::UnknownAggregateEvent => E::Unknown(e.to_string()),
         }
     }
 }
@@ -57,15 +60,13 @@ pub struct SqliteIssueRepository {
 }
 
 impl SqliteIssueRepository {
-    pub(super) fn new(connection_pool: RdbConnectionPool) -> Result<Self, IssueRepositoryError> {
+    pub(super) fn new(connection_pool: RdbConnectionPool) -> Result<Self> {
         Ok(Self {
             pool: AnyPool::from(connection_pool),
         })
     }
 
-    fn events_to_issue_aggregate_events(
-        events: Vec<Event>,
-    ) -> Result<Vec<IssueAggregateEvent>, Error> {
+    fn events_to_issue_aggregate_events(events: Vec<Event>) -> Result<Vec<IssueAggregateEvent>> {
         let mut aggregate_events = vec![];
         for event in events {
             let domain_event = DomainEvent::from_str(event.data.as_str())?;
@@ -76,7 +77,7 @@ impl SqliteIssueRepository {
         Ok(aggregate_events)
     }
 
-    async fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>, Error> {
+    async fn find_by_id(&self, issue_id: &IssueId) -> Result<Option<IssueAggregate>> {
         let mut transaction = self.pool.begin().await?;
         let found = match self
             .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
@@ -98,7 +99,7 @@ impl SqliteIssueRepository {
         &self,
         issue_id: &IssueId,
         version: &Version,
-    ) -> Result<Option<IssueAggregate>, Error> {
+    ) -> Result<Option<IssueAggregate>> {
         let mut transaction = self.pool.begin().await?;
         let event_stream_id = self
             .find_event_stream_id_by_issue_id(&mut transaction, issue_id)
@@ -129,7 +130,7 @@ impl SqliteIssueRepository {
         &self,
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
-    ) -> Result<Option<EventStreamId>, Error> {
+    ) -> Result<Option<EventStreamId>> {
         let issue_id_row: Option<IssueIdRow> = sqlx::query_as(include_str!(
             "../../../sql/command/select_issue_id_by_issue_id.sql"
         ))
@@ -142,7 +143,7 @@ impl SqliteIssueRepository {
     async fn find_max_issue_id(
         &self,
         transaction: &mut Transaction<'_, Any>,
-    ) -> Result<Option<IssueId>, Error> {
+    ) -> Result<Option<IssueId>> {
         let issue_id_row: Option<IssueIdRow> =
             sqlx::query_as(include_str!("../../../sql/command/select_max_issue_id.sql"))
                 .fetch_optional(transaction)
@@ -155,7 +156,7 @@ impl SqliteIssueRepository {
         transaction: &mut Transaction<'_, Any>,
         issue_id: &IssueId,
         event_stream_id: EventStreamId,
-    ) -> Result<(), Error> {
+    ) -> Result<()> {
         let query: Query<Any, AnyArguments> =
             sqlx::query(include_str!("../../../sql/command/insert_issue_id.sql"))
                 .bind(Self::issue_number_as_i64_from_issue_id(issue_id)?)
@@ -168,11 +169,11 @@ impl SqliteIssueRepository {
         Ok(())
     }
 
-    fn issue_number_as_i64_from_issue_id(issue_id: &IssueId) -> Result<i64, Error> {
+    fn issue_number_as_i64_from_issue_id(issue_id: &IssueId) -> Result<i64> {
         i64::try_from(usize::from(issue_id.issue_number())).map_err(Error::InvalidIssueId)
     }
 
-    async fn last_created(&self) -> Result<Option<IssueAggregate>, Error> {
+    async fn last_created(&self) -> Result<Option<IssueAggregate>> {
         let mut transaction = self.pool.begin().await?;
         Ok(match self.find_max_issue_id(&mut transaction).await? {
             Some(issue_id) => self.find_by_id(&issue_id).await?,
@@ -180,7 +181,7 @@ impl SqliteIssueRepository {
         })
     }
 
-    async fn save(&self, issue: &IssueAggregate) -> Result<(), Error> {
+    async fn save(&self, issue: &IssueAggregate) -> Result<()> {
         let mut transaction = self.pool.begin().await?;
         for event in issue.events().iter().cloned() {
             let issue_id = event.issue_id().clone();
@@ -228,7 +229,7 @@ impl SqliteIssueRepository {
         Ok(())
     }
 
-    fn version_to_event_stream_version(version: Version) -> Result<EventStreamSeq, Error> {
+    fn version_to_event_stream_version(version: Version) -> Result<EventStreamSeq> {
         u32::try_from(u64::from(version))
             .map(EventStreamSeq::from)
             .map_err(Error::InvalidVersion)
@@ -240,7 +241,7 @@ impl IssueRepository for SqliteIssueRepository {
     async fn find_by_id(
         &self,
         issue_id: &IssueId,
-    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+    ) -> use_case::issue_repository::Result<Option<IssueAggregate>> {
         Ok(Self::find_by_id(self, issue_id).await?)
     }
 
@@ -248,15 +249,15 @@ impl IssueRepository for SqliteIssueRepository {
         &self,
         issue_id: &IssueId,
         version: &Version,
-    ) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+    ) -> use_case::issue_repository::Result<Option<IssueAggregate>> {
         Ok(Self::find_by_id_and_version(self, issue_id, version).await?)
     }
 
-    async fn last_created(&self) -> Result<Option<IssueAggregate>, IssueRepositoryError> {
+    async fn last_created(&self) -> use_case::issue_repository::Result<Option<IssueAggregate>> {
         Ok(Self::last_created(self).await?)
     }
 
-    async fn save(&self, issue: &IssueAggregate) -> Result<(), IssueRepositoryError> {
+    async fn save(&self, issue: &IssueAggregate) -> use_case::issue_repository::Result<()> {
         Ok(Self::save(self, issue).await?)
     }
 }

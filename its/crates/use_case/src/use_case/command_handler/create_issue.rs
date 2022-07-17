@@ -7,16 +7,14 @@ use domain::{
 };
 use limited_date_time::Instant;
 
-use crate::{
-    HasIssueRepository, IssueManagementContextEvent, IssueRepository, IssueRepositoryError,
-};
+use crate::{HasIssueRepository, IssueManagementContextEvent, IssueRepository};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("issue aggregate {0}")]
     IssueAggregate(#[from] domain::aggregate::issue::Error),
     #[error("issue repository {0}")]
-    IssueRepository(#[from] IssueRepositoryError),
+    IssueRepository(#[from] crate::use_case::issue_repository::Error),
 }
 
 #[derive(Debug, Eq, PartialEq)]

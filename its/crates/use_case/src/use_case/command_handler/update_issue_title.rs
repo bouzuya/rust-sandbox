@@ -1,9 +1,7 @@
 use domain::{aggregate::issue::IssueTitle, IssueId};
 use limited_date_time::Instant;
 
-use crate::{
-    HasIssueRepository, IssueManagementContextEvent, IssueRepository, IssueRepositoryError,
-};
+use crate::{HasIssueRepository, IssueManagementContextEvent, IssueRepository};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 #[allow(clippy::enum_variant_names)]
@@ -13,7 +11,7 @@ pub enum Error {
     #[error("issue not found {0}")]
     IssueNotFound(IssueId),
     #[error("issue repository {0}")]
-    IssueRepository(#[from] IssueRepositoryError),
+    IssueRepository(#[from] crate::use_case::issue_repository::Error),
 }
 
 #[derive(Debug, Eq, PartialEq)]

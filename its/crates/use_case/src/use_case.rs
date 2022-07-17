@@ -1,8 +1,8 @@
 mod command;
 mod command_handler;
 mod event;
-mod issue_block_link_repository;
-mod issue_repository;
+pub mod issue_block_link_repository;
+pub mod issue_repository;
 
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
@@ -26,7 +26,7 @@ pub enum Error {
     #[error("IssueNotFound")]
     IssueNotFound(IssueId),
     #[error("IssueRepository")]
-    IssueRepository(#[from] IssueRepositoryError),
+    IssueRepository(#[from] crate::use_case::issue_repository::Error),
     #[error("InvalidIssueBlockLinkId")]
     InvalidIssueBlockLinkId(#[from] domain::issue_block_link_id::Error),
     #[error("block issue {0}")]

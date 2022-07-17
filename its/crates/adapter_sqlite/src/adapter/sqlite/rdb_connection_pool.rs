@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use sqlx::{any::AnyConnectOptions, AnyPool};
-use use_case::{IssueBlockLinkRepositoryError, IssueRepositoryError};
+use use_case::IssueBlockLinkRepositoryError;
 
 use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
 
@@ -12,7 +12,7 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("issue repository error: {0}")]
-    IssueRepository(#[from] IssueRepositoryError),
+    IssueRepository(#[from] super::sqlite_issue_repository::Error),
     #[error("issue block link repository error: {0}")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
     #[error("migration error: {0}")]

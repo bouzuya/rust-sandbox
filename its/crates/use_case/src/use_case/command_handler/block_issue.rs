@@ -4,7 +4,6 @@ use limited_date_time::Instant;
 use crate::{
     HasIssueBlockLinkRepository, HasIssueRepository, IssueBlockLinkRepository,
     IssueBlockLinkRepositoryError, IssueManagementContextEvent, IssueRepository,
-    IssueRepositoryError,
 };
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -16,7 +15,7 @@ pub enum Error {
     #[error("issue not found {0}")]
     IssueNotFound(IssueId),
     #[error("issue repository {0}")]
-    IssueRepository(#[from] IssueRepositoryError),
+    IssueRepository(#[from] crate::use_case::issue_repository::Error),
     #[error("parse issue block link id {0}")]
     ParseIssueBlockLinkId(#[from] domain::issue_block_link_id::Error),
 }
