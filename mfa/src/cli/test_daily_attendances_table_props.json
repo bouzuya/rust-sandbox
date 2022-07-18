@@ -1,0 +1,136 @@
+{
+  "table_data": {
+    "header": {
+      "can_edit": false,
+      "can_open_detail": true,
+      "can_request_work_flow": true,
+      "custom_counter_pattern_names": []
+    },
+    "rows": [
+      {
+        "alert_levels": {
+          "all": null,
+          "base": null,
+          "clock_in": null,
+          "clock_out": null,
+          "end_break": null,
+          "start_break": null
+        },
+        "alerts": {
+          "base": [],
+          "clock_in": [],
+          "clock_out": [],
+          "end_break": [],
+          "start_break": []
+        },
+        "arrival_later_time": null,
+        "clock_in_times": [
+          "08:30"
+        ],
+        "clock_in_types": [
+          "Web"
+        ],
+        "clock_out_times": [
+          "17:30"
+        ],
+        "clock_out_types": [
+          "Web"
+        ],
+        "custom_counter_values": [],
+        "date_string": "2022-07-01",
+        "day_type": "平日",
+        "detail_path": "/my_page/attendances/2022-07-01",
+        "display_pattern": {
+          "name": "通常勤務",
+          "substitution_leave_tooltip": null
+        },
+        "early_departure_time": null,
+        "edit_path": null,
+        "end_break_times": [],
+        "extra_allowance_de_facto_working_time_of_day_leave_time": null,
+        "extra_allowance_midnight_working_time": null,
+        "extra_allowance_working_time": null,
+        "note": "",
+        "overtime_de_facto_working_time_of_day_leave_tdaily_attendance_item": null,
+        "overtime_midnight_working_time": null,
+        "overtime_working_time": null,
+        "prescribed_de_facto_working_time_of_day_leave_time": null,
+        "prescribed_midnight_working_time": null,
+        "prescribed_working_time": "08:00h",
+        "request_paths": {
+          "absence_path": "/my_page/workflow_requests/absences/new?date=2022-07-01",
+          "arrival_later_path": "/my_page/workflow_requests/arrival_laters/new?date=2022-07-01",
+          "attendance_path": "/my_page/workflow_requests/attendances/new?date=2022-07-01",
+          "early_departure_path": "/my_page/workflow_requests/early_departures/new?date=2022-07-01",
+          "early_overtime_work_path": "/my_page/workflow_requests/early_overtime_works/new?date=2022-07-01",
+          "holiday_work_path": "/my_page/workflow_requests/holiday_works/new?date=2022-07-01",
+          "late_overtime_work_path": "/my_page/workflow_requests/late_overtime_works/new?date=2022-07-01",
+          "leave_path": "/my_page/bulk_workflow_requests/leaves/new?date=2022-07-01",
+          "show_menu_upper": false
+        },
+        "start_break_times": [],
+        "total_break_time": "01:00h",
+        "total_working_time": "08:00h",
+        "workflow_request_statuses": []
+      },
+      {
+        "alert_levels": {
+          "all": null,
+          "base": null,
+          "clock_in": null,
+          "clock_out": null,
+          "end_break": null,
+          "start_break": null
+        },
+        "alerts": {
+          "base": [],
+          "clock_in": [],
+          "clock_out": [],
+          "end_break": [],
+          "start_break": []
+        },
+        "arrival_later_time": null,
+        "clock_in_times": [],
+        "clock_in_types": [],
+        "clock_out_times": [],
+        "clock_out_types": [],
+        "custom_counter_values": [],
+        "date_string": "2022-07-02",
+        "day_type": "所定休日",
+        "detail_path": "/my_page/attendances/2022-07-02",
+        "display_pattern": {
+          "name": null,
+          "substitution_leave_tooltip": null
+        },
+        "early_departure_time": null,
+        "edit_path": null,
+        "end_break_times": [],
+        "extra_allowance_de_facto_working_time_of_day_leave_time": null,
+        "extra_allowance_midnight_working_time": null,
+        "extra_allowance_working_time": null,
+        "note": "",
+        "overtime_de_facto_working_time_of_day_leave_tdaily_attendance_item": null,
+        "overtime_midnight_working_time": null,
+        "overtime_working_time": null,
+        "prescribed_de_facto_working_time_of_day_leave_time": null,
+        "prescribed_midnight_working_time": null,
+        "prescribed_working_time": null,
+        "request_paths": {
+          "absence_path": "/my_page/workflow_requests/absences/new?date=2022-07-02",
+          "arrival_later_path": "/my_page/workflow_requests/arrival_laters/new?date=2022-07-02",
+          "attendance_path": "/my_page/workflow_requests/attendances/new?date=2022-07-02",
+          "early_departure_path": "/my_page/workflow_requests/early_departures/new?date=2022-07-02",
+          "early_overtime_work_path": "/my_page/workflow_requests/early_overtime_works/new?date=2022-07-02",
+          "holiday_work_path": "/my_page/workflow_requests/holiday_works/new?date=2022-07-02",
+          "late_overtime_work_path": "/my_page/workflow_requests/late_overtime_works/new?date=2022-07-02",
+          "leave_path": "/my_page/bulk_workflow_requests/leaves/new?date=2022-07-02",
+          "show_menu_upper": false
+        },
+        "start_break_times": [],
+        "total_break_time": null,
+        "total_working_time": null,
+        "workflow_request_statuses": []
+      }
+    ]
+  }
+}
