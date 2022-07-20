@@ -9,14 +9,29 @@ pub struct IssueCommentDeleted {
     pub(super) version: Version,
 }
 
-// TODO: impl Display for IssueCommentCreated
-// TODO: impl From<IssueCommentCreated> for String
-// TODO: impl FromStr for IssueCommentCreated
-// TODO: impl TryFrom<String> for IssueCommentCreated
+pub struct IssueCommentDeletedJson {
+    pub at: String,
+    pub issue_comment_id: String,
+    pub version: u64,
+}
+
+impl From<IssueCommentDeleted> for IssueCommentDeletedJson {
+    fn from(event: IssueCommentDeleted) -> Self {
+        Self {
+            at: event.at.to_string(),
+            issue_comment_id: event.issue_comment_id.to_string(),
+            version: u64::from(event.version),
+        }
+    }
+}
+
+// TODO: impl TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // TODO: From<IssueCommentDeleted> for IssueCommentDeletedJson
 
     #[test]
     fn test() -> anyhow::Result<()> {
