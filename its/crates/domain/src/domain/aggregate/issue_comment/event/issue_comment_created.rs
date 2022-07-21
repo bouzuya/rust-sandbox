@@ -1,8 +1,22 @@
+use std::str::FromStr;
+
 use limited_date_time::Instant;
 
 use crate::{IssueCommentId, IssueId, Version};
 
 use super::super::attribute::IssueCommentText;
+
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
+    #[error("instant error {0}")]
+    Instant(#[from] limited_date_time::ParseInstantError),
+    #[error("issue_comment_id error {0}")]
+    IssueCommentId(#[from] crate::issue_comment_id::Error),
+    #[error("issue_id error {0}")]
+    IssueId(#[from] crate::issue_id::ParseIssueIdError),
+    #[error("text error {0}")]
+    Text(#[from] crate::aggregate::issue_comment::attribute::issue_comment_text::Error),
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueCommentCreated {
@@ -13,16 +27,49 @@ pub struct IssueCommentCreated {
     pub(super) version: Version,
 }
 
-// TODO: impl Display for IssueCommentCreated
-// TODO: impl From<IssueCommentCreated> for String
-// TODO: impl FromStr for IssueCommentCreated
-// TODO: impl TryFrom<String> for IssueCommentCreated
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct IssueCommentCreatedJson {
+    pub at: String,
+    pub issue_comment_id: String,
+    pub issue_id: String,
+    pub text: String,
+    pub version: u64,
+}
+
+impl From<IssueCommentCreated> for IssueCommentCreatedJson {
+    fn from(event: IssueCommentCreated) -> Self {
+        Self {
+            at: event.at.to_string(),
+            issue_comment_id: event.issue_comment_id.to_string(),
+            issue_id: event.issue_id.to_string(),
+            text: event.text.to_string(),
+            version: u64::from(event.version),
+        }
+    }
+}
+
+impl TryFrom<IssueCommentCreatedJson> for IssueCommentCreated {
+    type Error = Error;
+
+    fn try_from(value: IssueCommentCreatedJson) -> Result<Self, Self::Error> {
+        Ok(Self {
+            at: Instant::from_str(value.at.as_str())?,
+            issue_comment_id: IssueCommentId::from_str(value.issue_comment_id.as_str())?,
+            issue_id: IssueId::from_str(value.issue_id.as_str())?,
+            text: IssueCommentText::from_str(value.text.as_str())?,
+            version: Version::from(value.version),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    // TODO: From<IssueCommentCreated> for IssueCommentCreatedJson
+    // TODO: TryFrom<IssueCommentCreatedJson> for IssueCommentCreated
 
     #[test]
     fn test() -> anyhow::Result<()> {
