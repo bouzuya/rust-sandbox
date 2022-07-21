@@ -1,6 +1,16 @@
+use std::str::FromStr;
+
 use limited_date_time::Instant;
 
-use crate::{IssueCommentId, Version};
+use crate::{issue_comment_id, IssueCommentId, Version};
+
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
+    #[error("instant error {0}")]
+    Instant(#[from] limited_date_time::ParseInstantError),
+    #[error("issue_comment_id error {0}")]
+    IssueCommentId(#[from] issue_comment_id::Error),
+}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueCommentDeleted {
@@ -9,6 +19,7 @@ pub struct IssueCommentDeleted {
     pub(super) version: Version,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct IssueCommentDeletedJson {
     pub at: String,
     pub issue_comment_id: String,
@@ -25,13 +36,24 @@ impl From<IssueCommentDeleted> for IssueCommentDeletedJson {
     }
 }
 
-// TODO: impl TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted
+impl TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted {
+    type Error = Error;
+
+    fn try_from(value: IssueCommentDeletedJson) -> Result<Self, Self::Error> {
+        Ok(Self {
+            at: Instant::from_str(value.at.as_str())?,
+            issue_comment_id: IssueCommentId::from_str(value.issue_comment_id.as_str())?,
+            version: Version::from(value.version),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     // TODO: From<IssueCommentDeleted> for IssueCommentDeletedJson
+    // TODO: TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted
 
     #[test]
     fn test() -> anyhow::Result<()> {
