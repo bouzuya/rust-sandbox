@@ -52,8 +52,47 @@ impl TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted {
 mod tests {
     use super::*;
 
-    // TODO: From<IssueCommentDeleted> for IssueCommentDeletedJson
-    // TODO: TryFrom<IssueCommentDeletedJson> for IssueCommentDeleted
+    #[test]
+    fn impl_from_event_for_json() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let version = Version::from(1_u64);
+        let event = IssueCommentDeleted {
+            at,
+            issue_comment_id: issue_comment_id.clone(),
+            version,
+        };
+        assert_eq!(
+            IssueCommentDeletedJson::from(event),
+            IssueCommentDeletedJson {
+                at: at.to_string(),
+                issue_comment_id: issue_comment_id.to_string(),
+                version: u64::from(version)
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn impl_try_from_json_for_event() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let version = Version::from(1_u64);
+        let json = IssueCommentDeletedJson {
+            at: at.to_string(),
+            issue_comment_id: issue_comment_id.to_string(),
+            version: u64::from(version),
+        };
+        assert_eq!(
+            IssueCommentDeleted::try_from(json)?,
+            IssueCommentDeleted {
+                at,
+                issue_comment_id,
+                version,
+            }
+        );
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
