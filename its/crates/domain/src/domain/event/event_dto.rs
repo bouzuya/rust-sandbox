@@ -121,45 +121,7 @@ pub enum EventDto {
 impl From<DomainEvent> for EventDto {
     fn from(event: DomainEvent) -> Self {
         match event {
-            DomainEvent::Issue(event) => match event {
-                IssueAggregateEvent::Created(event) => EventDto::from(DomainEvent::from(
-                    IssueAggregateEvent::CreatedV2(IssueCreatedV2::from(event)),
-                )),
-                IssueAggregateEvent::CreatedV2(event) => EventDto::IssueCreatedV1 {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    issue_title: event.issue_title().to_string(),
-                    issue_due: event.issue_due().map(|d| d.to_string()),
-                    issue_description: Some(event.issue_description.to_string()),
-                    version: u64::from(event.version()),
-                },
-                IssueAggregateEvent::DescriptionUpdated(event) => {
-                    EventDto::IssueDescriptionUpdated {
-                        at: event.at().to_string(),
-                        issue_id: event.issue_id().to_string(),
-                        description: event.issue_description().to_string(),
-                        version: u64::from(event.version()),
-                    }
-                }
-                IssueAggregateEvent::Finished(event) => EventDto::IssueFinished {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    resolution: event.resolution().map(|r| r.to_string()),
-                    version: u64::from(event.version()),
-                },
-                IssueAggregateEvent::Updated(event) => EventDto::IssueUpdated {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    issue_due: event.issue_due().map(|d| d.to_string()),
-                    version: u64::from(event.version()),
-                },
-                IssueAggregateEvent::TitleUpdated(event) => EventDto::IssueTitleUpdated {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    issue_title: event.issue_title().to_string(),
-                    version: u64::from(event.version()),
-                },
-            },
+            DomainEvent::Issue(event) => EventDto::from(event),
             DomainEvent::IssueBlockLink(event) => match event {
                 IssueBlockLinkAggregateEvent::Blocked(event) => EventDto::IssueBlocked {
                     at: event.at().to_string(),
@@ -175,6 +137,49 @@ impl From<DomainEvent> for EventDto {
                 },
             },
             DomainEvent::IssueComment(event) => EventDto::from(event),
+        }
+    }
+}
+
+impl From<IssueAggregateEvent> for EventDto {
+    fn from(event: IssueAggregateEvent) -> Self {
+        use crate::aggregate::issue::IssueAggregateEvent::*;
+        match event {
+            Created(event) => EventDto::from(DomainEvent::from(IssueAggregateEvent::CreatedV2(
+                IssueCreatedV2::from(event),
+            ))),
+            CreatedV2(event) => EventDto::IssueCreatedV1 {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                issue_title: event.issue_title().to_string(),
+                issue_due: event.issue_due().map(|d| d.to_string()),
+                issue_description: Some(event.issue_description.to_string()),
+                version: u64::from(event.version()),
+            },
+            DescriptionUpdated(event) => EventDto::IssueDescriptionUpdated {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                description: event.issue_description().to_string(),
+                version: u64::from(event.version()),
+            },
+            Finished(event) => EventDto::IssueFinished {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                resolution: event.resolution().map(|r| r.to_string()),
+                version: u64::from(event.version()),
+            },
+            Updated(event) => EventDto::IssueUpdated {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                issue_due: event.issue_due().map(|d| d.to_string()),
+                version: u64::from(event.version()),
+            },
+            TitleUpdated(event) => EventDto::IssueTitleUpdated {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                issue_title: event.issue_title().to_string(),
+                version: u64::from(event.version()),
+            },
         }
     }
 }
