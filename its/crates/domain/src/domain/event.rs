@@ -29,6 +29,7 @@ use ulid::Ulid;
 
 use self::event_dto::*;
 use self::event_id::EventId;
+use crate::aggregate::issue_comment;
 use crate::aggregate::IssueAggregateEvent;
 use crate::aggregate::IssueBlockLinkAggregateEvent;
 use crate::Version;
@@ -52,6 +53,7 @@ trait DomainEventBase {
 pub enum DomainEvent {
     Issue(IssueAggregateEvent),
     IssueBlockLink(IssueBlockLinkAggregateEvent),
+    IssueComment(crate::aggregate::issue_comment::Event),
 }
 
 impl Display for DomainEvent {
@@ -86,6 +88,12 @@ impl From<IssueAggregateEvent> for DomainEvent {
 impl From<IssueBlockLinkAggregateEvent> for DomainEvent {
     fn from(event: IssueBlockLinkAggregateEvent) -> Self {
         Self::IssueBlockLink(event)
+    }
+}
+
+impl From<crate::aggregate::issue_comment::Event> for DomainEvent {
+    fn from(event: crate::aggregate::issue_comment::Event) -> Self {
+        Self::IssueComment(event)
     }
 }
 

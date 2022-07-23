@@ -375,6 +375,7 @@ impl SqliteQueryHandler {
                     .map_err(|e| Error::Unknown(e.to_string()))?;
                 self.save_issue_block_link(issue_block_link).await?;
             }
+            DomainEvent::IssueComment(_) => todo!(),
         }
         Ok(())
     }

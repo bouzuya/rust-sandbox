@@ -6,6 +6,12 @@ use crate::{
             attribute::{IssueDue, IssueResolution},
             IssueDescription, IssueTitle,
         },
+        issue_comment::event::{
+            issue_comment_created::IssueCommentCreatedJson,
+            issue_comment_deleted::IssueCommentDeletedJson,
+            issue_comment_updated::IssueCommentUpdatedJson, IssueCommentCreated,
+            IssueCommentDeleted, IssueCommentUpdated,
+        },
         IssueAggregateEvent, IssueBlockLinkAggregateEvent,
     },
     DomainEvent, IssueBlockLinkId, IssueBlocked, IssueCreatedV2, IssueDescriptionUpdated,
@@ -35,6 +41,18 @@ pub enum TryFromEventDtoError {
     IssueBlockLinkId(#[from] crate::issue_block_link_id::Error),
     #[error("NotIssueAggregate")]
     NotIssueAggregate,
+    #[error("issue_comment_created error {0}")]
+    IssueCommentCreated(
+        #[from] crate::aggregate::issue_comment::event::issue_comment_created::Error,
+    ),
+    #[error("issue_comment_deleted error {0}")]
+    IssueCommentDeleted(
+        #[from] crate::aggregate::issue_comment::event::issue_comment_deleted::Error,
+    ),
+    #[error("issue_comment_updated error {0}")]
+    IssueCommentUpdated(
+        #[from] crate::aggregate::issue_comment::event::issue_comment_updated::Error,
+    ),
 }
 
 #[derive(Clone, Debug, Eq, Deserialize, PartialEq, Serialize)]
@@ -48,6 +66,12 @@ pub enum EventDto {
         blocked_issue_id: String,
         version: u64,
     },
+    #[serde(rename = "issue_comment_created")]
+    IssueCommentCreated(IssueCommentCreatedJson),
+    #[serde(rename = "issue_comment_deleted")]
+    IssueCommentDeleted(IssueCommentDeletedJson),
+    #[serde(rename = "issue_comment_updated")]
+    IssueCommentUpdated(IssueCommentUpdatedJson),
     #[serde(rename = "issue_created")]
     IssueCreatedV1 {
         at: String,
@@ -150,6 +174,18 @@ impl From<DomainEvent> for EventDto {
                     version: u64::from(event.version()),
                 },
             },
+            DomainEvent::IssueComment(event) => EventDto::from(event),
+        }
+    }
+}
+
+impl From<crate::aggregate::issue_comment::Event> for EventDto {
+    fn from(event: crate::aggregate::issue_comment::Event) -> Self {
+        use crate::aggregate::issue_comment::Event::*;
+        match event {
+            Created(event) => EventDto::IssueCommentCreated(IssueCommentCreatedJson::from(event)),
+            Deleted(event) => EventDto::IssueCommentDeleted(IssueCommentDeletedJson::from(event)),
+            Updated(event) => EventDto::IssueCommentUpdated(IssueCommentUpdatedJson::from(event)),
         }
     }
 }
@@ -175,6 +211,18 @@ impl TryFrom<EventDto> for DomainEvent {
                 ))
                 .into(),
             ),
+            EventDto::IssueCommentCreated(dto) => Ok(crate::aggregate::issue_comment::Event::from(
+                IssueCommentCreated::try_from(dto)?,
+            )
+            .into()),
+            EventDto::IssueCommentDeleted(dto) => Ok(crate::aggregate::issue_comment::Event::from(
+                IssueCommentDeleted::try_from(dto)?,
+            )
+            .into()),
+            EventDto::IssueCommentUpdated(dto) => Ok(crate::aggregate::issue_comment::Event::from(
+                IssueCommentUpdated::try_from(dto)?,
+            )
+            .into()),
             EventDto::IssueCreatedV1 {
                 at,
                 issue_id,
