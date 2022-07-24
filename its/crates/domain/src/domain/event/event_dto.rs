@@ -122,20 +122,7 @@ impl From<DomainEvent> for EventDto {
     fn from(event: DomainEvent) -> Self {
         match event {
             DomainEvent::Issue(event) => EventDto::from(event),
-            DomainEvent::IssueBlockLink(event) => match event {
-                IssueBlockLinkAggregateEvent::Blocked(event) => EventDto::IssueBlocked {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    blocked_issue_id: event.blocked_issue_id().to_string(),
-                    version: u64::from(event.version()),
-                },
-                IssueBlockLinkAggregateEvent::Unblocked(event) => EventDto::IssueUnblocked {
-                    at: event.at().to_string(),
-                    issue_id: event.issue_id().to_string(),
-                    blocked_issue_id: event.blocked_issue_id().to_string(),
-                    version: u64::from(event.version()),
-                },
-            },
+            DomainEvent::IssueBlockLink(event) => EventDto::from(event),
             DomainEvent::IssueComment(event) => EventDto::from(event),
         }
     }
@@ -178,6 +165,26 @@ impl From<IssueAggregateEvent> for EventDto {
                 at: event.at().to_string(),
                 issue_id: event.issue_id().to_string(),
                 issue_title: event.issue_title().to_string(),
+                version: u64::from(event.version()),
+            },
+        }
+    }
+}
+
+impl From<IssueBlockLinkAggregateEvent> for EventDto {
+    fn from(event: IssueBlockLinkAggregateEvent) -> Self {
+        use crate::aggregate::issue_block_link::IssueBlockLinkAggregateEvent::*;
+        match event {
+            Blocked(event) => EventDto::IssueBlocked {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                blocked_issue_id: event.blocked_issue_id().to_string(),
+                version: u64::from(event.version()),
+            },
+            Unblocked(event) => EventDto::IssueUnblocked {
+                at: event.at().to_string(),
+                issue_id: event.issue_id().to_string(),
+                blocked_issue_id: event.blocked_issue_id().to_string(),
                 version: u64::from(event.version()),
             },
         }
