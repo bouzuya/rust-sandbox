@@ -68,8 +68,59 @@ mod tests {
 
     use super::*;
 
-    // TODO: From<IssueCommentCreated> for IssueCommentCreatedJson
-    // TODO: TryFrom<IssueCommentCreatedJson> for IssueCommentCreated
+    #[test]
+    fn impl_from_event_for_json() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let version = Version::from(1_u64);
+        let event = IssueCommentCreated {
+            at,
+            issue_comment_id: issue_comment_id.clone(),
+            issue_id: issue_id.clone(),
+            text: text.clone(),
+            version,
+        };
+        assert_eq!(
+            IssueCommentCreatedJson::from(event),
+            IssueCommentCreatedJson {
+                at: at.to_string(),
+                issue_comment_id: issue_comment_id.to_string(),
+                issue_id: issue_id.to_string(),
+                text: text.to_string(),
+                version: u64::from(version)
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn impl_try_from_json_for_event() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let version = Version::from(1_u64);
+        let json = IssueCommentCreatedJson {
+            at: at.to_string(),
+            issue_comment_id: issue_comment_id.to_string(),
+            issue_id: issue_id.to_string(),
+            text: text.to_string(),
+            version: u64::from(version),
+        };
+        assert_eq!(
+            IssueCommentCreated::try_from(json)?,
+            IssueCommentCreated {
+                at,
+                issue_comment_id,
+                issue_id,
+                text,
+                version,
+            }
+        );
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {

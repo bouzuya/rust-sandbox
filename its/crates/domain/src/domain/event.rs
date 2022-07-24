@@ -29,7 +29,6 @@ use ulid::Ulid;
 
 use self::event_dto::*;
 use self::event_id::EventId;
-use crate::aggregate::issue_comment;
 use crate::aggregate::IssueAggregateEvent;
 use crate::aggregate::IssueBlockLinkAggregateEvent;
 use crate::Version;
