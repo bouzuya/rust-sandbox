@@ -3,7 +3,7 @@ use crate::{IssueCommentId, IssueId};
 use super::attribute::IssueCommentText;
 use super::event::IssueCommentCreated;
 
-#[derive(Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueComment {
     id: IssueCommentId,
     issue_id: IssueId,
@@ -13,7 +13,7 @@ pub struct IssueComment {
 impl IssueComment {
     pub fn from_event(event: IssueCommentCreated) -> Self {
         Self {
-            id: event.id,
+            id: event.issue_comment_id,
             issue_id: event.issue_id,
             text: event.text,
         }
