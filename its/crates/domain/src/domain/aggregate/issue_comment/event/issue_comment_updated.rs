@@ -62,8 +62,53 @@ mod tests {
 
     use super::*;
 
-    // TODO: From<IssueCommentUpdated> for IssueCommentUpdatedJson
-    // TODO: TryFrom<IssueCommentUpdatedJson> for IssueCommentUpdated
+    #[test]
+    fn impl_from_event_for_json() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let text = IssueCommentText::from_str("text")?;
+        let version = Version::from(1_u64);
+        let event = IssueCommentUpdated {
+            at,
+            issue_comment_id: issue_comment_id.clone(),
+            text: text.clone(),
+            version,
+        };
+        assert_eq!(
+            IssueCommentUpdatedJson::from(event),
+            IssueCommentUpdatedJson {
+                at: at.to_string(),
+                issue_comment_id: issue_comment_id.to_string(),
+                text: text.to_string(),
+                version: u64::from(version)
+            }
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn impl_try_from_json_for_event() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let text = IssueCommentText::from_str("text")?;
+        let version = Version::from(1_u64);
+        let json = IssueCommentUpdatedJson {
+            at: at.to_string(),
+            issue_comment_id: issue_comment_id.to_string(),
+            text: text.to_string(),
+            version: u64::from(version),
+        };
+        assert_eq!(
+            IssueCommentUpdated::try_from(json)?,
+            IssueCommentUpdated {
+                at,
+                issue_comment_id,
+                text,
+                version,
+            }
+        );
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
