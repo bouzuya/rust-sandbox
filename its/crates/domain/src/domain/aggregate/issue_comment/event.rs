@@ -2,6 +2,8 @@ pub mod issue_comment_created;
 pub mod issue_comment_deleted;
 pub mod issue_comment_updated;
 
+use crate::{IssueCommentId, Version};
+
 pub use self::{
     issue_comment_created::IssueCommentCreated, issue_comment_deleted::IssueCommentDeleted,
     issue_comment_updated::IssueCommentUpdated,
@@ -33,6 +35,30 @@ impl_from_t1_for_t2!(IssueCommentUpdated, Event, Self::Updated);
 // TODO: impl FromStr for Event
 // TODO: impl TryFrom<String> for Event
 
+impl Event {
+    pub fn issue_comment_id(&self) -> &IssueCommentId {
+        match self {
+            Event::Created(IssueCommentCreated {
+                issue_comment_id, ..
+            }) => issue_comment_id,
+            Event::Deleted(IssueCommentDeleted {
+                issue_comment_id, ..
+            }) => issue_comment_id,
+            Event::Updated(IssueCommentUpdated {
+                issue_comment_id, ..
+            }) => issue_comment_id,
+        }
+    }
+
+    pub fn version(&self) -> Version {
+        match self {
+            Event::Created(IssueCommentCreated { version, .. }) => *version,
+            Event::Deleted(IssueCommentDeleted { version, .. }) => *version,
+            Event::Updated(IssueCommentUpdated { version, .. }) => *version,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -44,6 +70,9 @@ mod tests {
     };
 
     use super::*;
+
+    // TODO: issue_comment_id test
+    // TODO: version test
 
     #[test]
     fn test() -> anyhow::Result<()> {
