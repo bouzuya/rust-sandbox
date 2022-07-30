@@ -22,6 +22,14 @@ impl IssueComment {
     pub fn new(id: IssueCommentId, issue_id: IssueId, text: IssueCommentText) -> Self {
         Self { id, issue_id, text }
     }
+
+    pub fn update(&self, text: IssueCommentText) -> Self {
+        Self {
+            id: self.id.clone(),
+            issue_id: self.issue_id.clone(),
+            text,
+        }
+    }
 }
 
 #[cfg(test)]

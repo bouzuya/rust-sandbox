@@ -2,12 +2,10 @@ pub mod attribute;
 pub mod entity;
 pub mod event;
 
-use anyhow::Context;
-
 use crate::Version;
 
-use self::entity::IssueComment;
 pub use self::event::Event;
+use self::{entity::IssueComment, event::IssueCommentUpdated};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -41,7 +39,9 @@ impl IssueCommentAggregate {
             issue_comment = match event {
                 Event::Created(_) => Err(Error::InvalidEventSequence),
                 Event::Deleted(_) => todo!(),
-                Event::Updated(_) => todo!(),
+                Event::Updated(IssueCommentUpdated { text, .. }) => {
+                    Ok(issue_comment.update(text.clone()))
+                }
             }?;
         }
         let last_event = events.last().expect("empty event sequence").clone();
