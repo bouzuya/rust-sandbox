@@ -14,9 +14,9 @@ pub enum Error {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueCommentDeleted {
-    pub(super) at: Instant,
-    pub(super) issue_comment_id: IssueCommentId,
-    pub(super) version: Version,
+    pub(in crate::aggregate::issue_comment) at: Instant,
+    pub(in crate::aggregate::issue_comment) issue_comment_id: IssueCommentId,
+    pub(in crate::aggregate::issue_comment) version: Version,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
