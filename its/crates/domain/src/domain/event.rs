@@ -10,7 +10,6 @@
 //! - 永続化に使用される
 //! - domain crate 以外に対して文字列との相互変換を提供する
 mod event_dto;
-mod event_id;
 mod issue_blocked;
 pub mod issue_comment_created;
 mod issue_created;
@@ -25,13 +24,10 @@ use std::fmt::Display;
 use std::str::FromStr;
 
 use thiserror::Error;
-use ulid::Ulid;
 
 use self::event_dto::*;
-use self::event_id::EventId;
 use crate::aggregate::IssueAggregateEvent;
 use crate::aggregate::IssueBlockLinkAggregateEvent;
-use crate::Version;
 
 pub use self::issue_blocked::*;
 pub use self::issue_created::*;
@@ -41,12 +37,6 @@ pub use self::issue_finished::*;
 pub use self::issue_title_updated::*;
 pub use self::issue_unblocked::*;
 pub use self::issue_updated::*;
-
-trait DomainEventBase {
-    fn id(&self) -> EventId;
-    fn aggregate_id(&self) -> Ulid;
-    fn aggregate_version(&self) -> Version;
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DomainEvent {
