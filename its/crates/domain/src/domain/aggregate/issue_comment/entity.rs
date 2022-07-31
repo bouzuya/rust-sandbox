@@ -1,3 +1,5 @@
+use limited_date_time::Instant;
+
 use crate::{IssueCommentId, IssueId};
 
 use super::attribute::IssueCommentText;
@@ -8,6 +10,7 @@ pub struct IssueComment {
     id: IssueCommentId,
     issue_id: IssueId,
     text: IssueCommentText,
+    deleted_at: Option<Instant>,
 }
 
 impl IssueComment {
@@ -16,18 +19,40 @@ impl IssueComment {
             id: event.issue_comment_id,
             issue_id: event.issue_id,
             text: event.text,
+            deleted_at: None,
         }
     }
 
     pub fn new(id: IssueCommentId, issue_id: IssueId, text: IssueCommentText) -> Self {
-        Self { id, issue_id, text }
+        Self {
+            id,
+            issue_id,
+            text,
+            deleted_at: None,
+        }
+    }
+
+    pub fn delete(&self) -> Self {
+        match self.deleted_at {
+            Some(_) => todo!(),
+            None => Self {
+                id: self.id.clone(),
+                issue_id: self.issue_id.clone(),
+                text: self.text.clone(),
+                deleted_at: Some(Instant::now()),
+            },
+        }
     }
 
     pub fn update(&self, text: IssueCommentText) -> Self {
+        if self.deleted_at.is_some() {
+            todo!()
+        }
         Self {
             id: self.id.clone(),
             issue_id: self.issue_id.clone(),
             text,
+            deleted_at: self.deleted_at,
         }
     }
 }
@@ -64,4 +89,7 @@ mod tests {
         // TODO
         Ok(())
     }
+
+    // TODO: delete test
+    // TODO: update test
 }
