@@ -5,6 +5,14 @@ use crate::{IssueCommentId, IssueId};
 use super::attribute::IssueCommentText;
 use super::event::IssueCommentCreated;
 
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
+    #[error("already deleted {0} at {1}")]
+    AlreadyDeleted(IssueCommentId, Instant),
+}
+
+pub type Result<T, E = Error> = std::result::Result<T, E>;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IssueComment {
     id: IssueCommentId,
@@ -32,15 +40,15 @@ impl IssueComment {
         }
     }
 
-    pub fn delete(&self) -> Self {
+    pub fn delete(&self) -> Result<Self> {
         match self.deleted_at {
-            Some(_) => todo!(),
-            None => Self {
+            Some(at) => Err(Error::AlreadyDeleted(self.id.clone(), at)),
+            None => Ok(Self {
                 id: self.id.clone(),
                 issue_id: self.issue_id.clone(),
                 text: self.text.clone(),
                 deleted_at: Some(Instant::now()),
-            },
+            }),
         }
     }
 
@@ -90,6 +98,21 @@ mod tests {
         Ok(())
     }
 
-    // TODO: delete test
+    #[test]
+    fn delete_test() -> anyhow::Result<()> {
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let issue_comment = IssueComment::new(issue_comment_id, issue_id, text);
+        assert!(issue_comment.deleted_at.is_none());
+
+        let deleted = issue_comment.delete()?;
+        assert!(deleted.deleted_at.is_some());
+
+        assert!(deleted.delete().is_err());
+
+        Ok(())
+    }
+
     // TODO: update test
 }
