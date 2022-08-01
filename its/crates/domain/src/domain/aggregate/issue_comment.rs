@@ -37,7 +37,7 @@ impl IssueCommentAggregate {
         for event in events.iter().skip(1) {
             issue_comment = match event {
                 Event::Created(_) => Err(Error::InvalidEventSequence),
-                Event::Deleted(_) => todo!(),
+                Event::Deleted(_) => Ok(issue_comment.delete()?),
                 Event::Updated(IssueCommentUpdated { text, .. }) => {
                     Ok(issue_comment.update(text.clone())?)
                 }
