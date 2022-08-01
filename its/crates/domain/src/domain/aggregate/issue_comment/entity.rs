@@ -5,7 +5,7 @@ use crate::{IssueCommentId, IssueId};
 use super::attribute::IssueCommentText;
 use super::event::IssueCommentCreated;
 
-#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("already deleted {0} at {1}")]
     AlreadyDeleted(IssueCommentId, Instant),
@@ -52,15 +52,15 @@ impl IssueComment {
         }
     }
 
-    pub fn update(&self, text: IssueCommentText) -> Self {
-        if self.deleted_at.is_some() {
-            todo!()
-        }
-        Self {
-            id: self.id.clone(),
-            issue_id: self.issue_id.clone(),
-            text,
-            deleted_at: self.deleted_at,
+    pub fn update(&self, text: IssueCommentText) -> Result<Self> {
+        match self.deleted_at {
+            Some(at) => Err(Error::AlreadyDeleted(self.id.clone(), at)),
+            None => Ok(Self {
+                id: self.id.clone(),
+                issue_id: self.issue_id.clone(),
+                text,
+                deleted_at: self.deleted_at,
+            }),
         }
     }
 }

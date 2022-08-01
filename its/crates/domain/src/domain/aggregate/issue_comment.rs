@@ -11,6 +11,8 @@ use self::{entity::IssueComment, event::IssueCommentUpdated};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
+    #[error("entity {0}")]
+    Entity(#[from] self::entity::Error),
     #[error("InvalidEventSequence")]
     InvalidEventSequence,
     #[error("NextVersion")]
@@ -37,7 +39,7 @@ impl IssueCommentAggregate {
                 Event::Created(_) => Err(Error::InvalidEventSequence),
                 Event::Deleted(_) => todo!(),
                 Event::Updated(IssueCommentUpdated { text, .. }) => {
-                    Ok(issue_comment.update(text.clone()))
+                    Ok(issue_comment.update(text.clone())?)
                 }
             }?;
         }
