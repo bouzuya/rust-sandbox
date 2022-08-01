@@ -4,10 +4,16 @@ pub mod event;
 
 use std::collections::BTreeSet;
 
-use crate::{IssueCommentId, Version};
+use limited_date_time::Instant;
+
+use crate::{IssueCommentId, IssueId, Version};
 
 pub use self::event::Event;
-use self::{entity::IssueComment, event::IssueCommentUpdated};
+use self::{
+    attribute::IssueCommentText,
+    entity::IssueComment,
+    event::{IssueCommentCreated, IssueCommentUpdated},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -50,6 +56,31 @@ impl IssueCommentAggregate {
         })
     }
 
+    pub fn new(
+        at: Instant,
+        issue_comment_id: IssueCommentId,
+        issue_id: IssueId,
+        text: IssueCommentText,
+    ) -> Result<Self> {
+        let issue_comment =
+            IssueComment::new(issue_comment_id.clone(), issue_id.clone(), text.clone());
+        let version = Version::from(1_u64);
+        let event = IssueCommentCreated {
+            at,
+            issue_comment_id,
+            issue_id,
+            text,
+            version,
+        };
+        let events = vec![event.into()];
+        let aggregate = Self {
+            events,
+            issue_comment,
+            version,
+        };
+        Ok(aggregate)
+    }
+
     fn check_aggregate_id(events: &[Event]) -> Result<&IssueCommentId> {
         let set = events
             .iter()
@@ -83,5 +114,15 @@ impl IssueCommentAggregate {
             prev = curr;
         }
         Ok(prev)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn new_test() {
+        // TODO:
     }
 }
