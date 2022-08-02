@@ -81,7 +81,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() -> anyhow::Result<()> {
+    fn from_event_test() -> anyhow::Result<()> {
         let at = Instant::now();
         let issue_comment_id = IssueCommentId::generate();
         let issue_id = IssueId::from_str("123")?;
@@ -98,7 +98,19 @@ mod tests {
         assert_eq!(issue_comment.id, issue_comment_id);
         assert_eq!(issue_comment.issue_id, issue_id);
         assert_eq!(issue_comment.text, text);
-        // TODO
+        Ok(())
+    }
+
+    #[test]
+    fn new_test() -> anyhow::Result<()> {
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let issue_comment =
+            IssueComment::new(issue_comment_id.clone(), issue_id.clone(), text.clone());
+        assert_eq!(issue_comment.id, issue_comment_id);
+        assert_eq!(issue_comment.issue_id, issue_id);
+        assert_eq!(issue_comment.text, text);
         Ok(())
     }
 
@@ -128,5 +140,22 @@ mod tests {
         Ok(())
     }
 
-    // TODO: update test
+    #[test]
+    fn update_test() -> anyhow::Result<()> {
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text1")?;
+        let issue_comment = IssueComment::new(issue_comment_id, issue_id, text);
+        assert_eq!(issue_comment.text.to_string(), "text1");
+
+        let text = IssueCommentText::from_str("text2")?;
+        let updated = issue_comment.update(text)?;
+        assert_eq!(updated.text.to_string(), "text2");
+
+        let deleted = updated.delete()?;
+        let text = IssueCommentText::from_str("text3")?;
+        assert!(deleted.update(text).is_err());
+
+        Ok(())
+    }
 }
