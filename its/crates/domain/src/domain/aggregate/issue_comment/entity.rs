@@ -52,6 +52,10 @@ impl IssueComment {
         }
     }
 
+    pub fn id(&self) -> &IssueCommentId {
+        &self.id
+    }
+
     pub fn update(&self, text: IssueCommentText) -> Result<Self> {
         match self.deleted_at {
             Some(at) => Err(Error::AlreadyDeleted(self.id.clone(), at)),
@@ -111,6 +115,16 @@ mod tests {
 
         assert!(deleted.delete().is_err());
 
+        Ok(())
+    }
+
+    #[test]
+    fn id_test() -> anyhow::Result<()> {
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let issue_comment = IssueComment::new(issue_comment_id.clone(), issue_id, text);
+        assert_eq!(issue_comment.id(), &issue_comment_id);
         Ok(())
     }
 
