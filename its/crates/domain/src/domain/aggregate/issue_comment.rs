@@ -12,7 +12,7 @@ pub use self::event::Event;
 use self::{
     attribute::IssueCommentText,
     entity::IssueComment,
-    event::{IssueCommentCreated, IssueCommentUpdated},
+    event::{IssueCommentCreated, IssueCommentDeleted, IssueCommentUpdated},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -79,6 +79,23 @@ impl IssueCommentAggregate {
             version,
         };
         Ok(aggregate)
+    }
+
+    pub fn delete(&self, at: Instant) -> Result<Self> {
+        let issue_comment = self.issue_comment.delete()?;
+        let version = self.version.next().ok_or(Error::NoNextVersion)?;
+        let event = IssueCommentDeleted {
+            at,
+            version,
+            issue_comment_id: self.issue_comment.id().clone(),
+        }
+        .into();
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(Self {
+            events,
+            issue_comment,
+            version,
+        })
     }
 
     fn check_aggregate_id(events: &[Event]) -> Result<&IssueCommentId> {
