@@ -98,6 +98,24 @@ impl IssueCommentAggregate {
         })
     }
 
+    pub fn update(&self, text: IssueCommentText, at: Instant) -> Result<Self> {
+        let issue_comment = self.issue_comment.update(text.clone())?;
+        let version = self.version.next().ok_or(Error::NoNextVersion)?;
+        let event = IssueCommentUpdated {
+            at,
+            issue_comment_id: self.issue_comment.id().clone(),
+            text,
+            version,
+        }
+        .into();
+        let events = [self.events.as_slice(), &[event]].concat();
+        Ok(Self {
+            events,
+            issue_comment,
+            version,
+        })
+    }
+
     fn check_aggregate_id(events: &[Event]) -> Result<&IssueCommentId> {
         let set = events
             .iter()
