@@ -98,6 +98,10 @@ impl IssueCommentAggregate {
         })
     }
 
+    pub fn events(&self) -> &Vec<Event> {
+        &self.events
+    }
+
     pub fn update(&self, text: IssueCommentText, at: Instant) -> Result<Self> {
         let issue_comment = self.issue_comment.update(text.clone())?;
         let version = self.version.next().ok_or(Error::NoNextVersion)?;
@@ -154,10 +158,33 @@ impl IssueCommentAggregate {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
-    fn new_test() {
-        // TODO:
+    fn new_test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let aggregate = IssueCommentAggregate::new(
+            at,
+            issue_comment_id.clone(),
+            issue_id.clone(),
+            text.clone(),
+        )?;
+        assert_eq!(
+            aggregate.events(),
+            &vec![IssueCommentCreated {
+                at,
+                issue_comment_id,
+                issue_id,
+                text,
+                version: Version::from(1_u64),
+            }
+            .into()]
+        );
+        Ok(())
     }
 }
