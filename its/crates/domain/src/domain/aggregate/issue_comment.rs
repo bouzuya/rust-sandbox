@@ -102,6 +102,14 @@ impl IssueCommentAggregate {
         &self.events
     }
 
+    pub fn truncate_events(&self) -> Self {
+        Self {
+            events: vec![],
+            issue_comment: self.issue_comment.clone(),
+            version: self.version,
+        }
+    }
+
     pub fn update(&self, text: IssueCommentText, at: Instant) -> Result<Self> {
         let issue_comment = self.issue_comment.update(text.clone())?;
         let version = self.version.next().ok_or(Error::NoNextVersion)?;
@@ -162,6 +170,8 @@ mod tests {
 
     use super::*;
 
+    // TODO: from_events test
+
     #[test]
     fn new_test() -> anyhow::Result<()> {
         let at = Instant::now();
@@ -187,4 +197,29 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn deleet_test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let aggregate = IssueCommentAggregate::new(at, issue_comment_id.clone(), issue_id, text)?
+            .truncate_events();
+
+        let at = Instant::now();
+        let deleted = aggregate.delete(at)?;
+        assert_eq!(
+            deleted.events(),
+            &vec![IssueCommentDeleted {
+                at,
+                issue_comment_id,
+                version: Version::from(2_u64),
+            }
+            .into()]
+        );
+        Ok(())
+    }
+
+    // TODO: update test
 }
