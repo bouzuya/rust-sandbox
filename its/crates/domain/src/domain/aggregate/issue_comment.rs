@@ -199,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn deleet_test() -> anyhow::Result<()> {
+    fn delete_test() -> anyhow::Result<()> {
         let at = Instant::now();
         let issue_comment_id = IssueCommentId::generate();
         let issue_id = IssueId::from_str("123")?;
@@ -221,5 +221,28 @@ mod tests {
         Ok(())
     }
 
-    // TODO: update test
+    #[test]
+    fn update_test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let aggregate = IssueCommentAggregate::new(at, issue_comment_id.clone(), issue_id, text)?
+            .truncate_events();
+
+        let at = Instant::now();
+        let text = IssueCommentText::from_str("text2")?;
+        let updated = aggregate.update(text.clone(), at)?;
+        assert_eq!(
+            updated.events(),
+            &vec![IssueCommentUpdated {
+                at,
+                issue_comment_id,
+                version: Version::from(2_u64),
+                text
+            }
+            .into()]
+        );
+        Ok(())
+    }
 }
