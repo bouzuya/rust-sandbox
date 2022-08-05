@@ -2,6 +2,7 @@ mod command;
 mod command_handler;
 mod event;
 pub mod issue_block_link_repository;
+pub mod issue_comment_repository;
 pub mod issue_repository;
 
 pub use self::command::*;
