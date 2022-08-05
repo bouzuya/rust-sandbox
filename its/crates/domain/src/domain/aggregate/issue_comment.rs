@@ -102,6 +102,10 @@ impl IssueCommentAggregate {
         &self.events
     }
 
+    pub fn id(&self) -> &IssueCommentId {
+        self.issue_comment.id()
+    }
+
     pub fn truncate_events(&self) -> Self {
         Self {
             events: vec![],
@@ -126,6 +130,10 @@ impl IssueCommentAggregate {
             issue_comment,
             version,
         })
+    }
+
+    pub fn version(&self) -> Version {
+        self.version
     }
 
     fn check_aggregate_id(events: &[Event]) -> Result<&IssueCommentId> {
@@ -222,6 +230,17 @@ mod tests {
     }
 
     #[test]
+    fn id_test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let aggregate = IssueCommentAggregate::new(at, issue_comment_id.clone(), issue_id, text)?;
+        assert_eq!(aggregate.id(), &issue_comment_id);
+        Ok(())
+    }
+
+    #[test]
     fn update_test() -> anyhow::Result<()> {
         let at = Instant::now();
         let issue_comment_id = IssueCommentId::generate();
@@ -243,6 +262,17 @@ mod tests {
             }
             .into()]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn version_test() -> anyhow::Result<()> {
+        let at = Instant::now();
+        let issue_comment_id = IssueCommentId::generate();
+        let issue_id = IssueId::from_str("123")?;
+        let text = IssueCommentText::from_str("text")?;
+        let aggregate = IssueCommentAggregate::new(at, issue_comment_id, issue_id, text)?;
+        assert_eq!(aggregate.version(), Version::from(1_u64));
         Ok(())
     }
 }
