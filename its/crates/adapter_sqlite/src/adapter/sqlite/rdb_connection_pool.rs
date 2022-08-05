@@ -3,7 +3,7 @@ use std::str::FromStr;
 use sqlx::{any::AnyConnectOptions, AnyPool};
 use use_case::IssueBlockLinkRepositoryError;
 
-use crate::{SqliteIssueBlockLinkRepository, SqliteIssueRepository};
+use crate::{SqliteIssueBlockLinkRepository, SqliteIssueCommentRepository, SqliteIssueRepository};
 
 use super::migration::migrate;
 
@@ -15,6 +15,8 @@ pub enum Error {
     IssueRepository(#[from] super::sqlite_issue_repository::Error),
     #[error("issue block link repository error: {0}")]
     IssueBlockLinkRepository(#[from] IssueBlockLinkRepositoryError),
+    #[error("issue comment repository error: {0}")]
+    IssueCommentRepository(#[from] super::sqlite_issue_comment_repository::Error),
     #[error("migration error: {0}")]
     Migration(#[from] super::migration::Error),
     #[error("sqlx error: {0}")]
@@ -42,6 +44,10 @@ impl RdbConnectionPool {
 
     pub fn issue_block_link_repository(&self) -> Result<SqliteIssueBlockLinkRepository> {
         Ok(SqliteIssueBlockLinkRepository::new(self.clone())?)
+    }
+
+    pub fn issue_comment_repository(&self) -> Result<SqliteIssueCommentRepository> {
+        Ok(SqliteIssueCommentRepository::new(self.clone())?)
     }
 
     pub fn issue_repository(&self) -> Result<SqliteIssueRepository> {
