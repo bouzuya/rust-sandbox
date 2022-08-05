@@ -94,6 +94,14 @@ impl DomainEvent {
         }
     }
 
+    pub fn issue_comment(self) -> Option<crate::aggregate::issue_comment::Event> {
+        if let Self::IssueComment(event) = self {
+            Some(event)
+        } else {
+            None
+        }
+    }
+
     pub fn issue_block_link(self) -> Option<IssueBlockLinkAggregateEvent> {
         if let Self::IssueBlockLink(event) = self {
             Some(event)
