@@ -21,10 +21,13 @@ its: issue tracking system
 - ☑ feature: restore query db
 - ☑ command: ある issue のタイトルを変更する
 - ☑ command: ある issue の詳細 (?) を追加する
+- ☑ ある issue にコメントを追加する
+- ☑ ある issue のコメントを更新する
+- ☑ ある issue のコメントを削除する
 
 ## メモ
 
-### やりたいこと / コメントをつけられるようにする
+### 完了: やりたいこと / コメントをつけられるようにする
 
 [docs/comment.md](./docs/comment.md)
 
