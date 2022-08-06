@@ -96,7 +96,7 @@ impl SqliteIssueCommentRepository {
                     event_store::find_events_by_event_stream_id(&mut transaction, event_stream_id)
                         .await?;
                 let aggregate_events = Self::events_to_aggregate_events(events)?;
-                Aggregate::from_events(&aggregate_events).map(Some)?
+                Aggregate::from_events(&aggregate_events)?
             }
         };
         Ok(found)
@@ -123,12 +123,8 @@ impl SqliteIssueCommentRepository {
                     )
                     .await?;
                 let aggregate_events = Self::events_to_aggregate_events(events)?;
-                let aggregate = Aggregate::from_events(&aggregate_events)?;
-                if aggregate.version() != *version {
-                    Ok(None)
-                } else {
-                    Ok(Some(aggregate))
-                }
+                Ok(Aggregate::from_events(&aggregate_events)?
+                    .and_then(|a| (a.version() == *version).then_some(a)))
             }
         }
     }
@@ -139,8 +135,7 @@ impl SqliteIssueCommentRepository {
         aggregate_id: &AggregateId,
     ) -> Result<Option<EventStreamId>> {
         let issue_comment_id_row: Option<IssueCommentIdRow> = sqlx::query_as(include_str!(
-            // FIXME: fix query
-            "../../../sql/command/select_issue_id_by_issue_id.sql"
+            "../../../sql/command/select_issue_comment_id_by_issue_comment_id.sql"
         ))
         .bind(aggregate_id.to_string())
         .fetch_optional(&mut *transaction)
@@ -155,8 +150,7 @@ impl SqliteIssueCommentRepository {
         event_stream_id: EventStreamId,
     ) -> Result<()> {
         let query: Query<Any, AnyArguments> = sqlx::query(include_str!(
-            // FIXME: fix query
-            "../../../sql/command/insert_issue_id.sql"
+            "../../../sql/command/insert_issue_comment_id.sql"
         ))
         .bind(aggregate_id.to_string())
         .bind(event_stream_id.to_string());

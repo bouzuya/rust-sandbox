@@ -35,7 +35,7 @@ pub struct IssueCommentAggregate {
 }
 
 impl IssueCommentAggregate {
-    pub fn from_events(events: &[Event]) -> Result<Self> {
+    pub fn from_events(events: &[Event]) -> Result<Option<Self>> {
         let _ = Self::check_aggregate_id(events)?;
         let first_event = Self::check_first_event(events)?;
         let version = Self::check_version(events)?;
@@ -43,17 +43,17 @@ impl IssueCommentAggregate {
         for event in events.iter().skip(1) {
             issue_comment = match event {
                 Event::Created(_) => Err(Error::InvalidEventSequence),
-                Event::Deleted(_) => Ok(issue_comment.delete()?),
+                Event::Deleted(_) => return Ok(None),
                 Event::Updated(IssueCommentUpdated { text, .. }) => {
                     Ok(issue_comment.update(text.clone())?)
                 }
             }?;
         }
-        Ok(Self {
+        Ok(Some(Self {
             events: vec![],
             issue_comment,
             version,
-        })
+        }))
     }
 
     pub fn new(
