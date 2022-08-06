@@ -24,6 +24,20 @@ pub struct IssueCommentUpdated {
     pub(in crate::aggregate::issue_comment) version: Version,
 }
 
+impl IssueCommentUpdated {
+    pub fn at(&self) -> Instant {
+        self.at
+    }
+
+    pub fn issue_comment_id(&self) -> &IssueCommentId {
+        &self.issue_comment_id
+    }
+
+    pub fn text(&self) -> &IssueCommentText {
+        &self.text
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct IssueCommentUpdatedJson {
     pub at: String,

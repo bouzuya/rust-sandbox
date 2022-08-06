@@ -50,6 +50,15 @@ pub struct QueryIssueWithLinks {
     pub description: String,
     pub blocks: Vec<QueryIssueIdWithTitle>,
     pub is_blocked_by: Vec<QueryIssueIdWithTitle>,
+    pub comments: Vec<QueryIssueComment>,
+}
+
+#[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
+pub struct QueryIssueComment {
+    pub id: String,
+    pub text: String,
+    pub created_at: String,
+    pub updated_at: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, FromRow, PartialEq, Serialize)]
@@ -300,6 +309,12 @@ impl SqliteQueryHandler {
                 .bind(issue_id.to_string())
                 .fetch_all(&mut query_transaction)
                 .await?;
+                let comments: Vec<QueryIssueComment> = sqlx::query_as(include_str!(
+                    "../../../sql/select_issue_comments_by_issue_id.sql"
+                ))
+                .bind(issue_id.to_string())
+                .fetch_all(&mut query_transaction)
+                .await?;
                 Ok(Some(QueryIssueWithLinks {
                     id: issue.id,
                     resolution: issue.resolution,
@@ -321,6 +336,7 @@ impl SqliteQueryHandler {
                             title: issue_block_link.issue_title,
                         })
                         .collect::<Vec<QueryIssueIdWithTitle>>(),
+                    comments,
                 }))
             }
             None => Ok(None),
@@ -375,7 +391,40 @@ impl SqliteQueryHandler {
                     .map_err(|e| Error::Unknown(e.to_string()))?;
                 self.save_issue_block_link(issue_block_link).await?;
             }
-            DomainEvent::IssueComment(_) => todo!(),
+            DomainEvent::IssueComment(event) => {
+                use domain::aggregate::issue_comment::Event::*;
+                match event {
+                    Created(event) => {
+                        let mut query_transaction = self.query_pool.begin().await?;
+                        let query: Query<Any, AnyArguments> =
+                            sqlx::query(include_str!("../../../sql/insert_issue_comment.sql"))
+                                .bind(event.issue_comment_id().to_string())
+                                .bind(event.issue_id().to_string())
+                                .bind(event.text().to_string())
+                                .bind(event.at().to_string());
+                        query.execute(&mut query_transaction).await?;
+                        query_transaction.commit().await?;
+                    }
+                    Deleted(event) => {
+                        let mut query_transaction = self.query_pool.begin().await?;
+                        let query: Query<Any, AnyArguments> =
+                            sqlx::query(include_str!("../../../sql/delete_issue_comment.sql"))
+                                .bind(event.issue_comment_id().to_string());
+                        query.execute(&mut query_transaction).await?;
+                        query_transaction.commit().await?;
+                    }
+                    Updated(event) => {
+                        let mut query_transaction = self.query_pool.begin().await?;
+                        let query: Query<Any, AnyArguments> =
+                            sqlx::query(include_str!("../../../sql/update_issue_comment.sql"))
+                                .bind(event.text().to_string())
+                                .bind(event.at().to_string())
+                                .bind(event.issue_comment_id().to_string());
+                        query.execute(&mut query_transaction).await?;
+                        query_transaction.commit().await?;
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -386,7 +435,12 @@ mod tests {
     use std::{fs, path::PathBuf};
 
     use anyhow::Context;
+    use domain::{
+        aggregate::issue_comment::{attribute::IssueCommentText, IssueCommentAggregate},
+        IssueCommentId,
+    };
     use limited_date_time::Instant;
+    use use_case::IssueCommentRepository;
 
     use super::*;
 
@@ -450,7 +504,8 @@ mod tests {
                 due: Some("2021-02-03T04:05:06Z".to_string()),
                 description: "desc1".to_string(),
                 blocks: vec![],
-                is_blocked_by: vec![]
+                is_blocked_by: vec![],
+                comments: vec![]
             }),
             found
         );
@@ -539,7 +594,108 @@ mod tests {
                 is_blocked_by: vec![QueryIssueIdWithTitle {
                     id: "1".to_string(),
                     title: "title1".to_string(),
-                }]
+                }],
+                comments: vec![]
+            }),
+            found
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn issue_comment_test() -> anyhow::Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let sqlite_dir = temp_dir.path().join("its");
+        let data_dir = sqlite_dir;
+        if !data_dir.exists() {
+            fs::create_dir_all(data_dir.as_path())?;
+        }
+        let new_connection_uri = |path: PathBuf| -> anyhow::Result<String> {
+            Ok(format!(
+                "sqlite:{}?mode=rwc",
+                path.to_str().context("path is not utf-8")?
+            ))
+        };
+        let command_connection_uri = new_connection_uri(data_dir.join("command.sqlite"))?;
+        let query_connection_uri = new_connection_uri(data_dir.join("query.sqlite"))?;
+        let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
+
+        let issue1 = IssueAggregate::new(
+            Instant::now(),
+            "1".parse()?,
+            "title1".parse()?,
+            None,
+            "desc1".parse()?,
+        )?;
+        let issue_repository = connection_pool.issue_repository()?;
+        issue_repository.save(&issue1).await?;
+
+        let issue_comment1_created_at = Instant::now();
+        let issue_comment1_id = IssueCommentId::generate();
+        let issue_comment1 = IssueCommentAggregate::new(
+            issue_comment1_created_at,
+            issue_comment1_id.clone(),
+            issue1.id().clone(),
+            IssueCommentText::from_str("text1")?,
+        )?;
+        let issue_comment_repository = connection_pool.issue_comment_repository()?;
+        issue_comment_repository.save(&issue_comment1).await?;
+
+        let issue_comment2_created_at = Instant::now();
+        let issue_comment2_id = IssueCommentId::generate();
+        let issue_comment2 = IssueCommentAggregate::new(
+            issue_comment2_created_at,
+            issue_comment2_id.clone(),
+            issue1.id().clone(),
+            IssueCommentText::from_str("text1")?,
+        )?;
+        let issue_comment2_updated_at = Instant::now();
+        let issue_comment2 = issue_comment2.update("text2".parse()?, issue_comment2_updated_at)?;
+        issue_comment_repository.save(&issue_comment2).await?;
+
+        let issue_comment3 = IssueCommentAggregate::new(
+            Instant::now(),
+            IssueCommentId::generate(),
+            issue1.id().clone(),
+            IssueCommentText::from_str("text1")?,
+        )?;
+        let issue_comment3 = issue_comment3.delete(Instant::now())?;
+        issue_comment_repository.save(&issue_comment3).await?;
+
+        let query_handler = SqliteQueryHandler::new(
+            &query_connection_uri,
+            connection_pool.clone(),
+            Arc::new(Mutex::new(issue_repository)),
+            Arc::new(Mutex::new(connection_pool.issue_block_link_repository()?)),
+        )
+        .await?;
+        query_handler.update_database().await?;
+
+        let found = query_handler.issue_view(&"1".parse()?).await?;
+        assert_eq!(
+            Some(QueryIssueWithLinks {
+                id: "1".to_string(),
+                resolution: None,
+                status: "todo".to_string(),
+                title: "title1".to_string(),
+                due: None,
+                description: "desc1".to_string(),
+                blocks: vec![],
+                is_blocked_by: vec![],
+                comments: vec![
+                    QueryIssueComment {
+                        id: issue_comment1_id.to_string(),
+                        text: "text1".to_string(),
+                        created_at: issue_comment1_created_at.to_string(),
+                        updated_at: None
+                    },
+                    QueryIssueComment {
+                        id: issue_comment2_id.to_string(),
+                        text: "text2".to_string(),
+                        created_at: issue_comment2_created_at.to_string(),
+                        updated_at: Some(issue_comment2_updated_at.to_string()),
+                    }
+                ]
             }),
             found
         );
