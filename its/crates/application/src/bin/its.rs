@@ -177,7 +177,11 @@ async fn issue_comment_create(
     if let use_case::IssueManagementContextEvent::IssueCommentCreated { issue_comment_id } = event {
         // FIXME:
         app.update_query_db().await?;
-        // FIXME: show issue comment
+        let issue_comment = app
+            .query_handler
+            .issue_comment_view(&issue_comment_id)
+            .await?;
+        println!("{}", serde_json::to_string(&issue_comment)?);
     }
     Ok(())
 }
@@ -200,7 +204,11 @@ async fn issue_comment_delete(
     if let use_case::IssueManagementContextEvent::IssueCommentDeleted { issue_comment_id } = event {
         // FIXME:
         app.update_query_db().await?;
-        // FIXME: show issue comment
+        let issue_comment = app
+            .query_handler
+            .issue_comment_view(&issue_comment_id)
+            .await?;
+        println!("{}", serde_json::to_string(&issue_comment)?);
     }
     Ok(())
 }
@@ -228,8 +236,31 @@ async fn issue_comment_update(
     if let use_case::IssueManagementContextEvent::IssueCommentUpdated { issue_comment_id } = event {
         // FIXME:
         app.update_query_db().await?;
-        // FIXME: show issue comment
+        let issue_comment = app
+            .query_handler
+            .issue_comment_view(&issue_comment_id)
+            .await?;
+        println!("{}", serde_json::to_string(&issue_comment)?);
     }
+    Ok(())
+}
+
+async fn issue_comment_view(
+    issue_comment_id: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let issue_comment_id = IssueCommentId::from_str(&issue_comment_id)?;
+    let issue_comment = app
+        .query_handler
+        .issue_comment_view(&issue_comment_id)
+        .await?;
+    println!("{}", serde_json::to_string(&issue_comment)?);
     Ok(())
 }
 
@@ -570,6 +601,13 @@ enum IssueCommentCommand {
         #[clap(long)]
         query_database_connection_uri: Option<String>,
     },
+    View {
+        issue_comment_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -736,6 +774,18 @@ async fn main() -> anyhow::Result<()> {
                 issue_comment_update(
                     issue_comment_id,
                     text,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+            IssueCommentCommand::View {
+                issue_comment_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_comment_view(
+                    issue_comment_id,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )

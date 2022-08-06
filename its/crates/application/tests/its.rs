@@ -34,6 +34,10 @@ fn its_issue_block() -> anyhow::Result<()> {
 
 #[test]
 fn its_issue_comment_create() -> anyhow::Result<()> {
+    #[derive(Debug, serde::Deserialize)]
+    struct O {
+        id: String,
+    }
     let temp_dir = tempfile::tempdir()?;
     Command::cargo_bin("its")?
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
@@ -41,12 +45,23 @@ fn its_issue_comment_create() -> anyhow::Result<()> {
         .assert()
         .stdout(predicates::str::contains(r#""id":"#))
         .success();
-    // FIXME: output
+    let O {
+        id: issue_comment_id,
+    } = serde_json::from_slice(
+        &Command::cargo_bin("its")?
+            .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+            .args(&["issue-comment", "create", "1", "comment1"])
+            .assert()
+            .stdout(predicates::str::contains(r#""text":"comment1""#))
+            .success()
+            .get_output()
+            .stdout,
+    )?;
     Command::cargo_bin("its")?
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
-        .args(&["issue-comment", "create", "1", "comment1"])
+        .args(&["issue-comment", "view", issue_comment_id.as_str()])
         .assert()
-        .stdout(predicates::str::contains(r#""id":"#))
+        .stdout(predicates::str::contains(r#""text":"comment1""#))
         .success();
     Ok(())
 }
@@ -64,7 +79,6 @@ fn its_issue_comment_delete() -> anyhow::Result<()> {
         .assert()
         .stdout(predicates::str::contains(r#""id":"#))
         .success();
-    // FIXME: output
     let O {
         id: issue_comment_id,
     } = serde_json::from_slice(
@@ -79,7 +93,12 @@ fn its_issue_comment_delete() -> anyhow::Result<()> {
         .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
         .args(&["issue-comment", "delete", issue_comment_id.as_str()])
         .assert()
-        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue-comment", "view", issue_comment_id.as_str()])
+        .assert()
+        .stdout("null\n")
         .success();
     Ok(())
 }
@@ -97,7 +116,6 @@ fn its_issue_comment_update() -> anyhow::Result<()> {
         .assert()
         .stdout(predicates::str::contains(r#""id":"#))
         .success();
-    // FIXME: output
     let O {
         id: issue_comment_id,
     } = serde_json::from_slice(
@@ -117,7 +135,13 @@ fn its_issue_comment_update() -> anyhow::Result<()> {
             "comment2",
         ])
         .assert()
-        .stdout(predicates::str::contains(r#""id":"#))
+        .stdout(predicates::str::contains(r#""text":"comment2""#))
+        .success();
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue-comment", "view", issue_comment_id.as_str()])
+        .assert()
+        .stdout(predicates::str::contains(r#""text":"comment2""#))
         .success();
     Ok(())
 }
