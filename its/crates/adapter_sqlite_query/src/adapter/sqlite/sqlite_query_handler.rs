@@ -9,7 +9,7 @@ use domain::{
     aggregate::{
         IssueAggregate, IssueAggregateEvent, IssueBlockLinkAggregate, IssueBlockLinkAggregateEvent,
     },
-    DomainEvent, IssueId, ParseDomainEventError,
+    DomainEvent, IssueCommentId, IssueId, ParseDomainEventError,
 };
 use event_store::{Event, EventId};
 use serde::Serialize;
@@ -277,6 +277,19 @@ impl SqliteQueryHandler {
 
         query_transaction.commit().await?;
         Ok(())
+    }
+
+    pub async fn issue_comment_view(
+        &self,
+        issue_comment_id: &IssueCommentId,
+    ) -> Result<Option<QueryIssueComment>> {
+        let mut query_transaction = self.query_pool.begin().await?;
+        Ok(
+            sqlx::query_as(include_str!("../../../sql/select_issue_comment.sql"))
+                .bind(issue_comment_id.to_string())
+                .fetch_optional(&mut query_transaction)
+                .await?,
+        )
     }
 
     pub async fn issue_list(&self) -> Result<Vec<QueryIssue>> {
