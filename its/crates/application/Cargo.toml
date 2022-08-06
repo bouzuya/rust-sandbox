@@ -20,4 +20,5 @@ xdg = "2.4.0"
 anyhow = "1.0.52"
 assert_cmd = "2.0.2"
 predicates = "2.1.0"
+serde = { version = "1.0.142", features = ["derive"] }
 tempfile = "3.3.0"

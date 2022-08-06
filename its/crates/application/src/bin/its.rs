@@ -13,14 +13,17 @@ use adapter_sqlite_query::SqliteQueryHandler;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
 use domain::{
-    aggregate::issue::{IssueDescription, IssueDue, IssueResolution, IssueTitle},
-    IssueBlockLinkId, IssueId,
+    aggregate::{
+        issue::{IssueDescription, IssueDue, IssueResolution, IssueTitle},
+        issue_comment::attribute::IssueCommentText,
+    },
+    IssueBlockLinkId, IssueCommentId, IssueId,
 };
 use use_case::{
-    issue_comment_repository::HasIssueCommentRepository, BlockIssue, CreateIssue, FinishIssue,
-    HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
-    IssueManagementContextUseCase, UnblockIssue, UpdateIssue, UpdateIssueDescription,
-    UpdateIssueTitle,
+    issue_comment_repository::HasIssueCommentRepository, BlockIssue, CreateIssue,
+    CreateIssueComment, DeleteIssueComment, FinishIssue, HasIssueBlockLinkRepository,
+    HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
+    UnblockIssue, UpdateIssue, UpdateIssueComment, UpdateIssueDescription, UpdateIssueTitle,
 };
 use xdg::BaseDirectories;
 
@@ -150,6 +153,82 @@ async fn issue_block(
         let issue_id = issue_block_link_id.issue_id();
         let issue = app.query_handler.issue_view(issue_id).await?.unwrap();
         println!("{}", serde_json::to_string(&issue)?);
+    }
+    Ok(())
+}
+
+async fn issue_comment_create(
+    issue_id: String,
+    text: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_id = IssueId::from_str(issue_id.as_str())?;
+    let text = IssueCommentText::from_str(text.as_str())?;
+    let event = use_case
+        .handle(CreateIssueComment { issue_id, text })
+        .await?;
+    if let use_case::IssueManagementContextEvent::IssueCommentCreated { issue_comment_id } = event {
+        // FIXME:
+        app.update_query_db().await?;
+        // FIXME: show issue comment
+    }
+    Ok(())
+}
+
+async fn issue_comment_delete(
+    issue_comment_id: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_comment_id = IssueCommentId::from_str(issue_comment_id.as_str())?;
+    let event = use_case
+        .handle(DeleteIssueComment { issue_comment_id })
+        .await?;
+    if let use_case::IssueManagementContextEvent::IssueCommentDeleted { issue_comment_id } = event {
+        // FIXME:
+        app.update_query_db().await?;
+        // FIXME: show issue comment
+    }
+    Ok(())
+}
+
+async fn issue_comment_update(
+    issue_comment_id: String,
+    text: String,
+    command_database_connection_uri: Option<String>,
+    query_database_connection_uri: Option<String>,
+) -> anyhow::Result<()> {
+    let app = App::new(
+        command_database_connection_uri,
+        query_database_connection_uri,
+    )
+    .await?;
+    let use_case = app.issue_management_context_use_case();
+    let issue_comment_id = IssueCommentId::from_str(issue_comment_id.as_str())?;
+    let text = IssueCommentText::from_str(text.as_str())?;
+    let event = use_case
+        .handle(UpdateIssueComment {
+            issue_comment_id,
+            text,
+        })
+        .await?;
+    if let use_case::IssueManagementContextEvent::IssueCommentUpdated { issue_comment_id } = event {
+        // FIXME:
+        app.update_query_db().await?;
+        // FIXME: show issue comment
     }
     Ok(())
 }
@@ -377,6 +456,10 @@ enum Resource {
         #[clap(subcommand)]
         command: Command,
     },
+    IssueComment {
+        #[clap(subcommand)]
+        command: IssueCommentCommand,
+    },
 }
 
 #[derive(Subcommand)]
@@ -455,6 +538,33 @@ enum Command {
     },
     View {
         issue_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+}
+
+#[derive(Subcommand)]
+enum IssueCommentCommand {
+    Create {
+        issue_id: String,
+        text: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Delete {
+        issue_comment_id: String,
+        #[clap(long)]
+        command_database_connection_uri: Option<String>,
+        #[clap(long)]
+        query_database_connection_uri: Option<String>,
+    },
+    Update {
+        issue_comment_id: String,
+        text: String,
         #[clap(long)]
         command_database_connection_uri: Option<String>,
         #[clap(long)]
@@ -584,6 +694,48 @@ async fn main() -> anyhow::Result<()> {
             } => {
                 issue_view(
                     issue_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+        },
+        Resource::IssueComment { command } => match command {
+            IssueCommentCommand::Create {
+                issue_id,
+                text,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_comment_create(
+                    issue_id,
+                    text,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+            IssueCommentCommand::Delete {
+                issue_comment_id,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_comment_delete(
+                    issue_comment_id,
+                    command_database_connection_uri,
+                    query_database_connection_uri,
+                )
+                .await
+            }
+            IssueCommentCommand::Update {
+                issue_comment_id,
+                text,
+                command_database_connection_uri,
+                query_database_connection_uri,
+            } => {
+                issue_comment_update(
+                    issue_comment_id,
+                    text,
                     command_database_connection_uri,
                     query_database_connection_uri,
                 )

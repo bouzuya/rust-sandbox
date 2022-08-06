@@ -33,6 +33,96 @@ fn its_issue_block() -> anyhow::Result<()> {
 }
 
 #[test]
+fn its_issue_comment_create() -> anyhow::Result<()> {
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue", "create"])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    // FIXME: output
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue-comment", "create", "1", "comment1"])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    Ok(())
+}
+
+#[test]
+fn its_issue_comment_delete() -> anyhow::Result<()> {
+    #[derive(Debug, serde::Deserialize)]
+    struct O {
+        id: String,
+    }
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue", "create"])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    // FIXME: output
+    let O {
+        id: issue_comment_id,
+    } = serde_json::from_slice(
+        &Command::cargo_bin("its")?
+            .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+            .args(&["issue-comment", "create", "1", "comment1"])
+            .assert()
+            .get_output()
+            .stdout,
+    )?;
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue-comment", "delete", issue_comment_id.as_str()])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    Ok(())
+}
+
+#[test]
+fn its_issue_comment_update() -> anyhow::Result<()> {
+    #[derive(Debug, serde::Deserialize)]
+    struct O {
+        id: String,
+    }
+    let temp_dir = tempfile::tempdir()?;
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&["issue", "create"])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    // FIXME: output
+    let O {
+        id: issue_comment_id,
+    } = serde_json::from_slice(
+        &Command::cargo_bin("its")?
+            .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+            .args(&["issue-comment", "create", "1", "comment1"])
+            .assert()
+            .get_output()
+            .stdout,
+    )?;
+    Command::cargo_bin("its")?
+        .env("XDG_STATE_HOME", temp_dir.path().as_os_str())
+        .args(&[
+            "issue-comment",
+            "update",
+            issue_comment_id.as_str(),
+            "comment2",
+        ])
+        .assert()
+        .stdout(predicates::str::contains(r#""id":"#))
+        .success();
+    Ok(())
+}
+
+#[test]
 fn its_issue_create() -> anyhow::Result<()> {
     let temp_dir = tempfile::tempdir()?;
     Command::cargo_bin("its")?
