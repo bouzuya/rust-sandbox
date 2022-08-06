@@ -1,5 +1,6 @@
 pub use super::command_handler::block_issue::BlockIssue;
 pub use super::command_handler::create_issue::CreateIssue;
+pub use super::command_handler::create_issue_comment::CreateIssueComment;
 pub use super::command_handler::finish_issue::FinishIssue;
 pub use super::command_handler::unblock_issue::UnblockIssue;
 pub use super::command_handler::update_issue::UpdateIssue;
@@ -10,6 +11,7 @@ pub use super::command_handler::update_issue_title::UpdateIssueTitle;
 pub enum IssueManagementContextCommand {
     BlockIssue(BlockIssue),
     CreateIssue(CreateIssue),
+    CreateIssueComment(CreateIssueComment),
     FinishIssue(FinishIssue),
     UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),

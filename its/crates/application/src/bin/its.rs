@@ -5,7 +5,10 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use adapter_sqlite::{RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueRepository};
+use adapter_sqlite::{
+    RdbConnectionPool, SqliteIssueBlockLinkRepository, SqliteIssueCommentRepository,
+    SqliteIssueRepository,
+};
 use adapter_sqlite_query::SqliteQueryHandler;
 use anyhow::Context;
 use clap::{Parser, Subcommand};
@@ -14,14 +17,16 @@ use domain::{
     IssueBlockLinkId, IssueId,
 };
 use use_case::{
-    BlockIssue, CreateIssue, FinishIssue, HasIssueBlockLinkRepository,
-    HasIssueManagementContextUseCase, HasIssueRepository, IssueManagementContextUseCase,
-    UnblockIssue, UpdateIssue, UpdateIssueDescription, UpdateIssueTitle,
+    issue_comment_repository::HasIssueCommentRepository, BlockIssue, CreateIssue, FinishIssue,
+    HasIssueBlockLinkRepository, HasIssueManagementContextUseCase, HasIssueRepository,
+    IssueManagementContextUseCase, UnblockIssue, UpdateIssue, UpdateIssueDescription,
+    UpdateIssueTitle,
 };
 use xdg::BaseDirectories;
 
 struct App {
     issue_block_link_repository: SqliteIssueBlockLinkRepository,
+    issue_comment_repository: SqliteIssueCommentRepository,
     issue_repository: SqliteIssueRepository,
     query_handler: SqliteQueryHandler,
 }
@@ -50,6 +55,7 @@ impl App {
             None => new_connection_uri(data_dir.join("query.sqlite"))?,
         };
         let connection_pool = RdbConnectionPool::new(&command_connection_uri).await?;
+        let issue_comment_repository = connection_pool.issue_comment_repository()?;
         let issue_repository = connection_pool.issue_repository()?;
         let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
         let query_handler = SqliteQueryHandler::new(
@@ -63,6 +69,7 @@ impl App {
         let issue_block_link_repository = connection_pool.issue_block_link_repository()?;
         Ok(Self {
             issue_block_link_repository,
+            issue_comment_repository,
             issue_repository,
             query_handler,
         })
@@ -87,6 +94,14 @@ impl HasIssueBlockLinkRepository for App {
 
     fn issue_block_link_repository(&self) -> &Self::IssueBlockLinkRepository {
         &self.issue_block_link_repository
+    }
+}
+
+impl HasIssueCommentRepository for App {
+    type IssueCommentRepository = SqliteIssueCommentRepository;
+
+    fn issue_comment_repository(&self) -> &Self::IssueCommentRepository {
+        &self.issue_comment_repository
     }
 }
 

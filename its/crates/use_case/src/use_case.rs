@@ -8,6 +8,7 @@ pub mod issue_repository;
 pub use self::command::*;
 pub use self::event::IssueManagementContextEvent;
 pub use self::issue_block_link_repository::*;
+use self::issue_comment_repository::HasIssueCommentRepository;
 pub use self::issue_comment_repository::IssueCommentRepository;
 pub use self::issue_repository::*;
 use async_trait::async_trait;
@@ -35,6 +36,8 @@ pub enum Error {
     BlockIssue(#[from] command_handler::block_issue::Error),
     #[error("create issue {0}")]
     CreateIssue(#[from] command_handler::create_issue::Error),
+    #[error("create issue comment {0}")]
+    CreateIssueComment(#[from] command_handler::create_issue_comment::Error),
     #[error("finish issue {0}")]
     FinishIssue(#[from] command_handler::finish_issue::Error),
     #[error("unblock issue {0}")]
@@ -48,7 +51,9 @@ pub enum Error {
 }
 
 #[async_trait]
-pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkRepository {
+pub trait IssueManagementContextUseCase:
+    HasIssueRepository + HasIssueBlockLinkRepository + HasIssueCommentRepository
+{
     async fn handle<C: Into<IssueManagementContextCommand> + Send>(
         &self,
         command: C,
@@ -60,6 +65,9 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
             IssueManagementContextCommand::CreateIssue(command) => {
                 Ok(command_handler::create_issue::create_issue(self, command).await?)
             }
+            IssueManagementContextCommand::CreateIssueComment(command) => Ok(
+                command_handler::create_issue_comment::create_issue_comment(self, command).await?,
+            ),
             IssueManagementContextCommand::FinishIssue(command) => {
                 Ok(command_handler::finish_issue::finish_issue(self, command).await?)
             }
@@ -80,7 +88,10 @@ pub trait IssueManagementContextUseCase: HasIssueRepository + HasIssueBlockLinkR
     }
 }
 
-impl<T: HasIssueRepository + HasIssueBlockLinkRepository> IssueManagementContextUseCase for T {}
+impl<T: HasIssueRepository + HasIssueBlockLinkRepository + HasIssueCommentRepository>
+    IssueManagementContextUseCase for T
+{
+}
 
 pub trait HasIssueManagementContextUseCase {
     type IssueManagementContextUseCase: IssueManagementContextUseCase;

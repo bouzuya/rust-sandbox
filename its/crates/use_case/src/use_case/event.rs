@@ -1,7 +1,10 @@
-use domain::{IssueBlockLinkId, IssueId};
+use domain::{IssueBlockLinkId, IssueCommentId, IssueId};
 
 #[derive(Clone, Debug)]
 pub enum IssueManagementContextEvent {
+    IssueCommentCreated {
+        issue_comment_id: IssueCommentId,
+    },
     IssueCreated {
         issue_id: IssueId,
     },
