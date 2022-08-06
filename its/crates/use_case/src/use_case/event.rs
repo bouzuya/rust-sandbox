@@ -5,6 +5,9 @@ pub enum IssueManagementContextEvent {
     IssueCommentCreated {
         issue_comment_id: IssueCommentId,
     },
+    IssueCommentUpdated {
+        issue_comment_id: IssueCommentId,
+    },
     IssueCreated {
         issue_id: IssueId,
     },

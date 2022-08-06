@@ -44,6 +44,8 @@ pub enum Error {
     UnblockIssue(#[from] command_handler::unblock_issue::Error),
     #[error("update issue {0}")]
     UpdateIssue(#[from] command_handler::update_issue::Error),
+    #[error("update issue comment {0}")]
+    UpdateIssueComment(#[from] command_handler::update_issue_comment::Error),
     #[error("update issue description {0}")]
     UpdateIssueDescription(#[from] command_handler::update_issue_description::Error),
     #[error("update issue title {0}")]
@@ -77,6 +79,9 @@ pub trait IssueManagementContextUseCase:
             IssueManagementContextCommand::UpdateIssue(command) => {
                 Ok(command_handler::update_issue::update_issue(self, command).await?)
             }
+            IssueManagementContextCommand::UpdateIssueComment(command) => Ok(
+                command_handler::update_issue_comment::update_issue_comment(self, command).await?,
+            ),
             IssueManagementContextCommand::UpdateIssueTitle(command) => {
                 Ok(command_handler::update_issue_title::update_issue_title(self, command).await?)
             }

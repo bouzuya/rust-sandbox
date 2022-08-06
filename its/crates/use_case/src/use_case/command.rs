@@ -4,6 +4,7 @@ pub use super::command_handler::create_issue_comment::CreateIssueComment;
 pub use super::command_handler::finish_issue::FinishIssue;
 pub use super::command_handler::unblock_issue::UnblockIssue;
 pub use super::command_handler::update_issue::UpdateIssue;
+pub use super::command_handler::update_issue_comment::UpdateIssueComment;
 pub use super::command_handler::update_issue_description::UpdateIssueDescription;
 pub use super::command_handler::update_issue_title::UpdateIssueTitle;
 
@@ -15,6 +16,7 @@ pub enum IssueManagementContextCommand {
     FinishIssue(FinishIssue),
     UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),
+    UpdateIssueComment(UpdateIssueComment),
     UpdateIssueDescription(UpdateIssueDescription),
     UpdateIssueTitle(UpdateIssueTitle),
 }
@@ -28,6 +30,12 @@ impl From<BlockIssue> for IssueManagementContextCommand {
 impl From<CreateIssue> for IssueManagementContextCommand {
     fn from(command: CreateIssue) -> Self {
         Self::CreateIssue(command)
+    }
+}
+
+impl From<CreateIssueComment> for IssueManagementContextCommand {
+    fn from(command: CreateIssueComment) -> Self {
+        Self::CreateIssueComment(command)
     }
 }
 
@@ -46,6 +54,12 @@ impl From<UnblockIssue> for IssueManagementContextCommand {
 impl From<UpdateIssue> for IssueManagementContextCommand {
     fn from(command: UpdateIssue) -> Self {
         Self::UpdateIssue(command)
+    }
+}
+
+impl From<UpdateIssueComment> for IssueManagementContextCommand {
+    fn from(command: UpdateIssueComment) -> Self {
+        Self::UpdateIssueComment(command)
     }
 }
 
