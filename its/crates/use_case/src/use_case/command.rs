@@ -1,6 +1,7 @@
 pub use super::command_handler::block_issue::BlockIssue;
 pub use super::command_handler::create_issue::CreateIssue;
 pub use super::command_handler::create_issue_comment::CreateIssueComment;
+pub use super::command_handler::delete_issue_comment::DeleteIssueComment;
 pub use super::command_handler::finish_issue::FinishIssue;
 pub use super::command_handler::unblock_issue::UnblockIssue;
 pub use super::command_handler::update_issue::UpdateIssue;
@@ -13,6 +14,7 @@ pub enum IssueManagementContextCommand {
     BlockIssue(BlockIssue),
     CreateIssue(CreateIssue),
     CreateIssueComment(CreateIssueComment),
+    DeleteIssueComment(DeleteIssueComment),
     FinishIssue(FinishIssue),
     UnblockIssue(UnblockIssue),
     UpdateIssue(UpdateIssue),
@@ -36,6 +38,12 @@ impl From<CreateIssue> for IssueManagementContextCommand {
 impl From<CreateIssueComment> for IssueManagementContextCommand {
     fn from(command: CreateIssueComment) -> Self {
         Self::CreateIssueComment(command)
+    }
+}
+
+impl From<DeleteIssueComment> for IssueManagementContextCommand {
+    fn from(command: DeleteIssueComment) -> Self {
+        Self::DeleteIssueComment(command)
     }
 }
 

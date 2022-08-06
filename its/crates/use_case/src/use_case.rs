@@ -38,6 +38,8 @@ pub enum Error {
     CreateIssue(#[from] command_handler::create_issue::Error),
     #[error("create issue comment {0}")]
     CreateIssueComment(#[from] command_handler::create_issue_comment::Error),
+    #[error("delete issue comment {0}")]
+    DeleteIssueComment(#[from] command_handler::delete_issue_comment::Error),
     #[error("finish issue {0}")]
     FinishIssue(#[from] command_handler::finish_issue::Error),
     #[error("unblock issue {0}")]
@@ -60,32 +62,36 @@ pub trait IssueManagementContextUseCase:
         &self,
         command: C,
     ) -> Result<IssueManagementContextEvent> {
+        use IssueManagementContextCommand::*;
         match command.into() {
-            IssueManagementContextCommand::BlockIssue(command) => {
+            BlockIssue(command) => {
                 Ok(command_handler::block_issue::block_issue(self, command).await?)
             }
-            IssueManagementContextCommand::CreateIssue(command) => {
+            CreateIssue(command) => {
                 Ok(command_handler::create_issue::create_issue(self, command).await?)
             }
-            IssueManagementContextCommand::CreateIssueComment(command) => Ok(
+            CreateIssueComment(command) => Ok(
                 command_handler::create_issue_comment::create_issue_comment(self, command).await?,
             ),
-            IssueManagementContextCommand::FinishIssue(command) => {
+            DeleteIssueComment(command) => Ok(
+                command_handler::delete_issue_comment::delete_issue_comment(self, command).await?,
+            ),
+            FinishIssue(command) => {
                 Ok(command_handler::finish_issue::finish_issue(self, command).await?)
             }
-            IssueManagementContextCommand::UnblockIssue(command) => {
+            UnblockIssue(command) => {
                 Ok(command_handler::unblock_issue::unblock_issue(self, command).await?)
             }
-            IssueManagementContextCommand::UpdateIssue(command) => {
+            UpdateIssue(command) => {
                 Ok(command_handler::update_issue::update_issue(self, command).await?)
             }
-            IssueManagementContextCommand::UpdateIssueComment(command) => Ok(
+            UpdateIssueComment(command) => Ok(
                 command_handler::update_issue_comment::update_issue_comment(self, command).await?,
             ),
-            IssueManagementContextCommand::UpdateIssueTitle(command) => {
+            UpdateIssueTitle(command) => {
                 Ok(command_handler::update_issue_title::update_issue_title(self, command).await?)
             }
-            IssueManagementContextCommand::UpdateIssueDescription(command) => Ok(
+            UpdateIssueDescription(command) => Ok(
                 command_handler::update_issue_description::update_issue_description(self, command)
                     .await?,
             ),
