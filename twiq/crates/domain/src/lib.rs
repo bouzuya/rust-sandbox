@@ -1,6 +1,29 @@
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct TweetResponse {
+    data: Vec<TweetResponseData>,
+    meta: TweetResponseMeta,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct TweetResponseData {
+    id: String,
+    text: String,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+struct TweetResponseMeta {
+    newest_id: String,
+    next_token: Option<String>,
+    oldest_id: String,
+    previous_token: Option<String>,
+    result_count: usize,
+}
+
 #[cfg(test)]
 mod tests {
     use reqwest::{Client, Method};
+
+    use crate::TweetResponse;
 
     #[tokio::test]
     async fn it_works() -> anyhow::Result<()> {
@@ -45,16 +68,6 @@ mod tests {
 
     #[tokio::test]
     async fn get_tweets() -> anyhow::Result<()> {
-        #[derive(Debug, serde::Deserialize, serde::Serialize)]
-        struct TweetResponse {
-            data: Vec<TweetResponseData>,
-            // TODO: meta
-        }
-        #[derive(Debug, serde::Deserialize, serde::Serialize)]
-        struct TweetResponseData {
-            id: String,
-            text: String,
-        }
         let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
         let id = "125962981";
         let url = format!("https://api.twitter.com/2/users/{}/tweets", id);
@@ -65,7 +78,31 @@ mod tests {
             .send()
             .await?;
         let json: TweetResponse = response.json().await?;
-        assert_eq!(json.data[0].id, "1556520585856880640");
+        assert!(json.data.iter().any(|i| i.id == "1556520585856880640"));
+        assert_eq!(
+            json.meta.next_token,
+            Some("7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg".to_string())
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_tweets_max_results_and_pagination_token() -> anyhow::Result<()> {
+        let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
+        let id = "125962981";
+        let url = format!(
+            "https://api.twitter.com/2/users/{}/tweets?max_results={}&pagination_token={}",
+            id, 100, "7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg"
+        );
+        let response = Client::builder()
+            .build()?
+            .request(Method::GET, url)
+            .bearer_auth(bearer_token)
+            .send()
+            .await?;
+        let json: TweetResponse = response.json().await?;
+        assert_eq!(json.data.len(), 100);
+        assert!(!json.data.iter().any(|i| i.id == "1556520585856880640"));
         Ok(())
     }
 }
