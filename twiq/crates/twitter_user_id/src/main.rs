@@ -35,3 +35,19 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", serde_json::to_string(&json)?);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
+        let username = "bouzuya";
+        let json = get_user(bearer_token.as_str(), username).await?;
+        assert_eq!(json.data.id, "125962981");
+        assert_eq!(json.data.name, "bouzuya");
+        assert_eq!(json.data.username, "bouzuya");
+        Ok(())
+    }
+}
