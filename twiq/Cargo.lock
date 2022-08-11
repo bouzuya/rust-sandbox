@@ -281,6 +281,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "import_twitter_data"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "indexmap"
 version = "1.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
