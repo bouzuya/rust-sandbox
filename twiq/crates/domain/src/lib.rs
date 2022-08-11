@@ -1,3 +1,22 @@
+use std::time::Instant;
+
+struct MyTweet {
+    id_str: String,
+    retweet: bool,
+    at: Instant,
+    user_name: String,
+    user_icon: String,
+    text: String,
+    urls: Vec<MyTweetUrl>,
+}
+
+struct MyTweetUrl {
+    display_url: String,
+    expand_url: String,
+    indices: Vec<usize>,
+    url: String,
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TweetResponse {
     data: Vec<TweetResponseData>,
