@@ -1,39 +1,41 @@
-use std::time::Instant;
-
-struct MyTweet {
-    id_str: String,
-    retweet: bool,
-    at: Instant,
-    user_name: String,
-    user_icon: String,
-    text: String,
-    entities: MyTweetEntities,
+#[derive(Debug)]
+pub struct MyTweet {
+    pub id_str: String,
+    pub retweet: bool,
+    pub at: String,
+    pub author_id: String,
+    pub text: String,
+    pub entities: MyTweetEntities,
 }
 
-struct MyTweetEntities {
-    hashtags: Vec<MyTweetHashtag>,
-    mentions: Vec<MyTweetMention>,
-    urls: Vec<MyTweetUrl>,
+#[derive(Debug)]
+pub struct MyTweetEntities {
+    pub hashtags: Vec<MyTweetHashtag>,
+    pub mentions: Vec<MyTweetMention>,
+    pub urls: Vec<MyTweetUrl>,
 }
 
-struct MyTweetHashtag {
-    end: usize,
-    start: usize,
-    tag: String,
+#[derive(Debug)]
+pub struct MyTweetHashtag {
+    pub end: usize,
+    pub start: usize,
+    pub tag: String,
 }
 
-struct MyTweetMention {
-    end: usize,
-    start: usize,
-    username: String,
+#[derive(Debug)]
+pub struct MyTweetMention {
+    pub end: usize,
+    pub start: usize,
+    pub username: String,
 }
 
-struct MyTweetUrl {
-    display_url: String,
-    end: usize,
-    expanded_url: String,
-    start: usize,
-    url: String,
+#[derive(Debug)]
+pub struct MyTweetUrl {
+    pub display_url: String,
+    pub end: usize,
+    pub expanded_url: String,
+    pub start: usize,
+    pub url: String,
 }
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
