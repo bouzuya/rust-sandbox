@@ -7,13 +7,32 @@ struct MyTweet {
     user_name: String,
     user_icon: String,
     text: String,
+    entities: MyTweetEntities,
+}
+
+struct MyTweetEntities {
+    hashtags: Vec<MyTweetHashtag>,
+    mentions: Vec<MyTweetMention>,
     urls: Vec<MyTweetUrl>,
+}
+
+struct MyTweetHashtag {
+    end: usize,
+    start: usize,
+    tag: String,
+}
+
+struct MyTweetMention {
+    end: usize,
+    start: usize,
+    username: String,
 }
 
 struct MyTweetUrl {
     display_url: String,
-    expand_url: String,
-    indices: Vec<usize>,
+    end: usize,
+    expanded_url: String,
+    start: usize,
     url: String,
 }
 
