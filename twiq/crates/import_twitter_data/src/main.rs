@@ -164,8 +164,10 @@ impl Item {
                     .hashtags
                     .into_iter()
                     .map(|hashtag| domain::MyTweetHashtag {
-                        end: hashtag.indices[1].parse::<usize>().unwrap(),
-                        start: hashtag.indices[0].parse::<usize>().unwrap(),
+                        end: hashtag.indices[1].parse::<usize>().unwrap()
+                            - if retweet { 2 } else { 0 },
+                        start: hashtag.indices[0].parse::<usize>().unwrap()
+                            - if retweet { 2 } else { 0 },
                         tag: hashtag.text,
                     })
                     .collect::<Vec<_>>(),
@@ -174,8 +176,10 @@ impl Item {
                     .user_mentions
                     .into_iter()
                     .map(|mention| domain::MyTweetMention {
-                        end: mention.indices[0].parse::<usize>().unwrap(),
-                        start: mention.indices[1].parse::<usize>().unwrap(),
+                        end: mention.indices[0].parse::<usize>().unwrap()
+                            - if retweet { 2 } else { 0 },
+                        start: mention.indices[1].parse::<usize>().unwrap()
+                            - if retweet { 2 } else { 0 },
                         username: mention.name,
                     })
                     .collect::<Vec<_>>(),
@@ -185,9 +189,10 @@ impl Item {
                     .into_iter()
                     .map(|url| domain::MyTweetUrl {
                         display_url: url.display_url,
-                        end: url.indices[0].parse::<usize>().unwrap(),
+                        end: url.indices[0].parse::<usize>().unwrap() - if retweet { 2 } else { 0 },
                         expanded_url: url.expanded_url,
-                        start: url.indices[1].parse::<usize>().unwrap(),
+                        start: url.indices[1].parse::<usize>().unwrap()
+                            - if retweet { 2 } else { 0 },
                         url: url.url,
                     })
                     .collect::<Vec<_>>(),
