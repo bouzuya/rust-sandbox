@@ -11,6 +11,7 @@ pub struct MyTweet {
 #[derive(Debug)]
 pub struct MyTweetEntities {
     pub hashtags: Vec<MyTweetHashtag>,
+    // pub media: Vec<MyTweetMedia>,
     pub mentions: Vec<MyTweetMention>,
     pub urls: Vec<MyTweetUrl>,
 }
@@ -22,11 +23,26 @@ pub struct MyTweetHashtag {
     pub tag: String,
 }
 
+// #[derive(Debug)]
+// pub struct MyTweetMedia {
+//     pub end: usize,
+//     pub start: usize,
+//     pub id_str: String,
+//     // pic.twitter.com/psP0pA1QUy
+//     pub display_url: String,
+//     // https://twitter.com/bouzuya/status/576785452637691904/photo/1
+//     pub expanded_url: String,
+//     // (media_url_https)
+//     // https://pbs.twimg.com/media/CAEnSmgUwAAG1TY.png
+//     pub media_url: String,
+//     pub sizes: // ...
+// }
+
 #[derive(Debug)]
 pub struct MyTweetMention {
     pub end: usize,
     pub start: usize,
-    pub username: String,
+    pub id_str: String,
 }
 
 #[derive(Debug)]

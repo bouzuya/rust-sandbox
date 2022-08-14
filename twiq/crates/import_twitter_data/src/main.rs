@@ -180,7 +180,7 @@ impl Item {
                             - if retweet { 2 } else { 0 },
                         start: mention.indices[1].parse::<usize>().unwrap()
                             - if retweet { 2 } else { 0 },
-                        username: mention.name,
+                        id_str: mention.id_str,
                     })
                     .collect::<Vec<_>>(),
                 urls: tweet
