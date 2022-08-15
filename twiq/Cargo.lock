@@ -1080,7 +1080,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "hyper",
  "tokio",
+ "tower",
+ "tower-http",
 ]
 
 [[package]]
