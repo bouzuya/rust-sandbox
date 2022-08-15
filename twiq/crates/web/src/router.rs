@@ -1,50 +1,26 @@
-use axum::{extract::Path, http::StatusCode, response::IntoResponse, routing, Router};
+mod healthz;
+mod users_show;
+
+use axum::Router;
 
 pub(crate) fn router() -> Router {
-    Router::new().merge(healthz()).merge(users_show())
-}
-
-fn healthz() -> Router {
-    Router::new().route("/healthz", routing::get(healthz_handler))
-}
-
-async fn healthz_handler() -> impl IntoResponse {
-    "OK"
-}
-
-fn users_show() -> Router {
-    Router::new().route("/users/:id", routing::get(users_show_handler))
-}
-
-async fn users_show_handler(Path(id): Path<String>) -> impl IntoResponse {
-    // TODO: if the user is cached, return it; otherwise, enqueue the ID.
-    (StatusCode::ACCEPTED, id)
+    Router::new()
+        .merge(healthz::router())
+        .merge(users_show::router())
 }
 
 #[cfg(test)]
 mod tests {
-    use axum::{body::Body, http::Request};
+    use hyper::{Body, Request, StatusCode};
     use tower::ServiceExt;
 
     use super::*;
 
-    #[tokio::test]
-    async fn healthz_test() -> anyhow::Result<()> {
-        let (status, body) = test_get_request(healthz(), "/healthz").await?;
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(body, r#"OK"#);
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn users_show_test() -> anyhow::Result<()> {
-        let (status, body) = test_get_request(users_show(), "/users/125962981").await?;
-        assert_eq!(status, StatusCode::ACCEPTED);
-        assert_eq!(body, r#"125962981"#);
-        Ok(())
-    }
-
-    async fn test_get_request(router: Router, uri: &str) -> anyhow::Result<(StatusCode, String)> {
+    // test helper
+    pub(crate) async fn test_get_request(
+        router: Router,
+        uri: &str,
+    ) -> anyhow::Result<(StatusCode, String)> {
         let request = Request::get(uri).body(Body::empty())?;
         let response = router.oneshot(request).await?;
         let status = response.status();
