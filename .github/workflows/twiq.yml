@@ -23,8 +23,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-      # FIXME: test
-      # - run: cargo test --verbose
+      - run: cargo test --verbose
     strategy:
       matrix:
         include:

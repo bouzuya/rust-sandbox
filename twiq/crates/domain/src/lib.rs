@@ -77,47 +77,47 @@ struct TweetResponseMeta {
 
 #[cfg(test)]
 mod tests {
-    use reqwest::{Client, Method};
+    // use reqwest::{Client, Method};
 
-    use crate::TweetResponse;
+    // use crate::TweetResponse;
 
-    #[tokio::test]
-    async fn get_tweets() -> anyhow::Result<()> {
-        let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
-        let id = "125962981";
-        let url = format!("https://api.twitter.com/2/users/{}/tweets", id);
-        let response = Client::builder()
-            .build()?
-            .request(Method::GET, url)
-            .bearer_auth(bearer_token)
-            .send()
-            .await?;
-        let json: TweetResponse = response.json().await?;
-        assert!(json.data.iter().any(|i| i.id == "1556520585856880640"));
-        assert_eq!(
-            json.meta.next_token,
-            Some("7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg".to_string())
-        );
-        Ok(())
-    }
+    // #[tokio::test]
+    // async fn get_tweets() -> anyhow::Result<()> {
+    //     let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
+    //     let id = "125962981";
+    //     let url = format!("https://api.twitter.com/2/users/{}/tweets", id);
+    //     let response = Client::builder()
+    //         .build()?
+    //         .request(Method::GET, url)
+    //         .bearer_auth(bearer_token)
+    //         .send()
+    //         .await?;
+    //     let json: TweetResponse = response.json().await?;
+    //     assert!(json.data.iter().any(|i| i.id == "1556520585856880640"));
+    //     assert_eq!(
+    //         json.meta.next_token,
+    //         Some("7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg".to_string())
+    //     );
+    //     Ok(())
+    // }
 
-    #[tokio::test]
-    async fn get_tweets_max_results_and_pagination_token() -> anyhow::Result<()> {
-        let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
-        let id = "125962981";
-        let url = format!(
-            "https://api.twitter.com/2/users/{}/tweets?max_results={}&pagination_token={}",
-            id, 100, "7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg"
-        );
-        let response = Client::builder()
-            .build()?
-            .request(Method::GET, url)
-            .bearer_auth(bearer_token)
-            .send()
-            .await?;
-        let json: TweetResponse = response.json().await?;
-        assert_eq!(json.data.len(), 100);
-        assert!(!json.data.iter().any(|i| i.id == "1556520585856880640"));
-        Ok(())
-    }
+    // #[tokio::test]
+    // async fn get_tweets_max_results_and_pagination_token() -> anyhow::Result<()> {
+    //     let bearer_token = std::env::var("TWITTER_BEARER_TOKEN")?;
+    //     let id = "125962981";
+    //     let url = format!(
+    //         "https://api.twitter.com/2/users/{}/tweets?max_results={}&pagination_token={}",
+    //         id, 100, "7140dibdnow9c7btw422nobb6nigqr50544iaynyqphkg"
+    //     );
+    //     let response = Client::builder()
+    //         .build()?
+    //         .request(Method::GET, url)
+    //         .bearer_auth(bearer_token)
+    //         .send()
+    //         .await?;
+    //     let json: TweetResponse = response.json().await?;
+    //     assert_eq!(json.data.len(), 100);
+    //     assert!(!json.data.iter().any(|i| i.id == "1556520585856880640"));
+    //     Ok(())
+    // }
 }
