@@ -1,0 +1,86 @@
+name: twiq
+on:
+  push:
+    branches: [master]
+    paths:
+      - "twiq/**"
+      - ".github/workflows/twiq.yml"
+    tags:
+      - "twiq/*"
+defaults:
+  run:
+    working-directory: twiq
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo test --verbose
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+  deploy:
+    if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      # deploy to GitHub Container Registry
+      - uses: VaultVulp/gp-docker-action@1.2.0
+        with:
+          build-context: twiq/
+          dockerfile: twiq/Dockerfile
+          # extract-git-tag: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          image-name: twiq
+          image-tag: ${{ github.sha }}
+      # Deploy to Google Container Registry & Cloud Run
+      - uses: google-github-actions/setup-gcloud@v0.2.0
+        with:
+          project_id: ${{ secrets.TWIQ_GCP_PROJECT_ID }}
+          service_account_key: ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT_PRIVATE_KEY }}
+      - run: |-
+          region='${{ secrets.TWIQ_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          gcloud auth configure-docker "${host}"
+      - run: |-
+          region='${{ secrets.TWIQ_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          project_id='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          repo='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          image='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          tag='${{ github.sha }}'
+          url="${host}/${project_id}/${repo}/${image}:${tag}"
+          docker build -t "${url}" .
+          docker push "${url}"
+      - run: |-
+          region='${{ secrets.TWIQ_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          project_id='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          repo='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          image='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          tag='${{ github.sha }}'
+          url="${host}/${project_id}/${repo}/${image}:${tag}"
+          service='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          gcloud run deploy "${service}" \
+            --allow-unauthenticated \
+            --args "web" \
+            --image "${url}" \
+            --max-instances "1" \
+            --memory "1024Mi" \
+            --platform "managed" \
+            --quiet \
+            --region "${region}" \
+            --service-account ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT }} \
+            --set-env-vars "BASE_PATH=/lab/twiq"
