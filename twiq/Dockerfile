@@ -26,5 +26,6 @@ COPY . .
 RUN cargo install --path ./crates/web
 
 FROM scratch
+ENV PORT=8080
 COPY --from=builder /home/rust/src/target/x86_64-unknown-linux-musl/release/web /usr/local/bin/web
 ENTRYPOINT ["web"]
