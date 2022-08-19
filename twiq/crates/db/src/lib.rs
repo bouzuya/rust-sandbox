@@ -1,8 +1,9 @@
+pub mod event;
+pub mod event_data;
 pub mod event_id;
 pub mod event_stream_id;
 pub mod event_stream_seq;
-pub mod event_data;
-pub mod event;
+pub mod firestore_rest;
 
 use std::env;
 
@@ -36,20 +37,18 @@ async fn get() -> anyhow::Result<Response> {
 }
 
 // insert
-async fn createDocument() -> anyhow::Result<Response> {
+async fn create_document_example() -> anyhow::Result<Response> {
     // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/createDocument>
 
     let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
     let project_id = env::var("PROJECT_ID")?;
     let database_id = "(default)";
+    let parent = format!(
+        "projects/{}/databases/{}/documents",
+        project_id, database_id,
+    );
     let collection_id = "cities";
     let document_id = "LA";
-    // TODO: mask.fieldPaths
-    let path = format!(
-        "/projects/{}/databases/{}/documents/{}?documentId={}",
-        project_id, database_id, collection_id, document_id
-    );
-    let url = format!("https://firestore.googleapis.com/v1{}", path);
     let body = json!({
       "fields": {
         "name": {
@@ -63,15 +62,14 @@ async fn createDocument() -> anyhow::Result<Response> {
         }
       }
     });
-    let client = reqwest::Client::new();
-    Ok(client
-        .post(url)
-        .header("Authorization", format!("Bearer {}", bearer_token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    firestore_rest::create_document(
+        (&bearer_token, &project_id),
+        &parent,
+        collection_id,
+        document_id,
+        body,
+    )
+    .await
 }
 
 // update or insert
@@ -119,9 +117,9 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        // let response = createDocument().await?;
+        let response = create_document_example().await?;
         // let response = patch().await?;
-        let response = get().await?;
+        // let response = get().await?;
         let status = response.status();
         assert_eq!(status, 200);
         assert_eq!(response.bytes().await?, "");
