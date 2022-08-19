@@ -1,6 +1,7 @@
 pub mod event_id;
 pub mod event_stream_id;
 pub mod event_stream_seq;
+pub mod event_data;
 
 use std::env;
 
