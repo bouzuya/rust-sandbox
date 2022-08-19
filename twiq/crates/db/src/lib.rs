@@ -1,3 +1,5 @@
+pub mod event_stream_id;
+
 use std::env;
 
 use reqwest::Response;
