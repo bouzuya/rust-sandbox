@@ -49,7 +49,7 @@ async fn create_document_example() -> anyhow::Result<Response> {
     );
     let collection_id = "cities";
     let document_id = "LA";
-    let body = json!({
+    let document = json!({
       "fields": {
         "name": {
           "stringValue": "Los Angeles"
@@ -66,8 +66,9 @@ async fn create_document_example() -> anyhow::Result<Response> {
         (&bearer_token, &project_id),
         &parent,
         collection_id,
-        document_id,
-        body,
+        Some(document_id),
+        None,
+        document,
     )
     .await
 }
