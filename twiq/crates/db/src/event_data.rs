@@ -22,7 +22,7 @@ impl TryFrom<String> for EventData {
         if value.as_bytes().len() > 1_000_000 {
             return Err(Error::TooLarge);
         }
-        Ok(Self(value.to_string()))
+        Ok(Self(value))
     }
 }
 
