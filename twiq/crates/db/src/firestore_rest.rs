@@ -238,6 +238,53 @@ pub async fn create_document(
         .await?)
 }
 
+pub async fn patch(
+    (token, project_id): (&str, &str),
+    document_name: &str,
+    update_mask_field_paths: Option<Vec<&str>>,
+    mask_field_paths: Option<Vec<&str>>,
+    current_document_exists: Option<bool>,
+    current_document_update_time: Option<Timestamp>,
+    document: Document,
+) -> anyhow::Result<Response> {
+    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/patch>
+    let method = Method::PATCH;
+    let url = format!("https://firestore.googleapis.com/v1/{}", document_name);
+    let mut url = Url::parse(&url)?;
+    if let Some(update_mask_field_paths) = update_mask_field_paths {
+        for update_mask_field_path in update_mask_field_paths {
+            url.query_pairs_mut()
+                .append_pair("updateMask.fieldPaths", update_mask_field_path);
+        }
+    }
+    if let Some(mask_field_paths) = mask_field_paths {
+        for mask_field_path in mask_field_paths {
+            url.query_pairs_mut()
+                .append_pair("mask.fieldPaths", mask_field_path);
+        }
+    }
+    if let Some(current_document_exists) = current_document_exists {
+        url.query_pairs_mut().append_pair(
+            "currentDocument.exists",
+            current_document_exists.to_string().as_str(),
+        );
+    }
+    if let Some(current_document_update_time) = current_document_update_time {
+        url.query_pairs_mut().append_pair(
+            "currentDocument.updateTime",
+            current_document_update_time.as_str(),
+        );
+    }
+    Ok(Client::new()
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .header("X-Goog-User-Project", project_id)
+        .body(serde_json::to_string(&document)?)
+        .send()
+        .await?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
