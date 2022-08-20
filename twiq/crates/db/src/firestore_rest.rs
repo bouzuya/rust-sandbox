@@ -228,12 +228,16 @@ pub async fn create_document(
                 .append_pair("mask.fieldPaths", mask_field_path);
         }
     }
+    let mut value = serde_json::to_value(document)?;
+    let mut map = serde_json::Map::new();
+    map.insert("fields".to_string(), value["fields"].take());
+    let body = serde_json::Value::Object(map);
     Ok(Client::new()
         .request(method, url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&document)?)
+        .body(serde_json::to_string(&body)?)
         .send()
         .await?)
 }
@@ -275,12 +279,17 @@ pub async fn patch(
             current_document_update_time.as_str(),
         );
     }
+    let mut value = serde_json::to_value(document)?;
+    let mut map = serde_json::Map::new();
+    map.insert("name".to_string(), value["name"].take());
+    map.insert("fields".to_string(), value["fields"].take());
+    let body = serde_json::Value::Object(map);
     Ok(Client::new()
         .request(method, url)
         .header("Authorization", format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&document)?)
+        .body(serde_json::to_string(&body)?)
         .send()
         .await?)
 }
