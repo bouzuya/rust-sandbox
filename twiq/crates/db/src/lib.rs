@@ -1,40 +1,35 @@
 pub mod event;
 pub mod event_data;
 pub mod event_id;
+pub mod event_store;
 pub mod event_stream_id;
 pub mod event_stream_seq;
 pub mod firestore_rest;
 
 use std::{collections::HashMap, env};
 
+use anyhow::ensure;
 use reqwest::Response;
 
 use crate::firestore_rest::{Document, Value};
 
 // select (one)
-async fn get() -> anyhow::Result<Response> {
-    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/get>
-
+async fn get_example() -> anyhow::Result<Document> {
     let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
     let project_id = env::var("PROJECT_ID")?;
     let database_id = "(default)";
     let collection_id = "cities";
     let document_id = "LA";
     let document_path = format!("{}/{}", collection_id, document_id);
-    // TODO: mask.fieldPaths, transaction, readTime
-    let path = format!(
-        "/projects/{}/databases/{}/documents/{}",
+    let name = format!(
+        "projects/{}/databases/{}/documents/{}",
         project_id, database_id, document_path
     );
-    let url = format!("https://firestore.googleapis.com/v1{}", path);
-    let client = reqwest::Client::new();
-    Ok(client
-        .get(url)
-        .header("Authorization", format!("Bearer {}", bearer_token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .send()
-        .await?)
+    let response =
+        firestore_rest::get((&bearer_token, &project_id), &name, None, None, None).await?;
+    ensure!(response.status() == 200);
+    let document: Document = response.json().await?;
+    Ok(document)
 }
 
 // insert
@@ -47,7 +42,7 @@ async fn create_document_example() -> anyhow::Result<Response> {
         project_id, database_id,
     );
     let collection_id = "cities";
-    let document_id = "LA3";
+    let document_id = "LA";
     let document = Document {
         name: "unused".to_string(),
         fields: {
@@ -111,14 +106,14 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    #[ignore]
     async fn test() -> anyhow::Result<()> {
         // let response = create_document_example().await?;
-        let response = patch_example().await?;
-        // let response = get().await?;
-        let status = response.status();
-        assert_eq!(status, 200);
-        assert_eq!(response.bytes().await?, "");
+        // let status = response.status();
+        // assert_eq!(status, 200);
+
+        // let response = patch_example().await?;
+        let document = get_example().await?;
+        assert_eq!(serde_json::to_string(&document)?, "");
         Ok(())
     }
 }
