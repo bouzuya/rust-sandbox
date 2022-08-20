@@ -122,67 +122,10 @@ impl serde::Serialize for Value {
 
 pub type Timestamp = String; // 2022-08-19T22:53:42.480950Z
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct LatLng {
     pub latitude: NotNan<f64>,
     pub longitude: NotNan<f64>,
-}
-
-struct LatLngVisitor;
-
-impl<'de> Visitor<'de> for LatLngVisitor {
-    type Value = LatLng;
-
-    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-        formatter.write_str("deserialize notnanf64")
-    }
-
-    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-    where
-        A: serde::de::MapAccess<'de>,
-    {
-        let mut lat = None;
-        let mut lng = None;
-        while let Some((k, v)) = map.next_entry()? {
-            match k {
-                "latitude" => lat = Some(NotNan::new(v).unwrap()),
-                "longitude" => lng = Some(NotNan::new(v).unwrap()),
-                _ => {
-                    return Err(serde::de::Error::invalid_type(
-                        serde::de::Unexpected::Map,
-                        &self,
-                    ))
-                }
-            }
-        }
-        Ok(LatLng {
-            // FIXME
-            latitude: lat.unwrap(),
-            // FIXME
-            longitude: lng.unwrap(),
-        })
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for LatLng {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        deserializer.deserialize_map(LatLngVisitor)
-    }
-}
-
-impl serde::Serialize for LatLng {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut map = serializer.serialize_map(Some(2))?;
-        map.serialize_entry("latitude", self.latitude.as_ref())?;
-        map.serialize_entry("longitude", self.longitude.as_ref())?;
-        map.end()
-    }
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
