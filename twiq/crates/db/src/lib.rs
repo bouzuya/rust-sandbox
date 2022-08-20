@@ -5,10 +5,12 @@ pub mod event_stream_id;
 pub mod event_stream_seq;
 pub mod firestore_rest;
 
-use std::env;
+use std::{collections::HashMap, env};
 
 use reqwest::Response;
 use serde_json::json;
+
+use crate::firestore_rest::{Document, Value};
 
 // select (one)
 async fn get() -> anyhow::Result<Response> {
@@ -48,20 +50,19 @@ async fn create_document_example() -> anyhow::Result<Response> {
         project_id, database_id,
     );
     let collection_id = "cities";
-    let document_id = "LA";
-    let document = json!({
-      "fields": {
-        "name": {
-          "stringValue": "Los Angeles"
+    let document_id = "LA3";
+    let document = Document {
+        name: "unused".to_string(),
+        fields: {
+            let mut map = HashMap::new();
+            map.insert("name".to_string(), Value::String("Los Angeles".to_string()));
+            map.insert("state".to_string(), Value::String("CA".to_string()));
+            map.insert("country".to_string(), Value::String("USA".to_string()));
+            map
         },
-        "state": {
-          "stringValue": "CA"
-        },
-        "country": {
-          "stringValue": "USA"
-        }
-      }
-    });
+        create_time: "unused".to_string(),
+        update_time: "unused".to_string(),
+    };
     firestore_rest::create_document(
         (&bearer_token, &project_id),
         &parent,

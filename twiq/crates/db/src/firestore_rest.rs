@@ -1,5 +1,208 @@
+use std::collections::HashMap;
+
+use ordered_float::NotNan;
 use reqwest::{Client, Method, Response, Url};
-use serde_json::Value;
+use serde::{de::Visitor, ser::SerializeMap};
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum Value {
+    Null,
+    Boolean(bool),
+    Integer(i64),
+    Double(NotNan<f64>),
+    Timestamp(Timestamp),
+    String(String),
+    Bytes(String),     // base64-encoded string
+    Reference(String), // e.g. projects/{project_id}/databases/{databaseId}/documents/{document_path}
+    GeoPoint(LatLng),
+    Array(Array),
+    Map(Map),
+}
+
+struct ValueVisitor;
+
+impl<'de> Visitor<'de> for ValueVisitor {
+    type Value = Value;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("deserialize value")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let key: Option<String> = map.next_key()?;
+        match key {
+            Some(k) => Ok(match k.as_str() {
+                "nullValue" => {
+                    let v = map.next_value::<serde_json::Value>()?;
+                    if v.is_null() {
+                        Value::Null
+                    } else {
+                        return Err(serde::de::Error::invalid_type(
+                            serde::de::Unexpected::Map,
+                            &self,
+                        ));
+                    }
+                }
+                "booleanValue" => Value::Boolean(map.next_value()?),
+                "integerValue" => {
+                    let v: String = map.next_value()?;
+                    match v.parse::<i64>() {
+                        Ok(v) => Value::Integer(v),
+                        Err(_) => {
+                            return Err(serde::de::Error::invalid_type(
+                                serde::de::Unexpected::Map,
+                                &self,
+                            ))
+                        }
+                    }
+                }
+                "doubleValue" => {
+                    let v: f64 = map.next_value()?;
+                    match NotNan::new(v) {
+                        Ok(v) => Value::Double(v),
+                        Err(_) => {
+                            return Err(serde::de::Error::invalid_type(
+                                serde::de::Unexpected::Map,
+                                &self,
+                            ))
+                        }
+                    }
+                }
+                "timestampValue" => Value::Timestamp(map.next_value()?),
+                "stringValue" => Value::String(map.next_value()?),
+                "bytesValue" => Value::Bytes(map.next_value()?),
+                "referenceValue" => Value::Reference(map.next_value()?),
+                "geoPointValue" => Value::GeoPoint(map.next_value()?),
+                "arrayValue" => Value::Array(map.next_value()?),
+                "mapValue" => Value::Map(map.next_value()?),
+                _ => unimplemented!(),
+            }),
+            None => Err(serde::de::Error::invalid_type(
+                serde::de::Unexpected::Map,
+                &self,
+            )),
+        }
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for Value {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_map(ValueVisitor)
+    }
+}
+
+impl serde::Serialize for Value {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(1))?;
+        match self {
+            Value::Null => map.serialize_entry("nullValue", &serde_json::Value::Null)?,
+            Value::Boolean(value) => map.serialize_entry("booleanValue", value)?,
+            Value::Integer(value) => map.serialize_entry("integerValue", value)?,
+            Value::Double(value) => map.serialize_entry("doubleValue", &value.into_inner())?,
+            Value::Timestamp(value) => map.serialize_entry("timestampValue", value)?,
+            Value::String(value) => map.serialize_entry("stringValue", value)?,
+            Value::Bytes(value) => map.serialize_entry("bytesValue", value)?,
+            Value::Reference(value) => map.serialize_entry("referenceValue", value)?,
+            Value::GeoPoint(value) => map.serialize_entry("geoPointValue", value)?,
+            Value::Array(value) => map.serialize_entry("arrayValue", value)?,
+            Value::Map(value) => map.serialize_entry("mapValue", value)?,
+        }
+        map.end()
+    }
+}
+
+pub type Timestamp = String; // 2022-08-19T22:53:42.480950Z
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct LatLng {
+    pub latitude: NotNan<f64>,
+    pub longitude: NotNan<f64>,
+}
+
+struct LatLngVisitor;
+
+impl<'de> Visitor<'de> for LatLngVisitor {
+    type Value = LatLng;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        formatter.write_str("deserialize notnanf64")
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+    where
+        A: serde::de::MapAccess<'de>,
+    {
+        let mut lat = None;
+        let mut lng = None;
+        while let Some((k, v)) = map.next_entry()? {
+            match k {
+                "latitude" => lat = Some(NotNan::new(v).unwrap()),
+                "longitude" => lng = Some(NotNan::new(v).unwrap()),
+                _ => {
+                    return Err(serde::de::Error::invalid_type(
+                        serde::de::Unexpected::Map,
+                        &self,
+                    ))
+                }
+            }
+        }
+        Ok(LatLng {
+            // FIXME
+            latitude: lat.unwrap(),
+            // FIXME
+            longitude: lng.unwrap(),
+        })
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for LatLng {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_map(LatLngVisitor)
+    }
+}
+
+impl serde::Serialize for LatLng {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serializer.serialize_map(Some(2))?;
+        map.serialize_entry("latitude", self.latitude.as_ref())?;
+        map.serialize_entry("longitude", self.longitude.as_ref())?;
+        map.end()
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Array {
+    pub values: Vec<Value>,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Map {
+    pub fields: HashMap<String, Value>,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Document {
+    pub name: String,
+    pub fields: HashMap<String, Value>,
+    pub create_time: Timestamp,
+    pub update_time: Timestamp,
+}
 
 pub async fn create_document(
     (token, project_id): (&str, &str),
@@ -7,7 +210,7 @@ pub async fn create_document(
     collection_id: &str,
     document_id: Option<&str>,
     mask_field_paths: Option<Vec<&str>>,
-    document: Value,
+    document: Document,
 ) -> anyhow::Result<Response> {
     // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/createDocument>
     let method = Method::POST;
@@ -33,4 +236,131 @@ pub async fn create_document(
         .body(serde_json::to_string(&document)?)
         .send()
         .await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let json = r#"{
+            "name": "projects/bouzuya-project/databases/(default)/documents/cities/LA",
+            "fields": {
+                "name": {
+                    "stringValue": "Los Angeles"
+                },
+                "state": {
+                    "stringValue": "CA"
+                },
+                "country": {
+                    "stringValue": "USA"
+                }
+            },
+            "createTime": "2022-08-19T22:53:42.480950Z",
+            "updateTime": "2022-08-19T22:53:42.480950Z"
+        }"#;
+        let document: Document = serde_json::from_str(json)?;
+        assert_eq!(
+            document.name,
+            "projects/bouzuya-project/databases/(default)/documents/cities/LA"
+        );
+        assert_eq!(document.fields, {
+            let mut map = HashMap::new();
+            map.insert("name".to_owned(), Value::String("Los Angeles".to_owned()));
+            map.insert("state".to_owned(), Value::String("CA".to_owned()));
+            map.insert("country".to_owned(), Value::String("USA".to_owned()));
+            map
+        });
+        Ok(())
+    }
+
+    #[test]
+    fn simple_test() -> anyhow::Result<()> {
+        let json = r#"{
+            "name": "projects/bouzuya-project/databases/(default)/documents/collection_id/document_id",
+            "fields": {
+                "null": {
+                    "nullValue": null
+                },
+                "boolean": {
+                    "booleanValue": true
+                },
+                "integer": {
+                    "integerValue": "1234"
+                },
+                "double": {
+                    "doubleValue": 123.456
+                },
+                "timestamp": {
+                    "timestampValue": "2001-02-03T04:05:06Z"
+                },
+                "string": {
+                    "stringValue": "s"
+                },
+                "bytes": {
+                    "bytesValue": "Ynl0ZXMK"
+                },
+                "reference": {
+                    "referenceValue": "ref"
+                },
+                "geoPoint": {
+                    "geoPointValue": {
+                        "latitude": 123.456,
+                        "longitude": 789.012
+                    }
+                },
+                "array": {
+                    "arrayValue": {
+                        "values": [
+                            {
+                                "stringValue": "s"
+                            }
+                        ]
+                    }
+                },
+                "map": {
+                    "mapValue": {
+                        "fields": {
+                            "s": {
+                                "stringValue": "s"
+                            }
+                        }
+                    }
+                }
+            },
+            "createTime": "2022-08-19T22:53:42.480950Z",
+            "updateTime": "2022-08-19T22:53:42.480950Z"
+        }"#;
+        let document: Document = serde_json::from_str(json)?;
+        assert_eq!(
+            document,
+            Document {
+                name: "projects/bouzuya-project/databases/(default)/documents/collection_id/document_id".to_owned(),
+                fields: {
+                    let mut map = HashMap::new();
+                    map.insert("null".to_owned(), Value::Null);
+                    map.insert("boolean".to_owned(), Value::Boolean(true));
+                    map.insert("integer".to_owned(), Value::Integer(1234));
+                    map.insert("double".to_owned(), Value::Double(NotNan::new(123.456_f64).unwrap()));
+                    map.insert("timestamp".to_owned(), Value::Timestamp("2001-02-03T04:05:06Z".to_owned()));
+                    map.insert("string".to_owned(), Value::String("s".to_owned()));
+                    map.insert("bytes".to_owned(), Value::Bytes("Ynl0ZXMK".to_owned()));
+                    map.insert("reference".to_owned(), Value::Reference("ref".to_owned()));
+                    map.insert("geoPoint".to_owned(), Value::GeoPoint(LatLng { latitude: NotNan::new(123.456_f64).unwrap(), longitude: NotNan::new(789.012_f64).unwrap() }));
+                    map.insert("array".to_owned(), Value::Array(Array { values: vec![Value::String("s".to_owned())] }));
+                    map.insert("map".to_owned(), Value::Map(Map { fields: {
+                        let mut map = HashMap::new();
+                        map.insert("s".to_owned(), Value::String("s".to_owned()));
+                        map
+                    } }));
+                    map
+                },
+                create_time: "2022-08-19T22:53:42.480950Z".to_owned(),
+                update_time: "2022-08-19T22:53:42.480950Z".to_owned()
+            }
+        );
+        assert!(serde_json::to_string(&document).is_ok());
+        Ok(())
+    }
 }
