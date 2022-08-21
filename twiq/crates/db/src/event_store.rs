@@ -1,12 +1,13 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, str::FromStr};
 
 use reqwest::Response;
+use serde::__private::doc;
 
 use crate::{
     event::Event,
     event_stream_id::EventStreamId,
-    event_stream_seq::EventStreamSeq,
-    firestore_rest::{self, Document, Value},
+    event_stream_seq::{self, EventStreamSeq},
+    firestore_rest::{self, Document, Timestamp, Value},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -22,13 +23,18 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
     let database_id = "(default)";
     // TODO: beginTransaction
     match current {
-        Some(_) => {
-            // TODO: get event_streams
-            // TODO: check version & get updateTime
+        Some(expected_event_stream_seq) => {
+            let (_, event_stream_seq, update_time) =
+                get_event_stream(&bearer_token, &project_id, database_id, event.stream_id())
+                    .await?;
+            if event_stream_seq != expected_event_stream_seq {
+                return Err(Error::Unknown("conflict".to_string()));
+            }
             update_event_stream(
                 &bearer_token,
                 &project_id,
                 database_id,
+                update_time,
                 event.stream_id(),
                 event.stream_seq(),
             )
@@ -148,10 +154,72 @@ async fn create_event_stream(
     Ok(response)
 }
 
+async fn get_event_stream(
+    bearer_token: &str,
+    project_id: &str,
+    database_id: &str,
+    event_stream_id: EventStreamId,
+) -> Result<(EventStreamId, EventStreamSeq, Timestamp), Error> {
+    let collection_id = "event_streams";
+    let document_id = event_stream_id.to_string();
+    let name = format!(
+        "projects/{}/databases/{}/documents/{}/{}",
+        project_id, database_id, collection_id, document_id
+    );
+    let response = firestore_rest::get((bearer_token, project_id), &name, None, None, None)
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(Error::Unknown(format!(
+            "get_event_stream failed: status code ({}) is not success",
+            response.status()
+        )));
+    }
+    let document: Document = response
+        .json()
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let event_stream_id = match document.fields.get("id") {
+        Some(value) => {
+            if let Value::String(value) = value {
+                EventStreamId::from_str(value).map_err(|e| Error::Unknown(e.to_string()))?
+            } else {
+                return Err(Error::Unknown(
+                    "get_event_stream failed: id field vaue is invalid".to_string(),
+                ));
+            }
+        }
+        None => {
+            return Err(Error::Unknown(
+                "get_event_stream failed: id field is not found".to_string(),
+            ))
+        }
+    };
+    let event_stream_seq = match document.fields.get("seq") {
+        Some(value) => {
+            if let Value::Integer(value) = value {
+                EventStreamSeq::try_from(*value).map_err(|e| Error::Unknown(e.to_string()))?
+            } else {
+                return Err(Error::Unknown(
+                    "get_event_stream failed: seq field vaue is invalid".to_string(),
+                ));
+            }
+        }
+        None => {
+            return Err(Error::Unknown(
+                "get_event_stream failed: id field is not found".to_string(),
+            ))
+        }
+    };
+
+    Ok((event_stream_id, event_stream_seq, document.update_time))
+}
+
 async fn update_event_stream(
     bearer_token: &str,
     project_id: &str,
     database_id: &str,
+    current_document_update_time: Timestamp,
     event_stream_id: EventStreamId,
     event_stream_seq: EventStreamSeq,
 ) -> Result<Response, Error> {
@@ -167,7 +235,7 @@ async fn update_event_stream(
         None,
         None,
         Some(true),
-        None, // TODO
+        Some(current_document_update_time),
         Document {
             name: document_name.clone(),
             fields: {
