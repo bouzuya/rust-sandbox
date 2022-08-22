@@ -1,12 +1,11 @@
 use std::{collections::HashMap, env, str::FromStr};
 
 use reqwest::Response;
-use serde::__private::doc;
 
 use crate::{
     event::Event,
     event_stream_id::EventStreamId,
-    event_stream_seq::{self, EventStreamSeq},
+    event_stream_seq::EventStreamSeq,
     firestore_rest::{self, Document, Timestamp, Value},
 };
 

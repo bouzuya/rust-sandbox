@@ -11,7 +11,29 @@ use std::{collections::HashMap, env};
 use anyhow::ensure;
 use reqwest::Response;
 
-use crate::firestore_rest::{Document, Value};
+use crate::firestore_rest::{
+    BeginTransactionRequestBody, BeginTransactionResponse, Document, TransactionOptions, Value,
+};
+
+async fn begin_transaction_example() -> anyhow::Result<BeginTransactionResponse> {
+    let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+    let project_id = env::var("PROJECT_ID")?;
+    let database_id = "(default)";
+    let database = format!("projects/{}/databases/{}", project_id, database_id);
+    let response = firestore_rest::begin_transaction(
+        (&bearer_token, &project_id),
+        &database,
+        BeginTransactionRequestBody {
+            options: TransactionOptions::ReadWrite {
+                retry_transaction: None,
+            },
+        },
+    )
+    .await?;
+    ensure!(response.status() == 200);
+    let response: BeginTransactionResponse = response.json().await?;
+    Ok(response)
+}
 
 // select (one)
 async fn get_example() -> anyhow::Result<Document> {
@@ -106,14 +128,17 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test() -> anyhow::Result<()> {
+        let response = begin_transaction_example().await?;
+        assert_eq!(serde_json::to_string(&response)?, "");
         // let response = create_document_example().await?;
         // let status = response.status();
         // assert_eq!(status, 200);
 
         // let response = patch_example().await?;
-        let document = get_example().await?;
-        assert_eq!(serde_json::to_string(&document)?, "");
+        // let document = get_example().await?;
+        // assert_eq!(serde_json::to_string(&document)?, "");
         Ok(())
     }
 }

@@ -147,6 +147,50 @@ pub struct Document {
     pub update_time: Timestamp,
 }
 
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum TransactionOptions {
+    ReadOnly {
+        read_time: String,
+    },
+    ReadWrite {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        retry_transaction: Option<String>,
+    },
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BeginTransactionRequestBody {
+    pub options: TransactionOptions,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct BeginTransactionResponse {
+    pub transaction: String,
+}
+
+pub async fn begin_transaction(
+    (token, project_id): (&str, &str),
+    database: &str,
+    body: BeginTransactionRequestBody,
+) -> anyhow::Result<Response> {
+    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/beginTransaction>
+    let method = Method::POST;
+    let url = format!(
+        "https://firestore.googleapis.com/v1/{}/documents:beginTransaction",
+        database
+    );
+
+    Ok(Client::new()
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .header("X-Goog-User-Project", project_id)
+        .body(serde_json::to_string(&body)?)
+        .send()
+        .await?)
+}
+
 pub async fn create_document(
     (token, project_id): (&str, &str),
     parent: &str,
@@ -395,6 +439,35 @@ mod tests {
             }
         );
         assert!(serde_json::to_string(&document).is_ok());
+        Ok(())
+    }
+
+    #[test]
+    fn begin_transaction_request_body_test() -> anyhow::Result<()> {
+        assert_eq!(
+            serde_json::to_string(&BeginTransactionRequestBody {
+                options: TransactionOptions::ReadWrite {
+                    retry_transaction: None,
+                },
+            })?,
+            r#"{"options":{"readWrite":{}}}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&BeginTransactionRequestBody {
+                options: TransactionOptions::ReadWrite {
+                    retry_transaction: Some("abc".to_owned()),
+                },
+            })?,
+            r#"{"options":{"readWrite":{"retry_transaction":"abc"}}}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&BeginTransactionRequestBody {
+                options: TransactionOptions::ReadOnly {
+                    read_time: "2000-01-02T03:04:05Z".to_owned()
+                }
+            })?,
+            r#"{"options":{"readOnly":{"read_time":"2000-01-02T03:04:05Z"}}}"#
+        );
         Ok(())
     }
 }
