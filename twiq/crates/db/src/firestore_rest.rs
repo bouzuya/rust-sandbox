@@ -191,6 +191,44 @@ pub async fn begin_transaction(
         .await?)
 }
 
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct CommitRequestBody {
+    writes: Vec<Write>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    transaction: Option<String>,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Write {
+    // TODO:
+    // Update {}
+    Delete(String),
+    // TODO:
+    // Transform {},
+}
+
+pub async fn commit(
+    (token, project_id): (&str, &str),
+    database: &str,
+    body: CommitRequestBody,
+) -> anyhow::Result<Response> {
+    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/commit>
+    let method = Method::POST;
+    let url = format!(
+        "https://firestore.googleapis.com/v1/{}/documents:commit",
+        database
+    );
+    Ok(Client::new()
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .header("X-Goog-User-Project", project_id)
+        .body(serde_json::to_string(&body)?)
+        .send()
+        .await?)
+}
+
 pub async fn create_document(
     (token, project_id): (&str, &str),
     parent: &str,
@@ -467,6 +505,34 @@ mod tests {
                 }
             })?,
             r#"{"options":{"readOnly":{"read_time":"2000-01-02T03:04:05Z"}}}"#
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn commit_request_body_test() -> anyhow::Result<()> {
+        assert_eq!(
+            serde_json::to_string(&CommitRequestBody {
+                writes: vec![Write::Delete("123".to_owned())],
+                transaction: None
+            })?,
+            r#"{"writes":[{"delete":"123"}]}"#
+        );
+        assert_eq!(
+            serde_json::to_string(&CommitRequestBody {
+                writes: vec![Write::Delete("123".to_owned())],
+                transaction: Some("456".to_owned())
+            })?,
+            r#"{"writes":[{"delete":"123"}],"transaction":"456"}"#
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn write_test() -> anyhow::Result<()> {
+        assert_eq!(
+            serde_json::to_string(&Write::Delete("123".to_owned()))?,
+            r#"{"delete":"123"}"#
         );
         Ok(())
     }
