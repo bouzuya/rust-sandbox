@@ -268,6 +268,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test() -> anyhow::Result<()> {
         let id = EventId::generate();
         let stream_id = EventStreamId::generate();
