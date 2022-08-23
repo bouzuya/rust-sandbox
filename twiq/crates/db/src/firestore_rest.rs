@@ -1,4 +1,4 @@
-mod array;
+mod array_value;
 mod begin_transaction_request_body;
 mod begin_transaction_response;
 mod commit_request_body;
@@ -12,7 +12,7 @@ mod transaction_options;
 mod value;
 mod write;
 
-pub use self::array::Array;
+pub use self::array_value::ArrayValue;
 pub use self::begin_transaction_request_body::BeginTransactionRequestBody;
 pub use self::begin_transaction_response::BeginTransactionResponse;
 pub use self::commit_request_body::CommitRequestBody;

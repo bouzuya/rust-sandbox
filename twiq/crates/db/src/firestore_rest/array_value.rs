@@ -1,7 +1,7 @@
 use super::Value;
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct Array {
+pub struct ArrayValue {
     pub values: Vec<Value>,
 }
 
@@ -11,11 +11,11 @@ mod tests {
 
     #[test]
     fn deserialize_test() -> anyhow::Result<()> {
-        let array: Array =
+        let array: ArrayValue =
             serde_json::from_str(r#"{"values":[{"nullValue":null},{"booleanValue":true}]}"#)?;
         assert_eq!(
             array,
-            Array {
+            ArrayValue {
                 values: vec![Value::Null, Value::Boolean(true)],
             },
         );
@@ -25,7 +25,7 @@ mod tests {
     #[test]
     fn serialize_test() -> anyhow::Result<()> {
         assert_eq!(
-            serde_json::to_string(&Array {
+            serde_json::to_string(&ArrayValue {
                 values: vec![Value::Null, Value::Boolean(true)],
             })?,
             r#"{"values":[{"nullValue":null},{"booleanValue":true}]}"#

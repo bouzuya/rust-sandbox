@@ -1,7 +1,7 @@
 use ordered_float::NotNan;
 use serde::{de::Visitor, ser::SerializeMap};
 
-use super::{Array, LatLng, Map, Timestamp};
+use super::{ArrayValue, LatLng, Map, Timestamp};
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Value {
@@ -14,7 +14,7 @@ pub enum Value {
     Bytes(String),     // base64-encoded string
     Reference(String), // e.g. projects/{project_id}/databases/{databaseId}/documents/{document_path}
     GeoPoint(LatLng),
-    Array(Array),
+    Array(ArrayValue),
     Map(Map),
 }
 
@@ -160,7 +160,7 @@ mod tests {
             serde_json::from_str(r#"{"arrayValue":{"values":[{"nullValue":null}]}}"#)?;
         assert_eq!(
             deserialized,
-            Value::Array(Array {
+            Value::Array(ArrayValue {
                 values: vec![Value::Null]
             })
         );
@@ -221,7 +221,7 @@ mod tests {
             r#"{"geoPointValue":{"latitude":123.456,"longitude":789.012}}"#
         );
         assert_eq!(
-            serde_json::to_string(&Value::Array(Array {
+            serde_json::to_string(&Value::Array(ArrayValue {
                 values: vec![Value::Null]
             }))?,
             r#"{"arrayValue":{"values":[{"nullValue":null}]}}"#
