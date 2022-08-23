@@ -15,7 +15,7 @@ pub struct Document {
 mod tests {
     use ordered_float::NotNan;
 
-    use crate::firestore_rest::{ArrayValue, LatLng, Map, Value};
+    use crate::firestore_rest::{ArrayValue, LatLng, MapValue, Value};
 
     use super::*;
 
@@ -126,7 +126,7 @@ mod tests {
                     map.insert("reference".to_owned(), Value::Reference("ref".to_owned()));
                     map.insert("geoPoint".to_owned(), Value::GeoPoint(LatLng { latitude: NotNan::new(123.456_f64).unwrap(), longitude: NotNan::new(789.012_f64).unwrap() }));
                     map.insert("array".to_owned(), Value::Array(ArrayValue { values: vec![Value::String("s".to_owned())] }));
-                    map.insert("map".to_owned(), Value::Map(Map { fields: {
+                    map.insert("map".to_owned(), Value::Map(MapValue { fields: {
                         let mut map = HashMap::new();
                         map.insert("s".to_owned(), Value::String("s".to_owned()));
                         map
