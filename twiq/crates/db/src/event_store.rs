@@ -93,8 +93,8 @@ async fn create_event(
                 map.insert("data".to_owned(), Value::String(event.data().to_string()));
                 map
             },
-            create_time: "unused".to_owned(),
-            update_time: "unused".to_owned(),
+            create_time: None,
+            update_time: None,
         },
     )
     .await
@@ -137,8 +137,8 @@ async fn create_event_stream(
                 );
                 map
             },
-            create_time: "unused".to_owned(),
-            update_time: "unused".to_owned(),
+            create_time: None,
+            update_time: None,
         },
     )
     .await
@@ -211,7 +211,11 @@ async fn get_event_stream(
         }
     };
 
-    Ok((event_stream_id, event_stream_seq, document.update_time))
+    Ok((
+        event_stream_id,
+        event_stream_seq,
+        document.update_time.unwrap(),
+    ))
 }
 
 async fn update_event_stream(
@@ -246,8 +250,8 @@ async fn update_event_stream(
                 );
                 map
             },
-            create_time: "unused".to_owned(),
-            update_time: "unused".to_owned(),
+            create_time: None,
+            update_time: None,
         },
     )
     .await

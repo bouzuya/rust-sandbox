@@ -7,8 +7,10 @@ use super::{Timestamp, Value};
 pub struct Document {
     pub name: String,
     pub fields: HashMap<String, Value>,
-    pub create_time: Timestamp,
-    pub update_time: Timestamp,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub create_time: Option<Timestamp>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub update_time: Option<Timestamp>,
 }
 
 #[cfg(test)]
@@ -133,8 +135,8 @@ mod tests {
                     } }));
                     map
                 },
-                create_time: "2022-08-19T22:53:42.480950Z".to_owned(),
-                update_time: "2022-08-19T22:53:42.480950Z".to_owned()
+                create_time: Some("2022-08-19T22:53:42.480950Z".to_owned()),
+                update_time: Some("2022-08-19T22:53:42.480950Z".to_owned())
             }
         );
         assert!(serde_json::to_string(&document).is_ok());

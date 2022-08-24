@@ -59,8 +59,8 @@ mod tests {
                         map.insert("null".to_owned(), Value::Null);
                         map
                     },
-                    create_time: "2022-08-19T22:53:42.480950Z".to_owned(),
-                    update_time: "2022-08-19T22:53:42.480950Z".to_owned()
+                    create_time: Some("2022-08-19T22:53:42.480950Z".to_owned()),
+                    update_time: Some("2022-08-19T22:53:42.480950Z".to_owned())
                 },
                 update_mask: None,
             }
@@ -88,8 +88,8 @@ mod tests {
                         map.insert("null".to_owned(), Value::Null);
                         map
                     },
-                    create_time: "2022-08-19T22:53:42.480950Z".to_owned(),
-                    update_time: "2022-08-19T22:53:42.480950Z".to_owned()
+                    create_time: Some("2022-08-19T22:53:42.480950Z".to_owned()),
+                    update_time: Some("2022-08-19T22:53:42.480950Z".to_owned())
                 },
                 update_mask: None,
             })?,

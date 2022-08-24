@@ -48,14 +48,14 @@ async fn commit_example() -> anyhow::Result<Response> {
             writes: vec![Write::Update {
                 current_document: None,
                 update: Document {
-                    name: format!("{}/cities/LA", database),
+                    name: format!("{}/documents/cities/LA", database),
                     fields: {
                         let mut map = HashMap::new();
                         map.insert("commit".to_owned(), Value::String("commit1".to_owned()));
                         map
                     },
-                    create_time: "unused".to_owned(),
-                    update_time: "unused".to_owned(),
+                    create_time: None,
+                    update_time: None,
                 },
                 update_mask: None,
             }],
@@ -106,8 +106,8 @@ async fn create_document_example() -> anyhow::Result<Response> {
             map.insert("country".to_string(), Value::String("USA".to_string()));
             map
         },
-        create_time: "unused".to_string(),
-        update_time: "unused".to_string(),
+        create_time: None,
+        update_time: None,
     };
     firestore_rest::create_document(
         (&bearer_token, &project_id),
@@ -140,8 +140,8 @@ async fn patch_example() -> anyhow::Result<Response> {
             map.insert("country".to_string(), Value::String("USA".to_string()));
             map
         },
-        create_time: "unused".to_string(),
-        update_time: "unused".to_string(),
+        create_time: None,
+        update_time: None,
     };
     firestore_rest::patch(
         (&bearer_token, &project_id),
