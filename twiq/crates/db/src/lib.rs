@@ -12,7 +12,8 @@ use anyhow::ensure;
 use reqwest::Response;
 
 use crate::firestore_rest::{
-    BeginTransactionRequestBody, BeginTransactionResponse, Document, TransactionOptions, Value,
+    BeginTransactionRequestBody, BeginTransactionResponse, CommitRequestBody, Document,
+    TransactionOptions, Value, Write,
 };
 
 async fn begin_transaction_example() -> anyhow::Result<BeginTransactionResponse> {
@@ -32,6 +33,37 @@ async fn begin_transaction_example() -> anyhow::Result<BeginTransactionResponse>
     .await?;
     ensure!(response.status() == 200);
     let response: BeginTransactionResponse = response.json().await?;
+    Ok(response)
+}
+
+async fn commit_example() -> anyhow::Result<Response> {
+    let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+    let project_id = env::var("PROJECT_ID")?;
+    let database_id = "(default)";
+    let database = format!("projects/{}/databases/{}", project_id, database_id);
+    let response = firestore_rest::commit(
+        (&bearer_token, &project_id),
+        &database,
+        CommitRequestBody {
+            writes: vec![Write::Update {
+                current_document: None,
+                update: Document {
+                    name: format!("{}/cities/LA", database),
+                    fields: {
+                        let mut map = HashMap::new();
+                        map.insert("commit".to_owned(), Value::String("commit1".to_owned()));
+                        map
+                    },
+                    create_time: "unused".to_owned(),
+                    update_time: "unused".to_owned(),
+                },
+                update_mask: None,
+            }],
+            transaction: None,
+        },
+    )
+    .await?;
+    ensure!(response.status() == 200);
     Ok(response)
 }
 
