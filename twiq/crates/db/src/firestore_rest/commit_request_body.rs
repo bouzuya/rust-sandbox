@@ -18,7 +18,10 @@ mod tests {
         assert_eq!(
             deserialized,
             CommitRequestBody {
-                writes: vec![Write::Delete("123".to_owned())],
+                writes: vec![Write::Delete {
+                    current_document: None,
+                    delete: "123".to_owned()
+                }],
                 transaction: None
             }
         );
@@ -29,14 +32,20 @@ mod tests {
     fn serialize_test() -> anyhow::Result<()> {
         assert_eq!(
             serde_json::to_string(&CommitRequestBody {
-                writes: vec![Write::Delete("123".to_owned())],
+                writes: vec![Write::Delete {
+                    current_document: None,
+                    delete: "123".to_owned()
+                }],
                 transaction: None
             })?,
             r#"{"writes":[{"delete":"123"}]}"#
         );
         assert_eq!(
             serde_json::to_string(&CommitRequestBody {
-                writes: vec![Write::Delete("123".to_owned())],
+                writes: vec![Write::Delete {
+                    current_document: None,
+                    delete: "123".to_owned()
+                }],
                 transaction: Some("456".to_owned())
             })?,
             r#"{"writes":[{"delete":"123"}],"transaction":"456"}"#
