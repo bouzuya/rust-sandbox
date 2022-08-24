@@ -6,7 +6,10 @@ use crate::{
     event::Event,
     event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq,
-    firestore_rest::{self, Document, Timestamp, Value},
+    firestore_rest::{
+        self, BeginTransactionRequestBody, BeginTransactionResponse, Document, Timestamp,
+        TransactionOptions, Value,
+    },
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -20,7 +23,31 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
         env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
-    // TODO: beginTransaction
+    let database = format!("projects/{}/databases/{}", project_id, database_id);
+
+    let response = firestore_rest::begin_transaction(
+        (&bearer_token, &project_id),
+        &database,
+        BeginTransactionRequestBody {
+            options: TransactionOptions::ReadWrite {
+                retry_transaction: None,
+            },
+        },
+    )
+    .await
+    .map_err(|e| Error::Unknown(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(Error::Unknown(format!(
+            "begin_transaction failed: status code ({}) is not success",
+            response.status()
+        )));
+    }
+    let response: BeginTransactionResponse = response
+        .json()
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let transaction = response.transaction;
+
     match current {
         Some(expected_event_stream_seq) => {
             let (_, event_stream_seq, update_time) =
