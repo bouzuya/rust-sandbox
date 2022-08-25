@@ -12,6 +12,7 @@ mod precondition;
 mod projection;
 mod timestamp;
 mod transaction_options;
+mod unary_operator;
 mod value;
 mod write;
 
@@ -29,6 +30,7 @@ pub use self::precondition::Precondition;
 pub use self::projection::Projection;
 pub use self::timestamp::Timestamp;
 pub use self::transaction_options::TransactionOptions;
+pub use self::unary_operator::UnaryOperator;
 pub use self::value::Value;
 pub use self::write::Write;
 use reqwest::{Client, Method, Response, Url};
