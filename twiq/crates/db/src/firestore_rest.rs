@@ -1,6 +1,7 @@
 mod array_value;
 mod begin_transaction_request_body;
 mod begin_transaction_response;
+mod collection_selector;
 mod commit_request_body;
 mod document;
 mod document_mask;
@@ -17,6 +18,7 @@ mod write;
 pub use self::array_value::ArrayValue;
 pub use self::begin_transaction_request_body::BeginTransactionRequestBody;
 pub use self::begin_transaction_response::BeginTransactionResponse;
+pub use self::collection_selector::CollectionSelector;
 pub use self::commit_request_body::CommitRequestBody;
 pub use self::document::Document;
 pub use self::document_mask::DocumentMask;
