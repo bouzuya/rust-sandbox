@@ -18,6 +18,34 @@ pub enum Error {
     Unknown(String),
 }
 
+fn event_stream_to_fields(
+    event_stream_id: EventStreamId,
+    event_stream_seq: EventStreamSeq,
+) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+    map.insert("id".to_owned(), Value::String(event_stream_id.to_string()));
+    map.insert(
+        "seq".to_owned(),
+        Value::Integer(i64::from(event_stream_seq)),
+    );
+    map
+}
+
+fn event_to_fields(event: &Event) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+    map.insert("id".to_owned(), Value::String(event.id().to_string()));
+    map.insert(
+        "stream_id".to_owned(),
+        Value::String(event.stream_id().to_string()),
+    );
+    map.insert(
+        "stream_seq".to_owned(),
+        Value::Integer(i64::from(event.stream_seq())),
+    );
+    map.insert("data".to_owned(), Value::String(event.data().to_string()));
+    map
+}
+
 pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), Error> {
     let bearer_token =
         env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
@@ -71,18 +99,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
                         "projects/{}/databases/{}/documents/{}/{}",
                         &project_id, &database_id, collection_id, document_id
                     ),
-                    fields: {
-                        let mut map = HashMap::new();
-                        map.insert(
-                            "id".to_owned(),
-                            Value::String(event.stream_id().to_string()),
-                        );
-                        map.insert(
-                            "seq".to_owned(),
-                            Value::Integer(i64::from(event_stream_seq)),
-                        );
-                        map
-                    },
+                    fields: event_stream_to_fields(event.stream_id(), event.stream_seq()),
                     create_time: None,
                     update_time: None,
                 },
@@ -108,18 +125,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
                         "projects/{}/databases/{}/documents/{}/{}",
                         &project_id, &database_id, collection_id, document_id
                     ),
-                    fields: {
-                        let mut map = HashMap::new();
-                        map.insert(
-                            "id".to_owned(),
-                            Value::String(event.stream_id().to_string()),
-                        );
-                        map.insert(
-                            "seq".to_owned(),
-                            Value::Integer(i64::from(event.stream_seq())),
-                        );
-                        map
-                    },
+                    fields: event_stream_to_fields(event.stream_id(), event.stream_seq()),
                     create_time: None,
                     update_time: None,
                 },
@@ -146,20 +152,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
                 "projects/{}/databases/{}/documents/{}/{}",
                 &project_id, &database_id, collection_id, document_id
             ),
-            fields: {
-                let mut map = HashMap::new();
-                map.insert("id".to_owned(), Value::String(event.id().to_string()));
-                map.insert(
-                    "stream_id".to_owned(),
-                    Value::String(event.stream_id().to_string()),
-                );
-                map.insert(
-                    "stream_seq".to_owned(),
-                    Value::Integer(i64::from(event.stream_seq())),
-                );
-                map.insert("data".to_owned(), Value::String(event.data().to_string()));
-                map
-            },
+            fields: event_to_fields(&event),
             create_time: None,
             update_time: None,
         },
@@ -201,20 +194,7 @@ async fn create_event(
         None,
         Document {
             name: "unused".to_owned(),
-            fields: {
-                let mut map = HashMap::new();
-                map.insert("id".to_owned(), Value::String(event.id().to_string()));
-                map.insert(
-                    "stream_id".to_owned(),
-                    Value::String(event.stream_id().to_string()),
-                );
-                map.insert(
-                    "stream_seq".to_owned(),
-                    Value::Integer(i64::from(event.stream_seq())),
-                );
-                map.insert("data".to_owned(), Value::String(event.data().to_string()));
-                map
-            },
+            fields: event_to_fields(&event),
             create_time: None,
             update_time: None,
         },
@@ -250,15 +230,7 @@ async fn create_event_stream(
         None,
         Document {
             name: "unused".to_owned(),
-            fields: {
-                let mut map = HashMap::new();
-                map.insert("id".to_owned(), Value::String(event_stream_id.to_string()));
-                map.insert(
-                    "seq".to_owned(),
-                    Value::Integer(i64::from(event_stream_seq)),
-                );
-                map
-            },
+            fields: event_stream_to_fields(event_stream_id, event_stream_seq),
             create_time: None,
             update_time: None,
         },
@@ -370,15 +342,7 @@ async fn update_event_stream(
         Some(current_document_update_time),
         Document {
             name: document_name.clone(),
-            fields: {
-                let mut map = HashMap::new();
-                map.insert("id".to_owned(), Value::String(event_stream_id.to_string()));
-                map.insert(
-                    "seq".to_owned(),
-                    Value::Integer(i64::from(event_stream_seq)),
-                );
-                map
-            },
+            fields: event_stream_to_fields(event_stream_id, event_stream_seq),
             create_time: None,
             update_time: None,
         },
