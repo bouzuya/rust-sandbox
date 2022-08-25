@@ -7,8 +7,8 @@ use crate::{
     event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq,
     firestore_rest::{
-        self, BeginTransactionRequestBody, BeginTransactionResponse, Document, Timestamp,
-        TransactionOptions, Value,
+        self, BeginTransactionRequestBody, BeginTransactionResponse, CommitRequestBody, Document,
+        Precondition, Timestamp, TransactionOptions, Value, Write,
     },
 };
 
@@ -48,41 +48,136 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
         .map_err(|e| Error::Unknown(e.to_string()))?;
     let transaction = response.transaction;
 
+    let mut writes = vec![];
     match current {
         Some(expected_event_stream_seq) => {
-            let (_, event_stream_seq, update_time) =
-                get_event_stream(&bearer_token, &project_id, database_id, event.stream_id())
-                    .await?;
+            let (_, event_stream_seq, update_time) = get_event_stream(
+                &bearer_token,
+                &project_id,
+                &transaction,
+                database_id,
+                event.stream_id(),
+            )
+            .await?;
             if event_stream_seq != expected_event_stream_seq {
                 return Err(Error::Unknown("conflict".to_string()));
             }
-            update_event_stream(
-                &bearer_token,
-                &project_id,
-                database_id,
-                update_time,
-                event.stream_id(),
-                event.stream_seq(),
-            )
-            .await?;
+            let collection_id = "event_streams";
+            let document_id = event.stream_id().to_string();
+            writes.push(Write::Update {
+                current_document: Some(Precondition::UpdateTime(update_time)),
+                update: Document {
+                    name: format!(
+                        "projects/{}/databases/{}/documents/{}/{}",
+                        &project_id, &database_id, collection_id, document_id
+                    ),
+                    fields: {
+                        let mut map = HashMap::new();
+                        map.insert(
+                            "id".to_owned(),
+                            Value::String(event.stream_id().to_string()),
+                        );
+                        map.insert(
+                            "seq".to_owned(),
+                            Value::Integer(i64::from(event_stream_seq)),
+                        );
+                        map
+                    },
+                    create_time: None,
+                    update_time: None,
+                },
+                update_mask: None,
+            });
+            // update_event_stream(
+            //     &bearer_token,
+            //     &project_id,
+            //     database_id,
+            //     update_time,
+            //     event.stream_id(),
+            //     event.stream_seq(),
+            // )
+            // .await?;
         }
         None => {
-            create_event_stream(
-                &bearer_token,
-                &project_id,
-                database_id,
-                event.stream_id(),
-                event.stream_seq(),
-            )
-            .await?;
+            let collection_id = "event_streams";
+            let document_id = event.stream_id().to_string();
+            writes.push(Write::Update {
+                current_document: Some(Precondition::Exists(false)),
+                update: Document {
+                    name: format!(
+                        "projects/{}/databases/{}/documents/{}/{}",
+                        &project_id, &database_id, collection_id, document_id
+                    ),
+                    fields: {
+                        let mut map = HashMap::new();
+                        map.insert(
+                            "id".to_owned(),
+                            Value::String(event.stream_id().to_string()),
+                        );
+                        map.insert(
+                            "seq".to_owned(),
+                            Value::Integer(i64::from(event.stream_seq())),
+                        );
+                        map
+                    },
+                    create_time: None,
+                    update_time: None,
+                },
+                update_mask: None,
+            });
+            // create_event_stream(
+            //     &bearer_token,
+            //     &project_id,
+            //     database_id,
+            //     event.stream_id(),
+            //     event.stream_seq(),
+            // )
+            // .await?;
         }
     }
 
-    create_event(&bearer_token, &project_id, database_id, event).await?;
+    // create_event(&bearer_token, &project_id, database_id, event).await?;
+    let collection_id = "events";
+    let document_id = event.id().to_string();
+    writes.push(Write::Update {
+        current_document: Some(Precondition::Exists(false)),
+        update: Document {
+            name: format!(
+                "projects/{}/databases/{}/documents/{}/{}",
+                &project_id, &database_id, collection_id, document_id
+            ),
+            fields: {
+                let mut map = HashMap::new();
+                map.insert("id".to_owned(), Value::String(event.id().to_string()));
+                map.insert(
+                    "stream_id".to_owned(),
+                    Value::String(event.stream_id().to_string()),
+                );
+                map.insert(
+                    "stream_seq".to_owned(),
+                    Value::Integer(i64::from(event.stream_seq())),
+                );
+                map.insert("data".to_owned(), Value::String(event.data().to_string()));
+                map
+            },
+            create_time: None,
+            update_time: None,
+        },
+        update_mask: None,
+    });
+
+    firestore_rest::commit(
+        (&bearer_token, &project_id),
+        &database,
+        CommitRequestBody {
+            writes,
+            transaction: Some(transaction),
+        },
+    )
+    .await
+    .map_err(|e| Error::Unknown(e.to_string()))?;
 
     // TODO: rollback
-
-    // TODO: commit
 
     Ok(())
 }
@@ -159,7 +254,7 @@ async fn create_event_stream(
                 let mut map = HashMap::new();
                 map.insert("id".to_owned(), Value::String(event_stream_id.to_string()));
                 map.insert(
-                    "stream_seq".to_owned(),
+                    "seq".to_owned(),
                     Value::Integer(i64::from(event_stream_seq)),
                 );
                 map
@@ -183,6 +278,7 @@ async fn create_event_stream(
 async fn get_event_stream(
     bearer_token: &str,
     project_id: &str,
+    transaction: &str,
     database_id: &str,
     event_stream_id: EventStreamId,
 ) -> Result<(EventStreamId, EventStreamSeq, Timestamp), Error> {
@@ -192,9 +288,15 @@ async fn get_event_stream(
         "projects/{}/databases/{}/documents/{}/{}",
         project_id, database_id, collection_id, document_id
     );
-    let response = firestore_rest::get((bearer_token, project_id), &name, None, None, None)
-        .await
-        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let response = firestore_rest::get(
+        (bearer_token, project_id),
+        &name,
+        None,
+        Some(transaction),
+        None,
+    )
+    .await
+    .map_err(|e| Error::Unknown(e.to_string()))?;
     if !response.status().is_success() {
         return Err(Error::Unknown(format!(
             "get_event_stream failed: status code ({}) is not success",
@@ -233,7 +335,7 @@ async fn get_event_stream(
         }
         None => {
             return Err(Error::Unknown(
-                "get_event_stream failed: id field is not found".to_string(),
+                "get_event_stream failed: seq field is not found".to_string(),
             ))
         }
     };
@@ -272,7 +374,7 @@ async fn update_event_stream(
                 let mut map = HashMap::new();
                 map.insert("id".to_owned(), Value::String(event_stream_id.to_string()));
                 map.insert(
-                    "stream_seq".to_owned(),
+                    "seq".to_owned(),
                     Value::Integer(i64::from(event_stream_seq)),
                 );
                 map
