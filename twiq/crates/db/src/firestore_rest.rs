@@ -24,6 +24,7 @@ mod unary_filter;
 mod unary_operator;
 mod value;
 mod write;
+mod structured_query;
 
 pub use self::array_value::ArrayValue;
 pub use self::begin_transaction_request_body::BeginTransactionRequestBody;
