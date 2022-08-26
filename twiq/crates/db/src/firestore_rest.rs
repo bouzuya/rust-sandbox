@@ -5,6 +5,7 @@ mod collection_selector;
 mod commit_request_body;
 mod composite_filter;
 mod composite_operator;
+mod direction;
 mod document;
 mod document_mask;
 mod field_filter;
@@ -29,6 +30,7 @@ pub use self::collection_selector::CollectionSelector;
 pub use self::commit_request_body::CommitRequestBody;
 pub use self::composite_filter::CompositeFilter;
 pub use self::composite_operator::CompositeOperator;
+pub use self::direction::Direction;
 pub use self::document::Document;
 pub use self::document_mask::DocumentMask;
 pub use self::field_filter::FieldFilter;
@@ -213,4 +215,18 @@ pub async fn patch(
         .body(serde_json::to_string(&body)?)
         .send()
         .await?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    pub fn serde_test<T: std::fmt::Debug + Eq + serde::de::DeserializeOwned + serde::Serialize>(
+        o: T,
+        s: &str,
+    ) -> anyhow::Result<()> {
+        assert_eq!(serde_json::from_str::<'_, T>(s)?, o);
+        assert_eq!(serde_json::to_string(&o)?, s);
+        Ok(())
+    }
 }
