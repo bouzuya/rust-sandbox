@@ -1,7 +1,5 @@
 use std::{collections::HashMap, env, str::FromStr};
 
-use reqwest::Response;
-
 use crate::{
     event::Event,
     event_stream_id::EventStreamId,

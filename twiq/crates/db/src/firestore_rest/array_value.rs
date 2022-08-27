@@ -1,5 +1,6 @@
 use super::Value;
 
+// <https://cloud.google.com/firestore/docs/reference/rest/Shared.Types/ArrayValue>
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ArrayValue {
     pub values: Vec<Value>,

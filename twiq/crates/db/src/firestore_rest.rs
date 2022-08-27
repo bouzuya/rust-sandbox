@@ -247,7 +247,7 @@ pub async fn run_query(
 }
 #[cfg(test)]
 mod tests {
-    use std::env;
+    use std::{collections::HashMap, env};
 
     use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
@@ -259,6 +259,155 @@ mod tests {
     ) -> anyhow::Result<()> {
         assert_eq!(serde_json::from_str::<'_, T>(s)?, o);
         assert_eq!(serde_json::to_string(&o)?, s);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn begin_transaction_test() -> anyhow::Result<()> {
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let response = begin_transaction(
+            (&bearer_token, &project_id),
+            &database,
+            BeginTransactionRequestBody {
+                options: TransactionOptions::ReadWrite {
+                    retry_transaction: None,
+                },
+            },
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        let _: BeginTransactionResponse = response.json().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn commit_test() -> anyhow::Result<()> {
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let response = commit(
+            (&bearer_token, &project_id),
+            &database,
+            CommitRequestBody {
+                writes: vec![Write::Update {
+                    current_document: None,
+                    update: Document {
+                        name: format!("{}/documents/cities/LA", database),
+                        fields: {
+                            let mut map = HashMap::new();
+                            map.insert("commit".to_owned(), Value::String("commit1".to_owned()));
+                            map
+                        },
+                        create_time: None,
+                        update_time: None,
+                    },
+                    update_mask: None,
+                }],
+                transaction: None,
+            },
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn create_document_test() -> anyhow::Result<()> {
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let parent = format!(
+            "projects/{}/databases/{}/documents",
+            project_id, database_id,
+        );
+        let collection_id = "cities";
+        let document_id = "LA";
+        let document = Document {
+            name: "unused".to_string(),
+            fields: {
+                let mut map = HashMap::new();
+                map.insert("name".to_string(), Value::String("Los Angeles".to_string()));
+                map.insert("state".to_string(), Value::String("CA".to_string()));
+                map.insert("country".to_string(), Value::String("USA".to_string()));
+                map
+            },
+            create_time: None,
+            update_time: None,
+        };
+        let response = create_document(
+            (&bearer_token, &project_id),
+            &parent,
+            collection_id,
+            Some(document_id),
+            None,
+            document,
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn get_test() -> anyhow::Result<()> {
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let collection_id = "cities";
+        let document_id = "LA";
+        let document_path = format!("{}/{}", collection_id, document_id);
+        let name = format!(
+            "projects/{}/databases/{}/documents/{}",
+            project_id, database_id, document_path
+        );
+        let response = get((&bearer_token, &project_id), &name, None, None, None).await?;
+        assert_eq!(response.status(), 200);
+        let _: Document = response.json().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn patch_test() -> anyhow::Result<()> {
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let collection_id = "cities";
+        let document_id = "LA2";
+        let document_name = format!(
+            "projects/{}/databases/{}/documents/{}/{}",
+            project_id, database_id, collection_id, document_id
+        );
+        let document = Document {
+            name: "unused".to_string(),
+            fields: {
+                let mut map = HashMap::new();
+                map.insert("name".to_string(), Value::String("Los Angeles".to_string()));
+                map.insert("state".to_string(), Value::String("CA".to_string()));
+                map.insert("country".to_string(), Value::String("USA".to_string()));
+                map
+            },
+            create_time: None,
+            update_time: None,
+        };
+        let response = patch(
+            (&bearer_token, &project_id),
+            &document_name,
+            None,
+            None,
+            None,
+            None,
+            document,
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
         Ok(())
     }
 
