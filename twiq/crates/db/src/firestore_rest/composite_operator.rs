@@ -6,18 +6,13 @@ pub enum CompositeOperator {
 
 #[cfg(test)]
 mod tests {
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: CompositeOperator = serde_json::from_str(r#""AND""#)?;
-        assert_eq!(deserialized, CompositeOperator::And);
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(serde_json::to_string(&CompositeOperator::And)?, r#""AND""#);
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(CompositeOperator::And, r#""AND""#)?;
         Ok(())
     }
 }

@@ -5,29 +5,18 @@ pub struct BeginTransactionResponse {
 
 #[cfg(test)]
 mod tests {
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: BeginTransactionResponse =
-            serde_json::from_str(r#"{"transaction":"abc"}"#)?;
-        assert_eq!(
-            deserialized,
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(
             BeginTransactionResponse {
-                transaction: "abc".to_owned()
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&BeginTransactionResponse {
-                transaction: "abc".to_owned()
-            })?,
-            r#"{"transaction":"abc"}"#
-        );
+                transaction: "abc".to_owned(),
+            },
+            r#"{"transaction":"abc"}"#,
+        )?;
         Ok(())
     }
 }

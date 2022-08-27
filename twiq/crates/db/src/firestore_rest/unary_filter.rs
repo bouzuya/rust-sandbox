@@ -8,35 +8,21 @@ pub struct UnaryFilter {
 
 #[cfg(test)]
 mod tests {
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: UnaryFilter =
-            serde_json::from_str(r#"{"op":"IS_NAN","field":{"fieldPath":"f"}}"#)?;
-        assert_eq!(
-            deserialized,
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(
             UnaryFilter {
                 op: UnaryOperator::IsNan,
                 field: FieldReference {
-                    field_path: "f".to_owned()
-                }
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&UnaryFilter {
-                op: UnaryOperator::IsNan,
-                field: FieldReference {
-                    field_path: "f".to_owned()
-                }
-            })?,
-            r#"{"op":"IS_NAN","field":{"fieldPath":"f"}}"#
-        );
+                    field_path: "f".to_owned(),
+                },
+            },
+            r#"{"op":"IS_NAN","field":{"fieldPath":"f"}}"#,
+        )?;
         Ok(())
     }
 }

@@ -123,119 +123,47 @@ impl serde::Serialize for Value {
 mod tests {
     use std::collections::HashMap;
 
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: Value = serde_json::from_str(r#"{"nullValue":null}"#)?;
-        assert_eq!(deserialized, Value::Null);
-        let deserialized: Value = serde_json::from_str(r#"{"booleanValue":true}"#)?;
-        assert_eq!(deserialized, Value::Boolean(true));
-        let deserialized: Value = serde_json::from_str(r#"{"integerValue":"123"}"#)?;
-        assert_eq!(deserialized, Value::Integer(123));
-        let deserialized: Value = serde_json::from_str(r#"{"doubleValue":123.456}"#)?;
-        assert_eq!(deserialized, Value::Double(NotNan::new(123.456)?));
-        let deserialized: Value =
-            serde_json::from_str(r#"{"timestampValue":"2001-02-03T04:05:06Z"}"#)?;
-        assert_eq!(
-            deserialized,
-            Value::Timestamp("2001-02-03T04:05:06Z".to_owned())
-        );
-        let deserialized: Value = serde_json::from_str(r#"{"stringValue":"s"}"#)?;
-        assert_eq!(deserialized, Value::String("s".to_owned()));
-        let deserialized: Value = serde_json::from_str(r#"{"bytesValue":"Ynl0ZXMK"}"#)?;
-        assert_eq!(deserialized, Value::Bytes("Ynl0ZXMK".to_owned()));
-        let deserialized: Value = serde_json::from_str(r#"{"referenceValue":"ref"}"#)?;
-        assert_eq!(deserialized, Value::Reference("ref".to_owned()));
-        let deserialized: Value =
-            serde_json::from_str(r#"{"geoPointValue":{"latitude":123.456,"longitude":789.012}}"#)?;
-        assert_eq!(
-            deserialized,
-            Value::GeoPoint(LatLng {
+    fn serde_tests() -> anyhow::Result<()> {
+        use Value::*;
+        serde_test(Null, r#"{"nullValue":null}"#)?;
+        serde_test(Boolean(true), r#"{"booleanValue":true}"#)?;
+        serde_test(Integer(123), r#"{"integerValue":"123"}"#)?;
+        serde_test(Double(NotNan::new(123.456)?), r#"{"doubleValue":123.456}"#)?;
+        serde_test(
+            Timestamp("2001-02-03T04:05:06Z".to_owned()),
+            r#"{"timestampValue":"2001-02-03T04:05:06Z"}"#,
+        )?;
+        serde_test(String("s".to_owned()), r#"{"stringValue":"s"}"#)?;
+        serde_test(Bytes("Ynl0ZXMK".to_owned()), r#"{"bytesValue":"Ynl0ZXMK"}"#)?;
+        serde_test(Reference("ref".to_owned()), r#"{"referenceValue":"ref"}"#)?;
+        serde_test(
+            GeoPoint(LatLng {
                 latitude: NotNan::new(123.456)?,
                 longitude: NotNan::new(789.012)?,
-            })
-        );
-        let deserialized: Value =
-            serde_json::from_str(r#"{"arrayValue":{"values":[{"nullValue":null}]}}"#)?;
-        assert_eq!(
-            deserialized,
-            Value::Array(ArrayValue {
-                values: vec![Value::Null]
-            })
-        );
-        let deserialized: Value =
-            serde_json::from_str(r#"{"mapValue":{"fields":{"s":{"stringValue":"t"}}}}"#)?;
-        assert_eq!(
-            deserialized,
-            Value::Map(MapValue {
+            }),
+            r#"{"geoPointValue":{"latitude":123.456,"longitude":789.012}}"#,
+        )?;
+        serde_test(
+            Array(ArrayValue {
+                values: vec![Value::Null],
+            }),
+            r#"{"arrayValue":{"values":[{"nullValue":null}]}}"#,
+        )?;
+        serde_test(
+            Map(MapValue {
                 fields: {
                     let mut map = HashMap::new();
                     map.insert("s".to_owned(), Value::String("t".to_owned()));
                     map
-                }
-            })
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&Value::Null)?,
-            r#"{"nullValue":null}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Boolean(true))?,
-            r#"{"booleanValue":true}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Integer(123))?,
-            r#"{"integerValue":"123"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Double(NotNan::new(123.456)?))?,
-            r#"{"doubleValue":123.456}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Timestamp("2001-02-03T04:05:06Z".to_owned()))?,
-            r#"{"timestampValue":"2001-02-03T04:05:06Z"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::String("s".to_owned()))?,
-            r#"{"stringValue":"s"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Bytes("Ynl0ZXMK".to_owned()))?,
-            r#"{"bytesValue":"Ynl0ZXMK"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Reference("ref".to_owned()))?,
-            r#"{"referenceValue":"ref"}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::GeoPoint(LatLng {
-                latitude: NotNan::new(123.456)?,
-                longitude: NotNan::new(789.012)?,
-            }))?,
-            r#"{"geoPointValue":{"latitude":123.456,"longitude":789.012}}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Array(ArrayValue {
-                values: vec![Value::Null]
-            }))?,
-            r#"{"arrayValue":{"values":[{"nullValue":null}]}}"#
-        );
-        assert_eq!(
-            serde_json::to_string(&Value::Map(MapValue {
-                fields: {
-                    let mut map = HashMap::new();
-                    map.insert("s".to_owned(), Value::String("t".to_owned()));
-                    map
-                }
-            }))?,
-            r#"{"mapValue":{"fields":{"s":{"stringValue":"t"}}}}"#
-        );
+                },
+            }),
+            r#"{"mapValue":{"fields":{"s":{"stringValue":"t"}}}}"#,
+        )?;
         Ok(())
     }
 }

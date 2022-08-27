@@ -9,37 +9,22 @@ pub struct MapValue {
 
 #[cfg(test)]
 mod tests {
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: MapValue =
-            serde_json::from_str(r#"{"fields":{"key":{"nullValue":null}}}"#)?;
-        assert_eq!(
-            deserialized,
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(
             MapValue {
                 fields: {
                     let mut map = HashMap::new();
                     map.insert("key".to_owned(), Value::Null);
                     map
-                }
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&MapValue {
-                fields: {
-                    let mut map = HashMap::new();
-                    map.insert("key".to_owned(), Value::Null);
-                    map
-                }
-            })?,
-            r#"{"fields":{"key":{"nullValue":null}}}"#
-        );
+                },
+            },
+            r#"{"fields":{"key":{"nullValue":null}}}"#,
+        )?;
         Ok(())
     }
 }

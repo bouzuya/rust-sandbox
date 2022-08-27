@@ -7,31 +7,19 @@ pub struct CollectionSelector {
 
 #[cfg(test)]
 mod tests {
+    use crate::firestore_rest::tests::serde_test;
+
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: CollectionSelector =
-            serde_json::from_str(r#"{"collectionId":"messages as m1","allDescendants":false}"#)?;
-        assert_eq!(
-            deserialized,
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(
             CollectionSelector {
                 collection_id: "messages as m1".to_owned(),
-                all_descendants: false
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&CollectionSelector {
-                collection_id: "messages as m1".to_owned(),
-                all_descendants: false
-            })?,
-            r#"{"collectionId":"messages as m1","allDescendants":false}"#
-        );
+                all_descendants: false,
+            },
+            r#"{"collectionId":"messages as m1","allDescendants":false}"#,
+        )?;
         Ok(())
     }
 }

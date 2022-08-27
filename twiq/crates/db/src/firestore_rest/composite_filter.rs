@@ -8,44 +8,24 @@ pub struct CompositeFilter {
 
 #[cfg(test)]
 mod tests {
-    use crate::firestore_rest::{FieldReference, UnaryFilter, UnaryOperator};
+    use crate::firestore_rest::{tests::serde_test, FieldReference, UnaryFilter, UnaryOperator};
 
     use super::*;
 
     #[test]
-    fn deserialize_test() -> anyhow::Result<()> {
-        let deserialized: CompositeFilter = serde_json::from_str(
-            r#"{"op":"AND","filters":[{"unaryFilter":{"op":"IS_NAN","field":{"fieldPath":"f"}}}]}"#,
-        )?;
-        assert_eq!(
-            deserialized,
+    fn serde_tests() -> anyhow::Result<()> {
+        serde_test(
             CompositeFilter {
                 op: CompositeOperator::And,
                 filters: vec![Filter::Unary(UnaryFilter {
                     op: UnaryOperator::IsNan,
                     field: FieldReference {
-                        field_path: "f".to_owned()
-                    }
-                })]
-            }
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn serialize_test() -> anyhow::Result<()> {
-        assert_eq!(
-            serde_json::to_string(&CompositeFilter {
-                op: CompositeOperator::And,
-                filters: vec![Filter::Unary(UnaryFilter {
-                    op: UnaryOperator::IsNan,
-                    field: FieldReference {
-                        field_path: "f".to_owned()
-                    }
-                })]
-            })?,
+                        field_path: "f".to_owned(),
+                    },
+                })],
+            },
             r#"{"op":"AND","filters":[{"unaryFilter":{"op":"IS_NAN","field":{"fieldPath":"f"}}}]}"#,
-        );
+        )?;
         Ok(())
     }
 }
