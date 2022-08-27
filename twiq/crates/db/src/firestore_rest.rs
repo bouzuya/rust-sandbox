@@ -18,13 +18,14 @@ mod map_value;
 mod order;
 mod precondition;
 mod projection;
+mod run_query_request_body;
+mod structured_query;
 mod timestamp;
 mod transaction_options;
 mod unary_filter;
 mod unary_operator;
 mod value;
 mod write;
-mod structured_query;
 
 pub use self::array_value::ArrayValue;
 pub use self::begin_transaction_request_body::BeginTransactionRequestBody;
@@ -46,6 +47,8 @@ pub use self::map_value::MapValue;
 pub use self::order::Order;
 pub use self::precondition::Precondition;
 pub use self::projection::Projection;
+use self::run_query_request_body::RunQueryRequestBody;
+pub use self::structured_query::StructuredQuery;
 pub use self::timestamp::Timestamp;
 pub use self::transaction_options::TransactionOptions;
 pub use self::unary_filter::UnaryFilter;
@@ -222,8 +225,32 @@ pub async fn patch(
         .await?)
 }
 
+pub async fn run_query(
+    (token, project_id): (&str, &str),
+    // "projects/{project_id}/databases/{databaseId}/documents"
+    // or
+    // "projects/{project_id}/databases/{databaseId}/documents/{document_path}"
+    parent: &str,
+    body: RunQueryRequestBody,
+) -> anyhow::Result<Response> {
+    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/runQuery>
+    let method = Method::POST;
+    let url = format!("https://firestore.googleapis.com/v1/{}:runQuery", parent);
+    Ok(Client::new()
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", token))
+        .header("Content-Type", "application/json")
+        .header("X-Goog-User-Project", project_id)
+        .body(serde_json::to_string(&body)?)
+        .send()
+        .await?)
+}
 #[cfg(test)]
 mod tests {
+    use std::env;
+
+    use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+
     use super::*;
 
     pub fn serde_test<T: std::fmt::Debug + Eq + serde::de::DeserializeOwned + serde::Serialize>(
@@ -232,6 +259,62 @@ mod tests {
     ) -> anyhow::Result<()> {
         assert_eq!(serde_json::from_str::<'_, T>(s)?, o);
         assert_eq!(serde_json::to_string(&o)?, s);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn run_query_test() -> anyhow::Result<()> {
+        let event_stream_id = "f9b7139d-2310-4dee-83db-c61d81f67f10";
+
+        let now = OffsetDateTime::now_utc().format(&Rfc3339)?;
+        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let parent = format!(
+            "projects/{}/databases/{}/documents",
+            project_id, database_id
+        );
+        let response = run_query(
+            (&bearer_token, &project_id),
+            &parent,
+            RunQueryRequestBody {
+                structured_query: StructuredQuery {
+                    select: Projection {
+                        fields: vec![FieldReference {
+                            field_path: "id".to_owned(),
+                        }],
+                    },
+                    from: vec![CollectionSelector {
+                        collection_id: "events".to_owned(),
+                        all_descendants: false,
+                    }],
+                    r#where: Filter::Field(FieldFilter {
+                        field: FieldReference {
+                            field_path: "stream_id".to_owned(),
+                        },
+                        op: FieldOperator::Equal,
+                        value: Value::String(event_stream_id.to_owned()),
+                    }),
+                    order_by: vec![Order {
+                        field: FieldReference {
+                            field_path: "stream_seq".to_owned(),
+                        },
+                        direction: Direction::Ascending,
+                    }],
+                    start_at: None,
+                    end_at: None,
+                    offset: 0,
+                    limit: 100,
+                },
+                transaction: None,
+                new_transaction: Some(TransactionOptions::ReadOnly { read_time: now }),
+                read_time: None,
+            },
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        assert_eq!(response.text().await?, "");
         Ok(())
     }
 }
