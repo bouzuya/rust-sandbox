@@ -47,7 +47,7 @@ pub use self::map_value::MapValue;
 pub use self::order::Order;
 pub use self::precondition::Precondition;
 pub use self::projection::Projection;
-use self::run_query_request_body::RunQueryRequestBody;
+pub use self::run_query_request_body::RunQueryRequestBody;
 pub use self::structured_query::StructuredQuery;
 pub use self::timestamp::Timestamp;
 pub use self::transaction_options::TransactionOptions;

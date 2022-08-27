@@ -1,12 +1,18 @@
 use std::{collections::HashMap, env, str::FromStr};
 
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+
 use crate::{
     event::Event,
+    event_data::EventData,
+    event_id::EventId,
     event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq,
     firestore_rest::{
-        self, BeginTransactionRequestBody, BeginTransactionResponse, CommitRequestBody, Document,
-        Precondition, Timestamp, TransactionOptions, Value, Write,
+        self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
+        CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference, Filter,
+        Order, Precondition, Projection, RunQueryRequestBody, StructuredQuery, Timestamp,
+        TransactionOptions, Value, Write,
     },
 };
 
@@ -42,6 +48,128 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
     );
     map.insert("data".to_owned(), Value::String(event.data().to_string()));
     map
+}
+
+fn fields_to_event(fields: HashMap<String, Value>) -> Event {
+    // TODO: error check
+    let id = if let Value::String(s) = fields.get("id").unwrap() {
+        EventId::from_str(s).unwrap()
+    } else {
+        panic!()
+    };
+    let stream_id = if let Value::String(s) = fields.get("stream_id").unwrap() {
+        EventStreamId::from_str(s).unwrap()
+    } else {
+        panic!()
+    };
+    let stream_seq = if let Value::Integer(s) = fields.get("stream_seq").unwrap() {
+        EventStreamSeq::try_from(*s).unwrap()
+    } else {
+        panic!()
+    };
+    let data = if let Value::String(s) = fields.get("data").unwrap() {
+        EventData::try_from(s.to_owned()).unwrap()
+    } else {
+        panic!()
+    };
+    Event::new(id, stream_id, stream_seq, data)
+}
+
+pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<Vec<Event>, Error> {
+    let bearer_token =
+        env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
+    let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
+    let database_id = "(default)";
+    let parent = format!(
+        "projects/{}/databases/{}/documents",
+        project_id, database_id
+    );
+
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let response = firestore_rest::run_query(
+        (&bearer_token, &project_id),
+        &parent,
+        RunQueryRequestBody {
+            structured_query: StructuredQuery {
+                select: Projection {
+                    fields: vec![
+                        FieldReference {
+                            field_path: "id".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "stream_id".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "stream_seq".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "data".to_owned(),
+                        },
+                    ],
+                },
+                from: vec![CollectionSelector {
+                    collection_id: "events".to_owned(),
+                    all_descendants: false,
+                }],
+                r#where: Filter::Field(FieldFilter {
+                    field: FieldReference {
+                        field_path: "stream_id".to_owned(),
+                    },
+                    op: FieldOperator::Equal,
+                    value: Value::String(event_stream_id.to_string()),
+                }),
+                order_by: vec![Order {
+                    field: FieldReference {
+                        field_path: "stream_seq".to_owned(),
+                    },
+                    direction: Direction::Ascending,
+                }],
+                start_at: None,
+                end_at: None,
+                offset: 0,
+                limit: 100,
+            },
+            transaction: None,
+            new_transaction: Some(TransactionOptions::ReadOnly { read_time: now }),
+            read_time: None,
+        },
+    )
+    .await
+    .map_err(|e| Error::Unknown(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(Error::Unknown(format!(
+            "run_query failed: status code ({}) is not success",
+            response.status()
+        )));
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct X {
+        transaction: Option<String>,
+        document: Option<Document>,
+        read_time: Option<Timestamp>,
+        skipped_results: Option<i32>,
+        done: Option<bool>,
+    }
+    let response: Vec<X> = response
+        .json()
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let mut events = vec![];
+    for r in response {
+        if r.transaction.is_some() {
+            continue;
+        }
+        if r.read_time.is_some() && r.document.is_none() {
+            continue;
+        }
+        let document = r.document.unwrap();
+        events.push(fields_to_event(document.fields));
+    }
+    Ok(events)
 }
 
 pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), Error> {
@@ -229,6 +357,10 @@ async fn get_event_stream(
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
+    use tokio::time::sleep;
+
     use crate::{event_data::EventData, event_id::EventId, event_stream_id::EventStreamId};
 
     use super::*;
@@ -240,14 +372,19 @@ mod tests {
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
-        let event = Event::new(id, stream_id, stream_seq, data);
-        store(None, event).await?;
+        let event1 = Event::new(id, stream_id, stream_seq, data);
+        store(None, event1.clone()).await?;
 
         let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, stream_id, stream_seq2, data);
-        store(Some(stream_seq), event2).await?;
+        store(Some(stream_seq), event2.clone()).await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        let events = find_by_event_stream_id(stream_id).await?;
+        assert_eq!(events, vec![event1, event2]);
         Ok(())
     }
 }
