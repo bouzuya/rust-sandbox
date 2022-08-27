@@ -50,29 +50,76 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
     map
 }
 
-fn fields_to_event(fields: HashMap<String, Value>) -> Event {
-    // TODO: error check
-    let id = if let Value::String(s) = fields.get("id").unwrap() {
-        EventId::from_str(s).unwrap()
-    } else {
-        panic!()
-    };
-    let stream_id = if let Value::String(s) = fields.get("stream_id").unwrap() {
-        EventStreamId::from_str(s).unwrap()
-    } else {
-        panic!()
-    };
-    let stream_seq = if let Value::Integer(s) = fields.get("stream_seq").unwrap() {
-        EventStreamSeq::try_from(*s).unwrap()
-    } else {
-        panic!()
-    };
-    let data = if let Value::String(s) = fields.get("data").unwrap() {
-        EventData::try_from(s.to_owned()).unwrap()
-    } else {
-        panic!()
-    };
-    Event::new(id, stream_id, stream_seq, data)
+#[derive(Debug, thiserror::Error)]
+enum TryFromEventError {
+    #[error("invalid format {0}")]
+    InvalidFormat(String),
+    #[error("invalid value type {0}")]
+    InvalidValueType(String),
+    #[error("no field {0}")]
+    NoField(String),
+}
+
+fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEventError> {
+    let field = "id";
+    let id = fields
+        .get(field)
+        .ok_or_else(|| TryFromEventError::NoField(field.to_owned()))
+        .and_then(|v| {
+            if let Value::String(s) = v {
+                Ok(s)
+            } else {
+                Err(TryFromEventError::InvalidValueType(field.to_owned()))
+            }
+        })
+        .and_then(|s| {
+            EventId::from_str(s).map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
+        })?;
+    let field = "stream_id";
+    let stream_id = fields
+        .get(field)
+        .ok_or_else(|| TryFromEventError::NoField(field.to_owned()))
+        .and_then(|v| {
+            if let Value::String(s) = v {
+                Ok(s)
+            } else {
+                Err(TryFromEventError::InvalidValueType(field.to_owned()))
+            }
+        })
+        .and_then(|s| {
+            EventStreamId::from_str(s).map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
+        })?;
+    let field = "stream_seq";
+    let stream_seq = fields
+        .get(field)
+        .ok_or_else(|| TryFromEventError::NoField(field.to_owned()))
+        .and_then(|v| {
+            if let Value::Integer(s) = v {
+                Ok(s)
+            } else {
+                Err(TryFromEventError::InvalidValueType(field.to_owned()))
+            }
+        })
+        .and_then(|n| {
+            EventStreamSeq::try_from(*n)
+                .map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
+        })?;
+    let field = "data";
+    let data = fields
+        .get(field)
+        .ok_or_else(|| TryFromEventError::NoField(field.to_owned()))
+        .and_then(|v| {
+            if let Value::String(s) = v {
+                Ok(s)
+            } else {
+                Err(TryFromEventError::InvalidValueType(field.to_owned()))
+            }
+        })
+        .and_then(|s| {
+            EventData::try_from(s.to_owned())
+                .map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
+        })?;
+    Ok(Event::new(id, stream_id, stream_seq, data))
 }
 
 pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<Vec<Event>, Error> {
@@ -166,8 +213,10 @@ pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<V
         if r.read_time.is_some() && r.document.is_none() {
             continue;
         }
-        let document = r.document.unwrap();
-        events.push(fields_to_event(document.fields));
+        let document = r
+            .document
+            .ok_or_else(|| Error::Unknown("document is not found".to_owned()))?;
+        events.push(fields_to_event(document.fields).map_err(|e| Error::Unknown(e.to_string()))?);
     }
     Ok(events)
 }
