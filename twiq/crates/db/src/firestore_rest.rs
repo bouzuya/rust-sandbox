@@ -312,6 +312,7 @@ mod tests {
                         update_time: None,
                     },
                     update_mask: None,
+                    update_transforms: None,
                 }],
                 transaction: None,
             },

@@ -279,6 +279,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
                     update_time: None,
                 },
                 update_mask: None,
+                update_transforms: None,
             });
         }
         None => {
@@ -296,6 +297,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
                     update_time: None,
                 },
                 update_mask: None,
+                update_transforms: None,
             });
         }
     }
@@ -314,6 +316,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
             update_time: None,
         },
         update_mask: None,
+        update_transforms: None,
     });
 
     firestore_rest::commit(
