@@ -10,9 +10,9 @@ use crate::{
     event_stream_seq::EventStreamSeq,
     firestore_rest::{
         self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
-        CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference, Filter,
-        Order, Precondition, Projection, RunQueryRequestBody, StructuredQuery, Timestamp,
-        TransactionOptions, Value, Write,
+        CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference,
+        FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
+        StructuredQuery, Timestamp, TransactionOptions, Value, Write,
     },
 };
 
@@ -316,7 +316,10 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
             update_time: None,
         },
         update_mask: None,
-        update_transforms: None,
+        update_transforms: Some(vec![FieldTransform {
+            field_path: "requested_at".to_owned(),
+            set_to_server_value: Some(ServerValue::RequestTime),
+        }]),
     });
 
     firestore_rest::commit(
