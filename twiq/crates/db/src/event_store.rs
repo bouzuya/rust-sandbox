@@ -122,6 +122,136 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
     Ok(Event::new(id, stream_id, stream_seq, data))
 }
 
+pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Event>, Error> {
+    // TODO: begin transaction
+    let bearer_token =
+        env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
+    let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
+    let database_id = "(default)";
+    let parent = format!(
+        "projects/{}/databases/{}/documents",
+        project_id, database_id
+    );
+
+    let now = OffsetDateTime::now_utc()
+        .format(&Rfc3339)
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+
+    let database_id = "(default)";
+    let collection_id = "events";
+    let document_id = event_id.to_string();
+    let document_path = format!("{}/{}", collection_id, document_id);
+    let name = format!(
+        "projects/{}/databases/{}/documents/{}",
+        project_id, database_id, document_path
+    );
+    let response = firestore_rest::get((&bearer_token, &project_id), &name, None, None, None)
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(Error::Unknown(format!(
+            "get failed: status code ({}) is not success",
+            response.status()
+        )));
+    }
+    let document: Document = response
+        .json()
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let requested_at = if let Some(Value::Timestamp(r)) = document.fields.get("requested_at") {
+        Ok(Value::Timestamp(r.clone()))
+    } else {
+        Err(Error::Unknown(
+            "requested_at is none or not timestamp".to_owned(),
+        ))
+    }?;
+
+    let response = firestore_rest::run_query(
+        (&bearer_token, &project_id),
+        &parent,
+        RunQueryRequestBody {
+            structured_query: StructuredQuery {
+                select: Projection {
+                    fields: vec![
+                        FieldReference {
+                            field_path: "id".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "stream_id".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "stream_seq".to_owned(),
+                        },
+                        FieldReference {
+                            field_path: "data".to_owned(),
+                        },
+                    ],
+                },
+                from: vec![CollectionSelector {
+                    collection_id: "events".to_owned(),
+                    all_descendants: false,
+                }],
+                r#where: Filter::Field(FieldFilter {
+                    field: FieldReference {
+                        field_path: "requested_at".to_owned(),
+                    },
+                    op: FieldOperator::GreaterThanOrEqual,
+                    value: requested_at,
+                }),
+                order_by: vec![Order {
+                    field: FieldReference {
+                        field_path: "requested_at".to_owned(),
+                    },
+                    direction: Direction::Ascending,
+                }],
+                start_at: None,
+                end_at: None,
+                offset: 0,
+                limit: 100,
+            },
+            transaction: None,
+            new_transaction: Some(TransactionOptions::ReadOnly { read_time: now }),
+            read_time: None,
+        },
+    )
+    .await
+    .map_err(|e| Error::Unknown(e.to_string()))?;
+    if !response.status().is_success() {
+        return Err(Error::Unknown(format!(
+            "run_query failed: status code ({}) is not success",
+            response.status()
+        )));
+    }
+
+    #[derive(Debug, serde::Deserialize, serde::Serialize)]
+    #[serde(rename_all = "camelCase")]
+    struct X {
+        transaction: Option<String>,
+        document: Option<Document>,
+        read_time: Option<Timestamp>,
+        skipped_results: Option<i32>,
+        done: Option<bool>,
+    }
+    let response: Vec<X> = response
+        .json()
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    let mut events = vec![];
+    for r in response {
+        if r.transaction.is_some() {
+            continue;
+        }
+        if r.read_time.is_some() && r.document.is_none() {
+            continue;
+        }
+        let document = r
+            .document
+            .ok_or_else(|| Error::Unknown("document is not found".to_owned()))?;
+        events.push(fields_to_event(document.fields).map_err(|e| Error::Unknown(e.to_string()))?);
+    }
+    Ok(events)
+}
+
 pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<Vec<Event>, Error> {
     let bearer_token =
         env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
@@ -439,7 +569,21 @@ mod tests {
         sleep(Duration::from_secs(1)).await;
 
         let events = find_by_event_stream_id(stream_id).await?;
-        assert_eq!(events, vec![event1, event2]);
+        assert_eq!(events, vec![event1.clone(), event2.clone()]);
+
+        let id = EventId::generate();
+        let stream_id = EventStreamId::generate();
+        let stream_seq = EventStreamSeq::from(1_u32);
+        let data = EventData::try_from("{}".to_owned())?;
+        let event3 = Event::new(id, stream_id, stream_seq, data);
+        store(None, event3.clone()).await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        let events = find_events_by_event_id_after(event1.id()).await?;
+        assert_eq!(events, vec![event1, event2.clone(), event3.clone()]);
+        let events = find_events_by_event_id_after(event2.id()).await?;
+        assert_eq!(events, vec![event2, event3]);
         Ok(())
     }
 }
