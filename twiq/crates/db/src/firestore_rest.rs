@@ -253,6 +253,7 @@ pub async fn run_query(
 mod tests {
     use std::{collections::HashMap, env};
 
+    use google_cloud_auth::{Credential, CredentialConfig};
     use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
     use super::*;
@@ -356,6 +357,19 @@ mod tests {
         )
         .await?;
         assert_eq!(response.status(), 200);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn credential_test() -> anyhow::Result<()> {
+        let config = CredentialConfig::builder()
+            .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
+            .build()?;
+        let credential = Credential::find_default(config).await?;
+        let access_token1 = credential.access_token().await?;
+        let access_token2 = credential.access_token().await?;
+        assert_eq!(access_token1.value, access_token2.value);
         Ok(())
     }
 
