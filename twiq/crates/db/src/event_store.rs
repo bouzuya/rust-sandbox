@@ -245,7 +245,9 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
     Ok(events)
 }
 
-pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<Vec<Event>, Error> {
+pub async fn find_events_by_event_stream_id(
+    event_stream_id: EventStreamId,
+) -> Result<Vec<Event>, Error> {
     let bearer_token =
         env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
@@ -560,7 +562,7 @@ mod tests {
 
         sleep(Duration::from_secs(1)).await;
 
-        let events = find_by_event_stream_id(stream_id).await?;
+        let events = find_events_by_event_stream_id(stream_id).await?;
         assert_eq!(events, vec![event1.clone(), event2.clone()]);
 
         let id = EventId::generate();
