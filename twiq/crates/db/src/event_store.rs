@@ -1,5 +1,6 @@
 use std::{collections::HashMap, env, str::FromStr};
 
+use reqwest::Response;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
 use crate::{
@@ -18,6 +19,8 @@ use crate::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("status code error : {0}, {1}")]
+    StatusCode(String, u16),
     #[error("unknown error : {0}")]
     Unknown(String),
 }
@@ -148,12 +151,7 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
     let response = firestore_rest::get((&bearer_token, &project_id), &name, None, None, None)
         .await
         .map_err(|e| Error::Unknown(e.to_string()))?;
-    if !response.status().is_success() {
-        return Err(Error::Unknown(format!(
-            "get failed: status code ({}) is not success",
-            response.status()
-        )));
-    }
+    check_status_code(&response)?;
     let document: Document = response
         .json()
         .await
@@ -216,12 +214,7 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
     )
     .await
     .map_err(|e| Error::Unknown(e.to_string()))?;
-    if !response.status().is_success() {
-        return Err(Error::Unknown(format!(
-            "run_query failed: status code ({}) is not success",
-            response.status()
-        )));
-    }
+    check_status_code(&response)?;
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -315,12 +308,7 @@ pub async fn find_by_event_stream_id(event_stream_id: EventStreamId) -> Result<V
     )
     .await
     .map_err(|e| Error::Unknown(e.to_string()))?;
-    if !response.status().is_success() {
-        return Err(Error::Unknown(format!(
-            "run_query failed: status code ({}) is not success",
-            response.status()
-        )));
-    }
+    check_status_code(&response)?;
 
     #[derive(Debug, serde::Deserialize, serde::Serialize)]
     #[serde(rename_all = "camelCase")]
@@ -369,12 +357,8 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
     )
     .await
     .map_err(|e| Error::Unknown(e.to_string()))?;
-    if !response.status().is_success() {
-        return Err(Error::Unknown(format!(
-            "begin_transaction failed: status code ({}) is not success",
-            response.status()
-        )));
-    }
+    check_status_code(&response)?;
+
     let response: BeginTransactionResponse = response
         .json()
         .await
@@ -490,12 +474,8 @@ async fn get_event_stream(
     )
     .await
     .map_err(|e| Error::Unknown(e.to_string()))?;
-    if !response.status().is_success() {
-        return Err(Error::Unknown(format!(
-            "get_event_stream failed: status code ({}) is not success",
-            response.status()
-        )));
-    }
+    check_status_code(&response)?;
+
     let document: Document = response
         .json()
         .await
@@ -538,6 +518,18 @@ async fn get_event_stream(
         event_stream_seq,
         document.update_time.unwrap(),
     ))
+}
+
+fn check_status_code(response: &Response) -> Result<(), Error> {
+    let status_code = response.status();
+    if status_code.is_success() {
+        Ok(())
+    } else {
+        Err(Error::StatusCode(
+            response.url().to_string(),
+            u16::from(status_code),
+        ))
+    }
 }
 
 #[cfg(test)]
