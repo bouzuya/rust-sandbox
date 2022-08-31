@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use google_cloud_auth::Credential;
 use reqwest::Response;
@@ -127,11 +127,11 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
 }
 
 pub async fn find_events_by_event_id_after(
+    project_id: &str,
     credential: &Credential,
     event_id: EventId,
 ) -> Result<Vec<Event>, Error> {
     // TODO: begin transaction
-    let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let parent = format!(
         "projects/{}/databases/{}/documents",
@@ -248,10 +248,10 @@ pub async fn find_events_by_event_id_after(
 }
 
 pub async fn find_events_by_event_stream_id(
+    project_id: &str,
     credential: &Credential,
     event_stream_id: EventStreamId,
 ) -> Result<Vec<Event>, Error> {
-    let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let parent = format!(
         "projects/{}/databases/{}/documents",
@@ -343,6 +343,7 @@ pub async fn find_events_by_event_stream_id(
 }
 
 pub async fn store(
+    project_id: &str,
     credential: &Credential,
     current: Option<EventStreamSeq>,
     events: Vec<Event>,
@@ -376,7 +377,6 @@ pub async fn store(
         ));
     };
 
-    let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let database = format!("projects/{}/databases/{}", project_id, database_id);
 
@@ -405,7 +405,7 @@ pub async fn store(
     let event_stream_document = Document {
         name: format!(
             "projects/{}/databases/{}/documents/{}/{}",
-            &project_id, &database_id, collection_id, document_id
+            project_id, &database_id, collection_id, document_id
         ),
         fields: event_stream_to_fields(event_stream_id, last_event_stream_seq),
         create_time: None,
@@ -415,7 +415,7 @@ pub async fn store(
         Some(expected_event_stream_seq) => {
             let (_, event_stream_seq, update_time) = get_event_stream(
                 credential,
-                &project_id,
+                project_id,
                 &transaction,
                 database_id,
                 event_stream_id,
@@ -549,8 +549,9 @@ fn check_status_code(response: &Response) -> Result<(), Error> {
 
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
+    use std::{env, time::Duration};
 
+    use anyhow::Context;
     use google_cloud_auth::CredentialConfig;
     use tokio::time::sleep;
 
@@ -561,6 +562,7 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test() -> anyhow::Result<()> {
+        let project_id = env::var("PROJECT_ID").context("PROJECT_ID")?;
         let config = CredentialConfig::builder()
             .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
             .build()?;
@@ -571,17 +573,23 @@ mod tests {
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event1 = Event::new(id, stream_id, stream_seq, data);
-        store(&credential, None, vec![event1.clone()]).await?;
+        store(&project_id, &credential, None, vec![event1.clone()]).await?;
 
         let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, stream_id, stream_seq2, data);
-        store(&credential, Some(stream_seq), vec![event2.clone()]).await?;
+        store(
+            &project_id,
+            &credential,
+            Some(stream_seq),
+            vec![event2.clone()],
+        )
+        .await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        let events = find_events_by_event_stream_id(&credential, stream_id).await?;
+        let events = find_events_by_event_stream_id(&project_id, &credential, stream_id).await?;
         assert_eq!(events, vec![event1.clone(), event2.clone()]);
 
         let id = EventId::generate();
@@ -593,16 +601,22 @@ mod tests {
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event4 = Event::new(id, stream_id, stream_seq2, data);
-        store(&credential, None, vec![event3.clone(), event4.clone()]).await?;
+        store(
+            &project_id,
+            &credential,
+            None,
+            vec![event3.clone(), event4.clone()],
+        )
+        .await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        let events = find_events_by_event_id_after(&credential, event1.id()).await?;
+        let events = find_events_by_event_id_after(&project_id, &credential, event1.id()).await?;
         assert_eq!(
             events,
             vec![event1, event2.clone(), event3.clone(), event4.clone()]
         );
-        let events = find_events_by_event_id_after(&credential, event2.id()).await?;
+        let events = find_events_by_event_id_after(&project_id, &credential, event2.id()).await?;
         assert_eq!(events, vec![event2, event3, event4]);
         Ok(())
     }
