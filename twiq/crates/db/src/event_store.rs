@@ -345,8 +345,37 @@ pub async fn find_events_by_event_stream_id(
 pub async fn store(
     credential: &Credential,
     current: Option<EventStreamSeq>,
-    event: Event,
+    events: Vec<Event>,
 ) -> Result<(), Error> {
+    if events.is_empty() {
+        return Ok(());
+    }
+
+    let event_stream_id = events[0].stream_id();
+    if !events
+        .iter()
+        .all(|event| event.stream_id() == event_stream_id)
+    {
+        return Err(Error::Unknown(
+            "the events contains multiple event_stream_ids".to_owned(),
+        ));
+    }
+
+    let last_event_stream_seq = if let Some(seq) = events.iter().try_fold(0_u32, |seq, event| {
+        let next = u32::from(event.stream_seq());
+        if seq < next {
+            Some(next)
+        } else {
+            None
+        }
+    }) {
+        EventStreamSeq::from(seq)
+    } else {
+        return Err(Error::Unknown(
+            "the events are not in correct order".to_owned(),
+        ));
+    };
+
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let database = format!("projects/{}/databases/{}", project_id, database_id);
@@ -371,75 +400,62 @@ pub async fn store(
     let transaction = response.transaction;
 
     let mut writes = vec![];
-    match current {
+    let collection_id = "event_streams";
+    let document_id = event_stream_id.to_string();
+    let event_stream_document = Document {
+        name: format!(
+            "projects/{}/databases/{}/documents/{}/{}",
+            &project_id, &database_id, collection_id, document_id
+        ),
+        fields: event_stream_to_fields(event_stream_id, last_event_stream_seq),
+        create_time: None,
+        update_time: None,
+    };
+    let precondition = match current {
         Some(expected_event_stream_seq) => {
             let (_, event_stream_seq, update_time) = get_event_stream(
                 credential,
                 &project_id,
                 &transaction,
                 database_id,
-                event.stream_id(),
+                event_stream_id,
             )
             .await?;
             if event_stream_seq != expected_event_stream_seq {
                 return Err(Error::Unknown("conflict".to_string()));
             }
-            let collection_id = "event_streams";
-            let document_id = event.stream_id().to_string();
-            writes.push(Write::Update {
-                current_document: Some(Precondition::UpdateTime(update_time)),
-                update: Document {
-                    name: format!(
-                        "projects/{}/databases/{}/documents/{}/{}",
-                        &project_id, &database_id, collection_id, document_id
-                    ),
-                    fields: event_stream_to_fields(event.stream_id(), event.stream_seq()),
-                    create_time: None,
-                    update_time: None,
-                },
-                update_mask: None,
-                update_transforms: None,
-            });
+            Precondition::UpdateTime(update_time)
         }
-        None => {
-            let collection_id = "event_streams";
-            let document_id = event.stream_id().to_string();
-            writes.push(Write::Update {
-                current_document: Some(Precondition::Exists(false)),
-                update: Document {
-                    name: format!(
-                        "projects/{}/databases/{}/documents/{}/{}",
-                        &project_id, &database_id, collection_id, document_id
-                    ),
-                    fields: event_stream_to_fields(event.stream_id(), event.stream_seq()),
-                    create_time: None,
-                    update_time: None,
-                },
-                update_mask: None,
-                update_transforms: None,
-            });
-        }
-    }
-
-    let collection_id = "events";
-    let document_id = event.id().to_string();
+        None => Precondition::Exists(false),
+    };
     writes.push(Write::Update {
-        current_document: Some(Precondition::Exists(false)),
-        update: Document {
-            name: format!(
-                "projects/{}/databases/{}/documents/{}/{}",
-                &project_id, &database_id, collection_id, document_id
-            ),
-            fields: event_to_fields(&event),
-            create_time: None,
-            update_time: None,
-        },
+        current_document: Some(precondition),
+        update: event_stream_document,
         update_mask: None,
-        update_transforms: Some(vec![FieldTransform {
-            field_path: "requested_at".to_owned(),
-            set_to_server_value: Some(ServerValue::RequestTime),
-        }]),
+        update_transforms: None,
     });
+
+    for event in events {
+        let collection_id = "events";
+        let document_id = event.id().to_string();
+        writes.push(Write::Update {
+            current_document: Some(Precondition::Exists(false)),
+            update: Document {
+                name: format!(
+                    "projects/{}/databases/{}/documents/{}/{}",
+                    &project_id, &database_id, collection_id, document_id
+                ),
+                fields: event_to_fields(&event),
+                create_time: None,
+                update_time: None,
+            },
+            update_mask: None,
+            update_transforms: Some(vec![FieldTransform {
+                field_path: "requested_at".to_owned(),
+                set_to_server_value: Some(ServerValue::RequestTime),
+            }]),
+        });
+    }
 
     firestore_rest::commit(
         credential,
@@ -555,13 +571,13 @@ mod tests {
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event1 = Event::new(id, stream_id, stream_seq, data);
-        store(&credential, None, event1.clone()).await?;
+        store(&credential, None, vec![event1.clone()]).await?;
 
         let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, stream_id, stream_seq2, data);
-        store(&credential, Some(stream_seq), event2.clone()).await?;
+        store(&credential, Some(stream_seq), vec![event2.clone()]).await?;
 
         sleep(Duration::from_secs(1)).await;
 
@@ -573,14 +589,21 @@ mod tests {
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event3 = Event::new(id, stream_id, stream_seq, data);
-        store(&credential, None, event3.clone()).await?;
+        let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
+        let id = EventId::generate();
+        let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
+        let event4 = Event::new(id, stream_id, stream_seq2, data);
+        store(&credential, None, vec![event3.clone(), event4.clone()]).await?;
 
         sleep(Duration::from_secs(1)).await;
 
         let events = find_events_by_event_id_after(&credential, event1.id()).await?;
-        assert_eq!(events, vec![event1, event2.clone(), event3.clone()]);
+        assert_eq!(
+            events,
+            vec![event1, event2.clone(), event3.clone(), event4.clone()]
+        );
         let events = find_events_by_event_id_after(&credential, event2.id()).await?;
-        assert_eq!(events, vec![event2, event3]);
+        assert_eq!(events, vec![event2, event3, event4]);
         Ok(())
     }
 }
