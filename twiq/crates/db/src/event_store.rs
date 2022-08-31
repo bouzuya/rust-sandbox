@@ -1,5 +1,6 @@
 use std::{collections::HashMap, env, str::FromStr};
 
+use google_cloud_auth::Credential;
 use reqwest::Response;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
@@ -125,10 +126,11 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
     Ok(Event::new(id, stream_id, stream_seq, data))
 }
 
-pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Event>, Error> {
+pub async fn find_events_by_event_id_after(
+    credential: &Credential,
+    event_id: EventId,
+) -> Result<Vec<Event>, Error> {
     // TODO: begin transaction
-    let bearer_token =
-        env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let parent = format!(
@@ -148,7 +150,7 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
         "projects/{}/databases/{}/documents/{}",
         project_id, database_id, document_path
     );
-    let response = firestore_rest::get((&bearer_token, &project_id), &name, None, None, None)
+    let response = firestore_rest::get(credential, &name, None, None, None)
         .await
         .map_err(|e| Error::Unknown(e.to_string()))?;
     check_status_code(&response)?;
@@ -165,7 +167,7 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
     }?;
 
     let response = firestore_rest::run_query(
-        (&bearer_token, &project_id),
+        credential,
         &parent,
         RunQueryRequestBody {
             structured_query: StructuredQuery {
@@ -246,10 +248,9 @@ pub async fn find_events_by_event_id_after(event_id: EventId) -> Result<Vec<Even
 }
 
 pub async fn find_events_by_event_stream_id(
+    credential: &Credential,
     event_stream_id: EventStreamId,
 ) -> Result<Vec<Event>, Error> {
-    let bearer_token =
-        env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let parent = format!(
@@ -261,7 +262,7 @@ pub async fn find_events_by_event_stream_id(
         .format(&Rfc3339)
         .map_err(|e| Error::Unknown(e.to_string()))?;
     let response = firestore_rest::run_query(
-        (&bearer_token, &project_id),
+        credential,
         &parent,
         RunQueryRequestBody {
             structured_query: StructuredQuery {
@@ -341,15 +342,17 @@ pub async fn find_events_by_event_stream_id(
     Ok(events)
 }
 
-pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), Error> {
-    let bearer_token =
-        env::var("GOOGLE_BEARER_TOKEN").map_err(|e| Error::Unknown(e.to_string()))?;
+pub async fn store(
+    credential: &Credential,
+    current: Option<EventStreamSeq>,
+    event: Event,
+) -> Result<(), Error> {
     let project_id = env::var("PROJECT_ID").map_err(|e| Error::Unknown(e.to_string()))?;
     let database_id = "(default)";
     let database = format!("projects/{}/databases/{}", project_id, database_id);
 
     let response = firestore_rest::begin_transaction(
-        (&bearer_token, &project_id),
+        credential,
         &database,
         BeginTransactionRequestBody {
             options: TransactionOptions::ReadWrite {
@@ -371,7 +374,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
     match current {
         Some(expected_event_stream_seq) => {
             let (_, event_stream_seq, update_time) = get_event_stream(
-                &bearer_token,
+                credential,
                 &project_id,
                 &transaction,
                 database_id,
@@ -439,7 +442,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
     });
 
     firestore_rest::commit(
-        (&bearer_token, &project_id),
+        credential,
         &database,
         CommitRequestBody {
             writes,
@@ -455,7 +458,7 @@ pub async fn store(current: Option<EventStreamSeq>, event: Event) -> Result<(), 
 }
 
 async fn get_event_stream(
-    bearer_token: &str,
+    credential: &Credential,
     project_id: &str,
     transaction: &str,
     database_id: &str,
@@ -467,15 +470,9 @@ async fn get_event_stream(
         "projects/{}/databases/{}/documents/{}/{}",
         project_id, database_id, collection_id, document_id
     );
-    let response = firestore_rest::get(
-        (bearer_token, project_id),
-        &name,
-        None,
-        Some(transaction),
-        None,
-    )
-    .await
-    .map_err(|e| Error::Unknown(e.to_string()))?;
+    let response = firestore_rest::get(credential, &name, None, Some(transaction), None)
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
     check_status_code(&response)?;
 
     let document: Document = response
@@ -538,6 +535,7 @@ fn check_status_code(response: &Response) -> Result<(), Error> {
 mod tests {
     use std::time::Duration;
 
+    use google_cloud_auth::CredentialConfig;
     use tokio::time::sleep;
 
     use crate::{event_data::EventData, event_id::EventId, event_stream_id::EventStreamId};
@@ -547,22 +545,27 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn test() -> anyhow::Result<()> {
+        let config = CredentialConfig::builder()
+            .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
+            .build()?;
+        let credential = Credential::find_default(config).await?;
+
         let id = EventId::generate();
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event1 = Event::new(id, stream_id, stream_seq, data);
-        store(None, event1.clone()).await?;
+        store(&credential, None, event1.clone()).await?;
 
         let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, stream_id, stream_seq2, data);
-        store(Some(stream_seq), event2.clone()).await?;
+        store(&credential, Some(stream_seq), event2.clone()).await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        let events = find_events_by_event_stream_id(stream_id).await?;
+        let events = find_events_by_event_stream_id(&credential, stream_id).await?;
         assert_eq!(events, vec![event1.clone(), event2.clone()]);
 
         let id = EventId::generate();
@@ -570,13 +573,13 @@ mod tests {
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event3 = Event::new(id, stream_id, stream_seq, data);
-        store(None, event3.clone()).await?;
+        store(&credential, None, event3.clone()).await?;
 
         sleep(Duration::from_secs(1)).await;
 
-        let events = find_events_by_event_id_after(event1.id()).await?;
+        let events = find_events_by_event_id_after(&credential, event1.id()).await?;
         assert_eq!(events, vec![event1, event2.clone(), event3.clone()]);
-        let events = find_events_by_event_id_after(event2.id()).await?;
+        let events = find_events_by_event_id_after(&credential, event2.id()).await?;
         assert_eq!(events, vec![event2, event3]);
         Ok(())
     }

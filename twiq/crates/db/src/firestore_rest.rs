@@ -59,10 +59,12 @@ pub use self::unary_filter::UnaryFilter;
 pub use self::unary_operator::UnaryOperator;
 pub use self::value::Value;
 pub use self::write::Write;
-use reqwest::{Client, Method, Response, Url};
+use google_cloud_auth::Credential;
+use reqwest::{Client, IntoUrl, Method, Response, Url};
+use serde::Serialize;
 
 pub async fn begin_transaction(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     database: &str,
     body: BeginTransactionRequestBody,
 ) -> anyhow::Result<Response> {
@@ -72,19 +74,11 @@ pub async fn begin_transaction(
         "https://firestore.googleapis.com/v1/{}/documents:beginTransaction",
         database
     );
-
-    Ok(Client::new()
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    send_request(credential, method, url, Some(body)).await
 }
 
 pub async fn commit(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     database: &str,
     body: CommitRequestBody,
 ) -> anyhow::Result<Response> {
@@ -94,18 +88,11 @@ pub async fn commit(
         "https://firestore.googleapis.com/v1/{}/documents:commit",
         database
     );
-    Ok(Client::new()
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    send_request(credential, method, url, Some(body)).await
 }
 
 pub async fn create_document(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     parent: &str,
     collection_id: &str,
     document_id: Option<&str>,
@@ -132,25 +119,17 @@ pub async fn create_document(
     let mut map = serde_json::Map::new();
     map.insert("fields".to_string(), value["fields"].take());
     let body = serde_json::Value::Object(map);
-    Ok(Client::new()
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    send_request(credential, method, url, Some(body)).await
 }
 
 pub async fn get(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     name: &str,
     mask_field_paths: Option<Vec<&str>>,
     transaction: Option<&str>,
     read_time: Option<&str>,
 ) -> anyhow::Result<Response> {
     // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/get>
-
     let method = Method::GET;
     let url = format!("https://firestore.googleapis.com/v1/{}", name);
     let mut url = Url::parse(&url)?;
@@ -167,18 +146,11 @@ pub async fn get(
     if let Some(read_time) = read_time {
         url.query_pairs_mut().append_pair("readTime", read_time);
     }
-    let client = reqwest::Client::new();
-    Ok(client
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .send()
-        .await?)
+    send_request::<(), _>(credential, method, url, None).await
 }
 
 pub async fn patch(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     document_name: &str,
     update_mask_field_paths: Option<Vec<&str>>,
     mask_field_paths: Option<Vec<&str>>,
@@ -219,18 +191,11 @@ pub async fn patch(
     map.insert("name".to_string(), value["name"].take());
     map.insert("fields".to_string(), value["fields"].take());
     let body = serde_json::Value::Object(map);
-    Ok(Client::new()
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    send_request(credential, method, url, Some(body)).await
 }
 
 pub async fn run_query(
-    (token, project_id): (&str, &str),
+    credential: &Credential,
     // "projects/{project_id}/databases/{databaseId}/documents"
     // or
     // "projects/{project_id}/databases/{databaseId}/documents/{document_path}"
@@ -240,15 +205,28 @@ pub async fn run_query(
     // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/runQuery>
     let method = Method::POST;
     let url = format!("https://firestore.googleapis.com/v1/{}:runQuery", parent);
-    Ok(Client::new()
-        .request(method, url)
-        .header("Authorization", format!("Bearer {}", token))
-        .header("Content-Type", "application/json")
-        .header("X-Goog-User-Project", project_id)
-        .body(serde_json::to_string(&body)?)
-        .send()
-        .await?)
+    send_request(credential, method, url, Some(body)).await
 }
+
+async fn send_request<B: Serialize, U: IntoUrl>(
+    credential: &Credential,
+    method: Method,
+    url: U,
+    body: Option<B>,
+) -> anyhow::Result<Response> {
+    let access_token = credential.access_token().await?;
+    let request_builder = Client::new()
+        .request(method, url)
+        .header("Authorization", format!("Bearer {}", access_token.value))
+        .header("Content-Type", "application/json");
+    let request_builder = if let Some(body) = body {
+        request_builder.body(serde_json::to_string(&body)?)
+    } else {
+        request_builder
+    };
+    Ok(request_builder.send().await?)
+}
+
 #[cfg(test)]
 mod tests {
     use std::{collections::HashMap, env};
@@ -270,12 +248,11 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn begin_transaction_test() -> anyhow::Result<()> {
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let database = format!("projects/{}/databases/{}", project_id, database_id);
         let response = begin_transaction(
-            (&bearer_token, &project_id),
+            &credential().await?,
             &database,
             BeginTransactionRequestBody {
                 options: TransactionOptions::ReadWrite {
@@ -292,12 +269,11 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn commit_test() -> anyhow::Result<()> {
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let database = format!("projects/{}/databases/{}", project_id, database_id);
         let response = commit(
-            (&bearer_token, &project_id),
+            &credential().await?,
             &database,
             CommitRequestBody {
                 writes: vec![Write::Update {
@@ -326,7 +302,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn create_document_test() -> anyhow::Result<()> {
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let parent = format!(
@@ -348,7 +323,7 @@ mod tests {
             update_time: None,
         };
         let response = create_document(
-            (&bearer_token, &project_id),
+            &credential().await?,
             &parent,
             collection_id,
             Some(document_id),
@@ -376,7 +351,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn get_test() -> anyhow::Result<()> {
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let collection_id = "cities";
@@ -386,7 +360,7 @@ mod tests {
             "projects/{}/databases/{}/documents/{}",
             project_id, database_id, document_path
         );
-        let response = get((&bearer_token, &project_id), &name, None, None, None).await?;
+        let response = get(&credential().await?, &name, None, None, None).await?;
         assert_eq!(response.status(), 200);
         let _: Document = response.json().await?;
         Ok(())
@@ -395,7 +369,6 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn patch_test() -> anyhow::Result<()> {
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let collection_id = "cities";
@@ -417,7 +390,7 @@ mod tests {
             update_time: None,
         };
         let response = patch(
-            (&bearer_token, &project_id),
+            &credential().await?,
             &document_name,
             None,
             None,
@@ -436,7 +409,6 @@ mod tests {
         let event_stream_id = "f9b7139d-2310-4dee-83db-c61d81f67f10";
 
         let now = OffsetDateTime::now_utc().format(&Rfc3339)?;
-        let bearer_token = env::var("GOOGLE_BEARER_TOKEN")?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
         let parent = format!(
@@ -444,7 +416,7 @@ mod tests {
             project_id, database_id
         );
         let response = run_query(
-            (&bearer_token, &project_id),
+            &credential().await?,
             &parent,
             RunQueryRequestBody {
                 structured_query: StructuredQuery {
@@ -482,7 +454,14 @@ mod tests {
         )
         .await?;
         assert_eq!(response.status(), 200);
-        assert_eq!(response.text().await?, "");
+        // assert_eq!(response.text().await?, "");
         Ok(())
+    }
+
+    async fn credential() -> anyhow::Result<Credential> {
+        let config = CredentialConfig::builder()
+            .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
+            .build()?;
+        Ok(Credential::find_default(config).await?)
     }
 }
