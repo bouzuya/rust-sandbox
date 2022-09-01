@@ -1,3 +1,5 @@
+mod aggregate;
+
 #[derive(Debug)]
 pub struct MyTweet {
     pub id_str: String,
