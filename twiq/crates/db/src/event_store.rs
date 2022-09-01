@@ -563,6 +563,7 @@ mod tests {
     #[ignore]
     async fn test() -> anyhow::Result<()> {
         let project_id = env::var("PROJECT_ID").context("PROJECT_ID")?;
+        // GOOGLE_APPLICATION_CREDENTIALS environment variable
         let config = CredentialConfig::builder()
             .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
             .build()?;

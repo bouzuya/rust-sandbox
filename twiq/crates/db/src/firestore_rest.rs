@@ -19,6 +19,7 @@ mod map_value;
 mod order;
 mod precondition;
 mod projection;
+mod rollback_request_body;
 mod run_query_request_body;
 mod server_value;
 mod structured_query;
@@ -50,6 +51,7 @@ pub use self::map_value::MapValue;
 pub use self::order::Order;
 pub use self::precondition::Precondition;
 pub use self::projection::Projection;
+pub use self::rollback_request_body::RollbackRequestBody;
 pub use self::run_query_request_body::RunQueryRequestBody;
 pub use self::server_value::ServerValue;
 pub use self::structured_query::StructuredQuery;
@@ -191,6 +193,21 @@ pub async fn patch(
     map.insert("name".to_string(), value["name"].take());
     map.insert("fields".to_string(), value["fields"].take());
     let body = serde_json::Value::Object(map);
+    send_request(credential, method, url, Some(body)).await
+}
+
+pub async fn rollback(
+    credential: &Credential,
+    // "projects/{project_id}/databases/{databaseId}"
+    database: &str,
+    body: RollbackRequestBody,
+) -> anyhow::Result<Response> {
+    // <https://cloud.google.com/firestore/docs/reference/rest/v1/projects.databases.documents/rollback>
+    let method = Method::POST;
+    let url = format!(
+        "https://firestore.googleapis.com/v1/{}/documents:rollback",
+        database
+    );
     send_request(credential, method, url, Some(body)).await
 }
 
@@ -397,6 +414,35 @@ mod tests {
             None,
             None,
             document,
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn rollback_test() -> anyhow::Result<()> {
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let response = begin_transaction(
+            &credential().await?,
+            &database,
+            BeginTransactionRequestBody {
+                options: TransactionOptions::ReadWrite {
+                    retry_transaction: None,
+                },
+            },
+        )
+        .await?;
+        assert_eq!(response.status(), 200);
+        let BeginTransactionResponse { transaction } = response.json().await?;
+
+        let response = rollback(
+            &credential().await?,
+            &database,
+            RollbackRequestBody { transaction },
         )
         .await?;
         assert_eq!(response.status(), 200);
