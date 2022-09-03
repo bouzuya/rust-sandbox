@@ -15,6 +15,15 @@ pub struct FetchRequested {
 }
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+pub struct Updated {
+    id: String,
+    at: String,
+    user_id: String,
+    twitter_user_id: String,
+    name: String,
+}
+
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct FetchResultReceived {
     id: String,
     at: String,
@@ -27,6 +36,7 @@ pub struct FetchResultReceived {
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Event {
     Created(Created),
+    Updated(Updated),
     FetchRequested(FetchRequested),
     FetchResultReceived(FetchResultReceived),
 }
@@ -52,6 +62,8 @@ mod tests {
         Ok(())
     }
 
+    // TODO: event_test
+    // TODO: updated_test
     // TODO: fetch_requested_test
     // TODO: fetch_result_received_test
 }
