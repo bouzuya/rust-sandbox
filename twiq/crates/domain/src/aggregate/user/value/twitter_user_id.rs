@@ -27,6 +27,7 @@ impl TryFrom<String> for TwitterUserId {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
+        // 十分な長さを上限に設定している
         if value.len() > 1024 {
             return Err(Error::InvalidFormat);
         }
@@ -42,6 +43,7 @@ mod tests {
     fn string_conversion_test() -> anyhow::Result<()> {
         let s = "123";
         let id1: TwitterUserId = s.parse()?;
+        assert_eq!(s.to_string(), s);
         let id2 = TwitterUserId::try_from(s.to_owned())?;
         assert_eq!(id1, id2);
         Ok(())
