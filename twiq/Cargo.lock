@@ -28,9 +28,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.60"
+version = "1.0.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c794e162a5eff65c72ef524dfe393eb923c354e350bb78b9c7383df13f3bc142"
+checksum = "b9a8f622bcf6ff3df478e9deba3e03e4e04b300f8e6a139e192c05fa3490afc7"
 dependencies = [
  "backtrace",
 ]
@@ -199,6 +199,7 @@ name = "db"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "event_store_core",
  "google-cloud-auth",
  "ordered-float",
  "reqwest",
@@ -230,6 +231,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9852635589dc9f9ea1b6fe9f05b50ef208c85c834a562f0c6abb1c475736ec2b"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "event_store_core"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "thiserror",
+ "uuid",
 ]
 
 [[package]]

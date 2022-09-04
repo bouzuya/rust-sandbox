@@ -4,18 +4,15 @@ use google_cloud_auth::Credential;
 use reqwest::Response;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 
-use crate::{
-    event::Event,
-    event_data::EventData,
-    event_id::EventId,
-    event_stream_id::EventStreamId,
+use crate::firestore_rest::{
+    self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
+    CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference,
+    FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
+    StructuredQuery, Timestamp, TransactionOptions, Value, Write,
+};
+use event_store_core::{
+    event::Event, event_data::EventData, event_id::EventId, event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq,
-    firestore_rest::{
-        self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
-        CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference,
-        FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
-        StructuredQuery, Timestamp, TransactionOptions, Value, Write,
-    },
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -552,10 +549,11 @@ mod tests {
     use std::{env, time::Duration};
 
     use anyhow::Context;
+    use event_store_core::{
+        event_data::EventData, event_id::EventId, event_stream_id::EventStreamId,
+    };
     use google_cloud_auth::CredentialConfig;
     use tokio::time::sleep;
-
-    use crate::{event_data::EventData, event_id::EventId, event_stream_id::EventStreamId};
 
     use super::*;
 
