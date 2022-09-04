@@ -1,4 +1,5 @@
 mod event;
+mod value;
 
 use self::event::{Event, UserCreated, UserFetchRequested, UserUpdated};
 
