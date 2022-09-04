@@ -11,6 +11,12 @@ pub enum Error {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct UserId(Uuid);
 
+impl UserId {
+    pub fn generate() -> Self {
+        Self(Uuid::new_v4())
+    }
+}
+
 impl Display for UserId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
@@ -49,5 +55,12 @@ mod tests {
         let id2 = UserId::try_from(s.to_owned())?;
         assert_eq!(id1, id2);
         Ok(())
+    }
+
+    #[test]
+    fn generate_test() {
+        let id1 = UserId::generate();
+        let id2 = UserId::generate();
+        assert_ne!(id1, id2);
     }
 }
