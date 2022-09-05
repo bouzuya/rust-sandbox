@@ -216,6 +216,7 @@ name = "domain"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "event_store_core",
  "reqwest",
  "serde",
  "serde_json",
