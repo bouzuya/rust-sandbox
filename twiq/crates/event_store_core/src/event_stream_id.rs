@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use uuid::Uuid;
+use uuid::{Uuid, Variant};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -23,6 +23,12 @@ impl Display for EventStreamId {
     }
 }
 
+impl From<EventStreamId> for u128 {
+    fn from(event_stream_id: EventStreamId) -> Self {
+        event_stream_id.0.as_u128()
+    }
+}
+
 impl FromStr for EventStreamId {
     type Err = Error;
 
@@ -32,9 +38,29 @@ impl FromStr for EventStreamId {
     }
 }
 
+impl TryFrom<u128> for EventStreamId {
+    type Error = Error;
+
+    fn try_from(value: u128) -> Result<Self, Self::Error> {
+        let uuid = Uuid::from_u128(value);
+        if !(uuid.get_version_num() == 4 && uuid.get_variant() == Variant::RFC4122) {
+            return Err(Error::InvalidFormat("u128 value is not UUID v4".to_owned()));
+        }
+        Ok(Self(uuid))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn u128_conversion_test() -> anyhow::Result<()> {
+        let uuid = Uuid::from_str("d271588f-6022-4a41-b636-04a160e4bb1a")?;
+        let id1 = EventStreamId::try_from(uuid.as_u128())?;
+        assert_eq!(u128::from(id1), uuid.as_u128());
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
