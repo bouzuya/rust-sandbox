@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use uuid::Uuid;
+use uuid::{Uuid, Variant};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -20,6 +20,12 @@ impl UserId {
 impl Display for UserId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
+    }
+}
+
+impl From<UserId> for u128 {
+    fn from(user_id: UserId) -> Self {
+        user_id.0.as_u128()
     }
 }
 
@@ -43,6 +49,18 @@ impl TryFrom<String> for UserId {
     }
 }
 
+impl TryFrom<u128> for UserId {
+    type Error = Error;
+
+    fn try_from(value: u128) -> Result<Self, Self::Error> {
+        let uuid = Uuid::from_u128(value);
+        if !(uuid.get_version_num() == 4 && uuid.get_variant() == Variant::RFC4122) {
+            return Err(Error::InvalidFormat("u128 value is not UUID v4".to_owned()));
+        }
+        Ok(Self(uuid))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -54,6 +72,14 @@ mod tests {
         assert_eq!(id1.to_string(), s);
         let id2 = UserId::try_from(s.to_owned())?;
         assert_eq!(id1, id2);
+        Ok(())
+    }
+
+    #[test]
+    fn u128_conversion_test() -> anyhow::Result<()> {
+        let uuid = Uuid::from_str("d271588f-6022-4a41-b636-04a160e4bb1a")?;
+        let id1 = UserId::try_from(uuid.as_u128())?;
+        assert_eq!(u128::from(id1), uuid.as_u128());
         Ok(())
     }
 
