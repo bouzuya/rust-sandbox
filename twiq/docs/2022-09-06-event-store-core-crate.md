@@ -37,4 +37,8 @@ db crate は永続化を担っており、永続化の詳細を知っている�
 
 今回の Firestore で考えると読み替え用テーブルを追加する場合は同一トランザクションで処理するために現状の db (EventStore) の API を改めないといけない。
 
-(WIP)
+今回は「 AggregateId と EventStreamId の値を同一にする」で進める。
+
+domain crate から db crate への依存を避けるために event_store_core crate として EventStreamId などを切り出して domain crate と db crate の両方から依存できるようにする。
+
+読み替え用テーブルは Query 側として扱う。なので別トランザクションで処理する。 unique な列の衝突などの問題が起こりそうではある。
