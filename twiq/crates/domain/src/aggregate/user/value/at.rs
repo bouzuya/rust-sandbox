@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use time::{format_description::well_known::Iso8601, OffsetDateTime};
+use time::{format_description::well_known::Iso8601, Duration, OffsetDateTime};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 #[error("error")]
@@ -12,6 +12,10 @@ pub struct At(OffsetDateTime);
 impl At {
     pub fn now() -> Self {
         Self(OffsetDateTime::now_utc())
+    }
+
+    pub fn plus_1day(&self) -> Self {
+        Self(self.0 + Duration::days(1))
     }
 }
 
@@ -48,6 +52,13 @@ impl TryFrom<String> for At {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn plus_1day_test() -> anyhow::Result<()> {
+        let at = At::from_str("2021-02-03T04:05:06.000000000Z")?;
+        assert_eq!(at.plus_1day().to_string(), "2021-02-04T04:05:06.000000000Z");
+        Ok(())
+    }
 
     #[test]
     fn string_conversion_test() -> anyhow::Result<()> {
