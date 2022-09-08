@@ -2,7 +2,10 @@ use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
 };
 
-use super::value::{at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName};
+use super::value::{
+    at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName,
+    user_request_id::UserRequestId,
+};
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserCreated {
@@ -38,6 +41,7 @@ pub struct UserFetchRequested {
     stream_id: String,
     stream_seq: u32,
     twitter_user_id: String,
+    user_request_id: String,
 }
 
 impl UserFetchRequested {
@@ -47,6 +51,7 @@ impl UserFetchRequested {
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
         twitter_user_id: TwitterUserId,
+        user_request_id: UserRequestId,
     ) -> UserFetchRequested {
         Self {
             id: id.to_string(),
@@ -54,6 +59,7 @@ impl UserFetchRequested {
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
             twitter_user_id: twitter_user_id.to_string(),
+            user_request_id: user_request_id.to_string(),
         }
     }
 }
@@ -125,7 +131,7 @@ mod tests {
     #[test]
     fn user_fetch_requested_test() -> anyhow::Result<()> {
         let deserialized: UserFetchRequested = serde_json::from_str(
-            r#"{"id":"0ecb46f3-01a1-49b2-9405-0b4c40ecefe8","at":"2022-09-06T22:58:00.000000000Z","stream_id":"a748c956-7e53-45ef-b1f0-1c52676a467c","stream_seq":1,"twitter_user_id":"twitter_user_id1"}"#,
+            r#"{"id":"0ecb46f3-01a1-49b2-9405-0b4c40ecefe8","at":"2022-09-06T22:58:00.000000000Z","stream_id":"a748c956-7e53-45ef-b1f0-1c52676a467c","stream_seq":1,"twitter_user_id":"twitter_user_id1","user_request_id":"868aecdc-d860-4232-8000-69e4623f1317"}"#,
         )?;
         assert_eq!(
             deserialized,
@@ -135,6 +141,7 @@ mod tests {
                 stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
                 stream_seq: 1,
                 twitter_user_id: "twitter_user_id1".to_owned(),
+                user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned()
             }
         );
         Ok(())

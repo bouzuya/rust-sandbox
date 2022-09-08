@@ -9,7 +9,7 @@ use self::{
     event::{Event, UserCreated, UserFetchRequested, UserUpdated},
     value::{
         at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName,
-        user_id::UserId, version::Version,
+        user_id::UserId, user_request_id::UserRequestId, version::Version,
     },
 };
 
@@ -69,6 +69,7 @@ impl User {
             Error
         })?;
         let stream_seq = EventStreamSeq::from(u32::from(EventStreamSeq::from(self.version)) + 1);
+        let user_request_id = UserRequestId::generate();
         self.events
             .push(Event::FetchRequested(UserFetchRequested::new(
                 id,
@@ -76,6 +77,7 @@ impl User {
                 stream_id,
                 stream_seq,
                 self.twitter_user_id.clone(),
+                user_request_id,
             )));
         self.fetch_requested_at = Some(at);
         self.version = Version::from(stream_seq);
