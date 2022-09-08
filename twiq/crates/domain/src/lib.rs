@@ -1,4 +1,4 @@
-mod aggregate;
+pub mod aggregate;
 
 #[derive(Debug)]
 pub struct MyTweet {
