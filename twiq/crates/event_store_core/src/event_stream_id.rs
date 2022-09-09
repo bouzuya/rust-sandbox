@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use uuid::{Uuid, Variant};
+use crate::uuid_v4::UuidV4;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -9,11 +9,11 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct EventStreamId(Uuid);
+pub struct EventStreamId(UuidV4);
 
 impl EventStreamId {
     pub fn generate() -> Self {
-        Self(Uuid::new_v4())
+        Self(UuidV4::generate())
     }
 }
 
@@ -25,7 +25,7 @@ impl Display for EventStreamId {
 
 impl From<EventStreamId> for u128 {
     fn from(event_stream_id: EventStreamId) -> Self {
-        event_stream_id.0.as_u128()
+        event_stream_id.0.to_u128()
     }
 }
 
@@ -33,8 +33,9 @@ impl FromStr for EventStreamId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let uuid = Uuid::from_str(s).map_err(|e| Error::InvalidFormat(e.to_string()))?;
-        Ok(Self(uuid))
+        UuidV4::from_str(s)
+            .map(Self)
+            .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
 }
 
@@ -42,16 +43,16 @@ impl TryFrom<u128> for EventStreamId {
     type Error = Error;
 
     fn try_from(value: u128) -> Result<Self, Self::Error> {
-        let uuid = Uuid::from_u128(value);
-        if !(uuid.get_version_num() == 4 && uuid.get_variant() == Variant::RFC4122) {
-            return Err(Error::InvalidFormat("u128 value is not UUID v4".to_owned()));
-        }
-        Ok(Self(uuid))
+        UuidV4::try_from(value)
+            .map(Self)
+            .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     #[test]
