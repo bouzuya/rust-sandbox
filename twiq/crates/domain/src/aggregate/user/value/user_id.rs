@@ -2,8 +2,6 @@ use std::{fmt::Display, str::FromStr};
 
 use event_store_core::event_stream_id::EventStreamId;
 
-use super::uuid_v4::UuidV4;
-
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("invalid format {0}")]
@@ -11,11 +9,11 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct UserId(UuidV4);
+pub struct UserId(EventStreamId);
 
 impl UserId {
     pub fn generate() -> Self {
-        Self(UuidV4::generate())
+        Self(EventStreamId::generate())
     }
 }
 
@@ -35,7 +33,7 @@ impl FromStr for UserId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        UuidV4::from_str(s)
+        EventStreamId::from_str(s)
             .map(Self)
             .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
@@ -45,7 +43,7 @@ impl TryFrom<String> for UserId {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        UuidV4::try_from(value)
+        EventStreamId::from_str(&value)
             .map(Self)
             .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
@@ -55,7 +53,7 @@ impl TryFrom<u128> for UserId {
     type Error = Error;
 
     fn try_from(value: u128) -> Result<Self, Self::Error> {
-        UuidV4::try_from(value)
+        EventStreamId::try_from(value)
             .map(Self)
             .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
@@ -63,7 +61,7 @@ impl TryFrom<u128> for UserId {
 
 impl From<UserId> for EventStreamId {
     fn from(value: UserId) -> Self {
-        Self::try_from(u128::from(value.0)).expect("user_id -> event_stream_id")
+        value.0
     }
 }
 
@@ -73,18 +71,18 @@ mod tests {
 
     #[test]
     fn event_stream_id_conversion_test() -> anyhow::Result<()> {
-        let uuid = UuidV4::generate();
-        let id1 = UserId::try_from(uuid.to_u128())?;
+        let event_stream_id = EventStreamId::generate();
+        let id1 = UserId::try_from(u128::from(event_stream_id))?;
         assert_eq!(
             EventStreamId::from(id1),
-            EventStreamId::try_from(uuid.to_u128())?
+            EventStreamId::try_from(u128::from(event_stream_id))?
         );
         Ok(())
     }
 
     #[test]
     fn string_conversion_test() -> anyhow::Result<()> {
-        let s = UuidV4::generate().to_string();
+        let s = EventStreamId::generate().to_string();
         let id1: UserId = s.parse()?;
         assert_eq!(id1.to_string(), s);
         let id2 = UserId::try_from(s)?;
@@ -94,9 +92,9 @@ mod tests {
 
     #[test]
     fn u128_conversion_test() -> anyhow::Result<()> {
-        let uuid = UuidV4::generate();
-        let id1 = UserId::try_from(uuid.to_u128())?;
-        assert_eq!(u128::from(id1), uuid.to_u128());
+        let event_stream_id = EventStreamId::generate();
+        let id1 = UserId::try_from(u128::from(event_stream_id))?;
+        assert_eq!(u128::from(id1), u128::from(event_stream_id));
         Ok(())
     }
 
