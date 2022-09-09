@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use uuid::{Uuid, Variant};
+use super::uuid_v4::UuidV4;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -9,11 +9,11 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct UserId(Uuid);
+pub struct UserId(UuidV4);
 
 impl UserId {
     pub fn generate() -> Self {
-        Self(Uuid::new_v4())
+        Self(UuidV4::generate())
     }
 }
 
@@ -24,8 +24,8 @@ impl Display for UserId {
 }
 
 impl From<UserId> for u128 {
-    fn from(user_id: UserId) -> Self {
-        user_id.0.as_u128()
+    fn from(value: UserId) -> Self {
+        u128::from(value.0)
     }
 }
 
@@ -33,7 +33,7 @@ impl FromStr for UserId {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Uuid::parse_str(s)
+        UuidV4::from_str(s)
             .map(Self)
             .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
@@ -43,7 +43,7 @@ impl TryFrom<String> for UserId {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        Uuid::parse_str(&value)
+        UuidV4::try_from(value)
             .map(Self)
             .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
@@ -53,11 +53,9 @@ impl TryFrom<u128> for UserId {
     type Error = Error;
 
     fn try_from(value: u128) -> Result<Self, Self::Error> {
-        let uuid = Uuid::from_u128(value);
-        if !(uuid.get_version_num() == 4 && uuid.get_variant() == Variant::RFC4122) {
-            return Err(Error::InvalidFormat("u128 value is not UUID v4".to_owned()));
-        }
-        Ok(Self(uuid))
+        UuidV4::try_from(value)
+            .map(Self)
+            .map_err(|e| Error::InvalidFormat(e.to_string()))
     }
 }
 
@@ -67,19 +65,19 @@ mod tests {
 
     #[test]
     fn string_conversion_test() -> anyhow::Result<()> {
-        let s = "d271588f-6022-4a41-b636-04a160e4bb1a";
+        let s = UuidV4::generate().to_string();
         let id1: UserId = s.parse()?;
         assert_eq!(id1.to_string(), s);
-        let id2 = UserId::try_from(s.to_owned())?;
+        let id2 = UserId::try_from(s)?;
         assert_eq!(id1, id2);
         Ok(())
     }
 
     #[test]
     fn u128_conversion_test() -> anyhow::Result<()> {
-        let uuid = Uuid::from_str("d271588f-6022-4a41-b636-04a160e4bb1a")?;
-        let id1 = UserId::try_from(uuid.as_u128())?;
-        assert_eq!(u128::from(id1), uuid.as_u128());
+        let uuid = UuidV4::generate();
+        let id1 = UserId::try_from(uuid.to_u128())?;
+        assert_eq!(u128::from(id1), uuid.to_u128());
         Ok(())
     }
 
