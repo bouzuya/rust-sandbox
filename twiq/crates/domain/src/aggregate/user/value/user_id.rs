@@ -1,5 +1,7 @@
 use std::{fmt::Display, str::FromStr};
 
+use event_store_core::event_stream_id::EventStreamId;
+
 use super::uuid_v4::UuidV4;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -59,9 +61,26 @@ impl TryFrom<u128> for UserId {
     }
 }
 
+impl From<UserId> for EventStreamId {
+    fn from(value: UserId) -> Self {
+        Self::try_from(u128::from(value.0)).expect("user_id -> event_stream_id")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn event_stream_id_conversion_test() -> anyhow::Result<()> {
+        let uuid = UuidV4::generate();
+        let id1 = UserId::try_from(uuid.to_u128())?;
+        assert_eq!(
+            EventStreamId::from(id1),
+            EventStreamId::try_from(uuid.to_u128())?
+        );
+        Ok(())
+    }
 
     #[test]
     fn string_conversion_test() -> anyhow::Result<()> {
