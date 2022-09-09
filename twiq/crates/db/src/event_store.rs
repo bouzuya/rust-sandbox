@@ -574,7 +574,7 @@ mod tests {
         let event1 = Event::new(id, stream_id, stream_seq, data);
         store(&project_id, &credential, None, vec![event1.clone()]).await?;
 
-        let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
+        let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, stream_id, stream_seq2, data);
@@ -596,7 +596,7 @@ mod tests {
         let stream_seq = EventStreamSeq::from(1_u32);
         let data = EventData::try_from("{}".to_owned())?;
         let event3 = Event::new(id, stream_id, stream_seq, data);
-        let stream_seq2 = EventStreamSeq::from(u32::from(stream_seq) + 1);
+        let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event4 = Event::new(id, stream_id, stream_seq2, data);

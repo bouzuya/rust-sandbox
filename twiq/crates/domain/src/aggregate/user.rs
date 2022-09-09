@@ -68,7 +68,10 @@ impl User {
             // TODO: error handling
             Error
         })?;
-        let stream_seq = EventStreamSeq::from(u32::from(EventStreamSeq::from(self.version)) + 1);
+        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
+            // TODO: error handling
+            Error
+        })?;
         let user_request_id = UserRequestId::generate();
         self.events
             .push(Event::FetchRequested(UserFetchRequested::new(
@@ -98,7 +101,10 @@ impl User {
             // TODO: error handling
             Error
         })?;
-        let stream_seq = EventStreamSeq::from(u32::from(EventStreamSeq::from(self.version)) + 1);
+        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
+            // TODO: error handling
+            Error
+        })?;
         self.events.push(Event::Updated(UserUpdated::new(
             id,
             at,
