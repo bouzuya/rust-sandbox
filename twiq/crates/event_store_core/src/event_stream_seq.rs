@@ -2,10 +2,18 @@
 pub enum Error {
     #[error("out of range error")]
     OutOfRange,
+    #[error("overflow error")]
+    Overflow,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EventStreamSeq(u32);
+
+impl EventStreamSeq {
+    pub fn next(self) -> Result<Self, Error> {
+        self.0.checked_add(1).map(Self).ok_or(Error::Overflow)
+    }
+}
 
 impl From<EventStreamSeq> for i64 {
     fn from(version: EventStreamSeq) -> Self {
@@ -51,5 +59,15 @@ mod tests {
         assert!(EventStreamSeq::try_from(1_i64).is_ok());
         assert!(EventStreamSeq::try_from(i64::from(u32::MAX)).is_ok());
         assert!(EventStreamSeq::try_from(i64::from(u32::MAX) + 1).is_err());
+    }
+
+    #[test]
+    fn next_test() -> anyhow::Result<()> {
+        assert_eq!(
+            EventStreamSeq::from(1_u32).next()?,
+            EventStreamSeq::from(2_u32)
+        );
+        assert!(EventStreamSeq::from(u32::MAX).next().is_err());
+        Ok(())
     }
 }
