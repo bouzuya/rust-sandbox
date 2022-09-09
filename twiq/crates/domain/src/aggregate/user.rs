@@ -30,20 +30,13 @@ pub struct User {
 
 impl User {
     pub fn create(twitter_user_id: TwitterUserId) -> Result<Self> {
-        let id = EventId::generate();
-        let at = At::now();
-        // user_id = event_stream_id
         let user_id = UserId::generate();
-        let stream_id = EventStreamId::try_from(u128::from(user_id)).map_err(|_| {
-            // TODO: error handling
-            Error
-        })?;
         let stream_seq = EventStreamSeq::from(1);
         Ok(Self {
             events: vec![Event::Created(UserCreated::new(
-                id,
-                at,
-                stream_id,
+                EventId::generate(),
+                At::now(),
+                EventStreamId::from(user_id),
                 stream_seq,
                 twitter_user_id.clone(),
             ))],
@@ -62,12 +55,7 @@ impl User {
                 return Err(Error);
             }
         }
-        let id = EventId::generate();
         let user_id = self.user_id;
-        let stream_id = EventStreamId::try_from(u128::from(user_id)).map_err(|_| {
-            // TODO: error handling
-            Error
-        })?;
         let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
             // TODO: error handling
             Error
@@ -75,9 +63,9 @@ impl User {
         let user_request_id = UserRequestId::generate();
         self.events
             .push(Event::FetchRequested(UserFetchRequested::new(
-                id,
+                EventId::generate(),
                 at,
-                stream_id,
+                EventStreamId::from(user_id),
                 stream_seq,
                 self.twitter_user_id.clone(),
                 user_request_id,
@@ -94,21 +82,15 @@ impl User {
                 return Err(Error);
             }
         }
-        let id = EventId::generate();
         let at = At::now();
-        let user_id = self.user_id;
-        let stream_id = EventStreamId::try_from(u128::from(user_id)).map_err(|_| {
-            // TODO: error handling
-            Error
-        })?;
         let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
             // TODO: error handling
             Error
         })?;
         self.events.push(Event::Updated(UserUpdated::new(
-            id,
+            EventId::generate(),
             at,
-            stream_id,
+            EventStreamId::from(self.user_id),
             stream_seq,
             self.twitter_user_id.clone(),
             name,
