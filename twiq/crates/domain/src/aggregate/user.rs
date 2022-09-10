@@ -82,7 +82,6 @@ impl User {
                 return Err(Error);
             }
         }
-        let at = At::now();
         let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
             // TODO: error handling
             Error
