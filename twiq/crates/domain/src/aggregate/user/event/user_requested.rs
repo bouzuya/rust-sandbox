@@ -3,8 +3,8 @@ use event_store_core::{
 };
 
 use crate::{
-    aggregate::user::value::{at::At, twitter_user_id::TwitterUserId},
-    value::UserRequestId,
+    aggregate::user::value::at::At,
+    value::{TwitterUserId, UserRequestId},
 };
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]

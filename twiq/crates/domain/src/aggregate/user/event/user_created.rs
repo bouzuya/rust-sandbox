@@ -2,7 +2,7 @@ use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
 };
 
-use crate::aggregate::user::value::{at::At, twitter_user_id::TwitterUserId};
+use crate::{aggregate::user::value::at::At, value::TwitterUserId};
 
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserCreated {
