@@ -1,44 +1,10 @@
 pub mod user_created;
 pub mod user_requested;
-
-use event_store_core::{
-    event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-};
+pub mod user_updated;
 
 pub use self::user_created::UserCreated;
 pub use self::user_requested::UserRequested;
-
-use super::value::{at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName};
-
-#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UserUpdated {
-    id: String,
-    at: String,
-    stream_id: String,
-    stream_seq: u32,
-    twitter_user_id: String,
-    twitter_user_name: String,
-}
-
-impl UserUpdated {
-    pub fn new(
-        id: EventId,
-        at: At,
-        stream_id: EventStreamId,
-        stream_seq: EventStreamSeq,
-        twitter_user_id: TwitterUserId,
-        twitter_user_name: TwitterUserName,
-    ) -> Self {
-        Self {
-            id: id.to_string(),
-            at: at.to_string(),
-            stream_id: stream_id.to_string(),
-            stream_seq: u32::from(stream_seq),
-            twitter_user_id: twitter_user_id.to_string(),
-            twitter_user_name: twitter_user_name.to_string(),
-        }
-    }
-}
+pub use self::user_updated::UserUpdated;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -81,6 +47,7 @@ macro_rules! impl_from_and_try_from {
 
 impl_from_and_try_from!(Event::Created, UserCreated);
 impl_from_and_try_from!(Event::Requested, UserRequested);
+impl_from_and_try_from!(Event::Updated, UserUpdated);
 
 #[cfg(test)]
 mod tests {
@@ -137,6 +104,29 @@ mod tests {
   "stream_seq": 1,
   "twitter_user_id": "twitter_user_id1",
   "user_request_id": "868aecdc-d860-4232-8000-69e4623f1317"
+}"#;
+        serde_test(o, s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn user_updated_test() -> anyhow::Result<()> {
+        let o = Event::from(UserUpdated {
+            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
+            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
+            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
+            stream_seq: 1,
+            twitter_user_id: "twitter_user_id1".to_owned(),
+            twitter_user_name: "twitter_user_name1".to_owned(),
+        });
+        let s = r#"{
+  "type": "user_updated",
+  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
+  "at": "2022-09-06T22:58:00.000000000Z",
+  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
+  "stream_seq": 1,
+  "twitter_user_id": "twitter_user_id1",
+  "twitter_user_name": "twitter_user_name1"
 }"#;
         serde_test(o, s)?;
         Ok(())
