@@ -14,7 +14,7 @@ pub struct UserCreated {
 }
 
 impl UserCreated {
-    pub fn new(
+    pub(in crate::aggregate::user) fn new(
         id: EventId,
         at: At,
         stream_id: EventStreamId,

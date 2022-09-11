@@ -17,7 +17,7 @@ pub struct UserRequested {
 }
 
 impl UserRequested {
-    pub(crate) fn new(
+    pub(in crate::aggregate::user) fn new(
         id: EventId,
         at: At,
         stream_id: EventStreamId,
