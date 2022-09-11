@@ -6,7 +6,7 @@ use event_store_core::{
 };
 
 use self::{
-    event::{Event, UserCreated, UserFetchRequested, UserUpdated},
+    event::{Event, UserCreated, UserRequested, UserUpdated},
     value::{
         at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName,
         user_id::UserId, user_request_id::UserRequestId, version::Version,
@@ -48,7 +48,7 @@ impl User {
         })
     }
 
-    pub fn fetch_request(&mut self, at: At) -> Result<()> {
+    pub fn request(&mut self, at: At) -> Result<()> {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {
                 // TODo: error handling
@@ -61,15 +61,14 @@ impl User {
             Error
         })?;
         let user_request_id = UserRequestId::generate();
-        self.events
-            .push(Event::FetchRequested(UserFetchRequested::new(
-                EventId::generate(),
-                at,
-                EventStreamId::from(user_id),
-                stream_seq,
-                self.twitter_user_id.clone(),
-                user_request_id,
-            )));
+        self.events.push(Event::Requested(UserRequested::new(
+            EventId::generate(),
+            at,
+            EventStreamId::from(user_id),
+            stream_seq,
+            self.twitter_user_id.clone(),
+            user_request_id,
+        )));
         self.fetch_requested_at = Some(at);
         self.version = Version::from(stream_seq);
         Ok(())
@@ -116,14 +115,14 @@ mod tests {
     }
 
     #[test]
-    fn fetch_request_test() -> anyhow::Result<()> {
+    fn request_test() -> anyhow::Result<()> {
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
         let mut user = User::create(twitter_user_id)?;
         let at = At::now();
-        user.fetch_request(at)?;
-        assert!(matches!(user.events[1], Event::FetchRequested(_)));
+        user.request(at)?;
+        assert!(matches!(user.events[1], Event::Requested(_)));
         let at = At::now();
-        assert!(user.fetch_request(at).is_err());
+        assert!(user.request(at).is_err());
         assert_eq!(user.events.len(), 2);
         Ok(())
     }
