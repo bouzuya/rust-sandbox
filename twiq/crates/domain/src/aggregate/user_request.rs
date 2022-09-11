@@ -6,7 +6,7 @@ use event_store_core::{
 
 use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
-use self::event::{Event, UserRequestCreated};
+use self::event::{Event, UserRequestCreated, UserRequestStarted};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -41,6 +41,20 @@ impl UserRequest {
             id,
             version: Version::from(stream_seq),
         })
+    }
+
+    pub fn start(&mut self) -> Result<()> {
+        // TODO: error handling
+        let stream_id = EventStreamId::from(self.id);
+        let stream_seq = EventStreamSeq::from(self.version).next().unwrap();
+        self.events.push(Event::Started(UserRequestStarted::new(
+            EventId::generate(),
+            At::now(),
+            stream_id,
+            stream_seq,
+        )));
+        self.version = Version::from(stream_seq);
+        Ok(())
     }
 }
 
