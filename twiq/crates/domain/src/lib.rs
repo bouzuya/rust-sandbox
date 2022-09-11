@@ -1,4 +1,5 @@
 pub mod aggregate;
+mod value;
 
 #[derive(Debug)]
 pub struct MyTweet {

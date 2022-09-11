@@ -5,11 +5,13 @@ use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
 };
 
+use crate::value::Version;
+
 use self::{
     event::{Event, UserCreated, UserRequested, UserUpdated},
     value::{
         at::At, twitter_user_id::TwitterUserId, twitter_user_name::TwitterUserName,
-        user_id::UserId, user_request_id::UserRequestId, version::Version,
+        user_id::UserId, user_request_id::UserRequestId,
     },
 };
 
