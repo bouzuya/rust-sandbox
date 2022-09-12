@@ -1,11 +1,10 @@
 pub mod user_request_created;
+pub mod user_request_finished;
 pub mod user_request_started;
 
 pub use self::user_request_created::UserRequestCreated;
+pub use self::user_request_finished::UserRequestFinished;
 pub use self::user_request_started::UserRequestStarted;
-
-#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct UserRequestFinished;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -47,6 +46,7 @@ macro_rules! impl_from_and_try_from {
 }
 
 impl_from_and_try_from!(Event::Created, UserRequestCreated);
+impl_from_and_try_from!(Event::Finished, UserRequestFinished);
 impl_from_and_try_from!(Event::Started, UserRequestStarted);
 
 #[cfg(test)]
@@ -86,6 +86,29 @@ mod tests {
   "stream_seq": 1,
   "twitter_user_id": "twitter_user_id1",
   "user_id": "682106dd-b94c-4bd1-a808-e74b3d3fb56a"
+}"#;
+        serde_test(o, s)?;
+        Ok(())
+    }
+
+    #[test]
+    fn user_request_finished_test() -> anyhow::Result<()> {
+        let o = Event::from(UserRequestFinished {
+            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
+            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
+            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
+            stream_seq: 1,
+            status_code: 200,
+            response_body: "{}".to_owned(),
+        });
+        let s = r#"{
+  "type": "user_request_finished",
+  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
+  "at": "2022-09-06T22:58:00.000000000Z",
+  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
+  "stream_seq": 1,
+  "status_code": 200,
+  "response_body": "{}"
 }"#;
         serde_test(o, s)?;
         Ok(())

@@ -6,7 +6,7 @@ use event_store_core::{
 
 use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
-use self::event::{Event, UserRequestCreated, UserRequestStarted};
+use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -43,9 +43,45 @@ impl UserRequest {
         })
     }
 
-    pub fn start(&mut self) -> Result<()> {
-        // TODO: error handling
+    pub fn finish(&mut self, status_code: u16, response_body: String) -> Result<()> {
+        if !self
+            .events
+            .last()
+            .map(|event| matches!(event, Event::Started(_)))
+            .unwrap_or_default()
+        {
+            return Err(Error::Unknown(
+                "user_request status is not started".to_owned(),
+            ));
+        }
         let stream_id = EventStreamId::from(self.id);
+        // TODO: error handling
+        let stream_seq = EventStreamSeq::from(self.version).next().unwrap();
+        self.events.push(Event::Finished(UserRequestFinished::new(
+            EventId::generate(),
+            At::now(),
+            stream_id,
+            stream_seq,
+            status_code,
+            response_body,
+        )));
+        self.version = Version::from(stream_seq);
+        Ok(())
+    }
+
+    pub fn start(&mut self) -> Result<()> {
+        if !self
+            .events
+            .last()
+            .map(|event| matches!(event, Event::Created(_)))
+            .unwrap_or_default()
+        {
+            return Err(Error::Unknown(
+                "user_request status is not created".to_owned(),
+            ));
+        }
+        let stream_id = EventStreamId::from(self.id);
+        // TODO: error handling
         let stream_seq = EventStreamSeq::from(self.version).next().unwrap();
         self.events.push(Event::Started(UserRequestStarted::new(
             EventId::generate(),
@@ -65,12 +101,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_test() -> anyhow::Result<()> {
+    fn test() -> anyhow::Result<()> {
         let id = UserRequestId::generate();
         let twitter_user_id = TwitterUserId::from_str("bouzuya")?;
         let user_id = UserId::generate();
-        let user_request = UserRequest::create(id, twitter_user_id, user_id)?;
+        let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
         assert!(matches!(user_request.events[0], Event::Created(_)));
+        user_request.start()?;
+        assert!(matches!(user_request.events[1], Event::Started(_)));
+        user_request.finish(200, "{}".to_owned())?;
+        assert!(matches!(user_request.events[2], Event::Finished(_)));
         Ok(())
     }
 }
