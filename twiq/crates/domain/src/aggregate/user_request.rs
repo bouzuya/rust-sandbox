@@ -8,7 +8,7 @@ use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
 use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("unknown {0}")]
     Unknown(String),
