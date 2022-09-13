@@ -12,7 +12,7 @@ pub enum Error {
     Unknown(String),
 }
 
-#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(tag = "type")]
 pub enum Event {
     #[serde(rename = "user_created")]
