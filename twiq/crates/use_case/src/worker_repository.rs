@@ -16,8 +16,9 @@ pub enum WorkerName {
 
 #[async_trait]
 pub trait WorkerRepository {
-    async fn find_last_event_id(worker_name: WorkerName) -> Result<Option<EventId>>;
+    async fn find_last_event_id(&self, worker_name: WorkerName) -> Result<Option<EventId>>;
     async fn store_last_event_id(
+        &self,
         worker_name: WorkerName,
         before: Option<EventId>,
         after: EventId,
