@@ -12,9 +12,11 @@ use self::{
     value::twitter_user_name::TwitterUserName,
 };
 
-#[derive(Debug, thiserror::Error)]
-#[error("error")]
-pub struct Error;
+#[derive(Debug, Eq, PartialEq, thiserror::Error)]
+pub enum Error {
+    #[error("error")]
+    Unknown(String),
+}
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
@@ -51,13 +53,13 @@ impl User {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {
                 // TODo: error handling
-                return Err(Error);
+                return Err(Error::Unknown("".to_owned()));
             }
         }
         let user_id = self.user_id;
-        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
+        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|e| {
             // TODO: error handling
-            Error
+            Error::Unknown(e.to_string())
         })?;
         let user_request_id = UserRequestId::generate();
         self.events.push(Event::Requested(UserRequested::new(
@@ -77,12 +79,12 @@ impl User {
         if let Some(updated_at) = self.updated_at {
             if at <= updated_at {
                 // TODo: error handling
-                return Err(Error);
+                return Err(Error::Unknown("".to_owned()));
             }
         }
-        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|_| {
+        let stream_seq = EventStreamSeq::from(self.version).next().map_err(|e| {
             // TODO: error handling
-            Error
+            Error::Unknown(e.to_string())
         })?;
         self.events.push(Event::Updated(UserUpdated::new(
             EventId::generate(),
