@@ -4,7 +4,7 @@ use event_store_core::{
 
 use crate::value::At;
 
-#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserRequestStarted {
     pub(super) id: String,
     pub(super) at: String,
