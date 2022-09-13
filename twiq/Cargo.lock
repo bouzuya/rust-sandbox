@@ -1416,6 +1416,7 @@ version = "0.0.0"
 dependencies = [
  "async-trait",
  "domain",
+ "event_store_core",
  "thiserror",
 ]
 

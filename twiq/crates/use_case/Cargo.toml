@@ -8,4 +8,5 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.57"
 domain = { path = "../domain" }
+event_store_core = { path = "../event_store_core" }
 thiserror = "1.0.33"
