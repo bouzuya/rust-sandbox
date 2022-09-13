@@ -20,6 +20,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct User {
     events: Vec<Event>,
     fetch_requested_at: Option<At>,
