@@ -1,5 +1,8 @@
 pub mod aggregate;
+pub mod event;
 mod value;
+
+pub use self::event::Event;
 
 #[derive(Debug)]
 pub struct MyTweet {

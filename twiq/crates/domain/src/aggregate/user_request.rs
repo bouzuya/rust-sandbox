@@ -6,7 +6,7 @@ use event_store_core::{
 
 use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
-use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
+pub use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {

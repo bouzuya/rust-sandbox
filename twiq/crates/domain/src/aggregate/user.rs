@@ -7,7 +7,7 @@ use event_store_core::{
 
 pub use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
-use self::{
+pub use self::{
     event::{Event, UserCreated, UserRequested, UserUpdated},
     value::twitter_user_name::TwitterUserName,
 };
