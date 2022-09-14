@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
+    Event as RawEvent, EventData,
 };
 
 use crate::value::At;
@@ -25,6 +28,17 @@ impl UserRequestStarted {
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
         }
+    }
+}
+
+impl From<UserRequestStarted> for RawEvent {
+    fn from(event: UserRequestStarted) -> Self {
+        RawEvent::new(
+            EventId::from_str(event.id.as_str()).expect("id"),
+            EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
+            EventStreamSeq::from(event.stream_seq),
+            EventData::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
+        )
     }
 }
 
