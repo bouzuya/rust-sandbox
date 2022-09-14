@@ -1,5 +1,8 @@
+use std::str::FromStr;
+
 use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
+    Event as RawEvent, EventData,
 };
 
 use crate::{
@@ -34,6 +37,17 @@ impl UserUpdated {
             twitter_user_id: twitter_user_id.to_string(),
             twitter_user_name: twitter_user_name.to_string(),
         }
+    }
+}
+
+impl From<UserUpdated> for RawEvent {
+    fn from(event: UserUpdated) -> Self {
+        RawEvent::new(
+            EventId::from_str(event.id.as_str()).expect("id"),
+            EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
+            EventStreamSeq::from(event.stream_seq),
+            EventData::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
+        )
     }
 }
 

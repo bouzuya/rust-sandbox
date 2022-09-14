@@ -6,6 +6,8 @@ pub use self::user_created::UserCreated;
 pub use self::user_requested::UserRequested;
 pub use self::user_updated::UserUpdated;
 
+use event_store_core::Event as RawEvent;
+
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("unknown {0}")]
@@ -48,6 +50,16 @@ macro_rules! impl_from_and_try_from {
 impl_from_and_try_from!(Event::Created, UserCreated);
 impl_from_and_try_from!(Event::Requested, UserRequested);
 impl_from_and_try_from!(Event::Updated, UserUpdated);
+
+impl From<Event> for RawEvent {
+    fn from(event: Event) -> Self {
+        match event {
+            Event::Created(e) => RawEvent::from(e),
+            Event::Requested(e) => RawEvent::from(e),
+            Event::Updated(e) => RawEvent::from(e),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
