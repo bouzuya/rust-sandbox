@@ -19,6 +19,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 pub struct UserRequest {
     events: Vec<Event>,
     id: UserRequestId,
+    user_id: UserId,
     version: Version,
 }
 
@@ -39,6 +40,7 @@ impl UserRequest {
                 user_id,
             ))],
             id,
+            user_id,
             version: Version::from(stream_seq),
         })
     }
@@ -62,6 +64,7 @@ impl UserRequest {
             At::now(),
             stream_id,
             stream_seq,
+            self.user_id,
             status_code,
             response_body,
         )));

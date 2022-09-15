@@ -110,6 +110,7 @@ mod tests {
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
+            user_id: "5464979d-8c47-47c7-9066-4cfee838c518".to_owned(),
             status_code: 200,
             response_body: "{}".to_owned(),
         });
@@ -119,6 +120,7 @@ mod tests {
   "at": "2022-09-06T22:58:00.000000000Z",
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
+  "user_id": "5464979d-8c47-47c7-9066-4cfee838c518",
   "status_code": 200,
   "response_body": "{}"
 }"#;

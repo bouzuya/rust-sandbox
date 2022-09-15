@@ -5,7 +5,7 @@ use event_store_core::{
     Event as RawEvent, EventData,
 };
 
-use crate::value::At;
+use crate::value::{At, UserId, UserRequestId};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserRequestFinished {
@@ -13,6 +13,7 @@ pub struct UserRequestFinished {
     pub(super) at: String,
     pub(super) stream_id: String,
     pub(super) stream_seq: u32,
+    pub(super) user_id: String,
     pub(super) status_code: u16,
     pub(super) response_body: String,
 }
@@ -23,6 +24,7 @@ impl UserRequestFinished {
         at: At,
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
+        user_id: UserId,
         status_code: u16,
         response_body: String,
     ) -> Self {
@@ -31,9 +33,18 @@ impl UserRequestFinished {
             at: at.to_string(),
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
+            user_id: user_id.to_string(),
             status_code,
             response_body,
         }
+    }
+
+    pub fn user_id(&self) -> UserId {
+        UserId::from_str(&self.user_id).expect("user_id")
+    }
+
+    pub fn user_request_id(&self) -> UserRequestId {
+        UserRequestId::from_str(&self.stream_id).expect("user_request_id")
     }
 }
 
@@ -61,6 +72,7 @@ mod tests {
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
+            user_id: "5464979d-8c47-47c7-9066-4cfee838c518".to_owned(),
             status_code: 200,
             response_body: "{}".to_owned(),
         };
@@ -69,6 +81,7 @@ mod tests {
   "at": "2022-09-06T22:58:00.000000000Z",
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
+  "user_id": "5464979d-8c47-47c7-9066-4cfee838c518",
   "status_code": 200,
   "response_body": "{}"
 }"#;
