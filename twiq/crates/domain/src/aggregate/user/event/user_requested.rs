@@ -5,7 +5,7 @@ use event_store_core::{
     Event as RawEvent, EventData,
 };
 
-use crate::value::{At, TwitterUserId, UserRequestId};
+use crate::value::{At, TwitterUserId, UserId, UserRequestId};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserRequested {
@@ -34,6 +34,18 @@ impl UserRequested {
             twitter_user_id: twitter_user_id.to_string(),
             user_request_id: user_request_id.to_string(),
         }
+    }
+
+    pub fn twitter_user_id(&self) -> TwitterUserId {
+        TwitterUserId::from_str(&self.twitter_user_id).expect("twitter_user_id")
+    }
+
+    pub fn user_id(&self) -> UserId {
+        UserId::from_str(&self.id).expect("user_id")
+    }
+
+    pub fn user_request_id(&self) -> UserRequestId {
+        UserRequestId::from_str(&self.user_request_id).expect("user_request_id")
     }
 }
 
@@ -75,4 +87,8 @@ mod tests {
         serde_test(o, s)?;
         Ok(())
     }
+
+    // TODO: twitter_user_id test
+    // TODO: user_id test
+    // TODO: user_request_id test
 }
