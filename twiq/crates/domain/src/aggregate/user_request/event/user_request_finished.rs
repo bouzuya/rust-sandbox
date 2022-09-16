@@ -5,7 +5,10 @@ use event_store_core::{
     Event as RawEvent, EventData,
 };
 
-use crate::value::{At, UserId, UserRequestId};
+use crate::{
+    aggregate::user_request::value::user_response::UserResponse,
+    value::{At, UserId, UserRequestId},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserRequestFinished {
@@ -25,8 +28,7 @@ impl UserRequestFinished {
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
         user_id: UserId,
-        status_code: u16,
-        response_body: String,
+        user_response: UserResponse,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -34,8 +36,8 @@ impl UserRequestFinished {
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
             user_id: user_id.to_string(),
-            status_code,
-            response_body,
+            status_code: user_response.status_code(),
+            response_body: user_response.body(),
         }
     }
 

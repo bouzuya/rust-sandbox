@@ -8,6 +8,7 @@ use event_store_core::{
 use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
 
 pub use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
+use self::value::user_response::UserResponse;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -46,7 +47,7 @@ impl UserRequest {
         })
     }
 
-    pub fn finish(&mut self, status_code: u16, response_body: String) -> Result<()> {
+    pub fn finish(&mut self, user_response: UserResponse) -> Result<()> {
         if !self
             .events
             .last()
@@ -66,8 +67,7 @@ impl UserRequest {
             stream_id,
             stream_seq,
             self.user_id,
-            status_code,
-            response_body,
+            user_response,
         )));
         self.version = Version::from(stream_seq);
         Ok(())
@@ -113,7 +113,7 @@ mod tests {
         assert!(matches!(user_request.events[0], Event::Created(_)));
         user_request.start()?;
         assert!(matches!(user_request.events[1], Event::Started(_)));
-        user_request.finish(200, "{}".to_owned())?;
+        user_request.finish(UserResponse::new(200, "{}".to_owned()))?;
         assert!(matches!(user_request.events[2], Event::Finished(_)));
         Ok(())
     }
