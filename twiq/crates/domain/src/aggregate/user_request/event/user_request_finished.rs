@@ -41,12 +41,20 @@ impl UserRequestFinished {
         }
     }
 
+    pub fn at(&self) -> At {
+        At::from_str(&self.at).expect("at")
+    }
+
     pub fn user_id(&self) -> UserId {
         UserId::from_str(&self.user_id).expect("user_id")
     }
 
     pub fn user_request_id(&self) -> UserRequestId {
         UserRequestId::from_str(&self.stream_id).expect("user_request_id")
+    }
+
+    pub fn user_response(&self) -> UserResponse {
+        UserResponse::new(self.status_code, self.response_body.clone())
     }
 }
 
@@ -66,6 +74,10 @@ mod tests {
     use crate::aggregate::user_request::event::tests::serde_test;
 
     use super::*;
+
+    // TODO: test user_id
+    // TODO: test user_request_id
+    // TODO: test user_response
 
     #[test]
     fn test() -> anyhow::Result<()> {

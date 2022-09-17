@@ -1,5 +1,5 @@
 mod event;
-mod value;
+pub mod value;
 
 use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,

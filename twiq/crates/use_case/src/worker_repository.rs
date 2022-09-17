@@ -12,6 +12,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum WorkerName {
     CreateUserRequest,
+    UpdateUser,
 }
 
 #[async_trait]
