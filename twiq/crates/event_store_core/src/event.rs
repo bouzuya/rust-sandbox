@@ -38,8 +38,8 @@ impl Event {
         self.stream_seq
     }
 
-    pub fn data(self) -> EventData {
-        self.data
+    pub fn data(&self) -> &EventData {
+        &self.data
     }
 }
 
@@ -57,7 +57,7 @@ mod tests {
         assert_eq!(event.id(), id);
         assert_eq!(event.stream_id(), stream_id);
         assert_eq!(event.stream_seq(), stream_seq);
-        assert_eq!(event.data(), data);
+        assert_eq!(event.data(), &data);
         Ok(())
     }
 }

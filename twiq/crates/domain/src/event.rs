@@ -25,7 +25,7 @@ impl TryFrom<RawEvent> for Event {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let s = String::from(raw_event.clone().data());
+        let s = String::from(raw_event.data().clone());
         let event: Event =
             serde_json::from_str(s.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
         assert_eq!(raw_event, RawEvent::from(event.clone()));
