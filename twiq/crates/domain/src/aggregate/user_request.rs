@@ -18,6 +18,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserRequest {
     events: Vec<Event>,
     id: UserRequestId,
