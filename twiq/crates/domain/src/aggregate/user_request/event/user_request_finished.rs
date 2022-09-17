@@ -37,7 +37,7 @@ impl UserRequestFinished {
             stream_seq: u32::from(stream_seq),
             user_id: user_id.to_string(),
             status_code: user_response.status_code(),
-            response_body: user_response.body(),
+            response_body: user_response.body().to_owned(),
         }
     }
 
