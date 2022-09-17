@@ -1,10 +1,12 @@
 use domain::aggregate::user_request::UserRequest;
 
 use crate::{
-    event_store::{EventStore, HasEventStore},
+    event_store::HasEventStore,
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
-    worker_repository::{HasWorkerRepository, WorkerName, WorkerRepository},
+    worker_repository::{HasWorkerRepository, WorkerName},
 };
+
+use super::worker_helper;
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -26,49 +28,33 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct Command;
 
+async fn handle<C: HasUserRequestRepository>(
+    context: &C,
+    event: domain::Event,
+) -> worker_helper::Result<()> {
+    if let domain::Event::User(domain::aggregate::user::Event::Requested(event)) = event {
+        let user_request_repository = context.user_request_repository();
+        if user_request_repository
+            .find(event.user_request_id())
+            .await?
+            .is_none()
+        {
+            let user_request = UserRequest::create(
+                event.user_request_id(),
+                event.twitter_user_id(),
+                event.user_id(),
+            )?;
+            user_request_repository.store(None, user_request).await?;
+        }
+    }
+    Ok(())
+}
+
 pub async fn handler<C: HasEventStore + HasUserRequestRepository + HasWorkerRepository>(
     context: &C,
     _: Command,
-) -> Result<()> {
-    let event_store = context.event_store();
-    let worker_name = WorkerName::CreateUserRequest;
-    let worker_repository = context.worker_repository();
-    let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;
-    let event_ids = match last_event_id {
-        None => event_store.find_event_ids().await?,
-        Some(event_id) => {
-            event_store
-                .find_event_ids_by_event_id_after(event_id)
-                .await?
-        }
-    };
-    for event_id in event_ids {
-        let event = event_store
-            .find_event(event_id)
-            .await?
-            .ok_or_else(|| Error::Unknown("event not found".to_owned()))?;
-        let event = domain::Event::try_from(event)?;
-        if let domain::Event::User(domain::aggregate::user::Event::Requested(event)) = event {
-            let user_request_repository = context.user_request_repository();
-            if user_request_repository
-                .find(event.user_request_id())
-                .await?
-                .is_none()
-            {
-                let user_request = UserRequest::create(
-                    event.user_request_id(),
-                    event.twitter_user_id(),
-                    event.user_id(),
-                )?;
-                user_request_repository.store(None, user_request).await?;
-            }
-        }
-        worker_repository
-            .store_last_event_id(worker_name, last_event_id, event_id)
-            .await?;
-        last_event_id = Some(event_id);
-    }
-    Ok(())
+) -> worker_helper::Result<()> {
+    worker_helper::worker(context, WorkerName::CreateUserRequest, handle).await
 }
 
 // TODO: test
