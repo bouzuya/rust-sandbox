@@ -50,6 +50,10 @@ impl User {
         })
     }
 
+    pub fn id(&self) -> UserId {
+        self.user_id
+    }
+
     pub fn request(&mut self, at: At) -> Result<()> {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {

@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 anyhow = { version = "1.0.60", features = ["backtrace"] }
+async-trait = "0.1.57"
+domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
 google-cloud-auth = { git = "https://github.com/googleapis/google-cloud-rust", rev = "b82d4462900db232b14029f69766e5016743fcc4" }
 ordered-float = { version = "3.0.0", features = ["serde"] }
@@ -16,6 +18,7 @@ serde_json = "1.0.83"
 thiserror = "1.0.32"
 time = { version = "0.3.14", features = ["parsing", "formatting"] }
 tokio = { version = "1.20.1", features = ["full"] }
+use_case = { path = "../use_case" }
 uuid = { version = "1.1.2", features = ["v4"] }
 
 [dev-dependencies]
