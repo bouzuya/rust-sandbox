@@ -6,7 +6,7 @@ pub enum Error {
     InvalidFormat,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct TwitterUserId(String);
 
 impl Display for TwitterUserId {
