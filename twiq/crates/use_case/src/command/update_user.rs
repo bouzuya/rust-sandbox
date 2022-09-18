@@ -1,11 +1,10 @@
 use crate::{
-    event_store::HasEventStore,
     user_repository::{HasUserRepository, UserRepository},
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
-    worker_repository::{HasWorkerRepository, WorkerName},
+    worker_repository::WorkerName,
 };
 
-use super::worker_helper;
+use super::worker_helper::{self, WorkerDeps};
 
 pub struct Command;
 
@@ -41,7 +40,7 @@ async fn handle<C: HasUserRepository + HasUserRequestRepository>(
 
 pub async fn handler<C>(context: &C, _: Command) -> worker_helper::Result<()>
 where
-    C: HasEventStore + HasUserRepository + HasUserRequestRepository + HasWorkerRepository,
+    C: WorkerDeps + HasUserRepository + HasUserRequestRepository,
 {
     worker_helper::worker(context, WorkerName::UpdateUser, handle).await
 }

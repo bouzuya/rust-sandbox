@@ -4,12 +4,11 @@ use domain::aggregate::user_request::value::user_response::UserResponse;
 use reqwest::{Client, Method, Url};
 
 use crate::{
-    event_store::HasEventStore,
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
-    worker_repository::{HasWorkerRepository, WorkerName},
+    worker_repository::WorkerName,
 };
 
-use super::worker_helper;
+use super::worker_helper::{self, WorkerDeps};
 
 pub struct Command;
 
@@ -69,7 +68,7 @@ async fn handle<C: HasUserRequestRepository>(
 
 pub async fn handler<C>(context: &C, _: Command) -> worker_helper::Result<()>
 where
-    C: HasEventStore + HasUserRequestRepository + HasWorkerRepository,
+    C: WorkerDeps + HasUserRequestRepository,
 {
     worker_helper::worker(context, WorkerName::SendUserRequest, handle).await
 }

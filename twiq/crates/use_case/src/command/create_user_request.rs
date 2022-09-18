@@ -1,12 +1,11 @@
 use domain::aggregate::user_request::UserRequest;
 
 use crate::{
-    event_store::HasEventStore,
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
-    worker_repository::{HasWorkerRepository, WorkerName},
+    worker_repository::WorkerName,
 };
 
-use super::worker_helper;
+use super::worker_helper::{self, WorkerDeps};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -50,7 +49,7 @@ async fn handle<C: HasUserRequestRepository>(
     Ok(())
 }
 
-pub async fn handler<C: HasEventStore + HasUserRequestRepository + HasWorkerRepository>(
+pub async fn handler<C: WorkerDeps + HasUserRequestRepository>(
     context: &C,
     _: Command,
 ) -> worker_helper::Result<()> {

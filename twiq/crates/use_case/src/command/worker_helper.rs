@@ -7,6 +7,8 @@ use crate::{
     worker_repository::{HasWorkerRepository, WorkerName, WorkerRepository},
 };
 
+pub trait WorkerDeps: HasEventStore + HasWorkerRepository {}
+
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("event {0}")]
@@ -37,7 +39,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub async fn worker<'a, C, F, Fut>(context: &'a C, worker_name: WorkerName, handle: F) -> Result<()>
 where
-    C: HasEventStore + HasWorkerRepository,
+    C: WorkerDeps,
     F: Fn(&'a C, domain::Event) -> Fut,
     Fut: Future<Output = Result<()>>,
 {
