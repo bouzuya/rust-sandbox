@@ -8,7 +8,7 @@ pub(crate) enum Error {
     InvalidFormat(String),
 }
 
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub(crate) struct UuidV4(Uuid);
 
 impl UuidV4 {

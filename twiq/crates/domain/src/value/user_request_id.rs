@@ -8,7 +8,7 @@ pub enum Error {
     InvalidFormat(String),
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct UserRequestId(EventStreamId);
 
 impl UserRequestId {
