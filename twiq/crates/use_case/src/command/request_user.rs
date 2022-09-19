@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use domain::aggregate::user::{At, TwitterUserId, User};
 
 use crate::user_repository::{HasUserRepository, UserRepository};
@@ -15,10 +16,19 @@ pub enum Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct Command {
-    twitter_user_id: TwitterUserId,
+    pub twitter_user_id: TwitterUserId,
 }
 
-pub async fn handler<C: HasUserRepository>(context: &C, command: Command) -> Result<()> {
+pub trait Context: HasUserRepository {}
+
+#[async_trait]
+pub trait Has: Context + Sized {
+    async fn request_user(&self, command: Command) -> Result<()> {
+        handler(self, command).await
+    }
+}
+
+pub async fn handler<C: Context>(context: &C, command: Command) -> Result<()> {
     let user_repository = context.user_repository();
     let twitter_user_id = command.twitter_user_id;
     let found = user_repository

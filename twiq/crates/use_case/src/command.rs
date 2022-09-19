@@ -9,3 +9,5 @@ pub enum Command {
     RequestUser(self::request_user::Command),
     UpdateUser(self::update_user::Command),
 }
+
+// async fn handler<C>(context: &C, command: Command) -> ...
