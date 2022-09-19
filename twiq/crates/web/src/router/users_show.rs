@@ -51,8 +51,6 @@ mod tests {
         }
     }
 
-    impl request_user::Context for MockApp {}
-
     #[async_trait]
     impl request_user::Has for MockApp {}
 

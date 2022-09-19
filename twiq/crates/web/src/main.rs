@@ -26,7 +26,6 @@ impl HasUserRepository for App {
     }
 }
 
-impl request_user::Context for App {}
 impl request_user::Has for App {}
 
 #[tokio::main]

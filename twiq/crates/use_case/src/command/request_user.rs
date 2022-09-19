@@ -21,6 +21,8 @@ pub struct Command {
 
 pub trait Context: HasUserRepository {}
 
+impl<T: HasUserRepository> Context for T {}
+
 #[async_trait]
 pub trait Has: Context + Sized {
     async fn request_user(&self, command: Command) -> Result<()> {
