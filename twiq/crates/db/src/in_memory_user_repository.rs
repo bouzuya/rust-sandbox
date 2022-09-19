@@ -8,18 +8,10 @@ use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
 use use_case::user_repository::{Error, Result, UserRepository};
 
+#[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
     data: Arc<Mutex<HashMap<UserId, User>>>,
     index: Arc<Mutex<HashMap<TwitterUserId, UserId>>>,
-}
-
-impl InMemoryUserRepository {
-    pub fn new() -> Self {
-        Self {
-            data: Arc::new(Mutex::new(HashMap::new())),
-            index: Arc::new(Mutex::new(HashMap::new())),
-        }
-    }
 }
 
 #[async_trait]
@@ -78,7 +70,7 @@ mod tests {
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
         let mut user = User::create(TwitterUserId::from_str("123")?)?;
-        let repository = InMemoryUserRepository::new();
+        let repository = InMemoryUserRepository::default();
         assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
         assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
