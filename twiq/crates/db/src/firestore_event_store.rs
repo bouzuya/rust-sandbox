@@ -1,8 +1,10 @@
 use std::{collections::HashMap, str::FromStr};
 
+use async_trait::async_trait;
 use google_cloud_auth::Credential;
 use reqwest::Response;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
+use use_case::event_store::EventStore;
 
 use crate::firestore_rest::{
     self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
@@ -126,7 +128,7 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
     Ok(Event::new(id, stream_id, stream_seq, data))
 }
 
-pub async fn find_events_by_event_id_after(
+async fn find_events_by_event_id_after(
     project_id: &str,
     credential: &Credential,
     event_id: EventId,
@@ -247,7 +249,7 @@ pub async fn find_events_by_event_id_after(
     Ok(events)
 }
 
-pub async fn find_events_by_event_stream_id(
+async fn find_events_by_event_stream_id(
     project_id: &str,
     credential: &Credential,
     event_stream_id: EventStreamId,
@@ -342,7 +344,7 @@ pub async fn find_events_by_event_stream_id(
     Ok(events)
 }
 
-pub async fn store(
+async fn store(
     project_id: &str,
     credential: &Credential,
     current: Option<EventStreamSeq>,
@@ -544,6 +546,68 @@ fn check_status_code(response: &Response) -> Result<(), Error> {
             response.url().to_string(),
             u16::from(status_code),
         ))
+    }
+}
+
+pub struct FirestoreEventStore {
+    project_id: String,
+    credential: Credential,
+}
+
+impl FirestoreEventStore {
+    pub fn new(project_id: String, credential: Credential) -> Self {
+        Self {
+            project_id,
+            credential,
+        }
+    }
+}
+
+#[async_trait]
+impl EventStore for FirestoreEventStore {
+    async fn find_event(&self, _event_id: EventId) -> use_case::event_store::Result<Option<Event>> {
+        todo!()
+    }
+
+    async fn find_event_ids(&self) -> use_case::event_store::Result<Vec<EventId>> {
+        todo!()
+    }
+
+    async fn find_event_ids_by_event_id_after(
+        &self,
+        _event_id: EventId,
+    ) -> use_case::event_store::Result<Vec<EventId>> {
+        todo!()
+    }
+
+    async fn find_events_by_event_id_after(
+        &self,
+        event_id: EventId,
+    ) -> use_case::event_store::Result<Vec<Event>> {
+        find_events_by_event_id_after(&self.project_id, &self.credential, event_id)
+            .await
+            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+    }
+
+    // = find_event_stream_by_id
+    async fn find_events_by_event_stream_id(
+        &self,
+        event_stream_id: EventStreamId,
+    ) -> use_case::event_store::Result<Vec<Event>> {
+        find_events_by_event_stream_id(&self.project_id, &self.credential, event_stream_id)
+            .await
+            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+    }
+
+    // = store_event_stream
+    async fn store(
+        &self,
+        current: Option<EventStreamSeq>,
+        events: Vec<Event>,
+    ) -> use_case::event_store::Result<()> {
+        store(&self.project_id, &self.credential, current, events)
+            .await
+            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
     }
 }
 

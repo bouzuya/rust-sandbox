@@ -1,4 +1,4 @@
-pub use event_store_core::event_store::{Error, EventStore};
+pub use event_store_core::event_store::{Error, EventStore, Result};
 
 pub trait HasEventStore {
     type EventStore: EventStore + Send + Sync;
