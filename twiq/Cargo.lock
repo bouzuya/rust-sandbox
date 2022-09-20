@@ -243,6 +243,7 @@ name = "event_store_core"
 version = "0.0.0"
 dependencies = [
  "anyhow",
+ "async-trait",
  "serde_json",
  "thiserror",
  "uuid",
