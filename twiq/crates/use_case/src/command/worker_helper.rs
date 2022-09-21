@@ -46,14 +46,7 @@ where
     let event_store = context.event_store();
     let worker_repository = context.worker_repository();
     let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;
-    let event_ids = match last_event_id {
-        None => event_store.find_event_ids().await?,
-        Some(event_id) => {
-            event_store
-                .find_event_ids_by_event_id_after(event_id)
-                .await?
-        }
-    };
+    let event_ids = event_store.find_event_ids(last_event_id).await?;
     for event_id in event_ids {
         let event = event_store
             .find_event(event_id)

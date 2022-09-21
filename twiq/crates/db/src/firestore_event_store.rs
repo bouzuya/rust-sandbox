@@ -569,28 +569,14 @@ impl EventStore for FirestoreEventStore {
         todo!()
     }
 
-    async fn find_event_ids(&self) -> use_case::event_store::Result<Vec<EventId>> {
-        todo!()
-    }
-
-    async fn find_event_ids_by_event_id_after(
+    async fn find_event_ids(
         &self,
-        _event_id: EventId,
+        _after: Option<EventId>,
     ) -> use_case::event_store::Result<Vec<EventId>> {
         todo!()
     }
 
-    async fn find_events_by_event_id_after(
-        &self,
-        event_id: EventId,
-    ) -> use_case::event_store::Result<Vec<Event>> {
-        find_events_by_event_id_after(&self.project_id, &self.credential, event_id)
-            .await
-            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
-    }
-
-    // = find_event_stream_by_id
-    async fn find_events_by_event_stream_id(
+    async fn find_event_stream(
         &self,
         event_stream_id: EventStreamId,
     ) -> use_case::event_store::Result<Vec<Event>> {
@@ -599,13 +585,27 @@ impl EventStore for FirestoreEventStore {
             .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
     }
 
+    async fn find_events(
+        &self,
+        after: Option<EventId>,
+    ) -> use_case::event_store::Result<Vec<Event>> {
+        match after {
+            Some(event_id) => {
+                find_events_by_event_id_after(&self.project_id, &self.credential, event_id)
+                    .await
+                    .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+            }
+            None => todo!(),
+        }
+    }
+
     // = store_event_stream
     async fn store(
         &self,
         current: Option<EventStreamSeq>,
-        events: Vec<Event>,
+        event_stream: Vec<Event>,
     ) -> use_case::event_store::Result<()> {
-        store(&self.project_id, &self.credential, current, events)
+        store(&self.project_id, &self.credential, current, event_stream)
             .await
             .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
     }
