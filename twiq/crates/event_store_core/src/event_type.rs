@@ -13,6 +13,12 @@ pub enum Error {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EventType(String);
 
+impl EventType {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl From<EventType> for String {
     fn from(value: EventType) -> Self {
         value.0
@@ -69,6 +75,7 @@ mod tests {
         assert!(EventType::try_from("Abc_123".to_owned()).is_err());
         assert!(EventType::try_from("abc 123".to_owned()).is_err());
         assert_eq!(EventType::from_str("a")?.to_string(), "a");
+        assert_eq!(EventType::from_str("a")?.as_str(), "a");
         Ok(())
     }
 }
