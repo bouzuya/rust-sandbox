@@ -6,6 +6,16 @@ pub enum Error {
     Unknown(String),
 }
 
+enum EventType {
+    UserCreated,
+    UserRequested,
+    UserUpdated,
+
+    UserRequestCreated,
+    UserRequestStarted,
+    UserRequestFinished,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub enum Event {
     User(crate::aggregate::user::Event),
