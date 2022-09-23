@@ -62,7 +62,7 @@ impl From<UserRequestFinished> for RawEvent {
     fn from(event: UserRequestFinished) -> Self {
         RawEvent::new(
             EventId::from_str(event.id.as_str()).expect("id"),
-            EventType::from_str("user_request_finished").expect("event_type"),
+            EventType::from(crate::event::EventType::UserRequestFinished),
             EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
             EventStreamSeq::from(event.stream_seq),
             EventData::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
