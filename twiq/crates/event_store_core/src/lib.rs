@@ -5,6 +5,7 @@ pub mod event_store;
 pub mod event_stream;
 pub mod event_stream_id;
 pub mod event_stream_seq;
+pub mod event_type;
 pub(crate) mod uuid_v4;
 
 pub use self::event::Event;
