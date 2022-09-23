@@ -1,4 +1,4 @@
-use crate::{Event, EventData, EventId, EventStreamId, EventStreamSeq};
+use crate::{event_type::EventType, Event, EventData, EventId, EventStreamId, EventStreamSeq};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -20,10 +20,11 @@ pub struct EventStream {
 }
 
 impl EventStream {
-    pub fn generate(event_data: EventData) -> Self {
+    pub fn generate(event_type: EventType, event_data: EventData) -> Self {
         Self {
             events: vec![Event::new(
                 EventId::generate(),
+                event_type,
                 EventStreamId::generate(),
                 EventStreamSeq::from(1_u32),
                 event_data,
@@ -68,9 +69,10 @@ impl EventStream {
         self.events.clone()
     }
 
-    pub fn push(&mut self, event_data: EventData) -> Result<()> {
+    pub fn push(&mut self, event_type: EventType, event_data: EventData) -> Result<()> {
         self.events.push(Event::new(
             EventId::generate(),
+            event_type,
             self.id(),
             self.seq()
                 .next()
@@ -102,7 +104,8 @@ mod tests {
 
     #[test]
     fn generate_test() -> anyhow::Result<()> {
-        let stream = EventStream::generate(EventData::from_str("{}")?);
+        let stream =
+            EventStream::generate(EventType::from_str("created")?, EventData::from_str("{}")?);
         assert_eq!(stream.seq(), EventStreamSeq::from(1_u32));
         Ok(())
     }
@@ -117,6 +120,7 @@ mod tests {
     fn new_test_an_event() -> anyhow::Result<()> {
         let event = Event::new(
             EventId::generate(),
+            EventType::from_str("created")?,
             EventStreamId::generate(),
             EventStreamSeq::from(1_u32),
             EventData::from_str("{}")?,
@@ -132,12 +136,14 @@ mod tests {
     fn new_test_invalid_event_stream_id() -> anyhow::Result<()> {
         let event1 = Event::new(
             EventId::generate(),
+            EventType::from_str("created")?,
             EventStreamId::generate(),
             EventStreamSeq::from(1_u32),
             EventData::from_str("{}")?,
         );
         let event2 = Event::new(
             EventId::generate(),
+            EventType::from_str("updated")?,
             EventStreamId::generate(),
             EventStreamSeq::from(2_u32),
             EventData::from_str("{}")?,
@@ -151,12 +157,14 @@ mod tests {
         let stream_id = EventStreamId::generate();
         let event1 = Event::new(
             EventId::generate(),
+            EventType::from_str("created")?,
             stream_id,
             EventStreamSeq::from(1_u32),
             EventData::from_str("{}")?,
         );
         let event2 = Event::new(
             EventId::generate(),
+            EventType::from_str("updated")?,
             stream_id,
             EventStreamSeq::from(1_u32),
             EventData::from_str("{}")?,
@@ -170,12 +178,14 @@ mod tests {
         let stream_id = EventStreamId::generate();
         let event1 = Event::new(
             EventId::generate(),
+            EventType::from_str("created")?,
             stream_id,
             EventStreamSeq::from(1_u32),
             EventData::from_str("{}")?,
         );
         let event2 = Event::new(
             EventId::generate(),
+            EventType::from_str("updated")?,
             stream_id,
             EventStreamSeq::from(2_u32),
             EventData::from_str("{}")?,
@@ -189,17 +199,23 @@ mod tests {
 
     #[test]
     fn push_test() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(EventData::from_str("{}")?);
-        stream.push(EventData::from_str(r#"{"key":123}"#)?)?;
+        let mut stream =
+            EventStream::generate(EventType::from_str("created")?, EventData::from_str("{}")?);
+        stream.push(
+            EventType::from_str("updated")?,
+            EventData::from_str(r#"{"key":123}"#)?,
+        )?;
         assert_eq!(stream.seq(), EventStreamSeq::from(2_u32));
         Ok(())
     }
 
     #[test]
     fn push_event_test() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(EventData::from_str("{}")?);
+        let mut stream =
+            EventStream::generate(EventType::from_str("created")?, EventData::from_str("{}")?);
         stream.push_event(Event::new(
             EventId::generate(),
+            EventType::from_str("updated")?,
             stream.id(),
             EventStreamSeq::from(2_u32),
             EventData::from_str(r#"{"key":123}"#)?,
@@ -210,10 +226,12 @@ mod tests {
 
     #[test]
     fn push_event_test_invalid_event_stream_id() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(EventData::from_str("{}")?);
+        let mut stream =
+            EventStream::generate(EventType::from_str("created")?, EventData::from_str("{}")?);
         assert!(stream
             .push_event(Event::new(
                 EventId::generate(),
+                EventType::from_str("updated")?,
                 EventStreamId::generate(),
                 EventStreamSeq::from(2_u32),
                 EventData::from_str(r#"{"key":123}"#)?,
@@ -224,10 +242,12 @@ mod tests {
 
     #[test]
     fn push_event_test_invalid_event_stream_seq() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(EventData::from_str("{}")?);
+        let mut stream =
+            EventStream::generate(EventType::from_str("created")?, EventData::from_str("{}")?);
         assert!(stream
             .push_event(Event::new(
                 EventId::generate(),
+                EventType::from_str("updated")?,
                 stream.id(),
                 EventStreamSeq::from(1_u32),
                 EventData::from_str(r#"{"key":123}"#)?,
