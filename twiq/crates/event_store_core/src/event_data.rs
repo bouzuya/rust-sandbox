@@ -9,6 +9,12 @@ pub enum Error {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EventData(String);
 
+impl EventData {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
 impl From<EventData> for String {
     fn from(value: EventData) -> Self {
         value.0
@@ -50,6 +56,7 @@ mod tests {
         assert!(EventData::try_from("a".repeat(1_000_000)).is_ok());
         assert!(EventData::try_from("a".repeat(1_000_001)).is_err());
         assert_eq!(EventData::from_str("a")?.to_string(), "a");
+        assert_eq!(EventData::from_str("a")?.as_str(), "a");
         Ok(())
     }
 }
