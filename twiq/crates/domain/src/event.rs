@@ -9,6 +9,12 @@ pub enum Error {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EventStreamType {
+    User,
+    UserRequest,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EventType {
     UserCreated,
     UserRequested,
@@ -16,6 +22,21 @@ pub enum EventType {
     UserRequestCreated,
     UserRequestStarted,
     UserRequestFinished,
+}
+
+impl EventType {
+    pub fn event_stream_type(&self) -> EventStreamType {
+        use EventStreamType::*;
+        use EventType::*;
+        match self {
+            UserCreated => User,
+            UserRequested => User,
+            UserUpdated => User,
+            UserRequestCreated => UserRequest,
+            UserRequestStarted => UserRequest,
+            UserRequestFinished => UserRequest,
+        }
+    }
 }
 
 impl From<EventType> for RawEventType {
@@ -86,17 +107,20 @@ mod tests {
 
     #[test]
     fn event_type_test() -> anyhow::Result<()> {
+        use EventStreamType::*;
+        use EventType::*;
         let types = vec![
-            (EventType::UserCreated, "user_created"),
-            (EventType::UserRequested, "user_requested"),
-            (EventType::UserUpdated, "user_updated"),
-            (EventType::UserRequestCreated, "user_request_created"),
-            (EventType::UserRequestStarted, "user_request_started"),
-            (EventType::UserRequestFinished, "user_request_finished"),
+            (UserCreated, "user_created", User),
+            (UserRequested, "user_requested", User),
+            (UserUpdated, "user_updated", User),
+            (UserRequestCreated, "user_request_created", UserRequest),
+            (UserRequestStarted, "user_request_started", UserRequest),
+            (UserRequestFinished, "user_request_finished", UserRequest),
         ];
-        for (t, s) in types {
+        for (t, s, st) in types {
             assert_eq!(EventType::try_from(RawEventType::from(t))?, t);
             assert_eq!(RawEventType::from_str(s)?.as_str(), s);
+            assert_eq!(t.event_stream_type(), st);
         }
         Ok(())
     }
