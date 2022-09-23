@@ -14,7 +14,8 @@ pub enum EventStreamType {
     UserRequest,
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Deserialize)]
+#[serde(rename_all = "snake_case", tag = "type")]
 pub enum EventType {
     UserCreated,
     UserRequested,
@@ -122,6 +123,10 @@ mod tests {
             assert_eq!(RawEventType::from_str(s)?.as_str(), s);
             assert_eq!(t.event_stream_type(), st);
         }
+
+        let deserialized: EventType =
+            serde_json::from_str(r#"{"type":"user_created","ignore":"unused"}"#)?;
+        assert_eq!(deserialized, UserCreated);
         Ok(())
     }
 }
