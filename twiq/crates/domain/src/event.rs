@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{fmt::Display, str::FromStr};
 
 use event_store_core::{Event as RawEvent, EventType as RawEventType};
 
@@ -37,6 +37,22 @@ impl EventType {
             UserRequestStarted => UserRequest,
             UserRequestFinished => UserRequest,
         }
+    }
+}
+
+impl Display for EventType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", RawEventType::from(*self))
+    }
+}
+
+impl FromStr for EventType {
+    type Err = Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let raw_event_type =
+            RawEventType::from_str(s).map_err(|e| Error::Unknown(e.to_string()))?;
+        EventType::try_from(raw_event_type)
     }
 }
 
@@ -127,6 +143,11 @@ mod tests {
         let deserialized: EventType =
             serde_json::from_str(r#"{"type":"user_created","ignore":"unused"}"#)?;
         assert_eq!(deserialized, UserCreated);
+
+        assert_eq!(
+            EventType::from_str("user_created")?.to_string(),
+            "user_created"
+        );
         Ok(())
     }
 }
