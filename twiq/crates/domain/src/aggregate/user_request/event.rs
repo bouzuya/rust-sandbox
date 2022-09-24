@@ -107,8 +107,10 @@ mod tests {
 
     #[test]
     fn user_request_finished_test() -> anyhow::Result<()> {
+        // FIXME: remove impl serde::Deserialize for Event
         let o = Event::from(UserRequestFinished {
             id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
+            r#type: "user_request_finished".to_owned(),
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,

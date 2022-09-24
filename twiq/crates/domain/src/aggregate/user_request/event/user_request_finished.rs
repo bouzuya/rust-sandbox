@@ -13,6 +13,7 @@ use crate::{
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct UserRequestFinished {
     pub(super) id: String,
+    pub(super) r#type: String,
     pub(super) at: String,
     pub(super) stream_id: String,
     pub(super) stream_seq: u32,
@@ -32,6 +33,7 @@ impl UserRequestFinished {
     ) -> Self {
         Self {
             id: id.to_string(),
+            r#type: crate::event::EventType::UserRequestFinished.to_string(),
             at: at.to_string(),
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
@@ -84,6 +86,7 @@ mod tests {
     fn test() -> anyhow::Result<()> {
         let o = UserRequestFinished {
             id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
+            r#type: "user_request_finished".to_owned(),
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
@@ -93,6 +96,7 @@ mod tests {
         };
         let s = r#"{
   "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
+  "type": "user_request_finished",
   "at": "2022-09-06T22:58:00.000000000Z",
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
