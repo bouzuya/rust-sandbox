@@ -2,6 +2,11 @@ use std::{fmt::Display, str::FromStr};
 
 use event_store_core::{Event as RawEvent, EventType as RawEventType};
 
+use crate::aggregate::{
+    user::{self, UserCreated, UserRequested, UserUpdated},
+    user_request::{self, UserRequestCreated, UserRequestFinished, UserRequestStarted},
+};
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("unknown {0}")]
@@ -89,17 +94,54 @@ impl TryFrom<RawEventType> for EventType {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
-    User(crate::aggregate::user::Event),
-    UserRequest(crate::aggregate::user_request::Event),
+    UserCreated(user::UserCreated),
+    UserRequested(user::UserRequested),
+    UserUpdated(user::UserUpdated),
+    UserRequestCreated(user_request::UserRequestCreated),
+    UserRequestStarted(user_request::UserRequestStarted),
+    UserRequestFinished(user_request::UserRequestFinished),
 }
+
+macro_rules! impl_from_and_try_from {
+    ($constructor: path, $ty: ty) => {
+        impl From<$ty> for Event {
+            fn from(value: $ty) -> Self {
+                $constructor(value)
+            }
+        }
+
+        impl TryFrom<Event> for $ty {
+            type Error = Error;
+
+            fn try_from(value: Event) -> Result<Self, Self::Error> {
+                if let $constructor(value) = value {
+                    Ok(value)
+                } else {
+                    Err(Error::Unknown("try from failed".to_owned()))
+                }
+            }
+        }
+    };
+}
+
+impl_from_and_try_from!(Event::UserCreated, UserCreated);
+impl_from_and_try_from!(Event::UserRequested, UserRequested);
+impl_from_and_try_from!(Event::UserUpdated, UserUpdated);
+impl_from_and_try_from!(Event::UserRequestCreated, UserRequestCreated);
+impl_from_and_try_from!(Event::UserRequestStarted, UserRequestStarted);
+impl_from_and_try_from!(Event::UserRequestFinished, UserRequestFinished);
 
 impl From<Event> for RawEvent {
     fn from(event: Event) -> Self {
         match event {
-            Event::User(e) => RawEvent::from(e),
-            Event::UserRequest(e) => RawEvent::from(e),
+            Event::UserCreated(e) => RawEvent::from(e),
+            Event::UserRequested(e) => RawEvent::from(e),
+            Event::UserUpdated(e) => RawEvent::from(e),
+            Event::UserRequestCreated(e) => RawEvent::from(e),
+            Event::UserRequestStarted(e) => RawEvent::from(e),
+            Event::UserRequestFinished(e) => RawEvent::from(e),
         }
     }
 }
@@ -108,10 +150,30 @@ impl TryFrom<RawEvent> for Event {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let s = String::from(raw_event.data().clone());
-        let event: Event =
-            serde_json::from_str(s.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
-        assert_eq!(raw_event, RawEvent::from(event.clone()));
+        let event_type = EventType::try_from(raw_event.r#type().clone())?;
+        let event = match event_type {
+            EventType::UserCreated => Event::from(
+                UserCreated::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+            EventType::UserRequested => Event::from(
+                UserRequested::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+            EventType::UserUpdated => Event::from(
+                UserUpdated::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+            EventType::UserRequestCreated => Event::from(
+                UserRequestCreated::try_from(raw_event)
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+            EventType::UserRequestStarted => Event::from(
+                UserRequestStarted::try_from(raw_event)
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+            EventType::UserRequestFinished => Event::from(
+                UserRequestFinished::try_from(raw_event)
+                    .map_err(|e| Error::Unknown(e.to_string()))?,
+            ),
+        };
         Ok(event)
     }
 }

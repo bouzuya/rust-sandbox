@@ -12,9 +12,7 @@ async fn handle<C: HasUserRepository + HasUserRequestRepository>(
     context: &C,
     event: domain::Event,
 ) -> worker_helper::Result<()> {
-    if let domain::Event::UserRequest(domain::aggregate::user_request::Event::Finished(event)) =
-        event
-    {
+    if let domain::Event::UserRequestFinished(event) = event {
         let user_repository = context.user_repository();
         let user_request_repository = context.user_request_repository();
         let user_request = user_request_repository

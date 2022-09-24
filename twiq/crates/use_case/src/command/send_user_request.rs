@@ -30,9 +30,7 @@ async fn handle<C: HasUserRequestRepository>(
     context: &C,
     event: domain::Event,
 ) -> worker_helper::Result<()> {
-    if let domain::Event::UserRequest(domain::aggregate::user_request::Event::Created(event)) =
-        event
-    {
+    if let domain::Event::UserRequestCreated(event) = event {
         let user_request_repository = context.user_request_repository();
 
         let mut user_request = user_request_repository

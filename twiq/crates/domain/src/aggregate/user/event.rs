@@ -14,14 +14,10 @@ pub enum Error {
     Unknown(String),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
-#[serde(tag = "type")]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
-    #[serde(rename = "user_created")]
     Created(UserCreated),
-    #[serde(rename = "user_requested")]
     Requested(UserRequested),
-    #[serde(rename = "user_updated")]
     Updated(UserUpdated),
 }
 
@@ -65,8 +61,6 @@ impl From<Event> for RawEvent {
 mod tests {
     use core::fmt::Debug;
 
-    use super::*;
-
     pub(in crate::aggregate::user::event) fn serde_test<T>(o: T, s: &str) -> anyhow::Result<()>
     where
         T: Debug + Eq + serde::de::DeserializeOwned + serde::Serialize,
@@ -74,79 +68,6 @@ mod tests {
         let deserialized: T = serde_json::from_str(s)?;
         assert_eq!(deserialized, o);
         assert_eq!(serde_json::to_string_pretty(&o)?, s);
-        Ok(())
-    }
-
-    #[test]
-    fn user_created_test() -> anyhow::Result<()> {
-        // FIXME: remove impl serde::Deserialize for Event
-        let o = Event::from(UserCreated {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_created".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            twitter_user_id: "twitter_user_id1".to_owned(),
-        });
-        let s = r#"{
-  "type": "user_created",
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "twitter_user_id": "twitter_user_id1"
-}"#;
-        serde_test(o, s)?;
-        Ok(())
-    }
-
-    #[test]
-    fn user_requested_test() -> anyhow::Result<()> {
-        // FIXME: remove impl serde::Deserialize for Event
-        let o = Event::from(UserRequested {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_requested".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            twitter_user_id: "twitter_user_id1".to_owned(),
-            user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned(),
-        });
-        let s = r#"{
-  "type": "user_requested",
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "twitter_user_id": "twitter_user_id1",
-  "user_request_id": "868aecdc-d860-4232-8000-69e4623f1317"
-}"#;
-        serde_test(o, s)?;
-        Ok(())
-    }
-
-    #[test]
-    fn user_updated_test() -> anyhow::Result<()> {
-        // FIXME: remove impl serde::Deserialize for Event
-        let o = Event::from(UserUpdated {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_updated".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            twitter_user_id: "twitter_user_id1".to_owned(),
-            twitter_user_name: "twitter_user_name1".to_owned(),
-        });
-        let s = r#"{
-  "type": "user_updated",
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "twitter_user_id": "twitter_user_id1",
-  "twitter_user_name": "twitter_user_name1"
-}"#;
-        serde_test(o, s)?;
         Ok(())
     }
 }
