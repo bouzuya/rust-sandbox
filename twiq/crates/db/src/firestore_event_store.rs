@@ -50,10 +50,7 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
         "stream_seq".to_owned(),
         Value::Integer(i64::from(event.stream_seq())),
     );
-    map.insert(
-        "data".to_owned(),
-        Value::String(event.clone().data().to_string()),
-    );
+    map.insert("data".to_owned(), Value::String(event.data().to_string()));
     map
 }
 
