@@ -2,7 +2,8 @@ mod event;
 mod value;
 
 use event_store_core::{
-    event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
+    event_id::EventId, event_stream::EventStream, event_stream_id::EventStreamId,
+    event_stream_seq::EventStreamSeq,
 };
 
 pub use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
@@ -105,11 +106,70 @@ impl User {
     }
 }
 
+impl TryFrom<EventStream> for User {
+    type Error = Error;
+
+    fn try_from(event_stream: EventStream) -> Result<Self, Self::Error> {
+        use crate::Event as DomainEvent;
+        use event_store_core::Event as RawEvent;
+        let try_from_raw_event = |raw_event: RawEvent| -> Result<Event, Self::Error> {
+            let domain_event =
+                DomainEvent::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?;
+            let aggregate_event =
+                Event::try_from(domain_event).map_err(|e| Error::Unknown(e.to_string()))?;
+            Ok(aggregate_event)
+        };
+        let raw_events = event_stream.events();
+        let mut user = match try_from_raw_event(raw_events[0].clone())? {
+            Event::Created(event) => User {
+                events: vec![],
+                fetch_requested_at: None,
+                twitter_user_id: event.twitter_user_id(),
+                updated_at: None,
+                user_id: event.user_id(),
+                version: Version::from(EventStreamSeq::from(1_u32)),
+            },
+            _ => {
+                return Err(Error::Unknown(
+                    "first event is not created event".to_owned(),
+                ))
+            }
+        };
+        for raw_event in raw_events.into_iter().skip(1) {
+            let user_event = try_from_raw_event(raw_event)?;
+            user = match user_event {
+                Event::Created(_) => return Err(Error::Unknown("invalid event stream".to_owned())),
+                Event::Requested(e) => User {
+                    events: {
+                        user.events.push(Event::from(e.clone()));
+                        user.events
+                    },
+                    fetch_requested_at: Some(e.at()),
+                    version: Version::from(e.stream_seq()),
+                    ..user
+                },
+                Event::Updated(e) => User {
+                    events: {
+                        user.events.push(Event::from(e.clone()));
+                        user.events
+                    },
+                    version: Version::from(e.stream_seq()),
+                    updated_at: Some(e.at()),
+                    ..user
+                },
+            };
+        }
+        Ok(user)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    // TODO: test from_event_stream
 
     #[test]
     fn create_test() -> anyhow::Result<()> {

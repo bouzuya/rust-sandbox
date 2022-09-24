@@ -7,7 +7,7 @@ use event_store_core::{
 
 use crate::{
     event::EventType,
-    value::{At, TwitterUserId},
+    value::{At, TwitterUserId, UserId},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -44,6 +44,14 @@ impl UserCreated {
             stream_seq: u32::from(stream_seq),
             twitter_user_id: twitter_user_id.to_string(),
         }
+    }
+
+    pub(in crate::aggregate::user) fn twitter_user_id(&self) -> TwitterUserId {
+        TwitterUserId::from_str(&self.twitter_user_id).expect("twitter_user_id")
+    }
+
+    pub(in crate::aggregate::user) fn user_id(&self) -> UserId {
+        UserId::from_str(&self.stream_id).expect("user_id")
     }
 
     fn r#type() -> EventType {

@@ -49,6 +49,14 @@ impl UserRequested {
         }
     }
 
+    pub(in crate::aggregate::user) fn at(&self) -> At {
+        At::from_str(&self.at).expect("at")
+    }
+
+    pub(in crate::aggregate::user) fn stream_seq(&self) -> EventStreamSeq {
+        EventStreamSeq::from(self.stream_seq)
+    }
+
     pub fn twitter_user_id(&self) -> TwitterUserId {
         TwitterUserId::from_str(&self.twitter_user_id).expect("twitter_user_id")
     }

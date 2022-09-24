@@ -50,6 +50,18 @@ impl UserUpdated {
         }
     }
 
+    pub(in crate::aggregate::user) fn at(&self) -> At {
+        At::from_str(&self.at).expect("at")
+    }
+
+    pub(in crate::aggregate::user) fn stream_seq(&self) -> EventStreamSeq {
+        EventStreamSeq::from(self.stream_seq)
+    }
+
+    pub(in crate::aggregate::user) fn name(&self) -> TwitterUserName {
+        TwitterUserName::from_str(&self.twitter_user_name).expect("twitter_user_name")
+    }
+
     fn r#type() -> EventType {
         EventType::UserUpdated
     }
