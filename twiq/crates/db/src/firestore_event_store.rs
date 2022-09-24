@@ -14,7 +14,7 @@ use crate::firestore_rest::{
 };
 use event_store_core::{
     event::Event, event_data::EventData, event_id::EventId, event_stream_id::EventStreamId,
-    event_stream_seq::EventStreamSeq, EventType,
+    event_stream_seq::EventStreamSeq, EventStream, EventType,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -591,10 +591,18 @@ impl EventStore for FirestoreEventStore {
     async fn find_event_stream(
         &self,
         event_stream_id: EventStreamId,
-    ) -> use_case::event_store::Result<Vec<Event>> {
-        find_events_by_event_stream_id(&self.project_id, &self.credential, event_stream_id)
-            .await
-            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+    ) -> use_case::event_store::Result<Option<EventStream>> {
+        let events =
+            find_events_by_event_stream_id(&self.project_id, &self.credential, event_stream_id)
+                .await
+                .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))?;
+        if events.is_empty() {
+            Ok(None)
+        } else {
+            EventStream::new(events)
+                .map(Some)
+                .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+        }
     }
 
     async fn find_events(
@@ -615,11 +623,16 @@ impl EventStore for FirestoreEventStore {
     async fn store(
         &self,
         current: Option<EventStreamSeq>,
-        event_stream: Vec<Event>,
+        event_stream: EventStream,
     ) -> use_case::event_store::Result<()> {
-        store(&self.project_id, &self.credential, current, event_stream)
-            .await
-            .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
+        store(
+            &self.project_id,
+            &self.credential,
+            current,
+            event_stream.events(),
+        )
+        .await
+        .map_err(|e| use_case::event_store::Error::Unknown(e.to_string()))
     }
 }
 
