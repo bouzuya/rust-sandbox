@@ -3,8 +3,8 @@ use std::{fmt::Display, str::FromStr};
 use event_store_core::{Event as RawEvent, EventType as RawEventType};
 
 use crate::aggregate::{
-    user::{self, UserCreated, UserRequested, UserUpdated},
-    user_request::{self, UserRequestCreated, UserRequestFinished, UserRequestStarted},
+    user::{UserCreated, UserRequested, UserUpdated},
+    user_request::{UserRequestCreated, UserRequestFinished, UserRequestStarted},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -96,12 +96,12 @@ impl TryFrom<RawEventType> for EventType {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Event {
-    UserCreated(user::UserCreated),
-    UserRequested(user::UserRequested),
-    UserUpdated(user::UserUpdated),
-    UserRequestCreated(user_request::UserRequestCreated),
-    UserRequestStarted(user_request::UserRequestStarted),
-    UserRequestFinished(user_request::UserRequestFinished),
+    UserCreated(crate::aggregate::user::UserCreated),
+    UserRequested(crate::aggregate::user::UserRequested),
+    UserUpdated(crate::aggregate::user::UserUpdated),
+    UserRequestCreated(crate::aggregate::user_request::UserRequestCreated),
+    UserRequestStarted(crate::aggregate::user_request::UserRequestStarted),
+    UserRequestFinished(crate::aggregate::user_request::UserRequestFinished),
 }
 
 macro_rules! impl_from_and_try_from {
@@ -178,7 +178,51 @@ impl TryFrom<RawEvent> for Event {
     }
 }
 
-// TODO: test serde
+impl From<crate::aggregate::user::Event> for Event {
+    fn from(event: crate::aggregate::user::Event) -> Self {
+        match event {
+            crate::aggregate::user::Event::Created(e) => Event::from(e),
+            crate::aggregate::user::Event::Requested(e) => Event::from(e),
+            crate::aggregate::user::Event::Updated(e) => Event::from(e),
+        }
+    }
+}
+
+impl TryFrom<Event> for crate::aggregate::user::Event {
+    type Error = Error;
+
+    fn try_from(value: Event) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Event::UserCreated(e) => crate::aggregate::user::Event::from(e),
+            Event::UserRequested(e) => crate::aggregate::user::Event::from(e),
+            Event::UserUpdated(e) => crate::aggregate::user::Event::from(e),
+            _ => return Err(Error::Unknown("invalid event type".to_owned())),
+        })
+    }
+}
+
+impl From<crate::aggregate::user_request::Event> for Event {
+    fn from(event: crate::aggregate::user_request::Event) -> Self {
+        match event {
+            crate::aggregate::user_request::Event::Created(e) => Event::from(e),
+            crate::aggregate::user_request::Event::Started(e) => Event::from(e),
+            crate::aggregate::user_request::Event::Finished(e) => Event::from(e),
+        }
+    }
+}
+
+impl TryFrom<Event> for crate::aggregate::user_request::Event {
+    type Error = Error;
+
+    fn try_from(value: Event) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Event::UserRequestCreated(e) => crate::aggregate::user_request::Event::from(e),
+            Event::UserRequestStarted(e) => crate::aggregate::user_request::Event::from(e),
+            Event::UserRequestFinished(e) => crate::aggregate::user_request::Event::from(e),
+            _ => return Err(Error::Unknown("invalid event type".to_owned())),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
