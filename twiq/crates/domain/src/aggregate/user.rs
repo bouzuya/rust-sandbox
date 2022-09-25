@@ -106,6 +106,18 @@ impl User {
     }
 }
 
+impl From<User> for EventStream {
+    fn from(user: User) -> Self {
+        use crate::Event as DomainEvent;
+        use event_store_core::Event as RawEvent;
+        let mut events = vec![];
+        for user_event in user.events.iter().cloned() {
+            events.push(RawEvent::from(DomainEvent::from(user_event)));
+        }
+        EventStream::new(events).expect("event_stream")
+    }
+}
+
 impl TryFrom<EventStream> for User {
     type Error = Error;
 
@@ -169,6 +181,7 @@ mod tests {
 
     use super::*;
 
+    // TODO: test impl From<User> for EventStream
     // TODO: test from_event_stream
 
     #[test]
