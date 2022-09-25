@@ -1,28 +1,34 @@
-use std::{
-    borrow::BorrowMut,
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
+use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
+use tokio::sync::Mutex;
 use use_case::user_repository::{Error, Result, UserRepository};
+
+use crate::in_memory_event_store::InMemoryEventStore;
 
 #[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
-    data: Arc<Mutex<HashMap<UserId, User>>>,
+    event_store: Arc<Mutex<InMemoryEventStore>>,
     index: Arc<Mutex<HashMap<TwitterUserId, UserId>>>,
 }
 
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn find(&self, id: UserId) -> Result<Option<User>> {
-        let data = self
-            .data
-            .as_ref()
-            .lock()
+        let event_store = self.event_store.lock().await;
+        let event_stream_id = EventStreamId::from(id);
+        let event_stream = event_store
+            .find_event_stream(event_stream_id)
+            .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        Ok(data.get(&id).cloned())
+        match event_stream {
+            None => Ok(None),
+            Some(event_stream) => User::try_from(event_stream)
+                .map(Some)
+                .map_err(|e| Error::Unknown(e.to_string())),
+        }
     }
 
     async fn find_by_twitter_user_id(
@@ -30,11 +36,7 @@ impl UserRepository for InMemoryUserRepository {
         twitter_user_id: &TwitterUserId,
     ) -> Result<Option<User>> {
         let user_id = {
-            let index = self
-                .index
-                .as_ref()
-                .lock()
-                .map_err(|e| Error::Unknown(e.to_string()))?;
+            let index = self.index.as_ref().lock().await;
             match index.get(twitter_user_id).copied() {
                 Some(user_id) => user_id,
                 None => return Ok(None),
@@ -44,18 +46,14 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn store(&self, before: Option<User>, after: User) -> Result<()> {
-        let mut data = self
-            .data
-            .lock()
-            .map_err(|e| Error::Unknown(e.to_string()))?;
-        let data = data.borrow_mut();
-        if let Some(before) = before {
-            if data.get(&before.id()) != Some(&before) {
-                return Err(Error::Unknown("conflict".to_owned()));
-            }
-        }
-        data.insert(after.id(), after);
-        Ok(())
+        let event_store = self.event_store.lock().await;
+        event_store
+            .store(
+                before.map(|user| EventStream::from(user).seq()),
+                EventStream::from(after),
+            )
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))
     }
 }
 
