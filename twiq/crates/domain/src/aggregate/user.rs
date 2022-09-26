@@ -81,6 +81,10 @@ impl User {
         Ok(())
     }
 
+    pub fn twitter_user_id(&self) -> &TwitterUserId {
+        &self.twitter_user_id
+    }
+
     pub fn update(&mut self, name: TwitterUserName, at: At) -> Result<()> {
         if let Some(updated_at) = self.updated_at {
             if at <= updated_at {
@@ -180,6 +184,8 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    // TODO: test twitter_user_id
 
     #[test]
     fn event_stream_conversion_test() -> anyhow::Result<()> {
