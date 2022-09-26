@@ -47,13 +47,16 @@ impl UserRepository for InMemoryUserRepository {
 
     async fn store(&self, before: Option<User>, after: User) -> Result<()> {
         let event_store = self.event_store.lock().await;
+        let mut index = self.index.lock().await;
         event_store
             .store(
                 before.map(|user| EventStream::from(user).seq()),
-                EventStream::from(after),
+                EventStream::from(after.clone()),
             )
             .await
-            .map_err(|e| Error::Unknown(e.to_string()))
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        index.insert(after.twitter_user_id().clone(), after.id());
+        Ok(())
     }
 }
 
