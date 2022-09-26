@@ -15,6 +15,8 @@ pub use self::{
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
+    #[error("already requested")]
+    AlreadyRequested,
     #[error("error")]
     Unknown(String),
 }
@@ -58,8 +60,7 @@ impl User {
     pub fn request(&mut self, at: At) -> Result<()> {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {
-                // TODo: error handling
-                return Err(Error::Unknown("".to_owned()));
+                return Err(Error::AlreadyRequested);
             }
         }
         let user_id = self.user_id;
