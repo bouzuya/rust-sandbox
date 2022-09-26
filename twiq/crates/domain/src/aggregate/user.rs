@@ -134,7 +134,7 @@ impl TryFrom<EventStream> for User {
         let raw_events = event_stream.events();
         let mut user = match try_from_raw_event(raw_events[0].clone())? {
             Event::Created(event) => User {
-                events: vec![],
+                events: vec![Event::from(event.clone())],
                 fetch_requested_at: None,
                 twitter_user_id: event.twitter_user_id(),
                 updated_at: None,
@@ -181,8 +181,33 @@ mod tests {
 
     use super::*;
 
-    // TODO: test impl From<User> for EventStream
-    // TODO: test from_event_stream
+    #[test]
+    fn event_stream_conversion_test() -> anyhow::Result<()> {
+        use crate::Event as DomainEvent;
+        use event_store_core::Event as RawEvent;
+        let event_stream_id = EventStreamId::generate();
+        let twitter_user_id = TwitterUserId::from_str("123")?;
+        let event_stream = EventStream::new(vec![
+            RawEvent::from(DomainEvent::from(UserCreated::new(
+                EventId::generate(),
+                At::now(),
+                event_stream_id,
+                EventStreamSeq::from(1_u32),
+                twitter_user_id.clone(),
+            ))),
+            RawEvent::from(DomainEvent::from(UserRequested::new(
+                EventId::generate(),
+                At::now(),
+                event_stream_id,
+                EventStreamSeq::from(2_u32),
+                twitter_user_id,
+                UserRequestId::generate(),
+            ))),
+        ])?;
+        let user = User::try_from(event_stream.clone())?;
+        assert_eq!(EventStream::from(user), event_stream);
+        Ok(())
+    }
 
     #[test]
     fn create_test() -> anyhow::Result<()> {
