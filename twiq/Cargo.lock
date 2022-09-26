@@ -1536,6 +1536,7 @@ dependencies = [
  "anyhow",
  "axum",
  "db",
+ "domain",
  "hyper",
  "tokio",
  "tower",

@@ -19,12 +19,12 @@ where
 {
     // TODO: if the user is cached, return it; otherwise, enqueue the ID.
     // TODO: error handling
-    application
+    // ignore errors
+    let _ = application
         .request_user(request_user::Command {
             twitter_user_id: id.parse().unwrap(),
         })
-        .await
-        .unwrap();
+        .await;
     (StatusCode::ACCEPTED, id)
 }
 
