@@ -91,8 +91,9 @@ impl EventStore for InMemoryEventStore {
 
         for event in event_stream.events() {
             let index = events.len();
-            event_ids.insert(event.id(), index);
-            events.push(event);
+            if event_ids.insert(event.id(), index).is_none() {
+                events.push(event);
+            }
         }
 
         Ok(())
