@@ -225,8 +225,20 @@ impl TryFrom<Event> for crate::aggregate::user_request::Event {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
+
+    use core::fmt::Debug;
+
+    pub(crate) fn serde_test<T>(o: T, s: &str) -> anyhow::Result<()>
+    where
+        T: Debug + Eq + serde::de::DeserializeOwned + serde::Serialize,
+    {
+        let deserialized: T = serde_json::from_str(s)?;
+        assert_eq!(deserialized, o);
+        assert_eq!(serde_json::to_string_pretty(&o)?, s);
+        Ok(())
+    }
 
     #[test]
     fn event_type_test() -> anyhow::Result<()> {

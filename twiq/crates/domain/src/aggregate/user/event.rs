@@ -44,18 +44,3 @@ macro_rules! impl_from_and_try_from {
 impl_from_and_try_from!(Event::Created, UserCreated);
 impl_from_and_try_from!(Event::Requested, UserRequested);
 impl_from_and_try_from!(Event::Updated, UserUpdated);
-
-#[cfg(test)]
-mod tests {
-    use core::fmt::Debug;
-
-    pub(in crate::aggregate::user::event) fn serde_test<T>(o: T, s: &str) -> anyhow::Result<()>
-    where
-        T: Debug + Eq + serde::de::DeserializeOwned + serde::Serialize,
-    {
-        let deserialized: T = serde_json::from_str(s)?;
-        assert_eq!(deserialized, o);
-        assert_eq!(serde_json::to_string_pretty(&o)?, s);
-        Ok(())
-    }
-}

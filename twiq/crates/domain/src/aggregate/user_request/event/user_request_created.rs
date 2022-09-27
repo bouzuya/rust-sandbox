@@ -89,7 +89,7 @@ impl TryFrom<RawEvent> for UserRequestCreated {
 
 #[cfg(test)]
 mod tests {
-    use crate::aggregate::user_request::event::tests::serde_test;
+    use crate::event::tests::serde_test;
 
     use super::*;
 
