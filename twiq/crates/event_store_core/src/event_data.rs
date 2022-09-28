@@ -14,13 +14,13 @@ pub enum Error {
 pub struct EventData(String);
 
 impl EventData {
-    pub fn from_serialize<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
+    pub fn from_structured<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
         serde_json::to_string(value)
             .map(Self)
             .map_err(|e| Error::Serialize(e.to_string()))
     }
 
-    pub fn to_deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
+    pub fn to_structured<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
         serde_json::from_str(self.0.as_str()).map_err(|e| Error::Deserialize(e.to_string()))
     }
 
@@ -73,4 +73,6 @@ mod tests {
         assert_eq!(EventData::from_str("a")?.as_str(), "a");
         Ok(())
     }
+
+    // TODO: test from_structured & to_structured
 }
