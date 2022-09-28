@@ -141,7 +141,7 @@ impl TryFrom<EventStream> for User {
             Event::Created(event) => User {
                 events: vec![Event::from(event.clone())],
                 fetch_requested_at: None,
-                twitter_user_id: event.twitter_user_id(),
+                twitter_user_id: event.twitter_user_id().clone(),
                 updated_at: None,
                 user_id: event.user_id(),
                 version: Version::from(EventStreamSeq::from(1_u32)),
