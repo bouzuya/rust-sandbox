@@ -2,6 +2,8 @@ use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("serialize {0}")]
+    Serialize(String),
     #[error("too large")]
     TooLarge,
 }
@@ -10,6 +12,12 @@ pub enum Error {
 pub struct EventData(String);
 
 impl EventData {
+    pub fn from_serialize<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
+        serde_json::to_string(value)
+            .map(Self)
+            .map_err(|e| Error::Serialize(e.to_string()))
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
