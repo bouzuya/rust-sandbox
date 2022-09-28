@@ -2,6 +2,8 @@ use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("deserialize {0}")]
+    Deserialize(String),
     #[error("serialize {0}")]
     Serialize(String),
     #[error("too large")]
@@ -16,6 +18,10 @@ impl EventData {
         serde_json::to_string(value)
             .map(Self)
             .map_err(|e| Error::Serialize(e.to_string()))
+    }
+
+    pub fn to_deserialize<T: serde::de::DeserializeOwned>(&self) -> Result<T, Error> {
+        serde_json::from_str(self.0.as_str()).map_err(|e| Error::Deserialize(e.to_string()))
     }
 
     pub fn as_str(&self) -> &str {
