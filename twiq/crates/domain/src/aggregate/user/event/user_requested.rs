@@ -18,15 +18,19 @@ pub enum Error {
     Unknown(String),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
+struct Payload {
+    at: String,
+    twitter_user_id: String,
+    user_request_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserRequested {
-    pub(super) id: String,
-    pub(super) r#type: String,
-    pub(super) at: String,
-    pub(super) stream_id: String,
-    pub(super) stream_seq: u32,
-    pub(super) twitter_user_id: String,
-    pub(super) user_request_id: String,
+    event: RawEvent,
+    at: At,
+    twitter_user_id: TwitterUserId,
+    user_request_id: UserRequestId,
 }
 
 impl UserRequested {
@@ -39,34 +43,42 @@ impl UserRequested {
         user_request_id: UserRequestId,
     ) -> UserRequested {
         Self {
-            id: id.to_string(),
-            r#type: Self::r#type().to_string(),
-            at: at.to_string(),
-            stream_id: stream_id.to_string(),
-            stream_seq: u32::from(stream_seq),
-            twitter_user_id: twitter_user_id.to_string(),
-            user_request_id: user_request_id.to_string(),
+            event: RawEvent::new(
+                id,
+                RawEventType::from(Self::r#type()),
+                stream_id,
+                stream_seq,
+                EventData::from_structured(&Payload {
+                    at: at.to_string(),
+                    twitter_user_id: twitter_user_id.to_string(),
+                    user_request_id: user_request_id.to_string(),
+                })
+                .expect("event_data"),
+            ),
+            at,
+            twitter_user_id,
+            user_request_id,
         }
     }
 
     pub(in crate::aggregate::user) fn at(&self) -> At {
-        At::from_str(&self.at).expect("at")
+        self.at
     }
 
     pub(in crate::aggregate::user) fn stream_seq(&self) -> EventStreamSeq {
-        EventStreamSeq::from(self.stream_seq)
+        self.event.stream_seq()
     }
 
-    pub fn twitter_user_id(&self) -> TwitterUserId {
-        TwitterUserId::from_str(&self.twitter_user_id).expect("twitter_user_id")
+    pub fn twitter_user_id(&self) -> &TwitterUserId {
+        &self.twitter_user_id
     }
 
     pub fn user_id(&self) -> UserId {
-        UserId::from_str(&self.id).expect("user_id")
+        UserId::from(self.event.stream_id())
     }
 
     pub fn user_request_id(&self) -> UserRequestId {
-        UserRequestId::from_str(&self.user_request_id).expect("user_request_id")
+        self.user_request_id
     }
 
     fn r#type() -> EventType {
@@ -76,13 +88,7 @@ impl UserRequested {
 
 impl From<UserRequested> for RawEvent {
     fn from(event: UserRequested) -> Self {
-        RawEvent::new(
-            EventId::from_str(event.id.as_str()).expect("id"),
-            RawEventType::from(UserRequested::r#type()),
-            EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
-            EventStreamSeq::from(event.stream_seq),
-            EventData::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
-        )
+        event.event
     }
 }
 
@@ -90,75 +96,53 @@ impl TryFrom<RawEvent> for UserRequested {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let event: Self = serde_json::from_str(raw_event.data().as_str())
-            .map_err(|e| Error::Unknown(e.to_string()))?;
-        if event.r#type != UserRequested::r#type().to_string() {
+        if raw_event.r#type() != &RawEventType::from(Self::r#type()) {
             return Err(Error::InvalidType);
         }
-        Ok(event)
+        let payload: Payload = raw_event
+            .data()
+            .to_structured()
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        let at = At::from_str(payload.at.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
+        let twitter_user_id = TwitterUserId::from_str(payload.twitter_user_id.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        let user_request_id = UserRequestId::from_str(payload.user_request_id.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        Ok(Self::new(
+            raw_event.id(),
+            at,
+            raw_event.stream_id(),
+            raw_event.stream_seq(),
+            twitter_user_id,
+            user_request_id,
+        ))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::event::tests::serde_test;
-
     use super::*;
 
     #[test]
-    fn json_conversion_test() -> anyhow::Result<()> {
-        let o = UserRequested {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_requested".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            twitter_user_id: "twitter_user_id1".to_owned(),
-            user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned(),
-        };
-        let s = r#"{
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "type": "user_requested",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "twitter_user_id": "twitter_user_id1",
-  "user_request_id": "868aecdc-d860-4232-8000-69e4623f1317"
-}"#;
-        serde_test(o, s)?;
-        Ok(())
-    }
-
-    #[test]
     fn raw_event_conversion_test() -> anyhow::Result<()> {
-        let o = UserRequested {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_requested".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            twitter_user_id: "twitter_user_id1".to_owned(),
-            user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned(),
-        };
+        let o = UserRequested::new(
+            EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
+            At::from_str("2022-09-06T22:58:00.000000000Z")?,
+            EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
+            EventStreamSeq::from(1),
+            TwitterUserId::from_str("twitter_user_id1")?,
+            UserRequestId::from_str("868aecdc-d860-4232-8000-69e4623f1317")?,
+        );
         let e = RawEvent::new(
             EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
             RawEventType::from_str("user_requested")?,
             EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
             EventStreamSeq::from(1_u32),
-            EventData::try_from(serde_json::to_string(&serde_json::from_str::<
-                '_,
-                UserRequested,
-            >(
-                r#"{
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "type": "user_requested",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "twitter_user_id": "twitter_user_id1",
-  "user_request_id": "868aecdc-d860-4232-8000-69e4623f1317"
-}"#,
-            )?)?)?,
+            EventData::from_structured(&Payload {
+                at: "2022-09-06T22:58:00.000000000Z".to_owned(),
+                twitter_user_id: "twitter_user_id1".to_owned(),
+                user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned(),
+            })?,
         );
         assert_eq!(RawEvent::from(o.clone()), e);
         assert_eq!(UserRequested::try_from(e)?, o);

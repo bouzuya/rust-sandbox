@@ -40,7 +40,7 @@ async fn handle<C: HasUserRequestRepository>(
         {
             let user_request = UserRequest::create(
                 event.user_request_id(),
-                event.twitter_user_id(),
+                event.twitter_user_id().clone(),
                 event.user_id(),
             )?;
             user_request_repository.store(None, user_request).await?;

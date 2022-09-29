@@ -65,6 +65,12 @@ impl From<UserRequestId> for EventStreamId {
     }
 }
 
+impl From<EventStreamId> for UserRequestId {
+    fn from(value: EventStreamId) -> Self {
+        Self(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
