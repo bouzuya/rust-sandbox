@@ -65,6 +65,12 @@ impl From<UserId> for EventStreamId {
     }
 }
 
+impl From<EventStreamId> for UserId {
+    fn from(value: EventStreamId) -> Self {
+        Self(value)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -73,10 +79,7 @@ mod tests {
     fn event_stream_id_conversion_test() -> anyhow::Result<()> {
         let event_stream_id = EventStreamId::generate();
         let id1 = UserId::try_from(u128::from(event_stream_id))?;
-        assert_eq!(
-            EventStreamId::from(id1),
-            EventStreamId::try_from(u128::from(event_stream_id))?
-        );
+        assert_eq!(UserId::from(EventStreamId::from(id1)), id1);
         Ok(())
     }
 

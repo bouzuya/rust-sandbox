@@ -61,8 +61,7 @@ impl UserCreated {
     }
 
     pub(in crate::aggregate::user) fn user_id(&self) -> UserId {
-        // FIXME:
-        UserId::from_str(self.event.stream_id().to_string().as_str()).expect("user_id")
+        UserId::from(self.event.stream_id())
     }
 
     fn r#type() -> EventType {
