@@ -20,11 +20,14 @@ pub struct EventStream {
 }
 
 impl EventStream {
-    pub fn generate(event_type: EventType, event_data: EventData) -> Self {
+    pub fn generate<T>(event_type: T, event_data: EventData) -> Self
+    where
+        T: Into<EventType>,
+    {
         Self {
             events: vec![Event::new(
                 EventId::generate(),
-                event_type,
+                event_type.into(),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1_u32),
                 event_data,
