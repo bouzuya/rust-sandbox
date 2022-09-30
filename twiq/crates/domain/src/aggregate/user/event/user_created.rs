@@ -79,7 +79,7 @@ impl TryFrom<RawEvent> for UserCreated {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        if raw_event.r#type() != &RawEventType::from(UserCreated::r#type()) {
+        if raw_event.r#type() != &RawEventType::from(Self::r#type()) {
             return Err(Error::InvalidType);
         }
         let payload: Payload = raw_event
