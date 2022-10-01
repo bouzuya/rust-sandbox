@@ -1,5 +1,5 @@
 use crate::{
-    event_data::EventPayload, event_id::EventId, event_stream_id::EventStreamId,
+    event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq, event_type::EventType,
 };
 
@@ -9,7 +9,7 @@ pub struct Event {
     r#type: EventType,
     stream_id: EventStreamId,
     stream_seq: EventStreamSeq,
-    data: EventPayload,
+    payload: EventPayload,
 }
 
 impl Event {
@@ -18,14 +18,14 @@ impl Event {
         r#type: EventType,
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
-        data: EventPayload,
+        payload: EventPayload,
     ) -> Self {
         Self {
             id,
             r#type,
             stream_id,
             stream_seq,
-            data,
+            payload,
         }
     }
 
@@ -45,8 +45,8 @@ impl Event {
         self.stream_seq
     }
 
-    pub fn data(&self) -> &EventPayload {
-        &self.data
+    pub fn payload(&self) -> &EventPayload {
+        &self.payload
     }
 }
 
@@ -60,13 +60,13 @@ mod tests {
         let r#type = EventType::try_from("created".to_owned())?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
-        let data = EventPayload::try_from(String::from("123"))?;
-        let event = Event::new(id, r#type.clone(), stream_id, stream_seq, data.clone());
+        let payload = EventPayload::try_from(String::from("123"))?;
+        let event = Event::new(id, r#type.clone(), stream_id, stream_seq, payload.clone());
         assert_eq!(event.id(), id);
         assert_eq!(event.r#type(), &r#type);
         assert_eq!(event.stream_id(), stream_id);
         assert_eq!(event.stream_seq(), stream_seq);
-        assert_eq!(event.data(), &data);
+        assert_eq!(event.payload(), &payload);
         Ok(())
     }
 }

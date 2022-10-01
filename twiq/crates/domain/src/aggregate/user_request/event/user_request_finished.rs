@@ -89,7 +89,7 @@ impl TryFrom<RawEvent> for UserRequestFinished {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let event: Self = serde_json::from_str(raw_event.data().as_str())
+        let event: Self = serde_json::from_str(raw_event.payload().as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
         if event.r#type != Self::r#type().to_string() {
             return Err(Error::InvalidType);

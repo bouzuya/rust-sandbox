@@ -83,7 +83,7 @@ impl TryFrom<RawEvent> for UserCreated {
             return Err(Error::InvalidType);
         }
         let payload: Payload = raw_event
-            .data()
+            .payload()
             .to_structured()
             .map_err(|e| Error::Unknown(e.to_string()))?;
         let at = At::from_str(payload.at.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;

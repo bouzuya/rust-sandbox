@@ -13,7 +13,7 @@ use crate::firestore_rest::{
     StructuredQuery, Timestamp, TransactionOptions, Value, Write,
 };
 use event_store_core::{
-    event::Event, event_data::EventPayload, event_id::EventId, event_stream_id::EventStreamId,
+    event::Event, event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq, EventStream, EventType,
 };
 
@@ -50,7 +50,10 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
         "stream_seq".to_owned(),
         Value::Integer(i64::from(event.stream_seq())),
     );
-    map.insert("data".to_owned(), Value::String(event.data().to_string()));
+    map.insert(
+        "data".to_owned(),
+        Value::String(event.payload().to_string()),
+    );
     map
 }
 
@@ -642,7 +645,7 @@ mod tests {
 
     use anyhow::Context;
     use event_store_core::{
-        event_data::EventPayload, event_id::EventId, event_stream_id::EventStreamId,
+        event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
     };
     use google_cloud_auth::CredentialConfig;
     use tokio::time::sleep;
