@@ -44,6 +44,7 @@ impl User {
                 EventStreamId::from(user_id),
                 stream_seq,
                 twitter_user_id.clone(),
+                user_id,
             ))],
             fetch_requested_at: None,
             twitter_user_id,
@@ -201,6 +202,7 @@ mod tests {
                 event_stream_id,
                 EventStreamSeq::from(1_u32),
                 twitter_user_id.clone(),
+                UserId::generate(),
             ))),
             RawEvent::from(DomainEvent::from(UserRequested::new(
                 EventId::generate(),
