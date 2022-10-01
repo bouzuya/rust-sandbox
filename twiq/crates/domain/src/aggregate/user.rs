@@ -106,6 +106,7 @@ impl User {
             stream_seq,
             self.twitter_user_id.clone(),
             name,
+            self.user_id,
         )));
         self.updated_at = Some(at);
         self.version = Version::from(stream_seq);

@@ -8,7 +8,7 @@ use event_store_core::{
 use crate::{
     aggregate::user::value::twitter_user_name::TwitterUserName,
     event::EventType,
-    value::{At, TwitterUserId},
+    value::{At, TwitterUserId, UserId},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -24,6 +24,7 @@ struct Payload {
     at: String,
     twitter_user_id: String,
     twitter_user_name: String,
+    user_id: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,6 +33,7 @@ pub struct UserUpdated {
     at: At,
     twitter_user_id: TwitterUserId,
     twitter_user_name: TwitterUserName,
+    user_id: UserId,
 }
 
 impl UserUpdated {
@@ -42,6 +44,7 @@ impl UserUpdated {
         stream_seq: EventStreamSeq,
         twitter_user_id: TwitterUserId,
         twitter_user_name: TwitterUserName,
+        user_id: UserId,
     ) -> Self {
         Self {
             event: RawEvent::new(
@@ -53,12 +56,14 @@ impl UserUpdated {
                     at: at.to_string(),
                     twitter_user_id: twitter_user_id.to_string(),
                     twitter_user_name: twitter_user_name.to_string(),
+                    user_id: user_id.to_string(),
                 })
                 .expect("event_payload"),
             ),
             at,
             twitter_user_id,
             twitter_user_name,
+            user_id,
         }
     }
 
@@ -97,6 +102,8 @@ impl TryFrom<RawEvent> for UserUpdated {
             .map_err(|e| Error::Unknown(e.to_string()))?;
         let twitter_user_name = TwitterUserName::from_str(payload.twitter_user_name.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
+        let user_id = UserId::from_str(payload.user_id.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
         Ok(Self::new(
             raw_event.id(),
             at,
@@ -104,6 +111,7 @@ impl TryFrom<RawEvent> for UserUpdated {
             raw_event.stream_seq(),
             twitter_user_id,
             twitter_user_name,
+            user_id,
         ))
     }
 }
@@ -121,6 +129,7 @@ mod tests {
             EventStreamSeq::from(1),
             TwitterUserId::from_str("twitter_user_id1")?,
             TwitterUserName::from_str("twitter_user_name1")?,
+            UserId::from_str("c274a425-baed-4252-9f92-ed8d7e84a096")?,
         );
         let e = RawEvent::new(
             EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
@@ -131,6 +140,7 @@ mod tests {
                 at: "2022-09-06T22:58:00.000000000Z".to_owned(),
                 twitter_user_id: "twitter_user_id1".to_owned(),
                 twitter_user_name: "twitter_user_name1".to_owned(),
+                user_id: "c274a425-baed-4252-9f92-ed8d7e84a096".to_owned(),
             })?,
         );
         assert_eq!(RawEvent::from(o.clone()), e);
