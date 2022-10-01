@@ -22,6 +22,7 @@ pub enum Error {
 struct Payload {
     at: String,
     twitter_user_id: String,
+    user_id: String,
     user_request_id: String,
 }
 
@@ -30,6 +31,7 @@ pub struct UserRequested {
     event: RawEvent,
     at: At,
     twitter_user_id: TwitterUserId,
+    user_id: UserId,
     user_request_id: UserRequestId,
 }
 
@@ -40,6 +42,7 @@ impl UserRequested {
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
         twitter_user_id: TwitterUserId,
+        user_id: UserId,
         user_request_id: UserRequestId,
     ) -> UserRequested {
         Self {
@@ -51,12 +54,14 @@ impl UserRequested {
                 EventPayload::from_structured(&Payload {
                     at: at.to_string(),
                     twitter_user_id: twitter_user_id.to_string(),
+                    user_id: user_id.to_string(),
                     user_request_id: user_request_id.to_string(),
                 })
                 .expect("event_payload"),
             ),
             at,
             twitter_user_id,
+            user_id,
             user_request_id,
         }
     }
@@ -74,7 +79,7 @@ impl UserRequested {
     }
 
     pub fn user_id(&self) -> UserId {
-        UserId::from(self.event.stream_id())
+        self.user_id
     }
 
     pub fn user_request_id(&self) -> UserRequestId {
@@ -106,6 +111,8 @@ impl TryFrom<RawEvent> for UserRequested {
         let at = At::from_str(payload.at.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
         let twitter_user_id = TwitterUserId::from_str(payload.twitter_user_id.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
+        let user_id = UserId::from_str(payload.user_id.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
         let user_request_id = UserRequestId::from_str(payload.user_request_id.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
         Ok(Self::new(
@@ -114,6 +121,7 @@ impl TryFrom<RawEvent> for UserRequested {
             raw_event.stream_id(),
             raw_event.stream_seq(),
             twitter_user_id,
+            user_id,
             user_request_id,
         ))
     }
@@ -131,6 +139,7 @@ mod tests {
             EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
             EventStreamSeq::from(1),
             TwitterUserId::from_str("twitter_user_id1")?,
+            UserId::from_str("c274a425-baed-4252-9f92-ed8d7e84a096")?,
             UserRequestId::from_str("868aecdc-d860-4232-8000-69e4623f1317")?,
         );
         let e = RawEvent::new(
@@ -141,6 +150,7 @@ mod tests {
             EventPayload::from_structured(&Payload {
                 at: "2022-09-06T22:58:00.000000000Z".to_owned(),
                 twitter_user_id: "twitter_user_id1".to_owned(),
+                user_id: "c274a425-baed-4252-9f92-ed8d7e84a096".to_owned(),
                 user_request_id: "868aecdc-d860-4232-8000-69e4623f1317".to_owned(),
             })?,
         );

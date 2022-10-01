@@ -76,6 +76,7 @@ impl User {
             EventStreamId::from(user_id),
             stream_seq,
             self.twitter_user_id.clone(),
+            user_id,
             user_request_id,
         )));
         self.fetch_requested_at = Some(at);
@@ -195,6 +196,7 @@ mod tests {
         use event_store_core::Event as RawEvent;
         let event_stream_id = EventStreamId::generate();
         let twitter_user_id = TwitterUserId::from_str("123")?;
+        let user_id = UserId::generate();
         let event_stream = EventStream::new(vec![
             RawEvent::from(DomainEvent::from(UserCreated::new(
                 EventId::generate(),
@@ -202,7 +204,7 @@ mod tests {
                 event_stream_id,
                 EventStreamSeq::from(1_u32),
                 twitter_user_id.clone(),
-                UserId::generate(),
+                user_id,
             ))),
             RawEvent::from(DomainEvent::from(UserRequested::new(
                 EventId::generate(),
@@ -210,6 +212,7 @@ mod tests {
                 event_stream_id,
                 EventStreamSeq::from(2_u32),
                 twitter_user_id,
+                user_id,
                 UserRequestId::generate(),
             ))),
         ])?;
