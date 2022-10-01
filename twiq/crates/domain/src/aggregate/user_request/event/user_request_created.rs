@@ -27,6 +27,7 @@ pub struct UserRequestCreated {
     pub(super) stream_seq: u32,
     pub(super) twitter_user_id: String,
     pub(super) user_id: String,
+    pub(super) user_request_id: String,
 }
 
 impl UserRequestCreated {
@@ -37,6 +38,7 @@ impl UserRequestCreated {
         stream_seq: EventStreamSeq,
         twitter_user_id: TwitterUserId,
         user_id: UserId,
+        user_request_id: UserRequestId,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -46,6 +48,7 @@ impl UserRequestCreated {
             stream_seq: u32::from(stream_seq),
             twitter_user_id: twitter_user_id.to_string(),
             user_id: user_id.to_string(),
+            user_request_id: user_request_id.to_string(),
         }
     }
 
@@ -54,7 +57,7 @@ impl UserRequestCreated {
     }
 
     pub fn user_request_id(&self) -> UserRequestId {
-        UserRequestId::from_str(&self.stream_id).expect("user_request_id")
+        UserRequestId::from_str(&self.user_request_id).expect("user_request_id")
     }
 
     fn r#type() -> EventType {
@@ -106,6 +109,7 @@ mod tests {
             stream_seq: 1,
             twitter_user_id: "twitter_user_id1".to_owned(),
             user_id: "682106dd-b94c-4bd1-a808-e74b3d3fb56a".to_owned(),
+            user_request_id: "71fd7633-14e1-4230-a1b1-22a461296fc1".to_owned(),
         };
         let s = r#"{
   "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
@@ -114,7 +118,8 @@ mod tests {
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
   "twitter_user_id": "twitter_user_id1",
-  "user_id": "682106dd-b94c-4bd1-a808-e74b3d3fb56a"
+  "user_id": "682106dd-b94c-4bd1-a808-e74b3d3fb56a",
+  "user_request_id": "71fd7633-14e1-4230-a1b1-22a461296fc1"
 }"#;
         serde_test(o, s)?;
         Ok(())
@@ -130,6 +135,7 @@ mod tests {
             stream_seq: 1,
             twitter_user_id: "twitter_user_id1".to_owned(),
             user_id: "682106dd-b94c-4bd1-a808-e74b3d3fb56a".to_owned(),
+            user_request_id: "71fd7633-14e1-4230-a1b1-22a461296fc1".to_owned(),
         };
         let e = RawEvent::new(
             EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
@@ -147,7 +153,8 @@ mod tests {
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
   "twitter_user_id": "twitter_user_id1",
-  "user_id": "682106dd-b94c-4bd1-a808-e74b3d3fb56a"
+  "user_id": "682106dd-b94c-4bd1-a808-e74b3d3fb56a",
+  "user_request_id": "71fd7633-14e1-4230-a1b1-22a461296fc1"
 }"#,
             )?)?)?,
         );

@@ -41,6 +41,7 @@ impl UserRequest {
                 stream_seq,
                 twitter_user_id,
                 user_id,
+                id,
             ))],
             id,
             user_id,
