@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-    Event as RawEvent, EventData, EventType as RawEventType,
+    Event as RawEvent, EventPayload, EventType as RawEventType,
 };
 
 use crate::{
@@ -45,11 +45,11 @@ impl UserCreated {
                 RawEventType::from(Self::r#type()),
                 stream_id,
                 stream_seq,
-                EventData::from_structured(&Payload {
+                EventPayload::from_structured(&Payload {
                     at: at.to_string(),
                     twitter_user_id: twitter_user_id.to_string(),
                 })
-                .expect("event_data"),
+                .expect("event_payload"),
             ),
             at,
             twitter_user_id,
@@ -117,7 +117,7 @@ mod tests {
             RawEventType::from_str("user_created")?,
             EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
             EventStreamSeq::from(1_u32),
-            EventData::from_structured(&Payload {
+            EventPayload::from_structured(&Payload {
                 at: "2022-09-06T22:58:00.000000000Z".to_owned(),
                 twitter_user_id: "twitter_user_id1".to_owned(),
             })?,

@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-    Event as RawEvent, EventData, EventType as RawEventType,
+    Event as RawEvent, EventPayload, EventType as RawEventType,
 };
 
 use crate::{
@@ -69,7 +69,7 @@ impl From<UserRequestCreated> for RawEvent {
             RawEventType::from(UserRequestCreated::r#type()),
             EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
             EventStreamSeq::from(event.stream_seq),
-            EventData::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
+            EventPayload::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
         )
     }
 }
@@ -136,7 +136,7 @@ mod tests {
             RawEventType::from_str("user_request_created")?,
             EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
             EventStreamSeq::from(1_u32),
-            EventData::try_from(serde_json::to_string(&serde_json::from_str::<
+            EventPayload::try_from(serde_json::to_string(&serde_json::from_str::<
                 '_,
                 UserRequestCreated,
             >(

@@ -13,7 +13,7 @@ use crate::firestore_rest::{
     StructuredQuery, Timestamp, TransactionOptions, Value, Write,
 };
 use event_store_core::{
-    event::Event, event_data::EventData, event_id::EventId, event_stream_id::EventStreamId,
+    event::Event, event_data::EventPayload, event_id::EventId, event_stream_id::EventStreamId,
     event_stream_seq::EventStreamSeq, EventStream, EventType,
 };
 
@@ -134,7 +134,7 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
             }
         })
         .and_then(|s| {
-            EventData::try_from(s.to_owned())
+            EventPayload::try_from(s.to_owned())
                 .map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
         })?;
     Ok(Event::new(id, r#type, stream_id, stream_seq, data))
@@ -642,7 +642,7 @@ mod tests {
 
     use anyhow::Context;
     use event_store_core::{
-        event_data::EventData, event_id::EventId, event_stream_id::EventStreamId,
+        event_data::EventPayload, event_id::EventId, event_stream_id::EventStreamId,
     };
     use google_cloud_auth::CredentialConfig;
     use tokio::time::sleep;
@@ -663,14 +663,14 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
-        let data = EventData::try_from("{}".to_owned())?;
+        let data = EventPayload::try_from("{}".to_owned())?;
         let event1 = Event::new(id, r#type, stream_id, stream_seq, data);
         store(&project_id, &credential, None, vec![event1.clone()]).await?;
 
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
-        let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
+        let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event2 = Event::new(id, r#type, stream_id, stream_seq2, data);
         store(
             &project_id,
@@ -689,12 +689,12 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
-        let data = EventData::try_from("{}".to_owned())?;
+        let data = EventPayload::try_from("{}".to_owned())?;
         let event3 = Event::new(id, r#type, stream_id, stream_seq, data);
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
-        let data = EventData::try_from(r#"{"foo":"bar"}"#.to_owned())?;
+        let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
         let event4 = Event::new(id, r#type, stream_id, stream_seq2, data);
         store(
             &project_id,

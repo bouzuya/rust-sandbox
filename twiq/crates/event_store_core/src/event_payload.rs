@@ -11,9 +11,9 @@ pub enum Error {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct EventData(String);
+pub struct EventPayload(String);
 
-impl EventData {
+impl EventPayload {
     pub fn from_structured<T: serde::Serialize>(value: &T) -> Result<Self, Error> {
         serde_json::to_string(value)
             .map(Self)
@@ -29,13 +29,13 @@ impl EventData {
     }
 }
 
-impl From<EventData> for String {
-    fn from(value: EventData) -> Self {
+impl From<EventPayload> for String {
+    fn from(value: EventPayload) -> Self {
         value.0
     }
 }
 
-impl TryFrom<String> for EventData {
+impl TryFrom<String> for EventPayload {
     type Error = Error;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
@@ -46,13 +46,13 @@ impl TryFrom<String> for EventData {
     }
 }
 
-impl Display for EventData {
+impl Display for EventPayload {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
     }
 }
 
-impl FromStr for EventData {
+impl FromStr for EventPayload {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -66,11 +66,11 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        assert_eq!(String::from(EventData::try_from("a".to_string())?), "a");
-        assert!(EventData::try_from("a".repeat(1_000_000)).is_ok());
-        assert!(EventData::try_from("a".repeat(1_000_001)).is_err());
-        assert_eq!(EventData::from_str("a")?.to_string(), "a");
-        assert_eq!(EventData::from_str("a")?.as_str(), "a");
+        assert_eq!(String::from(EventPayload::try_from("a".to_string())?), "a");
+        assert!(EventPayload::try_from("a".repeat(1_000_000)).is_ok());
+        assert!(EventPayload::try_from("a".repeat(1_000_001)).is_err());
+        assert_eq!(EventPayload::from_str("a")?.to_string(), "a");
+        assert_eq!(EventPayload::from_str("a")?.as_str(), "a");
         Ok(())
     }
 
