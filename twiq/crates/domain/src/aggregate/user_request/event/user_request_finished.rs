@@ -27,6 +27,7 @@ pub struct UserRequestFinished {
     pub(super) stream_id: String,
     pub(super) stream_seq: u32,
     pub(super) user_id: String,
+    pub(super) user_request_id: String,
     pub(super) status_code: u16,
     pub(super) response_body: String,
 }
@@ -38,6 +39,7 @@ impl UserRequestFinished {
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
         user_id: UserId,
+        user_request_id: UserRequestId,
         user_response: UserResponse,
     ) -> Self {
         Self {
@@ -47,6 +49,7 @@ impl UserRequestFinished {
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
             user_id: user_id.to_string(),
+            user_request_id: user_request_id.to_string(),
             status_code: user_response.status_code(),
             response_body: user_response.body().to_owned(),
         }
@@ -61,7 +64,7 @@ impl UserRequestFinished {
     }
 
     pub fn user_request_id(&self) -> UserRequestId {
-        UserRequestId::from_str(&self.stream_id).expect("user_request_id")
+        UserRequestId::from_str(&self.user_request_id).expect("user_request_id")
     }
 
     pub fn user_response(&self) -> UserResponse {
@@ -117,6 +120,7 @@ mod tests {
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
             user_id: "5464979d-8c47-47c7-9066-4cfee838c518".to_owned(),
+            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
             status_code: 200,
             response_body: "{}".to_owned(),
         };
@@ -127,6 +131,7 @@ mod tests {
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
   "user_id": "5464979d-8c47-47c7-9066-4cfee838c518",
+  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401",
   "status_code": 200,
   "response_body": "{}"
 }"#;
@@ -143,6 +148,7 @@ mod tests {
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
             user_id: "5464979d-8c47-47c7-9066-4cfee838c518".to_owned(),
+            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
             status_code: 200,
             response_body: "{}".to_owned(),
         };
@@ -162,6 +168,7 @@ mod tests {
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
   "stream_seq": 1,
   "user_id": "5464979d-8c47-47c7-9066-4cfee838c518",
+  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401",
   "status_code": 200,
   "response_body": "{}"
 }"#,

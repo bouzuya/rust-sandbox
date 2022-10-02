@@ -69,6 +69,7 @@ impl UserRequest {
             stream_id,
             stream_seq,
             self.user_id,
+            self.id,
             user_response,
         )));
         self.version = Version::from(stream_seq);
