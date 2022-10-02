@@ -95,6 +95,7 @@ impl UserRequest {
             At::now(),
             stream_id,
             stream_seq,
+            self.id,
         )));
         self.version = Version::from(stream_seq);
         Ok(())

@@ -4,8 +4,12 @@ use event_store_core::{
     event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
     Event as RawEvent, EventPayload, EventType as RawEventType,
 };
+use user_request_id::UserRequestId;
 
-use crate::{event::EventType, value::At};
+use crate::{
+    event::EventType,
+    value::{user_request_id, At},
+};
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -22,6 +26,7 @@ pub struct UserRequestStarted {
     pub(super) at: String,
     pub(super) stream_id: String,
     pub(super) stream_seq: u32,
+    pub(super) user_request_id: String,
 }
 
 impl UserRequestStarted {
@@ -30,6 +35,7 @@ impl UserRequestStarted {
         at: At,
         stream_id: EventStreamId,
         stream_seq: EventStreamSeq,
+        user_request_id: UserRequestId,
     ) -> Self {
         Self {
             id: id.to_string(),
@@ -37,6 +43,7 @@ impl UserRequestStarted {
             at: at.to_string(),
             stream_id: stream_id.to_string(),
             stream_seq: u32::from(stream_seq),
+            user_request_id: user_request_id.to_string(),
         }
     }
 
@@ -84,13 +91,15 @@ mod tests {
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
+            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
         };
         let s = r#"{
   "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
   "type": "user_request_started",
   "at": "2022-09-06T22:58:00.000000000Z",
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1
+  "stream_seq": 1,
+  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401"
 }"#;
         serde_test(o, s)?;
         Ok(())
@@ -104,6 +113,7 @@ mod tests {
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
             stream_seq: 1,
+            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
         };
         let e = RawEvent::new(
             EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
@@ -119,7 +129,8 @@ mod tests {
   "type": "user_request_started",
   "at": "2022-09-06T22:58:00.000000000Z",
   "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1
+  "stream_seq": 1,
+  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401"
 }"#,
             )?)?)?,
         );
