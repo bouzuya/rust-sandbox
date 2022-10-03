@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use event_store_core::{
-    event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-    Event as RawEvent, EventPayload, EventType as RawEventType,
-};
+use event_store_core::{Event as RawEvent, EventPayload, EventType as RawEventType};
 
 use crate::{
     event::EventType,
@@ -91,6 +88,8 @@ impl TryFrom<RawEvent> for UserCreated {
 
 #[cfg(test)]
 mod tests {
+    use event_store_core::{EventId, EventStreamId, EventStreamSeq};
+
     use super::*;
 
     #[test]
