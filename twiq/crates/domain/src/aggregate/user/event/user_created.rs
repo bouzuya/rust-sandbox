@@ -50,7 +50,7 @@ impl UserCreated {
         self.user_id
     }
 
-    fn r#type() -> EventType {
+    pub(in crate::aggregate::user) fn r#type() -> EventType {
         EventType::UserCreated
     }
 }

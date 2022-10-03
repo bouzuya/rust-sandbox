@@ -51,7 +51,7 @@ impl UserUpdated {
         self.at
     }
 
-    fn r#type() -> EventType {
+    pub(in crate::aggregate::user) fn r#type() -> EventType {
         EventType::UserUpdated
     }
 }

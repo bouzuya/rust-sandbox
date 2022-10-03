@@ -20,9 +20,10 @@ pub struct EventStream {
 }
 
 impl EventStream {
-    pub fn generate<T>(event_type: T, event_payload: EventPayload) -> Self
+    pub fn generate2<T, U>(event_type: T, event_payload: U) -> Self
     where
         T: Into<EventType>,
+        U: Into<EventPayload>,
     {
         Self {
             events: vec![Event::new(
@@ -30,7 +31,23 @@ impl EventStream {
                 event_type.into(),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1_u32),
-                event_payload,
+                event_payload.into(),
+            )],
+        }
+    }
+
+    pub fn generate<T, U>(event_type: T, event_payload: U) -> Self
+    where
+        T: Into<EventType>,
+        U: serde::Serialize,
+    {
+        Self {
+            events: vec![Event::new(
+                EventId::generate(),
+                event_type.into(),
+                EventStreamId::generate(),
+                EventStreamSeq::from(1_u32),
+                EventPayload::from_structured(&event_payload).expect("FIXME"),
             )],
         }
     }
@@ -72,6 +89,23 @@ impl EventStream {
         self.events.clone()
     }
 
+    pub fn push2<T, U>(&mut self, event_type: T, event_payload: U) -> Result<()>
+    where
+        T: Into<EventType>,
+        U: Into<EventPayload>,
+    {
+        self.events.push(Event::new(
+            EventId::generate(),
+            event_type.into(),
+            self.id(),
+            self.seq()
+                .next()
+                .map_err(|_| Error::OverflowEventStreamSeq(self.id()))?,
+            event_payload.into(),
+        ));
+        Ok(())
+    }
+
     pub fn push(&mut self, event_type: EventType, event_payload: EventPayload) -> Result<()> {
         self.events.push(Event::new(
             EventId::generate(),
@@ -107,10 +141,7 @@ mod tests {
 
     #[test]
     fn generate_test() -> anyhow::Result<()> {
-        let stream = EventStream::generate(
-            EventType::from_str("created")?,
-            EventPayload::from_str("{}")?,
-        );
+        let stream = EventStream::generate(EventType::from_str("created")?, "{}");
         assert_eq!(stream.seq(), EventStreamSeq::from(1_u32));
         Ok(())
     }
@@ -204,10 +235,7 @@ mod tests {
 
     #[test]
     fn push_test() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(
-            EventType::from_str("created")?,
-            EventPayload::from_str("{}")?,
-        );
+        let mut stream = EventStream::generate(EventType::from_str("created")?, "{}");
         stream.push(
             EventType::from_str("updated")?,
             EventPayload::from_str(r#"{"key":123}"#)?,
@@ -218,10 +246,7 @@ mod tests {
 
     #[test]
     fn push_event_test() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(
-            EventType::from_str("created")?,
-            EventPayload::from_str("{}")?,
-        );
+        let mut stream = EventStream::generate(EventType::from_str("created")?, "{}");
         stream.push_event(Event::new(
             EventId::generate(),
             EventType::from_str("updated")?,
@@ -235,10 +260,7 @@ mod tests {
 
     #[test]
     fn push_event_test_invalid_event_stream_id() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(
-            EventType::from_str("created")?,
-            EventPayload::from_str("{}")?,
-        );
+        let mut stream = EventStream::generate(EventType::from_str("created")?, "{}");
         assert!(stream
             .push_event(Event::new(
                 EventId::generate(),
@@ -253,10 +275,7 @@ mod tests {
 
     #[test]
     fn push_event_test_invalid_event_stream_seq() -> anyhow::Result<()> {
-        let mut stream = EventStream::generate(
-            EventType::from_str("created")?,
-            EventPayload::from_str("{}")?,
-        );
+        let mut stream = EventStream::generate(EventType::from_str("created")?, "{}");
         assert!(stream
             .push_event(Event::new(
                 EventId::generate(),
