@@ -1,9 +1,6 @@
 use std::str::FromStr;
 
-use event_store_core::{
-    event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-    Event as RawEvent, EventPayload, EventType as RawEventType,
-};
+use event_store_core::{Event as RawEvent, EventPayload, EventType as RawEventType};
 use user_request_id::UserRequestId;
 
 use crate::{
@@ -20,30 +17,22 @@ pub enum Error {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
+struct Payload {
+    at: String,
+    user_request_id: String,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserRequestStarted {
-    pub(super) id: String,
-    pub(super) r#type: String,
-    pub(super) at: String,
-    pub(super) stream_id: String,
-    pub(super) stream_seq: u32,
-    pub(super) user_request_id: String,
+    at: At,
+    user_request_id: UserRequestId,
 }
 
 impl UserRequestStarted {
-    pub(in crate::aggregate::user_request) fn new(
-        id: EventId,
-        at: At,
-        stream_id: EventStreamId,
-        stream_seq: EventStreamSeq,
-        user_request_id: UserRequestId,
-    ) -> Self {
+    pub(in crate::aggregate::user_request) fn new(at: At, user_request_id: UserRequestId) -> Self {
         Self {
-            id: id.to_string(),
-            r#type: Self::r#type().to_string(),
-            at: at.to_string(),
-            stream_id: stream_id.to_string(),
-            stream_seq: u32::from(stream_seq),
-            user_request_id: user_request_id.to_string(),
+            at,
+            user_request_id,
         }
     }
 
@@ -52,15 +41,13 @@ impl UserRequestStarted {
     }
 }
 
-impl From<UserRequestStarted> for RawEvent {
+impl From<UserRequestStarted> for EventPayload {
     fn from(event: UserRequestStarted) -> Self {
-        RawEvent::new(
-            EventId::from_str(event.id.as_str()).expect("id"),
-            RawEventType::from(UserRequestStarted::r#type()),
-            EventStreamId::from_str(event.stream_id.as_str()).expect("stream_id"),
-            EventStreamSeq::from(event.stream_seq),
-            EventPayload::try_from(serde_json::to_string(&event).expect("event")).expect("data"),
-        )
+        EventPayload::from_structured(&Payload {
+            at: event.at.to_string(),
+            user_request_id: event.user_request_id.to_string(),
+        })
+        .unwrap()
     }
 }
 
@@ -68,74 +55,47 @@ impl TryFrom<RawEvent> for UserRequestStarted {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let event: Self = serde_json::from_str(raw_event.payload().as_str())
-            .map_err(|e| Error::Unknown(e.to_string()))?;
-        if event.r#type != Self::r#type().to_string() {
+        if raw_event.r#type() != &RawEventType::from(Self::r#type()) {
             return Err(Error::InvalidType);
         }
-        Ok(event)
+        let payload: Payload = raw_event
+            .payload()
+            .to_structured()
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        let at = At::from_str(payload.at.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
+        let user_request_id = UserRequestId::from_str(payload.user_request_id.as_str())
+            .map_err(|e| Error::Unknown(e.to_string()))?;
+        Ok(Self::new(at, user_request_id))
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::event::tests::serde_test;
+    use event_store_core::{EventId, EventStreamId, EventStreamSeq};
 
     use super::*;
 
     #[test]
-    fn json_conversion_test() -> anyhow::Result<()> {
-        let o = UserRequestStarted {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_request_started".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
-        };
-        let s = r#"{
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "type": "user_request_started",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401"
-}"#;
-        serde_test(o, s)?;
-        Ok(())
-    }
-
-    #[test]
     fn raw_event_conversion_test() -> anyhow::Result<()> {
-        let o = UserRequestStarted {
-            id: "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8".to_owned(),
-            r#type: "user_request_started".to_owned(),
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
-            stream_id: "a748c956-7e53-45ef-b1f0-1c52676a467c".to_owned(),
-            stream_seq: 1,
-            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
-        };
-        let e = RawEvent::new(
-            EventId::from_str("0ecb46f3-01a1-49b2-9405-0b4c40ecefe8")?,
-            RawEventType::from_str("user_request_started")?,
-            EventStreamId::from_str("a748c956-7e53-45ef-b1f0-1c52676a467c")?,
-            EventStreamSeq::from(1_u32),
-            EventPayload::try_from(serde_json::to_string(&serde_json::from_str::<
-                '_,
-                UserRequestStarted,
-            >(
-                r#"{
-  "id": "0ecb46f3-01a1-49b2-9405-0b4c40ecefe8",
-  "type": "user_request_started",
-  "at": "2022-09-06T22:58:00.000000000Z",
-  "stream_id": "a748c956-7e53-45ef-b1f0-1c52676a467c",
-  "stream_seq": 1,
-  "user_request_id": "9eb25b81-2df3-4502-81f4-668ea315c401"
-}"#,
-            )?)?)?,
+        let o = UserRequestStarted::new(
+            At::from_str("2022-09-06T22:58:00.000000000Z")?,
+            UserRequestId::from_str("9eb25b81-2df3-4502-81f4-668ea315c401")?,
         );
-        assert_eq!(RawEvent::from(o.clone()), e);
-        assert_eq!(UserRequestStarted::try_from(e)?, o);
+        let e = EventPayload::from_structured(&Payload {
+            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
+            user_request_id: "9eb25b81-2df3-4502-81f4-668ea315c401".to_owned(),
+        })?;
+        assert_eq!(EventPayload::from(o.clone()), e);
+        assert_eq!(
+            UserRequestStarted::try_from(RawEvent::new(
+                EventId::generate(),
+                RawEventType::from(UserRequestStarted::r#type()),
+                EventStreamId::generate(),
+                EventStreamSeq::from(1),
+                e
+            ))?,
+            o
+        );
         Ok(())
     }
 }
