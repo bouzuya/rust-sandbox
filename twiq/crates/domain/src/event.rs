@@ -1,6 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
-use event_store_core::{Event as RawEvent, EventType as RawEventType};
+use event_store_core::{Event as RawEvent, EventPayload, EventType as RawEventType};
 
 use crate::aggregate::{
     user::{UserCreated, UserRequested, UserUpdated},
@@ -133,15 +133,15 @@ impl_from_and_try_from!(Event::UserRequestCreated, UserRequestCreated);
 impl_from_and_try_from!(Event::UserRequestStarted, UserRequestStarted);
 impl_from_and_try_from!(Event::UserRequestFinished, UserRequestFinished);
 
-impl From<Event> for RawEvent {
+impl From<Event> for EventPayload {
     fn from(event: Event) -> Self {
         match event {
-            Event::UserCreated(e) => RawEvent::from(e),
-            Event::UserRequested(e) => RawEvent::from(e),
-            Event::UserUpdated(e) => RawEvent::from(e),
-            Event::UserRequestCreated(e) => RawEvent::from(e),
-            Event::UserRequestStarted(e) => RawEvent::from(e),
-            Event::UserRequestFinished(e) => RawEvent::from(e),
+            Event::UserCreated(e) => EventPayload::from(e),
+            Event::UserRequested(e) => EventPayload::from(e),
+            Event::UserUpdated(e) => EventPayload::from(e),
+            Event::UserRequestCreated(e) => EventPayload::from(e),
+            Event::UserRequestStarted(e) => EventPayload::from(e),
+            Event::UserRequestFinished(e) => EventPayload::from(e),
         }
     }
 }

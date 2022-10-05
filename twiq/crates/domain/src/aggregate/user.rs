@@ -31,7 +31,7 @@ pub struct User {
 
 impl User {
     pub fn create(twitter_user_id: TwitterUserId) -> Result<Self> {
-        let user_created = UserCreated::new(At::now(), twitter_user_id, UserId::generate());
+        let user_created = UserCreated::new(At::now(), twitter_user_id.clone(), UserId::generate());
         let user_id = user_created.user_id();
         let event_stream =
             EventStream::generate2(UserCreated::r#type(), EventPayload::from(user_created));
@@ -56,10 +56,12 @@ impl User {
         }
         let user_id = self.user_id;
         let user_request_id = UserRequestId::generate();
-        self.event_stream.push2(
-            UserRequested::r#type(),
-            UserRequested::new(at, self.twitter_user_id.clone(), user_id, user_request_id),
-        );
+        self.event_stream
+            .push2(
+                UserRequested::r#type(),
+                UserRequested::new(at, self.twitter_user_id.clone(), user_id, user_request_id),
+            )
+            .unwrap();
         self.fetch_requested_at = Some(at);
         Ok(())
     }
@@ -75,10 +77,12 @@ impl User {
                 return Err(Error::Unknown("".to_owned()));
             }
         }
-        self.event_stream.push2(
-            UserUpdated::r#type(),
-            UserUpdated::new(at, self.twitter_user_id.clone(), name, self.user_id),
-        );
+        self.event_stream
+            .push2(
+                UserUpdated::r#type(),
+                UserUpdated::new(at, self.twitter_user_id.clone(), name, self.user_id),
+            )
+            .unwrap();
         self.updated_at = Some(at);
         Ok(())
     }
@@ -86,7 +90,7 @@ impl User {
 
 impl From<User> for EventStream {
     fn from(user: User) -> Self {
-        user.event_stream.clone()
+        user.event_stream
     }
 }
 
@@ -106,7 +110,7 @@ impl TryFrom<EventStream> for User {
         let raw_events = event_stream.events();
         let mut user = match try_from_raw_event(raw_events[0].clone())? {
             Event::Created(event) => User {
-                event_stream,
+                event_stream: event_stream.clone(),
                 fetch_requested_at: None,
                 twitter_user_id: event.twitter_user_id().clone(),
                 updated_at: None,
@@ -123,12 +127,12 @@ impl TryFrom<EventStream> for User {
             user = match user_event {
                 Event::Created(_) => return Err(Error::Unknown("invalid event stream".to_owned())),
                 Event::Requested(e) => User {
-                    event_stream,
+                    event_stream: event_stream.clone(),
                     fetch_requested_at: Some(e.at()),
                     ..user
                 },
                 Event::Updated(e) => User {
-                    event_stream,
+                    event_stream: event_stream.clone(),
                     updated_at: Some(e.at()),
                     ..user
                 },
@@ -142,7 +146,7 @@ impl TryFrom<EventStream> for User {
 mod tests {
     use std::str::FromStr;
 
-    use event_store_core::EventStreamId;
+    use event_store_core::EventType;
 
     use super::*;
 
@@ -150,24 +154,21 @@ mod tests {
 
     #[test]
     fn event_stream_conversion_test() -> anyhow::Result<()> {
-        use crate::Event as DomainEvent;
-        use event_store_core::Event as RawEvent;
-        let event_stream_id = EventStreamId::generate();
         let twitter_user_id = TwitterUserId::from_str("123")?;
         let user_id = UserId::generate();
-        let event_stream = EventStream::new(vec![
-            RawEvent::from(DomainEvent::from(UserCreated::new(
-                At::now(),
-                twitter_user_id.clone(),
-                user_id,
-            ))),
-            RawEvent::from(DomainEvent::from(UserRequested::new(
+        let mut event_stream = EventStream::generate2(
+            UserCreated::r#type(),
+            UserCreated::new(At::now(), twitter_user_id.clone(), user_id),
+        );
+        event_stream.push2(
+            UserRequested::r#type(),
+            UserRequested::new(
                 At::now(),
                 twitter_user_id,
                 user_id,
                 UserRequestId::generate(),
-            ))),
-        ])?;
+            ),
+        );
         let user = User::try_from(event_stream.clone())?;
         assert_eq!(EventStream::from(user), event_stream);
         Ok(())
@@ -175,28 +176,28 @@ mod tests {
 
     #[test]
     fn create_test() -> anyhow::Result<()> {
-        use crate::Event as DomainEvent;
+        use event_store_core::EventType as RawEventType;
         let twitter_user_id = "bouzuya".parse::<TwitterUserId>()?;
         let user = User::create(twitter_user_id)?;
-        assert!(matches!(
-            DomainEvent::try_from(user.event_stream.events()[0])?,
-            DomainEvent::UserCreated(_)
-        ));
+        assert_eq!(
+            user.event_stream.events()[0].r#type(),
+            &RawEventType::from(UserCreated::r#type())
+        );
         // TODO: check twitter_user_id
         Ok(())
     }
 
     #[test]
     fn request_test() -> anyhow::Result<()> {
-        use crate::Event as DomainEvent;
+        use event_store_core::EventType as RawEventType;
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
         let mut user = User::create(twitter_user_id)?;
         let at = At::now();
         user.request(at)?;
-        assert!(matches!(
-            DomainEvent::try_from(user.event_stream.events()[1])?,
-            DomainEvent::UserRequested(_)
-        ));
+        assert_eq!(
+            user.event_stream.events()[1].r#type(),
+            &RawEventType::from(UserRequested::r#type()),
+        );
         let at = At::now();
         assert!(user.request(at).is_err());
         assert_eq!(user.event_stream.events().len(), 2);
@@ -205,16 +206,16 @@ mod tests {
 
     #[test]
     fn update_test() -> anyhow::Result<()> {
-        use crate::Event as DomainEvent;
+        use event_store_core::EventType as RawEventType;
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
         let mut user = User::create(twitter_user_id)?;
         let at = At::now();
         let name = TwitterUserName::from_str("bouzuya")?;
         user.update(name, at)?;
-        assert!(matches!(
-            DomainEvent::try_from(user.event_stream.events()[1])?,
-            DomainEvent::UserUpdated(_)
-        ));
+        assert_eq!(
+            user.event_stream.events()[1].r#type(),
+            &RawEventType::from(UserUpdated::r#type())
+        );
         Ok(())
     }
 }

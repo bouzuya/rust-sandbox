@@ -48,7 +48,7 @@ impl UserRequest {
             .events()
             .last()
             .map(|event| {
-                EventType::try_from(*event.r#type()).unwrap() == UserRequestStarted::r#type()
+                EventType::try_from(event.r#type().clone()).unwrap() == UserRequestStarted::r#type()
             })
             .unwrap_or_default()
         {
@@ -59,7 +59,8 @@ impl UserRequest {
         let user_request_finished =
             UserRequestFinished::new(At::now(), self.user_id, self.id, user_response);
         self.event_stream
-            .push2(UserRequestFinished::r#type(), user_request_finished);
+            .push2(UserRequestFinished::r#type(), user_request_finished)
+            .unwrap();
         Ok(())
     }
 
@@ -69,7 +70,7 @@ impl UserRequest {
             .events()
             .last()
             .map(|event| {
-                EventType::try_from(*event.r#type()).unwrap() == UserRequestCreated::r#type()
+                EventType::try_from(event.r#type().clone()).unwrap() == UserRequestCreated::r#type()
             })
             .unwrap_or_default()
         {
@@ -79,7 +80,8 @@ impl UserRequest {
         }
         let user_request_started = UserRequestStarted::new(At::now(), self.id);
         self.event_stream
-            .push2(UserRequestStarted::r#type(), user_request_started);
+            .push2(UserRequestStarted::r#type(), user_request_started)
+            .unwrap();
         Ok(())
     }
 }
@@ -92,25 +94,25 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        use crate::Event as DomainEvent;
+        use event_store_core::EventType as RawEventType;
         let id = UserRequestId::generate();
         let twitter_user_id = TwitterUserId::from_str("bouzuya")?;
         let user_id = UserId::generate();
         let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
-        assert!(matches!(
-            DomainEvent::try_from(user_request.event_stream.events()[0])?,
-            DomainEvent::UserRequestCreated(_)
-        ));
+        assert_eq!(
+            user_request.event_stream.events()[0].r#type(),
+            &RawEventType::from(UserRequestCreated::r#type())
+        );
         user_request.start()?;
-        assert!(matches!(
-            DomainEvent::try_from(user_request.event_stream.events()[1])?,
-            DomainEvent::UserRequestStarted(_)
-        ));
+        assert_eq!(
+            user_request.event_stream.events()[1].r#type(),
+            &RawEventType::from(UserRequestStarted::r#type()),
+        );
         user_request.finish(UserResponse::new(200, "{}".to_owned()))?;
-        assert!(matches!(
-            DomainEvent::try_from(user_request.event_stream.events()[2])?,
-            DomainEvent::UserRequestFinished(_)
-        ));
+        assert_eq!(
+            user_request.event_stream.events()[2].r#type(),
+            &RawEventType::from(UserRequestFinished::r#type()),
+        );
         Ok(())
     }
 }
