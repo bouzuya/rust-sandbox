@@ -1,11 +1,12 @@
 mod event;
 pub mod value;
 
-use event_store_core::{
-    event_id::EventId, event_stream_id::EventStreamId, event_stream_seq::EventStreamSeq,
-};
+use event_store_core::EventStream;
 
-use crate::value::{At, TwitterUserId, UserId, UserRequestId, Version};
+use crate::{
+    event::EventType,
+    value::{At, TwitterUserId, UserId, UserRequestId},
+};
 
 pub use self::event::{Event, UserRequestCreated, UserRequestFinished, UserRequestStarted};
 use self::value::user_response::UserResponse;
@@ -20,10 +21,9 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserRequest {
-    events: Vec<Event>,
+    event_stream: EventStream,
     id: UserRequestId,
     user_id: UserId,
-    version: Version,
 }
 
 impl UserRequest {
@@ -32,72 +32,54 @@ impl UserRequest {
         twitter_user_id: TwitterUserId,
         user_id: UserId,
     ) -> Result<Self> {
-        let stream_seq = EventStreamSeq::from(1);
+        let user_request_created = UserRequestCreated::new(At::now(), twitter_user_id, user_id, id);
+        let event_stream =
+            EventStream::generate2(UserRequestCreated::r#type(), user_request_created);
         Ok(Self {
-            events: vec![Event::Created(UserRequestCreated::new(
-                EventId::generate(),
-                At::now(),
-                EventStreamId::from(id),
-                stream_seq,
-                twitter_user_id,
-                user_id,
-                id,
-            ))],
+            event_stream,
             id,
             user_id,
-            version: Version::from(stream_seq),
         })
     }
 
     pub fn finish(&mut self, user_response: UserResponse) -> Result<()> {
         if !self
-            .events
+            .event_stream
+            .events()
             .last()
-            .map(|event| matches!(event, Event::Started(_)))
+            .map(|event| {
+                EventType::try_from(*event.r#type()).unwrap() == UserRequestStarted::r#type()
+            })
             .unwrap_or_default()
         {
             return Err(Error::Unknown(
                 "user_request status is not started".to_owned(),
             ));
         }
-        let stream_id = EventStreamId::from(self.id);
-        // TODO: error handling
-        let stream_seq = EventStreamSeq::from(self.version).next().unwrap();
-        self.events.push(Event::Finished(UserRequestFinished::new(
-            EventId::generate(),
-            At::now(),
-            stream_id,
-            stream_seq,
-            self.user_id,
-            self.id,
-            user_response,
-        )));
-        self.version = Version::from(stream_seq);
+        let user_request_finished =
+            UserRequestFinished::new(At::now(), self.user_id, self.id, user_response);
+        self.event_stream
+            .push2(UserRequestFinished::r#type(), user_request_finished);
         Ok(())
     }
 
     pub fn start(&mut self) -> Result<()> {
         if !self
-            .events
+            .event_stream
+            .events()
             .last()
-            .map(|event| matches!(event, Event::Created(_)))
+            .map(|event| {
+                EventType::try_from(*event.r#type()).unwrap() == UserRequestCreated::r#type()
+            })
             .unwrap_or_default()
         {
             return Err(Error::Unknown(
                 "user_request status is not created".to_owned(),
             ));
         }
-        let stream_id = EventStreamId::from(self.id);
-        // TODO: error handling
-        let stream_seq = EventStreamSeq::from(self.version).next().unwrap();
-        self.events.push(Event::Started(UserRequestStarted::new(
-            EventId::generate(),
-            At::now(),
-            stream_id,
-            stream_seq,
-            self.id,
-        )));
-        self.version = Version::from(stream_seq);
+        let user_request_started = UserRequestStarted::new(At::now(), self.id);
+        self.event_stream
+            .push2(UserRequestStarted::r#type(), user_request_started);
         Ok(())
     }
 }
@@ -110,15 +92,25 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
+        use crate::Event as DomainEvent;
         let id = UserRequestId::generate();
         let twitter_user_id = TwitterUserId::from_str("bouzuya")?;
         let user_id = UserId::generate();
         let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
-        assert!(matches!(user_request.events[0], Event::Created(_)));
+        assert!(matches!(
+            DomainEvent::try_from(user_request.event_stream.events()[0])?,
+            DomainEvent::UserRequestCreated(_)
+        ));
         user_request.start()?;
-        assert!(matches!(user_request.events[1], Event::Started(_)));
+        assert!(matches!(
+            DomainEvent::try_from(user_request.event_stream.events()[1])?,
+            DomainEvent::UserRequestStarted(_)
+        ));
         user_request.finish(UserResponse::new(200, "{}".to_owned()))?;
-        assert!(matches!(user_request.events[2], Event::Finished(_)));
+        assert!(matches!(
+            DomainEvent::try_from(user_request.event_stream.events()[2])?,
+            DomainEvent::UserRequestFinished(_)
+        ));
         Ok(())
     }
 }

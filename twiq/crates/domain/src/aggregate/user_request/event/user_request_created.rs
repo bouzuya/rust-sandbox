@@ -54,7 +54,7 @@ impl UserRequestCreated {
         self.user_request_id
     }
 
-    fn r#type() -> EventType {
+    pub fn r#type() -> EventType {
         EventType::UserRequestCreated
     }
 }

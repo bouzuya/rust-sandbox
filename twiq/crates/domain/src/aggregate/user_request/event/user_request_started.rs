@@ -36,7 +36,7 @@ impl UserRequestStarted {
         }
     }
 
-    fn r#type() -> EventType {
+    pub fn r#type() -> EventType {
         EventType::UserRequestStarted
     }
 }

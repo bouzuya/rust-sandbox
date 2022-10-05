@@ -64,7 +64,7 @@ impl UserRequestFinished {
         &self.user_response
     }
 
-    fn r#type() -> EventType {
+    pub fn r#type() -> EventType {
         EventType::UserRequestFinished
     }
 }

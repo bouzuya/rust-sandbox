@@ -142,6 +142,8 @@ impl TryFrom<EventStream> for User {
 mod tests {
     use std::str::FromStr;
 
+    use event_store_core::EventStreamId;
+
     use super::*;
 
     // TODO: test twitter_user_id
