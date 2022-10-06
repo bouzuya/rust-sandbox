@@ -230,6 +230,7 @@ pub(crate) mod tests {
 
     use core::fmt::Debug;
 
+    #[allow(dead_code)]
     pub(crate) fn serde_test<T>(o: T, s: &str) -> anyhow::Result<()>
     where
         T: Debug + Eq + serde::de::DeserializeOwned + serde::Serialize,

@@ -6,16 +6,9 @@ use axum::{Extension, Server};
 use db::in_memory_user_repository::InMemoryUserRepository;
 use use_case::{command::request_user, user_repository::HasUserRepository};
 
+#[derive(Default)]
 struct App {
     user_repository: InMemoryUserRepository,
-}
-
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            user_repository: InMemoryUserRepository::default(),
-        }
-    }
 }
 
 impl HasUserRepository for App {

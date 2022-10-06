@@ -146,8 +146,6 @@ impl TryFrom<EventStream> for User {
 mod tests {
     use std::str::FromStr;
 
-    use event_store_core::EventType;
-
     use super::*;
 
     // TODO: test twitter_user_id
@@ -168,7 +166,7 @@ mod tests {
                 user_id,
                 UserRequestId::generate(),
             ),
-        );
+        )?;
         let user = User::try_from(event_stream.clone())?;
         assert_eq!(EventStream::from(user), event_stream);
         Ok(())
