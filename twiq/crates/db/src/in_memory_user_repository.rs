@@ -11,6 +11,7 @@ use crate::in_memory_event_store::InMemoryEventStore;
 #[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
     event_store: Arc<Mutex<InMemoryEventStore>>,
+    user_ids: Arc<Mutex<HashMap<UserId, EventStreamId>>>,
     index: Arc<Mutex<HashMap<TwitterUserId, UserId>>>,
 }
 
@@ -18,7 +19,11 @@ pub struct InMemoryUserRepository {
 impl UserRepository for InMemoryUserRepository {
     async fn find(&self, id: UserId) -> Result<Option<User>> {
         let event_store = self.event_store.lock().await;
-        let event_stream_id = EventStreamId::from(id);
+        let user_ids = self.user_ids.lock().await;
+        let event_stream_id = match user_ids.get(&id) {
+            None => return Ok(None),
+            Some(event_stream_id) => *event_stream_id,
+        };
         let event_stream = event_store
             .find_event_stream(event_stream_id)
             .await
@@ -47,6 +52,7 @@ impl UserRepository for InMemoryUserRepository {
 
     async fn store(&self, before: Option<User>, after: User) -> Result<()> {
         let event_store = self.event_store.lock().await;
+        let mut user_ids = self.user_ids.lock().await;
         let mut index = self.index.lock().await;
         event_store
             .store(
@@ -55,6 +61,7 @@ impl UserRepository for InMemoryUserRepository {
             )
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
+        user_ids.insert(after.id(), after.event_stream().id());
         index.insert(after.twitter_user_id().clone(), after.id());
         Ok(())
     }

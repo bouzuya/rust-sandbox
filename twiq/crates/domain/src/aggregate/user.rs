@@ -66,6 +66,10 @@ impl User {
         Ok(())
     }
 
+    pub fn event_stream(&self) -> &EventStream {
+        &self.event_stream
+    }
+
     pub fn twitter_user_id(&self) -> &TwitterUserId {
         &self.twitter_user_id
     }
