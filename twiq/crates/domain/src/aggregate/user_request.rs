@@ -86,6 +86,56 @@ impl UserRequest {
     }
 }
 
+impl From<UserRequest> for EventStream {
+    fn from(user: UserRequest) -> Self {
+        user.event_stream
+    }
+}
+
+impl TryFrom<EventStream> for UserRequest {
+    type Error = Error;
+
+    fn try_from(event_stream: EventStream) -> Result<Self, Self::Error> {
+        use crate::Event as DomainEvent;
+        use event_store_core::Event as RawEvent;
+        let try_from_raw_event = |raw_event: RawEvent| -> Result<Event, Self::Error> {
+            let domain_event =
+                DomainEvent::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?;
+            let aggregate_event =
+                Event::try_from(domain_event).map_err(|e| Error::Unknown(e.to_string()))?;
+            Ok(aggregate_event)
+        };
+        let raw_events = event_stream.events();
+        let mut user_request = match try_from_raw_event(raw_events[0].clone())? {
+            Event::Created(event) => UserRequest {
+                event_stream: event_stream.clone(),
+                id: event.user_request_id(),
+                user_id: event.user_id(),
+            },
+            _ => {
+                return Err(Error::Unknown(
+                    "first event is not created event".to_owned(),
+                ))
+            }
+        };
+        for raw_event in raw_events.into_iter().skip(1) {
+            let user_request_event = try_from_raw_event(raw_event)?;
+            user_request = match user_request_event {
+                Event::Created(_) => return Err(Error::Unknown("invalid event stream".to_owned())),
+                Event::Started(_) => UserRequest {
+                    event_stream: event_stream.clone(),
+                    ..user_request
+                },
+                Event::Finished(_) => UserRequest {
+                    event_stream: event_stream.clone(),
+                    ..user_request
+                },
+            };
+        }
+        Ok(user_request)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
