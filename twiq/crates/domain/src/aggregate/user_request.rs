@@ -84,6 +84,10 @@ impl UserRequest {
             .unwrap();
         Ok(())
     }
+
+    pub fn id(&self) -> UserRequestId {
+        self.id
+    }
 }
 
 impl From<UserRequest> for EventStream {
@@ -141,6 +145,8 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
+
+    // TODO: test id
 
     #[test]
     fn test() -> anyhow::Result<()> {
