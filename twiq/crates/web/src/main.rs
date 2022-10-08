@@ -3,12 +3,19 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
-use db::in_memory_user_repository::InMemoryUserRepository;
-use use_case::{command::request_user, user_repository::HasUserRepository};
+use db::{
+    in_memory_user_repository::InMemoryUserRepository,
+    in_memory_user_request_repository::InMemoryUserRequestRepository,
+};
+use use_case::{
+    command::request_user, user_repository::HasUserRepository,
+    user_request_repository::HasUserRequestRepository,
+};
 
 #[derive(Default)]
 struct App {
     user_repository: InMemoryUserRepository,
+    user_request_repository: InMemoryUserRequestRepository,
 }
 
 impl HasUserRepository for App {
@@ -16,6 +23,14 @@ impl HasUserRepository for App {
 
     fn user_repository(&self) -> &Self::UserRepository {
         &self.user_repository
+    }
+}
+
+impl HasUserRequestRepository for App {
+    type UserRequestRepository = InMemoryUserRequestRepository;
+
+    fn user_request_repository(&self) -> &Self::UserRequestRepository {
+        &self.user_request_repository
     }
 }
 
