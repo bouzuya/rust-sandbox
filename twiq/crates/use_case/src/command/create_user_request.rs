@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use domain::aggregate::user_request::UserRequest;
 
 use crate::{
@@ -27,10 +28,18 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct Command;
 
-async fn handle<C: HasUserRequestRepository>(
-    context: &C,
-    event: domain::Event,
-) -> worker_helper::Result<()> {
+pub trait Context: WorkerDeps + HasUserRequestRepository {}
+
+impl<T: WorkerDeps + HasUserRequestRepository> Context for T {}
+
+#[async_trait]
+pub trait Has: Context + Sized {
+    async fn create_user_request(&self, command: Command) -> worker_helper::Result<()> {
+        handler(self, command).await
+    }
+}
+
+async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper::Result<()> {
     if let domain::Event::UserRequested(event) = event {
         let user_request_repository = context.user_request_repository();
         if user_request_repository
@@ -49,10 +58,7 @@ async fn handle<C: HasUserRequestRepository>(
     Ok(())
 }
 
-pub async fn handler<C: WorkerDeps + HasUserRequestRepository>(
-    context: &C,
-    _: Command,
-) -> worker_helper::Result<()> {
+pub async fn handler<C: Context>(context: &C, _: Command) -> worker_helper::Result<()> {
     worker_helper::worker(context, WorkerName::CreateUserRequest, handle).await
 }
 

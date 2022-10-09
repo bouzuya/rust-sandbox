@@ -9,6 +9,8 @@ use crate::{
 
 pub trait WorkerDeps: HasEventStore + HasWorkerRepository {}
 
+impl<T: HasEventStore + HasWorkerRepository> WorkerDeps for T {}
+
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("event {0}")]

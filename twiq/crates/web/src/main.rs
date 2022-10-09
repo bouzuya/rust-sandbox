@@ -4,18 +4,32 @@ use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
 use db::{
-    in_memory_user_repository::InMemoryUserRepository,
+    in_memory_event_store::InMemoryEventStore, in_memory_user_repository::InMemoryUserRepository,
     in_memory_user_request_repository::InMemoryUserRequestRepository,
+    in_memory_worker_repository::InMemoryWorkerRepository,
 };
 use use_case::{
-    command::request_user, user_repository::HasUserRepository,
+    command::{create_user_request, request_user},
+    event_store::HasEventStore,
+    user_repository::HasUserRepository,
     user_request_repository::HasUserRequestRepository,
+    worker_repository::HasWorkerRepository,
 };
 
 #[derive(Default)]
 struct App {
+    event_store: InMemoryEventStore,
     user_repository: InMemoryUserRepository,
     user_request_repository: InMemoryUserRequestRepository,
+    worker_repository: InMemoryWorkerRepository,
+}
+
+impl HasEventStore for App {
+    type EventStore = InMemoryEventStore;
+
+    fn event_store(&self) -> &Self::EventStore {
+        &self.event_store
+    }
 }
 
 impl HasUserRepository for App {
@@ -34,7 +48,16 @@ impl HasUserRequestRepository for App {
     }
 }
 
+impl HasWorkerRepository for App {
+    type WorkerRepository = InMemoryWorkerRepository;
+
+    fn worker_repository(&self) -> &Self::WorkerRepository {
+        &self.worker_repository
+    }
+}
+
 impl request_user::Has for App {}
+impl create_user_request::Has for App {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
