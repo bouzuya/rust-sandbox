@@ -73,7 +73,7 @@ impl From<UserRequested> for EventPayload {
             at: event.at.to_string(),
             twitter_user_id: event.twitter_user_id.to_string(),
             user_id: event.user_id.to_string(),
-            user_request_id: event.user_id.to_string(),
+            user_request_id: event.user_request_id.to_string(),
         })
         .unwrap()
     }

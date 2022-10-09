@@ -113,7 +113,7 @@ mod tests {
         let e = EventPayload::from_structured(&Payload {
             at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             twitter_user_id: "twitter_user_id1".to_owned(),
-            user_id: "c274a425-baed-4252-9f92-ed8d7e84a096".to_owned(),
+            user_id: "682106dd-b94c-4bd1-a808-e74b3d3fb56a".to_owned(),
             user_request_id: "71fd7633-14e1-4230-a1b1-22a461296fc1".to_owned(),
         })?;
         assert_eq!(EventPayload::from(o.clone()), e);
