@@ -28,17 +28,17 @@ mod tests {
     use std::str::FromStr;
 
     use axum::async_trait;
-    use domain::aggregate::user::TwitterUserId;
+    use domain::{aggregate::user::TwitterUserId, event::EventType};
     use hyper::{Body, Request, StatusCode};
     use tower::ServiceExt;
     use use_case::{
         command::request_user,
-        event_store::HasEventStore,
+        event_store::{EventStore, HasEventStore},
         in_memory_event_store::InMemoryEventStore,
         in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
         in_memory_worker_repository::InMemoryWorkerRepository,
-        user_repository::{HasUserRepository, UserRepository},
+        user_repository::HasUserRepository,
         user_request_repository::HasUserRequestRepository,
         worker_repository::HasWorkerRepository,
     };
@@ -94,6 +94,17 @@ mod tests {
     #[async_trait]
     impl create_user_request::Has for MockApp {}
 
+    impl HasUserRepository for MockApp {
+        type UserRepository = InMemoryUserRepository;
+
+        fn user_repository(&self) -> &Self::UserRepository {
+            &self.user_repository
+        }
+    }
+
+    #[async_trait]
+    impl request_user::Has for MockApp {}
+
     #[tokio::test]
     async fn test_no_events() -> anyhow::Result<()> {
         let router = router::<MockApp>();
@@ -103,6 +114,45 @@ mod tests {
         let (status, body) = post_request(router, "/_workers/create_user_request").await?;
         assert_eq!(status, StatusCode::OK);
         assert_eq!(body, r#""#);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let router = router::<MockApp>();
+        let application = MockApp::default();
+        let event_store = application.event_store.clone();
+
+        // add UserRequested event
+        let twitter_user_id = TwitterUserId::from_str("125962981")?;
+        request_user::Has::request_user(
+            &application,
+            request_user::Command {
+                twitter_user_id: twitter_user_id.clone(),
+            },
+        )
+        .await?;
+
+        let application = Arc::new(application);
+        let router = router.layer(Extension(application.clone()));
+        let (status, body) = post_request(router, "/_workers/create_user_request").await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, r#""#);
+
+        let event_types = event_store
+            .find_events(None)
+            .await?
+            .into_iter()
+            .map(|event| EventType::try_from(event.r#type().clone()).map_err(anyhow::Error::from))
+            .collect::<anyhow::Result<Vec<EventType>>>()?;
+        assert_eq!(
+            event_types,
+            vec![
+                EventType::UserCreated,
+                EventType::UserRequested,
+                EventType::UserRequestCreated
+            ]
+        );
         Ok(())
     }
 
