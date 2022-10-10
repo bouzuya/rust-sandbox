@@ -3,11 +3,16 @@ mod users_show;
 mod worker;
 
 use axum::Router;
-use use_case::command::{create_user_request, request_user};
+use use_case::command::{create_user_request, request_user, send_user_request};
 
 pub(crate) fn router<T>() -> Router
 where
-    T: create_user_request::Has + request_user::Has + Send + Sync + 'static,
+    T: create_user_request::Has
+        + request_user::Has
+        + send_user_request::Has
+        + Send
+        + Sync
+        + 'static,
 {
     Router::new()
         .merge(healthz::router())

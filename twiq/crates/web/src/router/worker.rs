@@ -1,16 +1,21 @@
 use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing, Extension, Router};
-use use_case::command::create_user_request;
+use use_case::command::{create_user_request, send_user_request};
 
 pub(crate) fn router<T>() -> Router
 where
-    T: create_user_request::Has + Send + Sync + 'static,
+    T: create_user_request::Has + send_user_request::Has + Send + Sync + 'static,
 {
-    Router::new().route(
-        "/_workers/create_user_request",
-        routing::post(create_user_request::<T>),
-    )
+    Router::new()
+        .route(
+            "/_workers/create_user_request",
+            routing::post(create_user_request::<T>),
+        )
+        .route(
+            "/_workers/send_user_request",
+            routing::post(send_user_request::<T>),
+        )
 }
 
 async fn create_user_request<T>(Extension(application): Extension<Arc<T>>) -> impl IntoResponse
@@ -19,6 +24,16 @@ where
 {
     let _ = application
         .create_user_request(create_user_request::Command)
+        .await;
+    ""
+}
+
+async fn send_user_request<T>(Extension(application): Extension<Arc<T>>) -> impl IntoResponse
+where
+    T: send_user_request::Has + Send + Sync,
+{
+    let _ = application
+        .send_user_request(send_user_request::Command)
         .await;
     ""
 }
@@ -105,8 +120,11 @@ mod tests {
     #[async_trait]
     impl request_user::Has for MockApp {}
 
+    #[async_trait]
+    impl send_user_request::Has for MockApp {}
+
     #[tokio::test]
-    async fn test_no_events() -> anyhow::Result<()> {
+    async fn test_create_user_request_no_events() -> anyhow::Result<()> {
         let router = router::<MockApp>();
         let application = MockApp::default();
         let application = Arc::new(application);
@@ -118,7 +136,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test() -> anyhow::Result<()> {
+    async fn test_create_user_request() -> anyhow::Result<()> {
         let router = router::<MockApp>();
         let application = MockApp::default();
         let event_store = application.event_store.clone();
@@ -155,6 +173,20 @@ mod tests {
         );
         Ok(())
     }
+
+    #[tokio::test]
+    async fn test_send_user_request_no_events() -> anyhow::Result<()> {
+        let router = router::<MockApp>();
+        let application = MockApp::default();
+        let application = Arc::new(application);
+        let router = router.layer(Extension(application));
+        let (status, body) = post_request(router, "/_workers/send_user_request").await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, r#""#);
+        Ok(())
+    }
+
+    // TODO: test_send_user_request
 
     async fn post_request(router: Router, uri: &str) -> anyhow::Result<(StatusCode, String)> {
         let request = Request::post(uri).body(Body::empty())?;

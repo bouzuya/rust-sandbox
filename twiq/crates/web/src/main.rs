@@ -4,7 +4,7 @@ use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
 use use_case::{
-    command::{create_user_request, request_user},
+    command::{create_user_request, request_user, send_user_request},
     event_store::HasEventStore,
     in_memory_event_store::InMemoryEventStore,
     in_memory_user_repository::InMemoryUserRepository,
@@ -57,6 +57,7 @@ impl HasWorkerRepository for App {
 
 impl request_user::Has for App {}
 impl create_user_request::Has for App {}
+impl send_user_request::Has for App {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
