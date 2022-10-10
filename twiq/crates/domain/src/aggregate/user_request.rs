@@ -146,7 +146,15 @@ mod tests {
 
     use super::*;
 
-    // TODO: test id
+    #[test]
+    fn id_test() -> anyhow::Result<()> {
+        let id = UserRequestId::generate();
+        let twitter_user_id = TwitterUserId::from_str("125962981")?;
+        let user_id = UserId::generate();
+        let user_request = UserRequest::create(id, twitter_user_id, user_id)?;
+        assert_eq!(user_request.id(), id);
+        Ok(())
+    }
 
     #[test]
     fn test() -> anyhow::Result<()> {
