@@ -1,9 +1,9 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::worker_repository::{Error, Result, WorkerName, WorkerRepository};
 use async_trait::async_trait;
 use event_store_core::EventId;
 use tokio::sync::Mutex;
-use use_case::worker_repository::{Error, Result, WorkerName, WorkerRepository};
 
 #[derive(Debug, Default)]
 pub struct InMemoryWorkerRepository {

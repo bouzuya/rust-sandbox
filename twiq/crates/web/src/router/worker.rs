@@ -26,16 +26,13 @@ where
 #[cfg(test)]
 mod tests {
     use axum::async_trait;
-    use db::{
-        in_memory_event_store::InMemoryEventStore,
-        in_memory_user_request_repository::InMemoryUserRequestRepository,
-        in_memory_worker_repository::InMemoryWorkerRepository,
-    };
     use hyper::{Body, Request, StatusCode};
     use tower::ServiceExt;
     use use_case::{
-        event_store::HasEventStore, user_request_repository::HasUserRequestRepository,
-        worker_repository::HasWorkerRepository,
+        event_store::HasEventStore, in_memory_event_store::InMemoryEventStore,
+        in_memory_user_request_repository::InMemoryUserRequestRepository,
+        in_memory_worker_repository::InMemoryWorkerRepository,
+        user_request_repository::HasUserRequestRepository, worker_repository::HasWorkerRepository,
     };
 
     use super::*;

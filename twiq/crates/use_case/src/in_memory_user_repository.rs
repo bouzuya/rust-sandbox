@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::user_repository::{Error, Result, UserRepository};
 use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
 use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
 use tokio::sync::Mutex;
-use use_case::user_repository::{Error, Result, UserRepository};
 
 use crate::in_memory_event_store::InMemoryEventStore;
 

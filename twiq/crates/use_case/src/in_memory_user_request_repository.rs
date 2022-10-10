@@ -1,10 +1,10 @@
 use std::{collections::HashMap, sync::Arc};
 
+use crate::user_request_repository::{Error, Result, UserRequestRepository};
 use async_trait::async_trait;
 use domain::aggregate::{user::UserRequestId, user_request::UserRequest};
 use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
 use tokio::sync::Mutex;
-use use_case::user_request_repository::{Error, Result, UserRequestRepository};
 
 use crate::in_memory_event_store::InMemoryEventStore;
 

@@ -3,14 +3,13 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
-use db::{
-    in_memory_event_store::InMemoryEventStore, in_memory_user_repository::InMemoryUserRepository,
-    in_memory_user_request_repository::InMemoryUserRequestRepository,
-    in_memory_worker_repository::InMemoryWorkerRepository,
-};
 use use_case::{
     command::{create_user_request, request_user},
     event_store::HasEventStore,
+    in_memory_event_store::InMemoryEventStore,
+    in_memory_user_repository::InMemoryUserRepository,
+    in_memory_user_request_repository::InMemoryUserRequestRepository,
+    in_memory_worker_repository::InMemoryWorkerRepository,
     user_repository::HasUserRepository,
     user_request_repository::HasUserRequestRepository,
     worker_repository::HasWorkerRepository,

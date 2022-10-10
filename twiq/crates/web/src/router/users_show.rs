@@ -31,9 +31,10 @@ where
 #[cfg(test)]
 mod tests {
     use axum::async_trait;
-    use db::in_memory_user_repository::InMemoryUserRepository;
     use hyper::StatusCode;
-    use use_case::user_repository::HasUserRepository;
+    use use_case::{
+        in_memory_user_repository::InMemoryUserRepository, user_repository::HasUserRepository,
+    };
 
     use crate::router::tests::test_get_request;
 
