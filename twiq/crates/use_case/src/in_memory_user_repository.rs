@@ -10,21 +10,31 @@ use crate::in_memory_event_store::InMemoryEventStore;
 
 #[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
-    event_store: Arc<Mutex<InMemoryEventStore>>,
+    event_store: InMemoryEventStore,
     user_ids: Arc<Mutex<HashMap<UserId, EventStreamId>>>,
     index: Arc<Mutex<HashMap<TwitterUserId, UserId>>>,
+}
+
+impl InMemoryUserRepository {
+    pub fn new(empty_event_store: InMemoryEventStore) -> Self {
+        Self {
+            event_store: empty_event_store,
+            user_ids: Default::default(),
+            index: Default::default(),
+        }
+    }
 }
 
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn find(&self, id: UserId) -> Result<Option<User>> {
-        let event_store = self.event_store.lock().await;
         let user_ids = self.user_ids.lock().await;
         let event_stream_id = match user_ids.get(&id) {
             None => return Ok(None),
             Some(event_stream_id) => *event_stream_id,
         };
-        let event_stream = event_store
+        let event_stream = self
+            .event_store
             .find_event_stream(event_stream_id)
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
@@ -51,10 +61,9 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn store(&self, before: Option<User>, after: User) -> Result<()> {
-        let event_store = self.event_store.lock().await;
         let mut user_ids = self.user_ids.lock().await;
         let mut index = self.index.lock().await;
-        event_store
+        self.event_store
             .store(
                 before.map(|user| EventStream::from(user).seq()),
                 EventStream::from(after.clone()),

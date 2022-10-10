@@ -25,23 +25,46 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use axum::async_trait;
+    use domain::aggregate::user::TwitterUserId;
     use hyper::{Body, Request, StatusCode};
     use tower::ServiceExt;
     use use_case::{
-        event_store::HasEventStore, in_memory_event_store::InMemoryEventStore,
+        command::request_user,
+        event_store::HasEventStore,
+        in_memory_event_store::InMemoryEventStore,
+        in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
         in_memory_worker_repository::InMemoryWorkerRepository,
-        user_request_repository::HasUserRequestRepository, worker_repository::HasWorkerRepository,
+        user_repository::{HasUserRepository, UserRepository},
+        user_request_repository::HasUserRequestRepository,
+        worker_repository::HasWorkerRepository,
     };
 
     use super::*;
 
-    #[derive(Debug, Default)]
+    #[derive(Debug)]
     struct MockApp {
         event_store: InMemoryEventStore,
+        user_repository: InMemoryUserRepository,
         user_request_repository: InMemoryUserRequestRepository,
         worker_repository: InMemoryWorkerRepository,
+    }
+
+    impl Default for MockApp {
+        fn default() -> Self {
+            let event_store = InMemoryEventStore::default();
+            let user_repository = InMemoryUserRepository::new(event_store.clone());
+            let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
+            Self {
+                event_store,
+                user_repository,
+                user_request_repository,
+                worker_repository: Default::default(),
+            }
+        }
     }
 
     impl HasEventStore for MockApp {
