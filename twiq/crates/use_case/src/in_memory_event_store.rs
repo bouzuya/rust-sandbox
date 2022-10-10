@@ -9,7 +9,7 @@ use event_store_core::{
     Event, EventId, EventStream, EventStreamId, EventStreamSeq,
 };
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct InMemoryEventStore {
     events: Arc<Mutex<Vec<Event>>>,
     event_ids: Arc<Mutex<HashMap<EventId, usize>>>,
