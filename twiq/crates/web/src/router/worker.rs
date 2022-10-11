@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing, Extension, Router};
-use use_case::command::{create_user_request, send_user_request};
+use use_case::command::{create_user_request, send_user_request, update_user};
 
 pub(crate) fn router<T>() -> Router
 where
-    T: create_user_request::Has + send_user_request::Has + Send + Sync + 'static,
+    T: create_user_request::Has + send_user_request::Has + update_user::Has + Send + Sync + 'static,
 {
     Router::new()
         .route(
@@ -16,6 +16,7 @@ where
             "/_workers/send_user_request",
             routing::post(send_user_request::<T>),
         )
+        .route("/_workers/update_user", routing::post(update_user::<T>))
 }
 
 async fn create_user_request<T>(Extension(application): Extension<Arc<T>>) -> impl IntoResponse
@@ -35,6 +36,14 @@ where
     let _ = application
         .send_user_request(send_user_request::Command)
         .await;
+    ""
+}
+
+async fn update_user<T>(Extension(application): Extension<Arc<T>>) -> impl IntoResponse
+where
+    T: update_user::Has + Send + Sync,
+{
+    let _ = application.update_user(update_user::Command).await;
     ""
 }
 
@@ -123,6 +132,9 @@ mod tests {
     #[async_trait]
     impl send_user_request::Has for MockApp {}
 
+    #[async_trait]
+    impl update_user::Has for MockApp {}
+
     #[tokio::test]
     async fn test_create_user_request_no_events() -> anyhow::Result<()> {
         let router = router::<MockApp>();
@@ -187,6 +199,20 @@ mod tests {
     }
 
     // TODO: test_send_user_request
+
+    #[tokio::test]
+    async fn test_update_user_no_events() -> anyhow::Result<()> {
+        let router = router::<MockApp>();
+        let application = MockApp::default();
+        let application = Arc::new(application);
+        let router = router.layer(Extension(application));
+        let (status, body) = post_request(router, "/_workers/update_user").await?;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, r#""#);
+        Ok(())
+    }
+
+    // TODO: test_update_user
 
     async fn post_request(router: Router, uri: &str) -> anyhow::Result<(StatusCode, String)> {
         let request = Request::post(uri).body(Body::empty())?;

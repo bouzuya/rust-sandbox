@@ -1,3 +1,5 @@
+use async_trait::async_trait;
+
 use crate::{
     user_repository::{HasUserRepository, UserRepository},
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
@@ -8,10 +10,18 @@ use super::worker_helper::{self, WorkerDeps};
 
 pub struct Command;
 
-async fn handle<C: HasUserRepository + HasUserRequestRepository>(
-    context: &C,
-    event: domain::Event,
-) -> worker_helper::Result<()> {
+pub trait Context: WorkerDeps + HasUserRepository + HasUserRequestRepository {}
+
+impl<T: WorkerDeps + HasUserRepository + HasUserRequestRepository> Context for T {}
+
+#[async_trait]
+pub trait Has: Context + Sized {
+    async fn update_user(&self, command: Command) -> worker_helper::Result<()> {
+        handler(self, command).await
+    }
+}
+
+async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper::Result<()> {
     if let domain::Event::UserRequestFinished(event) = event {
         let user_repository = context.user_repository();
         let user_request_repository = context.user_request_repository();
@@ -36,10 +46,7 @@ async fn handle<C: HasUserRepository + HasUserRequestRepository>(
     Ok(())
 }
 
-pub async fn handler<C>(context: &C, _: Command) -> worker_helper::Result<()>
-where
-    C: WorkerDeps + HasUserRepository + HasUserRequestRepository,
-{
+pub async fn handler<C: Context>(context: &C, _: Command) -> worker_helper::Result<()> {
     worker_helper::worker(context, WorkerName::UpdateUser, handle).await
 }
 
