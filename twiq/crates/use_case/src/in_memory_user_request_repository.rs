@@ -45,18 +45,18 @@ impl UserRequestRepository for InMemoryUserRequestRepository {
     }
 
     async fn store(&self, before: Option<UserRequest>, after: UserRequest) -> Result<()> {
-        let mut user_request_ids = self.aggregate_ids.lock().await;
+        let mut aggregate_ids = self.aggregate_ids.lock().await;
         let aggregate_id = after.id();
         let event_stream = EventStream::from(after);
         let event_stream_id = event_stream.id();
         self.event_store
             .store(
-                before.map(|user_request| EventStream::from(user_request).seq()),
+                before.map(|aggregate| EventStream::from(aggregate).seq()),
                 event_stream,
             )
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        user_request_ids.insert(aggregate_id, event_stream_id);
+        aggregate_ids.insert(aggregate_id, event_stream_id);
         Ok(())
     }
 }

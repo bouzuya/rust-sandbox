@@ -11,7 +11,7 @@ use crate::in_memory_event_store::InMemoryEventStore;
 #[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
     event_store: InMemoryEventStore,
-    user_ids: Arc<Mutex<HashMap<UserId, EventStreamId>>>,
+    aggregate_ids: Arc<Mutex<HashMap<UserId, EventStreamId>>>,
     index: Arc<Mutex<HashMap<TwitterUserId, UserId>>>,
 }
 
@@ -19,7 +19,7 @@ impl InMemoryUserRepository {
     pub fn new(empty_event_store: InMemoryEventStore) -> Self {
         Self {
             event_store: empty_event_store,
-            user_ids: Default::default(),
+            aggregate_ids: Default::default(),
             index: Default::default(),
         }
     }
@@ -28,7 +28,7 @@ impl InMemoryUserRepository {
 #[async_trait]
 impl UserRepository for InMemoryUserRepository {
     async fn find(&self, id: UserId) -> Result<Option<User>> {
-        let user_ids = self.user_ids.lock().await;
+        let user_ids = self.aggregate_ids.lock().await;
         let event_stream_id = match user_ids.get(&id) {
             None => return Ok(None),
             Some(event_stream_id) => *event_stream_id,
@@ -61,17 +61,21 @@ impl UserRepository for InMemoryUserRepository {
     }
 
     async fn store(&self, before: Option<User>, after: User) -> Result<()> {
-        let mut user_ids = self.user_ids.lock().await;
+        let mut aggregate_ids = self.aggregate_ids.lock().await;
         let mut index = self.index.lock().await;
+        let unique_key1 = after.twitter_user_id().clone();
+        let aggregate_id = after.id();
+        let event_stream = EventStream::from(after);
+        let event_stream_id = event_stream.id();
         self.event_store
             .store(
-                before.map(|user| EventStream::from(user).seq()),
-                EventStream::from(after.clone()),
+                before.map(|aggregate| EventStream::from(aggregate).seq()),
+                event_stream,
             )
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        user_ids.insert(after.id(), after.event_stream().id());
-        index.insert(after.twitter_user_id().clone(), after.id());
+        aggregate_ids.insert(aggregate_id, event_stream_id);
+        index.insert(unique_key1, aggregate_id);
         Ok(())
     }
 }
