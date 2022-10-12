@@ -46,6 +46,10 @@ impl UserRequestCreated {
         }
     }
 
+    pub fn twitter_user_id(&self) -> &TwitterUserId {
+        &self.twitter_user_id
+    }
+
     pub fn user_id(&self) -> UserId {
         self.user_id
     }
@@ -99,6 +103,7 @@ mod tests {
 
     use super::*;
 
+    // TODO: test twitter_user_id
     // TODO: test user_id
     // TODO: test user_request_id
 

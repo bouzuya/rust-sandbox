@@ -61,8 +61,8 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
 
         // TODO: error handling
         let bearer_token = env::var("TWITTER_BEARER_TOKEN").unwrap();
-        let user_id = event.user_id().to_string();
-        let (status, body) = get_user(&bearer_token, &user_id).await.unwrap();
+        let twitter_user_id = event.twitter_user_id().to_string();
+        let (status, body) = get_user(&bearer_token, &twitter_user_id).await.unwrap();
 
         user_request.finish(UserResponse::new(status, body))?;
         let before = user_request.clone();
