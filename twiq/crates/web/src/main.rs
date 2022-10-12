@@ -15,12 +15,25 @@ use use_case::{
     worker_repository::HasWorkerRepository,
 };
 
-#[derive(Default)]
 struct App {
     event_store: InMemoryEventStore,
     user_repository: InMemoryUserRepository,
     user_request_repository: InMemoryUserRequestRepository,
     worker_repository: InMemoryWorkerRepository,
+}
+
+impl Default for App {
+    fn default() -> Self {
+        let event_store = InMemoryEventStore::default();
+        let user_repository = InMemoryUserRepository::new(event_store.clone());
+        let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
+        Self {
+            event_store,
+            user_repository,
+            user_request_repository,
+            worker_repository: Default::default(),
+        }
+    }
 }
 
 impl HasEventStore for App {
