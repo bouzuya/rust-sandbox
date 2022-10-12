@@ -75,6 +75,7 @@ impl update_user::Has for App {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
     let app = App::default();
     let app = Arc::new(app);
     let app = router::router::<App>().layer(Extension(app));

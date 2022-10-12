@@ -11,6 +11,7 @@ axum = "0.5.15"
 db = { path = "../db" }
 domain = { path = "../domain" }
 tokio = { version = "1.20.1", features = ["full"] }
+tracing-subscriber = "0.3.16"
 use_case = { path = "../use_case" }
 
 [dev-dependencies]

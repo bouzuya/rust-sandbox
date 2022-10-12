@@ -8,6 +8,7 @@ use event_store_core::{
     event_store::{Error, EventStore, Result},
     Event, EventId, EventStream, EventStreamId, EventStreamSeq,
 };
+use tracing::{debug, instrument};
 
 #[derive(Clone, Debug, Default)]
 pub struct InMemoryEventStore {
@@ -62,11 +63,13 @@ impl EventStore for InMemoryEventStore {
     }
 
     // = store_event_stream
+    #[instrument(skip_all)]
     async fn store(
         &self,
         current: Option<EventStreamSeq>,
         event_stream: EventStream,
     ) -> Result<()> {
+        debug!("event_stream = {:?}", event_stream);
         let mut event_ids = self.event_ids.lock().unwrap();
         let mut event_streams = self.event_streams.lock().unwrap();
         let mut events = self.events.lock().unwrap();
