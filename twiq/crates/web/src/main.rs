@@ -5,7 +5,7 @@ use std::{env, sync::Arc};
 use axum::{Extension, Server};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
-use tracing::Level;
+use tracing::{info, Level};
 use use_case::{
     command::{create_user_request, request_user, send_user_request, update_user},
     event_store::HasEventStore,
@@ -94,6 +94,7 @@ async fn main() -> anyhow::Result<()> {
     let host = "0.0.0.0";
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("{}:{}", host, port).parse()?;
+    info!("Listening on {}", addr);
     Server::bind(&addr).serve(app.into_make_service()).await?;
     Ok(())
 }
