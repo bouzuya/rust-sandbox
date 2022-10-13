@@ -3,6 +3,8 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
+use tower::ServiceBuilder;
+use tower_http::trace::TraceLayer;
 use use_case::{
     command::{create_user_request, request_user, send_user_request, update_user},
     event_store::HasEventStore,
@@ -78,7 +80,11 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let app = App::default();
     let app = Arc::new(app);
-    let app = router::router::<App>().layer(Extension(app));
+    let app = router::router::<App>().layer(
+        ServiceBuilder::new()
+            .layer(TraceLayer::new_for_http())
+            .layer(Extension(app)),
+    );
     let host = "0.0.0.0";
     let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let addr = format!("{}:{}", host, port).parse()?;
