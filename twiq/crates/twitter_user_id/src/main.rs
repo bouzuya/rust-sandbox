@@ -41,6 +41,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore = "TWITTER_BEARER_TOKEN env"]
     async fn test() -> anyhow::Result<()> {
         let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
         let username = "bouzuya";
