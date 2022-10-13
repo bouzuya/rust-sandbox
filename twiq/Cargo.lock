@@ -865,6 +865,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "query_handler"
+version = "0.0.0"
+dependencies = [
+ "domain",
+]
+
+[[package]]
 name = "quote"
 version = "1.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"

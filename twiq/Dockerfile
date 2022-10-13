@@ -14,6 +14,9 @@ COPY ./crates/event_store_core/Cargo.toml ./crates/event_store_core/Cargo.toml
 RUN mkdir -p crates/import_twitter_data/src/
 RUN echo "fn main() {}" > ./crates/import_twitter_data/src/main.rs
 COPY ./crates/import_twitter_data/Cargo.toml ./crates/import_twitter_data/Cargo.toml
+RUN mkdir -p crates/query_handler/src/
+RUN echo "fn main() {}" > ./crates/query_handler/src/main.rs
+COPY ./crates/query_handler/Cargo.toml ./crates/query_handler/Cargo.toml
 RUN mkdir -p crates/twitter_user_id/src/
 RUN echo "fn main() {}" > ./crates/twitter_user_id/src/main.rs
 COPY ./crates/twitter_user_id/Cargo.toml ./crates/twitter_user_id/Cargo.toml
@@ -30,6 +33,7 @@ RUN rm ./crates/db/src/main.rs
 RUN rm ./crates/domain/src/main.rs
 RUN rm ./crates/event_store_core/src/main.rs
 RUN rm ./crates/import_twitter_data/src/main.rs
+RUN rm ./crates/query_handler/src/main.rs
 RUN rm ./crates/twitter_user_id/src/main.rs
 RUN rm ./crates/use_case/src/main.rs
 RUN rm ./crates/web/src/main.rs
