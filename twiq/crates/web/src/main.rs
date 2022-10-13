@@ -4,7 +4,8 @@ use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
 use tower::ServiceBuilder;
-use tower_http::trace::TraceLayer;
+use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
+use tracing::Level;
 use use_case::{
     command::{create_user_request, request_user, send_user_request, update_user},
     event_store::HasEventStore,
@@ -82,7 +83,12 @@ async fn main() -> anyhow::Result<()> {
     let app = Arc::new(app);
     let app = router::router::<App>().layer(
         ServiceBuilder::new()
-            .layer(TraceLayer::new_for_http())
+            .layer(
+                TraceLayer::new_for_http()
+                    .make_span_with(DefaultMakeSpan::new().include_headers(true))
+                    .on_request(DefaultOnRequest::new().level(Level::INFO))
+                    .on_response(DefaultOnResponse::new().level(Level::INFO)),
+            )
             .layer(Extension(app)),
     );
     let host = "0.0.0.0";
