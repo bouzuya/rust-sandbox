@@ -7,6 +7,7 @@ pub mod worker_helper;
 pub enum Command {
     CreateUserRequest(self::create_user_request::Command),
     RequestUser(self::request_user::Command),
+    SendUserRequest(self::send_user_request::Command),
     UpdateUser(self::update_user::Command),
 }
 
