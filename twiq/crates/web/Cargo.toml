@@ -10,6 +10,7 @@ anyhow = { version = "1.0.60", features = ["backtrace"] }
 axum = "0.5.15"
 db = { path = "../db" }
 domain = { path = "../domain" }
+query_handler = { path = "../query_handler" }
 tokio = { version = "1.20.1", features = ["full"] }
 tower = "0.4.13"
 tower-http = { version = "0.3.4", features = ["trace"] }

@@ -3,6 +3,7 @@ mod users_show;
 mod worker;
 
 use axum::Router;
+use query_handler::user_store::HasUserStore;
 use use_case::command::{create_user_request, request_user, send_user_request, update_user};
 
 pub(crate) fn router<T>() -> Router
@@ -11,6 +12,7 @@ where
         + request_user::Has
         + send_user_request::Has
         + update_user::Has
+        + HasUserStore
         + Send
         + Sync
         + 'static,

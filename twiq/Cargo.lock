@@ -1632,6 +1632,7 @@ dependencies = [
  "db",
  "domain",
  "hyper",
+ "query_handler",
  "tokio",
  "tower",
  "tower-http",

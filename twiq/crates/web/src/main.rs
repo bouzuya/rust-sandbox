@@ -3,6 +3,7 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
+use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
@@ -22,6 +23,7 @@ struct App {
     event_store: InMemoryEventStore,
     user_repository: InMemoryUserRepository,
     user_request_repository: InMemoryUserRequestRepository,
+    user_store: InMemoryUserStore,
     worker_repository: InMemoryWorkerRepository,
 }
 
@@ -30,10 +32,12 @@ impl Default for App {
         let event_store = InMemoryEventStore::default();
         let user_repository = InMemoryUserRepository::new(event_store.clone());
         let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
+        let user_store = InMemoryUserStore::default();
         Self {
             event_store,
             user_repository,
             user_request_repository,
+            user_store,
             worker_repository: Default::default(),
         }
     }
@@ -75,6 +79,14 @@ impl request_user::Has for App {}
 impl create_user_request::Has for App {}
 impl send_user_request::Has for App {}
 impl update_user::Has for App {}
+
+impl HasUserStore for App {
+    type UserStore = InMemoryUserStore;
+
+    fn user_store(&self) -> &Self::UserStore {
+        &self.user_store
+    }
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
