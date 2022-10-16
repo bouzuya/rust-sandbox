@@ -1743,3 +1743,18 @@ checksum = "80d0f4e272c85def139476380b12f9ac60926689dd2e01d4923222f40580869d"
 dependencies = [
  "winapi",
 ]
+
+[[package]]
+name = "worker"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "domain",
+ "event_store_core",
+ "reqwest",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "use_case",
+]

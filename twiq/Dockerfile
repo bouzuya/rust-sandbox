@@ -26,6 +26,9 @@ COPY ./crates/use_case/Cargo.toml ./crates/use_case/Cargo.toml
 RUN mkdir -p crates/web/src/
 RUN echo "fn main() {}" > ./crates/web/src/main.rs
 COPY ./crates/web/Cargo.toml ./crates/web/Cargo.toml
+RUN mkdir -p crates/worker/src/
+RUN echo "fn main() {}" > ./crates/worker/src/main.rs
+COPY ./crates/worker/Cargo.toml ./crates/worker/Cargo.toml
 
 RUN cargo build --release
 
@@ -37,6 +40,7 @@ RUN rm ./crates/query_handler/src/main.rs
 RUN rm ./crates/twitter_user_id/src/main.rs
 RUN rm ./crates/use_case/src/main.rs
 RUN rm ./crates/web/src/main.rs
+RUN rm ./crates/worker/src/main.rs
 
 COPY . .
 RUN cargo install --path ./crates/web
