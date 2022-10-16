@@ -54,6 +54,18 @@ impl UserUpdated {
     pub(in crate::aggregate::user) fn r#type() -> EventType {
         EventType::UserUpdated
     }
+
+    pub fn twitter_user_id(&self) -> &TwitterUserId {
+        &self.twitter_user_id
+    }
+
+    pub fn twitter_user_name(&self) -> &TwitterUserName {
+        &self.twitter_user_name
+    }
+
+    pub fn user_id(&self) -> UserId {
+        self.user_id
+    }
 }
 
 impl From<UserUpdated> for EventPayload {

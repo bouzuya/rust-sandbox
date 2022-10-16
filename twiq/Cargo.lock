@@ -1752,6 +1752,7 @@ dependencies = [
  "async-trait",
  "domain",
  "event_store_core",
+ "query_handler",
  "reqwest",
  "thiserror",
  "tokio",

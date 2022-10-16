@@ -29,6 +29,8 @@ pub enum Error {
     UserRequestRepository(#[from] use_case::user_request_repository::Error),
     #[error("user_response {0}")]
     UserResponse(#[from] domain::aggregate::user_request::value::user_response::Error),
+    #[error("user_store {0}")]
+    UserStore(#[from] query_handler::user_store::Error),
     #[error("worker_repository {0}")]
     WorkerRepository(#[from] crate::worker_repository::Error),
     #[error("unknown {0}")]
