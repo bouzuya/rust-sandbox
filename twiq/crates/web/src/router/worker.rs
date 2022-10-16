@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing, Extension, Router};
-use use_case::command::{create_user_request, send_user_request, update_user};
+use worker::command::{create_user_request, send_user_request, update_user};
 
 pub(crate) fn router<T>() -> Router
 where
@@ -61,9 +61,11 @@ mod tests {
         in_memory_event_store::InMemoryEventStore,
         in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
-        in_memory_worker_repository::InMemoryWorkerRepository,
         user_repository::HasUserRepository,
         user_request_repository::HasUserRequestRepository,
+    };
+    use worker::{
+        in_memory_worker_repository::InMemoryWorkerRepository,
         worker_repository::HasWorkerRepository,
     };
 

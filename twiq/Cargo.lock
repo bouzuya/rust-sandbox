@@ -1507,7 +1507,6 @@ dependencies = [
  "async-trait",
  "domain",
  "event_store_core",
- "reqwest",
  "thiserror",
  "tokio",
  "tracing",
@@ -1639,6 +1638,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "use_case",
+ "worker",
 ]
 
 [[package]]

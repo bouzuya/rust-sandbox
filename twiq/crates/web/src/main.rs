@@ -8,14 +8,14 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use use_case::{
-    command::{create_user_request, request_user, send_user_request, update_user},
-    event_store::HasEventStore,
-    in_memory_event_store::InMemoryEventStore,
+    command::request_user, event_store::HasEventStore, in_memory_event_store::InMemoryEventStore,
     in_memory_user_repository::InMemoryUserRepository,
     in_memory_user_request_repository::InMemoryUserRequestRepository,
+    user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
+};
+use worker::{
+    command::{create_user_request, send_user_request, update_user},
     in_memory_worker_repository::InMemoryWorkerRepository,
-    user_repository::HasUserRepository,
-    user_request_repository::HasUserRequestRepository,
     worker_repository::HasWorkerRepository,
 };
 
