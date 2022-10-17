@@ -1,11 +1,17 @@
 use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing, Extension, Router};
-use worker::command::{create_user_request, send_user_request, update_user};
+use worker::command::{create_user_request, send_user_request, update_query_user, update_user};
 
 pub(crate) fn router<T>() -> Router
 where
-    T: create_user_request::Has + send_user_request::Has + update_user::Has + Send + Sync + 'static,
+    T: create_user_request::Has
+        + send_user_request::Has
+        + update_query_user::Has
+        + update_user::Has
+        + Send
+        + Sync
+        + 'static,
 {
     Router::new()
         .route(
@@ -15,6 +21,10 @@ where
         .route(
             "/_workers/send_user_request",
             routing::post(send_user_request::<T>),
+        )
+        .route(
+            "/_workers/update_query_user",
+            routing::post(update_query_user::<T>),
         )
         .route("/_workers/update_user", routing::post(update_user::<T>))
 }
@@ -47,6 +57,16 @@ where
     ""
 }
 
+async fn update_query_user<T>(Extension(application): Extension<Arc<T>>) -> impl IntoResponse
+where
+    T: update_query_user::Has + Send + Sync,
+{
+    let _ = application
+        .update_query_user(update_query_user::Command)
+        .await;
+    ""
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -54,6 +74,7 @@ mod tests {
     use axum::async_trait;
     use domain::{aggregate::user::TwitterUserId, event::EventType};
     use hyper::{Body, Request, StatusCode};
+    use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
     use tower::ServiceExt;
     use use_case::{
         command::request_user,
@@ -76,6 +97,7 @@ mod tests {
         event_store: InMemoryEventStore,
         user_repository: InMemoryUserRepository,
         user_request_repository: InMemoryUserRequestRepository,
+        user_store: InMemoryUserStore,
         worker_repository: InMemoryWorkerRepository,
     }
 
@@ -88,6 +110,7 @@ mod tests {
                 event_store,
                 user_repository,
                 user_request_repository,
+                user_store: Default::default(),
                 worker_repository: Default::default(),
             }
         }
@@ -128,11 +151,22 @@ mod tests {
         }
     }
 
+    impl HasUserStore for MockApp {
+        type UserStore = InMemoryUserStore;
+
+        fn user_store(&self) -> &Self::UserStore {
+            &self.user_store
+        }
+    }
+
     #[async_trait]
     impl request_user::Has for MockApp {}
 
     #[async_trait]
     impl send_user_request::Has for MockApp {}
+
+    #[async_trait]
+    impl update_query_user::Has for MockApp {}
 
     #[async_trait]
     impl update_user::Has for MockApp {}
@@ -201,6 +235,8 @@ mod tests {
     }
 
     // TODO: test_send_user_request
+    // TODO: test_update_user_no_events
+    // TODO: test_update_user
 
     #[tokio::test]
     async fn test_update_user_no_events() -> anyhow::Result<()> {

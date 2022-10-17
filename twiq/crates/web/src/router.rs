@@ -2,7 +2,7 @@ mod healthz;
 mod users_show;
 mod worker;
 
-use ::worker::command::{create_user_request, send_user_request, update_user};
+use ::worker::command::{create_user_request, send_user_request, update_query_user, update_user};
 use axum::Router;
 use query_handler::user_store::HasUserStore;
 use use_case::command::request_user;
@@ -12,6 +12,7 @@ where
     T: create_user_request::Has
         + request_user::Has
         + send_user_request::Has
+        + update_query_user::Has
         + update_user::Has
         + HasUserStore
         + Send

@@ -14,7 +14,7 @@ use use_case::{
     user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
 };
 use worker::{
-    command::{create_user_request, send_user_request, update_user},
+    command::{create_user_request, send_user_request, update_query_user, update_user},
     in_memory_worker_repository::InMemoryWorkerRepository,
     worker_repository::HasWorkerRepository,
 };
@@ -75,11 +75,6 @@ impl HasWorkerRepository for App {
     }
 }
 
-impl request_user::Has for App {}
-impl create_user_request::Has for App {}
-impl send_user_request::Has for App {}
-impl update_user::Has for App {}
-
 impl HasUserStore for App {
     type UserStore = InMemoryUserStore;
 
@@ -87,6 +82,12 @@ impl HasUserStore for App {
         &self.user_store
     }
 }
+
+impl request_user::Has for App {}
+impl create_user_request::Has for App {}
+impl send_user_request::Has for App {}
+impl update_query_user::Has for App {}
+impl update_user::Has for App {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
