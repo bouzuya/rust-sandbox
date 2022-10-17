@@ -4,6 +4,7 @@ use crate::worker_repository::{Error, Result, WorkerName, WorkerRepository};
 use async_trait::async_trait;
 use event_store_core::EventId;
 use tokio::sync::Mutex;
+use tracing::{debug, instrument};
 
 #[derive(Debug, Default)]
 pub struct InMemoryWorkerRepository {
@@ -17,6 +18,7 @@ impl WorkerRepository for InMemoryWorkerRepository {
         Ok(data.get(&worker_name).cloned())
     }
 
+    #[instrument(skip_all)]
     async fn store_last_event_id(
         &self,
         worker_name: WorkerName,
@@ -25,6 +27,10 @@ impl WorkerRepository for InMemoryWorkerRepository {
     ) -> Result<()> {
         let mut data = self.data.lock().await;
         let current = data.get_mut(&worker_name);
+        debug!(
+            "{:?} {:?} -> {:?} ({:?})",
+            worker_name, before, after, current
+        );
         match (before, current) {
             (None, None) => {
                 data.insert(worker_name, after);
@@ -33,7 +39,7 @@ impl WorkerRepository for InMemoryWorkerRepository {
             (None, Some(_)) | (Some(_), None) => Err(Error::Unknown("conflict".to_owned())),
             (Some(b), Some(c)) => {
                 if b == *c {
-                    *c = b;
+                    *c = after;
                     Ok(())
                 } else {
                     Err(Error::Unknown("conflict".to_owned()))
@@ -69,9 +75,18 @@ mod tests {
             .store_last_event_id(worker_name1, None, event_id2)
             .await
             .is_err());
+        assert_eq!(
+            repository.find_last_event_id(worker_name1).await?,
+            Some(event_id1)
+        );
         repository
             .store_last_event_id(worker_name1, found, event_id2)
             .await?;
+        assert_eq!(
+            repository.find_last_event_id(worker_name1).await?,
+            Some(event_id2)
+        );
+        assert!(repository.find_last_event_id(worker_name2).await?.is_none());
         Ok(())
     }
 }
