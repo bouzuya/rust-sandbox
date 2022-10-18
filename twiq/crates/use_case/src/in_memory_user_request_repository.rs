@@ -49,6 +49,15 @@ impl UserRequestRepository for InMemoryUserRequestRepository {
         let aggregate_id = after.id();
         let event_stream = EventStream::from(after);
         let event_stream_id = event_stream.id();
+
+        // check the uniqueness of the aggregate_id
+        match (&before, aggregate_ids.get(&aggregate_id)) {
+            (None, None) => Ok(()),
+            (None, Some(_)) => return Err(Error::Unknown("already exists".to_owned())),
+            (Some(_), None) => return Err(Error::Unknown("not found".to_owned())),
+            (Some(_), Some(_)) => Ok(()),
+        }?;
+
         self.event_store
             .store(
                 before.map(|aggregate| EventStream::from(aggregate).seq()),
@@ -57,6 +66,53 @@ impl UserRequestRepository for InMemoryUserRequestRepository {
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
         aggregate_ids.insert(aggregate_id, event_stream_id);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use domain::aggregate::user::{TwitterUserId, UserId};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let user_id = UserId::generate();
+        let id = UserRequestId::generate();
+        let twitter_user_id = TwitterUserId::from_str("125962981")?;
+        let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
+        let repository = InMemoryUserRequestRepository::default();
+        assert!(repository.find(user_request.id()).await?.is_none());
+        repository.store(None, user_request.clone()).await?;
+        assert_eq!(
+            repository.find(user_request.id()).await?,
+            Some(user_request.clone())
+        );
+        let before = user_request.clone();
+        user_request.start()?;
+        repository
+            .store(Some(before.clone()), user_request.clone())
+            .await?;
+        assert_eq!(
+            repository.find(user_request.id()).await?,
+            Some(user_request.clone())
+        );
+
+        // store twice
+        assert!(repository
+            .store(Some(before.clone()), user_request.clone())
+            .await
+            .is_err());
+
+        // duplicate id
+        let user_id = UserId::generate();
+        let twitter_user_id = TwitterUserId::from_str("125962981")?;
+        let user_request2 = UserRequest::create(id, twitter_user_id, user_id)?;
+        assert!(repository.store(None, user_request2.clone()).await.is_err());
+
         Ok(())
     }
 }
