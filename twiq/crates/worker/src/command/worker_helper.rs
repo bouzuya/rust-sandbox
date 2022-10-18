@@ -50,6 +50,10 @@ where
     let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;
     let event_ids = event_store.find_event_ids(last_event_id).await?;
     for event_id in event_ids {
+        if Some(event_id) == last_event_id {
+            continue;
+        }
+
         let event = event_store
             .find_event(event_id)
             .await?
@@ -67,3 +71,5 @@ where
     }
     Ok(())
 }
+
+// TODO: test skip last_event_id
