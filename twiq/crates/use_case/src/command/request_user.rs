@@ -36,13 +36,12 @@ pub async fn handler<C: Context>(context: &C, command: Command) -> Result<()> {
     let found = user_repository
         .find_by_twitter_user_id(&twitter_user_id)
         .await?;
-    let mut updated = match found.clone() {
+    let user = match found.clone() {
         None => User::create(twitter_user_id)?,
-        Some(user) => user.clone(),
+        Some(user) => user,
     };
-    // TODO: &mut self -> &self
-    updated.request(At::now())?;
-    user_repository.store(found, updated).await?;
+    let requested = user.request(At::now())?;
+    user_repository.store(found, requested).await?;
     Ok(())
 }
 

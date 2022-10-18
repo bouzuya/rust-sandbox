@@ -48,7 +48,7 @@ impl User {
         self.user_id
     }
 
-    pub fn request(&mut self, at: At) -> Result<()> {
+    pub fn request(&self, at: At) -> Result<User> {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {
                 return Err(Error::AlreadyRequested);
@@ -56,14 +56,16 @@ impl User {
         }
         let user_id = self.user_id;
         let user_request_id = UserRequestId::generate();
-        self.event_stream
+        let mut cloned = self.clone();
+        cloned
+            .event_stream
             .push2(
                 UserRequested::r#type(),
                 UserRequested::new(at, self.twitter_user_id.clone(), user_id, user_request_id),
             )
             .unwrap();
-        self.fetch_requested_at = Some(at);
-        Ok(())
+        cloned.fetch_requested_at = Some(at);
+        Ok(cloned)
     }
 
     pub fn twitter_user_id(&self) -> &TwitterUserId {
@@ -189,16 +191,16 @@ mod tests {
     fn request_test() -> anyhow::Result<()> {
         use event_store_core::EventType as RawEventType;
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
-        let mut user = User::create(twitter_user_id)?;
+        let user = User::create(twitter_user_id)?;
         let at = At::now();
-        user.request(at)?;
+        let requested = user.request(at)?;
+        assert_eq!(requested.event_stream.events().len(), 2);
         assert_eq!(
-            user.event_stream.events()[1].r#type(),
+            requested.event_stream.events()[1].r#type(),
             &RawEventType::from(UserRequested::r#type()),
         );
         let at = At::now();
-        assert!(user.request(at).is_err());
-        assert_eq!(user.event_stream.events().len(), 2);
+        assert!(requested.request(at).is_err());
         Ok(())
     }
 
