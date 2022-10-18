@@ -62,8 +62,8 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
         let twitter_user_id = event.twitter_user_id().to_string();
         let (status, body) = get_user(&bearer_token, &twitter_user_id).await.unwrap();
 
-        user_request.finish(UserResponse::new(status, body))?;
         let before = user_request.clone();
+        user_request.finish(UserResponse::new(status, body))?;
         user_request_repository
             .store(Some(before), user_request)
             .await?;
