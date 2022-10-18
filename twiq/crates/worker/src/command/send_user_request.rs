@@ -3,6 +3,7 @@ use std::env;
 use async_trait::async_trait;
 use domain::aggregate::user_request::value::user_response::UserResponse;
 use reqwest::{Client, Method, Url};
+use tracing::{info, instrument};
 use use_case::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 
 use crate::worker_repository::WorkerName;
@@ -22,10 +23,13 @@ pub trait Has: Context + Sized {
     }
 }
 
+#[instrument(skip_all)]
 async fn get_user(bearer_token: &str, user_id: &str) -> Result<(u16, String), reqwest::Error> {
     // TODO: error handling
     let mut url = Url::parse("https://api.twitter.com").unwrap();
-    url.set_path(&format!("/2/users/{}", user_id));
+    let path = format!("/2/users/{}", user_id);
+    url.set_path(&path);
+    info!("{} {}", Method::GET, url);
     let response = Client::builder()
         .build()?
         .request(Method::GET, url)
