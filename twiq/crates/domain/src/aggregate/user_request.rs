@@ -66,7 +66,7 @@ impl UserRequest {
         Ok(cloned)
     }
 
-    pub fn start(&mut self) -> Result<()> {
+    pub fn start(&self) -> Result<Self> {
         if !self
             .event_stream
             .events()
@@ -81,10 +81,12 @@ impl UserRequest {
             ));
         }
         let user_request_started = UserRequestStarted::new(At::now(), self.id);
-        self.event_stream
+        let mut cloned = self.clone();
+        cloned
+            .event_stream
             .push2(UserRequestStarted::r#type(), user_request_started)
             .unwrap();
-        Ok(())
+        Ok(cloned)
     }
 
     pub fn id(&self) -> UserRequestId {
@@ -169,12 +171,12 @@ mod tests {
             user_request.event_stream.events()[0].r#type(),
             &RawEventType::from(UserRequestCreated::r#type())
         );
-        user_request.start()?;
+        let started = user_request.start()?;
         assert_eq!(
-            user_request.event_stream.events()[1].r#type(),
+            started.event_stream.events()[1].r#type(),
             &RawEventType::from(UserRequestStarted::r#type()),
         );
-        let finished = user_request.finish(UserResponse::new(200, "{}".to_owned()))?;
+        let finished = started.finish(UserResponse::new(200, "{}".to_owned()))?;
         assert_eq!(
             finished.event_stream.events()[2].r#type(),
             &RawEventType::from(UserRequestFinished::r#type()),

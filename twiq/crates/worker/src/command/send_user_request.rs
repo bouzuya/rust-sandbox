@@ -44,31 +44,31 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
     if let domain::Event::UserRequestCreated(event) = event {
         let user_request_repository = context.user_request_repository();
 
-        let mut user_request = user_request_repository
+        let user_request = user_request_repository
             .find(event.user_request_id())
             .await?
             .ok_or_else(|| worker_helper::Error::UserRequestNotFound(event.user_request_id()))?;
 
-        let before = user_request.clone();
-        match user_request.start() {
-            Ok(_) => {
+        let started = match user_request.start() {
+            Ok(started) => {
                 user_request_repository
-                    .store(Some(before), user_request.clone())
+                    .store(Some(user_request.clone()), started.clone())
                     .await?;
+                started
             }
             Err(_) => {
                 return Ok(());
             }
-        }
+        };
 
         // TODO: error handling
         let bearer_token = env::var("TWITTER_BEARER_TOKEN").unwrap();
         let twitter_user_id = event.twitter_user_id().to_string();
         let (status, body) = get_user(&bearer_token, &twitter_user_id).await.unwrap();
 
-        let finished = user_request.finish(UserResponse::new(status, body))?;
+        let finished = started.finish(UserResponse::new(status, body))?;
         user_request_repository
-            .store(Some(user_request), finished)
+            .store(Some(started), finished)
             .await?;
     }
     Ok(())

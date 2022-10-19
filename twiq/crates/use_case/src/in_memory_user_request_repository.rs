@@ -83,7 +83,7 @@ mod tests {
         let user_id = UserId::generate();
         let id = UserRequestId::generate();
         let twitter_user_id = TwitterUserId::from_str("125962981")?;
-        let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
+        let user_request = UserRequest::create(id, twitter_user_id, user_id)?;
         let repository = InMemoryUserRequestRepository::default();
         assert!(repository.find(user_request.id()).await?.is_none());
         repository.store(None, user_request.clone()).await?;
@@ -91,19 +91,18 @@ mod tests {
             repository.find(user_request.id()).await?,
             Some(user_request.clone())
         );
-        let before = user_request.clone();
-        user_request.start()?;
+        let started = user_request.start()?;
         repository
-            .store(Some(before.clone()), user_request.clone())
+            .store(Some(user_request.clone()), started.clone())
             .await?;
         assert_eq!(
             repository.find(user_request.id()).await?,
-            Some(user_request.clone())
+            Some(started.clone())
         );
 
         // store twice
         assert!(repository
-            .store(Some(before.clone()), user_request.clone())
+            .store(Some(user_request.clone()), started.clone())
             .await
             .is_err());
 
