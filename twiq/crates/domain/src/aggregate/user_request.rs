@@ -166,7 +166,7 @@ mod tests {
         let id = UserRequestId::generate();
         let twitter_user_id = TwitterUserId::from_str("bouzuya")?;
         let user_id = UserId::generate();
-        let mut user_request = UserRequest::create(id, twitter_user_id, user_id)?;
+        let user_request = UserRequest::create(id, twitter_user_id, user_id)?;
         assert_eq!(
             user_request.event_stream.events()[0].r#type(),
             &RawEventType::from(UserRequestCreated::r#type())

@@ -25,19 +25,13 @@ where
         .find_by_twitter_user_id(&id)
         .await
         .unwrap();
+    // ignore errors
+    let _ = application
+        .request_user(request_user::Command { twitter_user_id })
+        .await;
     match user {
-        None => {
-            // TODO: error handling
-            // ignore errors
-            let _ = application
-                .request_user(request_user::Command { twitter_user_id })
-                .await;
-            (StatusCode::ACCEPTED, id)
-        }
-        Some(cached) => {
-            // TODO: check cache date
-            (StatusCode::OK, cached.twitter_user_name)
-        }
+        None => (StatusCode::ACCEPTED, id),
+        Some(cached) => (StatusCode::OK, cached.twitter_user_name),
     }
 }
 
