@@ -90,15 +90,16 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let mut user = User::create(TwitterUserId::from_str("123")?)?;
+        let user = User::create(TwitterUserId::from_str("123")?)?;
         let repository = InMemoryUserRepository::default();
         assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
         assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
-        let before = user.clone();
-        user.update(TwitterUserName::from_str("twitter_user_name")?, At::now())?;
-        repository.store(Some(before), user.clone()).await?;
-        assert_eq!(repository.find(user.id()).await?, Some(user));
+        let updated = user.update(TwitterUserName::from_str("twitter_user_name")?, At::now())?;
+        repository
+            .store(Some(user.clone()), updated.clone())
+            .await?;
+        assert_eq!(repository.find(user.id()).await?, Some(updated));
         Ok(())
     }
 }

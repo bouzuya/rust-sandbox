@@ -36,8 +36,7 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
             (Some(_), Some(user)) => {
                 let twitter_user_name = event.user_response().parse()?;
                 let at = event.at();
-                let mut updated = user.clone();
-                updated.update(twitter_user_name, at)?;
+                let updated = user.update(twitter_user_name, at)?;
                 Ok(user_repository.store(Some(user), updated).await?)
             }
         }?;

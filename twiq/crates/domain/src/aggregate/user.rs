@@ -48,7 +48,7 @@ impl User {
         self.user_id
     }
 
-    pub fn request(&self, at: At) -> Result<User> {
+    pub fn request(&self, at: At) -> Result<Self> {
         if let Some(fetch_requested_at) = self.fetch_requested_at {
             if at <= fetch_requested_at.plus_1day() {
                 return Err(Error::AlreadyRequested);
@@ -72,21 +72,23 @@ impl User {
         &self.twitter_user_id
     }
 
-    pub fn update(&mut self, name: TwitterUserName, at: At) -> Result<()> {
+    pub fn update(&self, name: TwitterUserName, at: At) -> Result<Self> {
         if let Some(updated_at) = self.updated_at {
             if at <= updated_at {
                 // TODO: error handling
                 return Err(Error::Unknown("".to_owned()));
             }
         }
-        self.event_stream
+        let mut cloned = self.clone();
+        cloned
+            .event_stream
             .push2(
                 UserUpdated::r#type(),
                 UserUpdated::new(at, self.twitter_user_id.clone(), name, self.user_id),
             )
             .unwrap();
-        self.updated_at = Some(at);
-        Ok(())
+        cloned.updated_at = Some(at);
+        Ok(cloned)
     }
 }
 
@@ -208,12 +210,12 @@ mod tests {
     fn update_test() -> anyhow::Result<()> {
         use event_store_core::EventType as RawEventType;
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
-        let mut user = User::create(twitter_user_id)?;
+        let user = User::create(twitter_user_id)?;
         let at = At::now();
         let name = TwitterUserName::from_str("bouzuya")?;
-        user.update(name, at)?;
+        let updated = user.update(name, at)?;
         assert_eq!(
-            user.event_stream.events()[1].r#type(),
+            updated.event_stream.events()[1].r#type(),
             &RawEventType::from(UserUpdated::r#type())
         );
         Ok(())
