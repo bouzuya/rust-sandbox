@@ -67,6 +67,7 @@ impl UserRepository for InMemoryUserRepository {
         let aggregate_id = after.id();
         let event_stream = EventStream::from(after);
         let event_stream_id = event_stream.id();
+        // TODO: check unique key conflict
         self.event_store
             .store(
                 before.map(|aggregate| EventStream::from(aggregate).seq()),
