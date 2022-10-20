@@ -1,2 +1,3 @@
+/crates/db/src/firestore_rpc/
 /target/
 /.env*
