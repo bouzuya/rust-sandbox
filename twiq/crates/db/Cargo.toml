@@ -13,6 +13,7 @@ event_store_core = { path = "../event_store_core" }
 google-cloud-auth = { git = "https://github.com/googleapis/google-cloud-rust", rev = "b82d4462900db232b14029f69766e5016743fcc4" }
 ordered-float = { version = "3.0.0", features = ["serde"] }
 prost = "0.11.0"
+prost-types = "0.11.1"
 reqwest = { version = "0.11.11", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.143", features = ["derive"] }
 serde_json = "1.0.83"

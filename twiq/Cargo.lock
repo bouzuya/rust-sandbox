@@ -226,6 +226,7 @@ dependencies = [
  "google-cloud-auth",
  "ordered-float",
  "prost",
+ "prost-types",
  "reqwest",
  "serde",
  "serde_json",

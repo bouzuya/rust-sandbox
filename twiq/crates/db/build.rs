@@ -12,8 +12,8 @@ fn main() {
         .build_server(false)
         .out_dir(out_dir)
         .compile(
-            &["googleapis/google/firestore/v1/firestore.proto"],
-            &["googleapis/"],
+            &["proto/googleapis/google/firestore/v1/firestore.proto"],
+            &["proto/googleapis"],
         )
         .unwrap();
 }
