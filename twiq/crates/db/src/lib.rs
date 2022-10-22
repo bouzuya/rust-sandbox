@@ -8,9 +8,10 @@ mod tests {
 
     use google_cloud_auth::{Credential, CredentialConfig};
     use tonic::{
-        metadata::{Ascii, MetadataValue},
-        transport::{ClientTlsConfig, Endpoint},
-        Request,
+        codegen::InterceptedService,
+        metadata::AsciiMetadataValue,
+        transport::{Channel, ClientTlsConfig, Endpoint},
+        Request, Status,
     };
 
     use crate::firestore_rpc::google::firestore::v1::{
@@ -57,25 +58,8 @@ mod tests {
         };
 
         let credential = credential().await?;
-        let access_token = credential.access_token().await?;
-
-        let channel = Endpoint::from_static("https://firestore.googleapis.com")
-            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
-            .connect()
-            .await?;
-
-        let mut firestore_client =
-            FirestoreClient::with_interceptor(channel, |mut req: Request<_>| {
-                req.metadata_mut().insert("authorization", {
-                    let mut metadata_value: MetadataValue<Ascii> =
-                        format!("Bearer {}", access_token.value).parse().unwrap();
-                    metadata_value.set_sensitive(true);
-                    metadata_value
-                });
-                Ok(req)
-            });
-
-        let response = firestore_client
+        let mut client = client(&credential).await?;
+        let response = client
             .create_document(CreateDocumentRequest {
                 parent,
                 collection_id,
@@ -86,6 +70,30 @@ mod tests {
             .await?;
         assert_eq!("", format!("{:?}", response));
         Ok(())
+    }
+
+    async fn client(
+        credential: &Credential,
+    ) -> anyhow::Result<
+        FirestoreClient<
+            InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
+        >,
+    > {
+        let access_token = credential.access_token().await?;
+        let channel = Endpoint::from_static("https://firestore.googleapis.com")
+            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
+            .connect()
+            .await?;
+        let mut metadata_value =
+            AsciiMetadataValue::try_from(format!("Bearer {}", access_token.value))?;
+        metadata_value.set_sensitive(true);
+        let client = FirestoreClient::with_interceptor(channel, move |mut request: Request<()>| {
+            request
+                .metadata_mut()
+                .insert("Authorization", metadata_value.clone());
+            Ok(request)
+        });
+        Ok(client)
     }
 
     async fn credential() -> anyhow::Result<Credential> {
