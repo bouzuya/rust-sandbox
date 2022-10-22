@@ -15,8 +15,34 @@ mod tests {
     };
 
     use crate::firestore_rpc::google::firestore::v1::{
-        firestore_client::FirestoreClient, value::ValueType, CreateDocumentRequest, Document, Value,
+        firestore_client::FirestoreClient,
+        transaction_options::{Mode, ReadWrite},
+        value::ValueType,
+        BeginTransactionRequest, CreateDocumentRequest, Document, TransactionOptions, Value,
     };
+
+    #[tokio::test]
+    #[ignore]
+    async fn begin_transaction_test() -> anyhow::Result<()> {
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+
+        let credential = credential().await?;
+        let mut client = client(&credential).await?;
+        let response = client
+            .begin_transaction(BeginTransactionRequest {
+                database,
+                options: Some(TransactionOptions {
+                    mode: Some(Mode::ReadWrite(ReadWrite {
+                        retry_transaction: vec![],
+                    })),
+                }),
+            })
+            .await?;
+        assert_eq!("", format!("{:?}", response));
+        Ok(())
+    }
 
     #[tokio::test]
     #[ignore]
@@ -90,7 +116,7 @@ mod tests {
         let client = FirestoreClient::with_interceptor(channel, move |mut request: Request<()>| {
             request
                 .metadata_mut()
-                .insert("Authorization", metadata_value.clone());
+                .insert("authorization", metadata_value.clone());
             Ok(request)
         });
         Ok(client)
