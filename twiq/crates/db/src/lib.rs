@@ -16,9 +16,12 @@ mod tests {
 
     use crate::firestore_rpc::google::firestore::v1::{
         firestore_client::FirestoreClient,
+        precondition::ConditionType,
         transaction_options::{Mode, ReadWrite},
         value::ValueType,
-        BeginTransactionRequest, CreateDocumentRequest, Document, TransactionOptions, Value,
+        write::Operation,
+        BeginTransactionRequest, CommitRequest, CreateDocumentRequest, Document, Precondition,
+        TransactionOptions, Value, Write,
     };
 
     #[tokio::test]
@@ -46,6 +49,54 @@ mod tests {
 
     #[tokio::test]
     #[ignore]
+    async fn commit_test() -> anyhow::Result<()> {
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+
+        // begin_transaction
+        let credential = credential().await?;
+        let mut client = client(&credential).await?;
+        let response = client
+            .begin_transaction(BeginTransactionRequest {
+                database: database.clone(),
+                options: Some(TransactionOptions {
+                    mode: Some(Mode::ReadWrite(ReadWrite {
+                        retry_transaction: vec![],
+                    })),
+                }),
+            })
+            .await?;
+        let transaction = response.into_inner().transaction;
+
+        // commit
+        let collection_id = "cities".to_owned();
+        let document_id = "LA".to_owned();
+        let mut document = build_document();
+        document.name = format!(
+            "projects/{}/databases/{}/documents/{}/{}",
+            &project_id, &database_id, collection_id, document_id
+        );
+        let response = client
+            .commit(CommitRequest {
+                database,
+                writes: vec![Write {
+                    update_mask: None,
+                    update_transforms: vec![],
+                    current_document: Some(Precondition {
+                        condition_type: Some(ConditionType::Exists(false)),
+                    }),
+                    operation: Some(Operation::Update(document)),
+                }],
+                transaction,
+            })
+            .await?;
+        assert_eq!("", format!("{:?}", response));
+        Ok(())
+    }
+
+    #[tokio::test]
+    #[ignore]
     async fn create_document_test() -> anyhow::Result<()> {
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)";
@@ -55,7 +106,25 @@ mod tests {
         );
         let collection_id = "cities".to_owned();
         let document_id = "LA".to_owned();
-        let document = Document {
+        let document = build_document();
+
+        let credential = credential().await?;
+        let mut client = client(&credential).await?;
+        let response = client
+            .create_document(CreateDocumentRequest {
+                parent,
+                collection_id,
+                document_id,
+                document: Some(document),
+                mask: None,
+            })
+            .await?;
+        assert_eq!("", format!("{:?}", response));
+        Ok(())
+    }
+
+    fn build_document() -> Document {
+        Document {
             name: "".to_owned(),
             fields: {
                 let mut map = HashMap::new();
@@ -81,21 +150,7 @@ mod tests {
             },
             create_time: None,
             update_time: None,
-        };
-
-        let credential = credential().await?;
-        let mut client = client(&credential).await?;
-        let response = client
-            .create_document(CreateDocumentRequest {
-                parent,
-                collection_id,
-                document_id,
-                document: Some(document),
-                mask: None,
-            })
-            .await?;
-        assert_eq!("", format!("{:?}", response));
-        Ok(())
+        }
     }
 
     async fn client(
