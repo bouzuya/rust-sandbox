@@ -7,6 +7,8 @@ mod tests {
     use std::{collections::HashMap, env};
 
     use google_cloud_auth::{Credential, CredentialConfig};
+    use prost_types::Timestamp;
+    use time::OffsetDateTime;
     use tonic::{
         codegen::InterceptedService,
         metadata::AsciiMetadataValue,
@@ -16,12 +18,13 @@ mod tests {
 
     use crate::firestore_rpc::google::firestore::v1::{
         firestore_client::FirestoreClient,
+        get_document_request::ConsistencySelector,
         precondition::ConditionType,
         transaction_options::{Mode, ReadWrite},
         value::ValueType,
         write::Operation,
-        BeginTransactionRequest, CommitRequest, CreateDocumentRequest, Document, Precondition,
-        TransactionOptions, Value, Write,
+        BeginTransactionRequest, CommitRequest, CreateDocumentRequest, Document,
+        GetDocumentRequest, Precondition, TransactionOptions, Value, Write,
     };
 
     #[tokio::test]
@@ -117,6 +120,42 @@ mod tests {
                 document_id,
                 document: Some(document),
                 mask: None,
+            })
+            .await?;
+        assert_eq!("", format!("{:?}", response));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn get_test() -> anyhow::Result<()> {
+        let now = {
+            let odt = OffsetDateTime::now_utc();
+            Timestamp::date_time_nanos(
+                i64::from(odt.year()),
+                u8::from(odt.month()),
+                odt.day(),
+                odt.hour(),
+                odt.minute(),
+                odt.second(),
+                odt.nanosecond(),
+            )?
+        };
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)";
+        let collection_id = "cities".to_owned();
+        let document_id = "LA".to_owned();
+        let document_path = format!("{}/{}", collection_id, document_id);
+        let name = format!(
+            "projects/{}/databases/{}/documents/{}",
+            project_id, database_id, document_path
+        );
+        let credential = credential().await?;
+        let mut client = client(&credential).await?;
+        let response = client
+            .get_document(GetDocumentRequest {
+                name,
+                mask: None,
+                consistency_selector: Some(ConsistencySelector::ReadTime(now)),
             })
             .await?;
         assert_eq!("", format!("{:?}", response));
