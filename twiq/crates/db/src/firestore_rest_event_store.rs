@@ -564,12 +564,12 @@ fn check_status_code(response: &Response) -> Result<(), Error> {
     }
 }
 
-pub struct FirestoreEventStore {
+pub struct FirestoreRestEventStore {
     project_id: String,
     credential: Credential,
 }
 
-impl FirestoreEventStore {
+impl FirestoreRestEventStore {
     pub fn new(project_id: String, credential: Credential) -> Self {
         Self {
             project_id,
@@ -579,7 +579,7 @@ impl FirestoreEventStore {
 }
 
 #[async_trait]
-impl EventStore for FirestoreEventStore {
+impl EventStore for FirestoreRestEventStore {
     async fn find_event(&self, _event_id: EventId) -> use_case::event_store::Result<Option<Event>> {
         todo!()
     }

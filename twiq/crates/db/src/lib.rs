@@ -1,5 +1,5 @@
-pub mod firestore_event_store;
 pub mod firestore_rest;
+pub mod firestore_rest_event_store;
 pub mod firestore_rpc;
 
 #[cfg(test)]
