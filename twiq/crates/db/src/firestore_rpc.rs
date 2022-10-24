@@ -21,6 +21,14 @@ pub mod google {
 pub mod helper {
     use super::google::firestore::v1::{value::ValueType, Value};
 
+    // panic if value_type is not string
+    pub fn value_as_str_unchecked(value: &Value) -> &str {
+        match value.value_type.as_ref() {
+            Some(ValueType::StringValue(s)) => s.as_str(),
+            _ => unreachable!(),
+        }
+    }
+
     pub fn value_from_i64(i: i64) -> Value {
         Value {
             value_type: Some(ValueType::IntegerValue(i)),
@@ -52,6 +60,16 @@ pub mod helper {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn value_as_str_unchecked_test() {
+            assert_eq!(
+                value_as_str_unchecked(&Value {
+                    value_type: Some(ValueType::StringValue("abc".to_owned())),
+                }),
+                "abc"
+            );
+        }
 
         #[test]
         fn value_from_i64_test() {
