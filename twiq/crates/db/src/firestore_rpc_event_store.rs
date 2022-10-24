@@ -13,7 +13,7 @@ use tonic::{
 use crate::firestore_rpc::google::firestore::v1::{
     firestore_client::FirestoreClient,
     transaction_options::{Mode, ReadWrite},
-    BeginTransactionRequest, TransactionOptions,
+    BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -26,20 +26,37 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-struct FirestoreRpcEventStore {
+pub struct FirestoreRpcEventStore {
+    credential: Credential,
     project_id: String,
     database_id: String,
-    credential: Credential,
     transaction: Vec<u8>,
+    writes: Vec<Write>,
 }
 
 impl FirestoreRpcEventStore {
-    pub async fn begin_transaction(
+    pub fn new(
+        credential: Credential,
         project_id: String,
         database_id: String,
-        credential: Credential,
-    ) -> Result<Self> {
-        let mut client = Self::client(&credential)
+        transaction: Vec<u8>,
+    ) -> Self {
+        Self {
+            credential,
+            project_id,
+            database_id,
+            transaction,
+            writes: vec![],
+        }
+    }
+
+    // TODO: extract
+    pub async fn begin_transaction(
+        credential: &Credential,
+        project_id: &str,
+        database_id: &str,
+    ) -> Result<Vec<u8>> {
+        let mut client = Self::client(credential)
             .await
             .map_err(|status| Error::Unknown(status.to_string()))?;
         let database = format!("projects/{}/databases/{}", project_id, database_id);
@@ -54,13 +71,32 @@ impl FirestoreRpcEventStore {
             })
             .await
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        let transaction = response.into_inner().transaction;
-        Ok(Self {
-            project_id,
-            database_id,
-            credential,
-            transaction,
-        })
+        Ok(response.into_inner().transaction)
+    }
+
+    // TODO: extract
+    pub async fn commit(
+        credential: &Credential,
+        project_id: &str,
+        database_id: &str,
+        transaction: Vec<u8>,
+        writes: Vec<Write>,
+    ) -> Result<()> {
+        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let mut client = Self::client(credential).await?;
+        let _ = client
+            .commit(CommitRequest {
+                database,
+                writes,
+                transaction,
+            })
+            .await
+            .map_err(|status| Error::Unknown(status.to_string()))?;
+        Ok(())
+    }
+
+    pub fn writes(&self) -> Vec<Write> {
+        self.writes.clone()
     }
 
     async fn client(

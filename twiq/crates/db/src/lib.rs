@@ -17,16 +17,41 @@ mod tests {
         Request, Status,
     };
 
-    use crate::firestore_rpc::google::firestore::v1::{
-        firestore_client::FirestoreClient,
-        get_document_request::ConsistencySelector,
-        precondition::ConditionType,
-        transaction_options::{Mode, ReadWrite},
-        value::ValueType,
-        write::Operation,
-        BeginTransactionRequest, CommitRequest, CreateDocumentRequest, Document,
-        GetDocumentRequest, Precondition, TransactionOptions, Value, Write,
+    use crate::{
+        firestore_rpc::google::firestore::v1::{
+            firestore_client::FirestoreClient,
+            get_document_request::ConsistencySelector,
+            precondition::ConditionType,
+            transaction_options::{Mode, ReadWrite},
+            value::ValueType,
+            write::Operation,
+            BeginTransactionRequest, CommitRequest, CreateDocumentRequest, Document,
+            GetDocumentRequest, Precondition, TransactionOptions, Value, Write,
+        },
+        firestore_rpc_event_store::FirestoreRpcEventStore,
     };
+
+    #[tokio::test]
+    #[ignore]
+    async fn firestore_rpc_event_store_test() -> anyhow::Result<()> {
+        let credential = credential().await?;
+        let project_id = env::var("PROJECT_ID")?;
+        let database_id = "(default)".to_owned();
+        let transaction =
+            FirestoreRpcEventStore::begin_transaction(&credential, &project_id, &database_id)
+                .await?;
+        let event_store = FirestoreRpcEventStore::new(
+            credential.clone(),
+            project_id.clone(),
+            database_id.clone(),
+            transaction.clone(),
+        );
+        // TODO: event_store.store(X)
+        let writes = event_store.writes();
+        FirestoreRpcEventStore::commit(&credential, &project_id, &database_id, transaction, writes)
+            .await?;
+        Ok(())
+    }
 
     #[tokio::test]
     #[ignore]
