@@ -21,6 +21,12 @@ pub mod google {
 pub mod helper {
     use super::google::firestore::v1::{value::ValueType, Value};
 
+    pub fn value_from_i64(i: i64) -> Value {
+        Value {
+            value_type: Some(ValueType::IntegerValue(i)),
+        }
+    }
+
     pub fn value_from_string(s: String) -> Value {
         Value {
             value_type: Some(ValueType::StringValue(s)),
@@ -38,6 +44,16 @@ pub mod helper {
     #[cfg(test)]
     mod tests {
         use super::*;
+
+        #[test]
+        fn value_from_i64_test() {
+            assert_eq!(
+                value_from_i64(123),
+                Value {
+                    value_type: Some(ValueType::IntegerValue(123))
+                }
+            );
+        }
 
         #[test]
         fn value_from_string_test() {
