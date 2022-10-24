@@ -33,6 +33,14 @@ pub mod helper {
         }
     }
 
+    // panic if value_type is not integer
+    pub fn value_into_i64_unchecked(value: Value) -> i64 {
+        match value.value_type {
+            Some(ValueType::IntegerValue(i)) => i,
+            _ => unreachable!(),
+        }
+    }
+
     // panic if value_type is not string
     pub fn value_into_string_unchecked(value: Value) -> String {
         match value.value_type {
@@ -62,6 +70,16 @@ pub mod helper {
                 Value {
                     value_type: Some(ValueType::StringValue("abc".to_owned()))
                 }
+            );
+        }
+
+        #[test]
+        fn value_into_i64_unchecked_test() {
+            assert_eq!(
+                value_into_i64_unchecked(Value {
+                    value_type: Some(ValueType::IntegerValue(123)),
+                }),
+                123
             );
         }
 
