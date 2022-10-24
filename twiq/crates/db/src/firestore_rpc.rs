@@ -27,17 +27,35 @@ pub mod helper {
         }
     }
 
+    // panic if value_type is not string
+    pub fn value_into_string_unchecked(value: Value) -> String {
+        match value.value_type {
+            Some(ValueType::StringValue(s)) => s,
+            _ => unreachable!(),
+        }
+    }
+
     #[cfg(test)]
     mod tests {
         use super::*;
 
         #[test]
-        fn test() {
+        fn value_from_string_test() {
             assert_eq!(
                 value_from_string("abc".to_owned()),
                 Value {
                     value_type: Some(ValueType::StringValue("abc".to_owned()))
                 }
+            );
+        }
+
+        #[test]
+        fn value_into_string_unchecked_test() {
+            assert_eq!(
+                value_into_string_unchecked(Value {
+                    value_type: Some(ValueType::StringValue("abc".to_owned())),
+                }),
+                "abc".to_owned()
             );
         }
     }
