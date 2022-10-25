@@ -25,6 +25,10 @@ pub mod helper {
         document.fields.get(key).map(value_into_i64_unchecked)
     }
 
+    pub fn get_field_as_str<'a>(document: &'a Document, key: &'a str) -> Option<&'a str> {
+        document.fields.get(key).map(value_as_str_unchecked)
+    }
+
     // panic if value_type is not string
     pub fn value_as_str_unchecked(value: &Value) -> &str {
         match value.value_type.as_ref() {
@@ -77,12 +81,7 @@ pub mod helper {
                         name: "name".to_owned(),
                         fields: {
                             let mut fields = HashMap::new();
-                            fields.insert(
-                                "key".to_owned(),
-                                Value {
-                                    value_type: Some(ValueType::IntegerValue(123)),
-                                },
-                            );
+                            fields.insert("key".to_owned(), value_from_i64(123));
                             fields
                         },
                         create_time: None,
@@ -91,6 +90,26 @@ pub mod helper {
                     "key"
                 ),
                 Some(123)
+            );
+        }
+
+        #[test]
+        fn get_field_as_str_test() {
+            assert_eq!(
+                get_field_as_str(
+                    &Document {
+                        name: "name".to_owned(),
+                        fields: {
+                            let mut fields = HashMap::new();
+                            fields.insert("key".to_owned(), value_from_string("val".to_owned()));
+                            fields
+                        },
+                        create_time: None,
+                        update_time: None
+                    },
+                    "key"
+                ),
+                Some("val")
             );
         }
 
