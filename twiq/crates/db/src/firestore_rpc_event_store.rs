@@ -1,8 +1,13 @@
+use std::{collections::HashMap, str::FromStr, sync::Arc};
+
 use async_trait::async_trait;
 use event_store_core::{
-    event_store::EventStore, Event, EventId, EventStream, EventStreamId, EventStreamSeq,
+    event_store::{self, EventStore},
+    Event, EventId, EventStream, EventStreamId, EventStreamSeq,
 };
 use google_cloud_auth::Credential;
+use prost_types::Timestamp;
+use tokio::sync::Mutex;
 use tonic::{
     codegen::InterceptedService,
     metadata::AsciiMetadataValue,
@@ -10,10 +15,21 @@ use tonic::{
     Request, Status,
 };
 
-use crate::firestore_rpc::google::firestore::v1::{
-    firestore_client::FirestoreClient,
-    transaction_options::{Mode, ReadWrite},
-    BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
+use crate::firestore_rpc::{
+    google::firestore::v1::{
+        document_transform::{
+            field_transform::{ServerValue, TransformType},
+            FieldTransform,
+        },
+        firestore_client::FirestoreClient,
+        get_document_request,
+        precondition::ConditionType,
+        transaction_options::{Mode, ReadWrite},
+        write::Operation,
+        BeginTransactionRequest, CommitRequest, Document, GetDocumentRequest, Precondition,
+        TransactionOptions, Value, Write,
+    },
+    helper::{get_field_as_i64, get_field_as_str, value_from_i64, value_from_string},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -31,7 +47,7 @@ pub struct FirestoreRpcEventStore {
     project_id: String,
     database_id: String,
     transaction: Vec<u8>,
-    writes: Vec<Write>,
+    writes: Arc<Mutex<Vec<Write>>>,
 }
 
 impl FirestoreRpcEventStore {
@@ -46,7 +62,7 @@ impl FirestoreRpcEventStore {
             project_id,
             database_id,
             transaction,
-            writes: vec![],
+            writes: Arc::new(Mutex::new(vec![])),
         }
     }
 
@@ -96,7 +112,7 @@ impl FirestoreRpcEventStore {
     }
 
     pub fn writes(&self) -> Vec<Write> {
-        self.writes.clone()
+        self.writes.blocking_lock().clone()
     }
 
     async fn client(
@@ -129,31 +145,22 @@ impl FirestoreRpcEventStore {
 
 #[async_trait]
 impl EventStore for FirestoreRpcEventStore {
-    async fn find_event(
-        &self,
-        event_id: EventId,
-    ) -> event_store_core::event_store::Result<Option<Event>> {
+    async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
         todo!()
     }
 
-    async fn find_event_ids(
-        &self,
-        after: Option<EventId>,
-    ) -> event_store_core::event_store::Result<Vec<EventId>> {
+    async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
         todo!()
     }
 
     async fn find_event_stream(
         &self,
         event_stream_id: EventStreamId,
-    ) -> event_store_core::event_store::Result<Option<EventStream>> {
+    ) -> event_store::Result<Option<EventStream>> {
         todo!()
     }
 
-    async fn find_events(
-        &self,
-        after: Option<EventId>,
-    ) -> event_store_core::event_store::Result<Vec<Event>> {
+    async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
         todo!()
     }
 
@@ -161,7 +168,157 @@ impl EventStore for FirestoreRpcEventStore {
         &self,
         current: Option<EventStreamSeq>,
         event_stream: EventStream,
-    ) -> event_store_core::event_store::Result<()> {
-        todo!()
+    ) -> event_store::Result<()> {
+        let mut client = Self::client(&self.credential)
+            .await
+            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+        let collection_id = "event_streams";
+        let document_id = event_stream.id().to_string();
+        let event_stream_document = Document {
+            name: format!(
+                "projects/{}/databases/{}/documents/{}/{}",
+                self.project_id, self.database_id, collection_id, document_id
+            ),
+            fields: event_stream_to_fields(event_stream.id(), event_stream.seq()),
+            create_time: None,
+            update_time: None,
+        };
+        let precondition = match current {
+            Some(expected_event_stream_seq) => {
+                let (_, event_stream_seq, update_time) = get_event_stream(
+                    &mut client,
+                    &self.project_id,
+                    self.transaction.clone(),
+                    &self.database_id,
+                    event_stream.id(),
+                )
+                .await
+                .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+                if event_stream_seq != expected_event_stream_seq {
+                    return Err(event_store::Error::Unknown("conflict".to_owned()));
+                }
+                Precondition {
+                    condition_type: Some(ConditionType::UpdateTime(update_time)),
+                }
+            }
+            None => Precondition {
+                condition_type: Some(ConditionType::Exists(false)),
+            },
+        };
+        let mut writes = self.writes.lock().await;
+        writes.push(Write {
+            update_mask: None,
+            update_transforms: vec![],
+            current_document: Some(precondition),
+            operation: Some(Operation::Update(event_stream_document)),
+        });
+
+        for event in event_stream.events() {
+            let collection_id = "events";
+            let document_id = event.id().to_string();
+            writes.push(Write {
+                update_mask: None,
+                update_transforms: vec![FieldTransform {
+                    field_path: "requested_at".to_owned(),
+                    transform_type: Some(TransformType::SetToServerValue(
+                        ServerValue::RequestTime as i32,
+                    )),
+                }],
+                current_document: Some(Precondition {
+                    condition_type: Some(ConditionType::Exists(false)),
+                }),
+                operation: Some(Operation::Update(Document {
+                    name: format!(
+                        "projects/{}/databases/{}/documents/{}/{}",
+                        &self.project_id, &self.database_id, collection_id, document_id
+                    ),
+                    fields: event_to_fields(&event),
+                    create_time: None,
+                    update_time: None,
+                })),
+            });
+        }
+        Ok(())
     }
+}
+
+fn event_stream_to_fields(
+    event_stream_id: EventStreamId,
+    event_stream_seq: EventStreamSeq,
+) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+    map.insert(
+        "id".to_owned(),
+        value_from_string(event_stream_id.to_string()),
+    );
+    map.insert(
+        "seq".to_owned(),
+        value_from_i64(i64::from(event_stream_seq)),
+    );
+    map
+}
+
+fn event_to_fields(event: &Event) -> HashMap<String, Value> {
+    let mut map = HashMap::new();
+    map.insert("id".to_owned(), value_from_string(event.id().to_string()));
+    map.insert(
+        "type".to_owned(),
+        value_from_string(event.r#type().to_string()),
+    );
+    map.insert(
+        "stream_id".to_owned(),
+        value_from_string(event.stream_id().to_string()),
+    );
+    map.insert(
+        "stream_seq".to_owned(),
+        value_from_i64(i64::from(event.stream_seq())),
+    );
+    map.insert(
+        "data".to_owned(),
+        value_from_string(event.payload().to_string()),
+    );
+    map
+}
+
+async fn get_event_stream(
+    client: &mut FirestoreClient<
+        InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
+    >,
+    project_id: &str,
+    transaction: Vec<u8>,
+    database_id: &str,
+    event_stream_id: EventStreamId,
+) -> Result<(EventStreamId, EventStreamSeq, Timestamp), Error> {
+    let collection_id = "event_streams";
+    let document_id = event_stream_id.to_string();
+    let name = format!(
+        "projects/{}/databases/{}/documents/{}/{}",
+        project_id, database_id, collection_id, document_id
+    );
+    let response = client
+        .get_document(GetDocumentRequest {
+            name,
+            mask: None,
+            consistency_selector: Some(get_document_request::ConsistencySelector::Transaction(
+                transaction,
+            )),
+        })
+        .await
+        .map_err(|e| Error::Unknown(e.to_string()))?;
+    // TODO: check status_code
+
+    let document = response.into_inner();
+    let event_stream_id = get_field_as_str(&document, "id")
+        .map(EventStreamId::from_str)
+        .ok_or_else(|| Error::Unknown("id field is not found".to_owned()))?
+        .map_err(|_| Error::Unknown("id field can't be converted to EventStreamId".to_owned()))?;
+    let event_stream_seq = get_field_as_i64(&document, "seq")
+        .map(EventStreamSeq::try_from)
+        .ok_or_else(|| Error::Unknown("seq field is not found".to_owned()))?
+        .map_err(|_| Error::Unknown("seq field can't be converted to EventStreamSeq".to_owned()))?;
+    Ok((
+        event_stream_id.to_owned(),
+        event_stream_seq,
+        document.update_time.unwrap(),
+    ))
 }
