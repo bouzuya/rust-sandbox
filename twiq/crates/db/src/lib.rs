@@ -153,6 +153,7 @@ mod tests {
     }
 
     #[tokio::test]
+    #[ignore]
     async fn get_test() -> anyhow::Result<()> {
         let now = {
             let odt = OffsetDateTime::now_utc();
