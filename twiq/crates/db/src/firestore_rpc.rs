@@ -19,7 +19,11 @@ pub mod google {
 }
 
 pub mod helper {
-    use super::google::firestore::v1::{value::ValueType, Value};
+    use super::google::firestore::v1::{value::ValueType, Document, Value};
+
+    pub fn get_field_as_i64(document: &Document, key: &str) -> Option<i64> {
+        document.fields.get(key).map(value_into_i64_unchecked)
+    }
 
     // panic if value_type is not string
     pub fn value_as_str_unchecked(value: &Value) -> &str {
@@ -42,7 +46,7 @@ pub mod helper {
     }
 
     // panic if value_type is not integer
-    pub fn value_into_i64_unchecked(value: Value) -> i64 {
+    pub fn value_into_i64_unchecked(value: &Value) -> i64 {
         match value.value_type {
             Some(ValueType::IntegerValue(i)) => i,
             _ => unreachable!(),
@@ -59,7 +63,36 @@ pub mod helper {
 
     #[cfg(test)]
     mod tests {
+        use std::collections::HashMap;
+
+        use crate::firestore_rpc::google::firestore::v1::Document;
+
         use super::*;
+
+        #[test]
+        fn get_field_as_i64_test() {
+            assert_eq!(
+                get_field_as_i64(
+                    &Document {
+                        name: "name".to_owned(),
+                        fields: {
+                            let mut fields = HashMap::new();
+                            fields.insert(
+                                "key".to_owned(),
+                                Value {
+                                    value_type: Some(ValueType::IntegerValue(123)),
+                                },
+                            );
+                            fields
+                        },
+                        create_time: None,
+                        update_time: None
+                    },
+                    "key"
+                ),
+                Some(123)
+            );
+        }
 
         #[test]
         fn value_as_str_unchecked_test() {
@@ -94,7 +127,7 @@ pub mod helper {
         #[test]
         fn value_into_i64_unchecked_test() {
             assert_eq!(
-                value_into_i64_unchecked(Value {
+                value_into_i64_unchecked(&Value {
                     value_type: Some(ValueType::IntegerValue(123)),
                 }),
                 123
