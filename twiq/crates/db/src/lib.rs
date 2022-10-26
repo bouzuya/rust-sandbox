@@ -5,8 +5,10 @@ pub mod firestore_rpc_event_store;
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, env};
+    use std::{collections::HashMap, env, str::FromStr};
 
+    use domain::aggregate::user::{TwitterUserId, User};
+    use event_store_core::{event_store::EventStore, EventStream};
     use google_cloud_auth::{Credential, CredentialConfig};
     use prost_types::Timestamp;
     use time::OffsetDateTime;
@@ -46,8 +48,11 @@ mod tests {
             database_id.clone(),
             transaction.clone(),
         );
-        // TODO: event_store.store(X)
-        let writes = event_store.writes();
+
+        let user = User::create(TwitterUserId::from_str("125962981")?)?;
+        event_store.store(None, EventStream::from(user)).await?;
+
+        let writes = event_store.writes().await;
         FirestoreRpcEventStore::commit(&credential, &project_id, &database_id, transaction, writes)
             .await?;
         Ok(())

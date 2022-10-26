@@ -111,8 +111,9 @@ impl FirestoreRpcEventStore {
         Ok(())
     }
 
-    pub fn writes(&self) -> Vec<Write> {
-        self.writes.blocking_lock().clone()
+    pub async fn writes(&self) -> Vec<Write> {
+        let writes = self.writes.lock().await;
+        writes.clone()
     }
 
     async fn client(
