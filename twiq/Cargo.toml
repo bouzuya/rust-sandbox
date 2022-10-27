@@ -1,2 +1,5 @@
 [workspace]
 members = ["crates/*"]
+
+[patch.crates-io]
+tonic-build = { git = "https://github.com/bouzuya/tonic", branch = "add-disable-comments" }

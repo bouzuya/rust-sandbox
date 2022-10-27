@@ -1566,8 +1566,7 @@ dependencies = [
 [[package]]
 name = "tonic-build"
 version = "0.8.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48c6fd7c2581e36d63388a9e04c350c21beb7a8b059580b2e93993c526899ddc"
+source = "git+https://github.com/bouzuya/tonic?branch=add-disable-comments#6ed9d6a9656a4d5a801e685f11d794e55d7b339a"
 dependencies = [
  "prettyplease",
  "proc-macro2",
