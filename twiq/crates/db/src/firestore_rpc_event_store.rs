@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 use async_trait::async_trait;
 use event_store_core::{
     event_store::{self, EventStore},
-    Event, EventId, EventStream, EventStreamId, EventStreamSeq,
+    Event, EventId, EventPayload, EventStream, EventStreamId, EventStreamSeq, EventType,
 };
 use google_cloud_auth::Credential;
 use prost_types::Timestamp;
@@ -147,7 +147,29 @@ impl FirestoreRpcEventStore {
 #[async_trait]
 impl EventStore for FirestoreRpcEventStore {
     async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
-        todo!()
+        let mut client = Self::client(&self.credential)
+            .await
+            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+        let collection_id = "events";
+        let document_id = event_id.to_string();
+        let name = format!(
+            "projects/{}/databases/{}/documents/{}/{}",
+            self.project_id, self.database_id, collection_id, document_id
+        );
+        let response = client
+            .get_document(GetDocumentRequest {
+                name,
+                mask: None,
+                consistency_selector: Some(get_document_request::ConsistencySelector::Transaction(
+                    self.transaction.clone(),
+                )),
+            })
+            .await
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+        let document = response.into_inner();
+        // FIXME: error handling
+        let event = event_from_fields(&document).unwrap();
+        Ok(Some(event))
     }
 
     async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
@@ -257,6 +279,18 @@ fn event_stream_to_fields(
         value_from_i64(i64::from(event_stream_seq)),
     );
     map
+}
+
+fn event_from_fields(document: &Document) -> Result<Event> {
+    // FIXME: error handling
+    let id = EventId::from_str(get_field_as_str(document, "id").unwrap()).unwrap();
+    let r#type = EventType::from_str(get_field_as_str(document, "type").unwrap()).unwrap();
+    let stream_id =
+        EventStreamId::from_str(get_field_as_str(document, "stream_id").unwrap()).unwrap();
+    let stream_seq =
+        EventStreamSeq::try_from(get_field_as_i64(document, "stream_seq").unwrap()).unwrap();
+    let payload = EventPayload::from_str(get_field_as_str(document, "data").unwrap()).unwrap();
+    Ok(Event::new(id, r#type, stream_id, stream_seq, payload))
 }
 
 fn event_to_fields(event: &Event) -> HashMap<String, Value> {
