@@ -19,6 +19,8 @@ pub mod google {
 }
 
 pub mod helper {
+    use prost_types::Timestamp;
+
     use super::google::firestore::v1::{value::ValueType, Document, Value};
 
     pub fn get_field_as_i64(document: &Document, key: &str) -> Option<i64> {
@@ -65,9 +67,17 @@ pub mod helper {
         }
     }
 
+    // panic if value_type is not string
+    pub fn value_into_timestamp_unchecked(value: Value) -> Timestamp {
+        match value.value_type {
+            Some(ValueType::TimestampValue(t)) => t,
+            _ => unreachable!(),
+        }
+    }
+
     #[cfg(test)]
     mod tests {
-        use std::collections::HashMap;
+        use std::{collections::HashMap, str::FromStr};
 
         use crate::firestore_rpc::google::firestore::v1::Document;
 
@@ -161,6 +171,18 @@ pub mod helper {
                 }),
                 "abc".to_owned()
             );
+        }
+
+        #[test]
+        fn value_into_timestamp_unchecked_test() -> anyhow::Result<()> {
+            let timestamp = Timestamp::from_str("2020-01-02T15:04:05Z")?;
+            assert_eq!(
+                value_into_timestamp_unchecked(Value {
+                    value_type: Some(ValueType::TimestampValue(timestamp.clone())),
+                }),
+                timestamp
+            );
+            Ok(())
         }
     }
 }
