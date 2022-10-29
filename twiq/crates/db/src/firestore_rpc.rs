@@ -74,9 +74,9 @@ pub mod helper {
     }
 
     // panic if value_type is not string
-    pub fn value_into_timestamp_unchecked(value: Value) -> Timestamp {
-        match value.value_type {
-            Some(ValueType::TimestampValue(t)) => t,
+    pub fn value_to_timestamp_unchecked(value: &Value) -> Timestamp {
+        match value.value_type.as_ref() {
+            Some(ValueType::TimestampValue(t)) => t.clone(),
             _ => unreachable!(),
         }
     }
@@ -192,10 +192,10 @@ pub mod helper {
         }
 
         #[test]
-        fn value_into_timestamp_unchecked_test() -> anyhow::Result<()> {
+        fn value_to_timestamp_unchecked_test() -> anyhow::Result<()> {
             let timestamp = Timestamp::from_str("2020-01-02T15:04:05Z")?;
             assert_eq!(
-                value_into_timestamp_unchecked(Value {
+                value_to_timestamp_unchecked(&Value {
                     value_type: Some(ValueType::TimestampValue(timestamp.clone())),
                 }),
                 timestamp
