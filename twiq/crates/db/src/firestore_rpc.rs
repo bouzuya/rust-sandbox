@@ -31,6 +31,10 @@ pub mod helper {
         document.fields.get(key).map(value_as_str_unchecked)
     }
 
+    pub fn get_field_as_timestamp(document: &Document, key: &str) -> Option<Timestamp> {
+        document.fields.get(key).map(value_to_timestamp_unchecked)
+    }
+
     // panic if value_type is not string
     pub fn value_as_str_unchecked(value: &Value) -> &str {
         match value.value_type.as_ref() {
@@ -127,6 +131,29 @@ pub mod helper {
                 ),
                 Some("val")
             );
+        }
+
+        #[test]
+        fn get_field_as_timestamp_test() -> anyhow::Result<()> {
+            let timestamp = Timestamp::from_str("2020-01-02T15:04:05Z")?;
+            assert_eq!(
+                get_field_as_timestamp(
+                    &Document {
+                        name: "name".to_owned(),
+                        fields: {
+                            let mut fields = HashMap::new();
+                            fields
+                                .insert("key".to_owned(), value_from_timestamp(timestamp.clone()));
+                            fields
+                        },
+                        create_time: None,
+                        update_time: None
+                    },
+                    "key"
+                ),
+                Some(timestamp)
+            );
+            Ok(())
         }
 
         #[test]
