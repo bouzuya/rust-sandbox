@@ -7,6 +7,7 @@ use event_store_core::{
 };
 use google_cloud_auth::Credential;
 use prost_types::Timestamp;
+use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use tokio::sync::Mutex;
 use tonic::{
     codegen::InterceptedService,
@@ -24,12 +25,20 @@ use crate::firestore_rpc::{
         firestore_client::FirestoreClient,
         get_document_request,
         precondition::ConditionType,
-        transaction_options::{Mode, ReadWrite},
+        run_query_request::{self, QueryType},
+        structured_query::{
+            field_filter, filter::FilterType, CollectionSelector, Direction, FieldFilter,
+            FieldReference, Filter, Order, Projection,
+        },
+        transaction_options::{Mode, ReadOnly, ReadWrite},
         write::Operation,
         BeginTransactionRequest, CommitRequest, Document, GetDocumentRequest, Precondition,
-        TransactionOptions, Value, Write,
+        RunQueryRequest, StructuredQuery, TransactionOptions, Value, Write,
     },
-    helper::{get_field_as_i64, get_field_as_str, value_from_i64, value_from_string},
+    helper::{
+        get_field_as_i64, get_field_as_str, get_field_as_timestamp, value_from_i64,
+        value_from_string, value_from_timestamp,
+    },
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -173,6 +182,40 @@ impl EventStore for FirestoreRpcEventStore {
     }
 
     async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
+        let event_id = match after {
+            Some(a) => a,
+            None => todo!(),
+        };
+
+        let mut client = Self::client(&self.credential)
+            .await
+            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+
+        // get requested_at
+        let requested_at = {
+            let collection_id = "events";
+            let document_id = event_id.to_string();
+            let document_path = format!("{}/{}", collection_id, document_id);
+            let name = format!(
+                "projects/{}/databases/{}/documents/{}",
+                self.project_id, self.database_id, document_path
+            );
+            let response = client
+                .get_document(GetDocumentRequest {
+                    name,
+                    mask: None,
+                    consistency_selector: Some(
+                        get_document_request::ConsistencySelector::Transaction(
+                            self.transaction.clone(),
+                        ),
+                    ),
+                })
+                .await
+                .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+            let document = response.into_inner();
+            get_field_as_timestamp(&document, "requested_at").unwrap()
+        };
+
         todo!()
     }
 
