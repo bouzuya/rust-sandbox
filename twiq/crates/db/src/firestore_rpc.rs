@@ -51,6 +51,12 @@ pub mod helper {
         }
     }
 
+    pub fn value_from_timestamp(t: Timestamp) -> Value {
+        Value {
+            value_type: Some(ValueType::TimestampValue(t)),
+        }
+    }
+
     // panic if value_type is not integer
     pub fn value_into_i64_unchecked(value: &Value) -> i64 {
         match value.value_type {
@@ -151,6 +157,18 @@ pub mod helper {
                     value_type: Some(ValueType::StringValue("abc".to_owned()))
                 }
             );
+        }
+
+        #[test]
+        fn value_from_timestamp_test() -> anyhow::Result<()> {
+            let timestamp = Timestamp::from_str("2020-01-02T15:04:05Z")?;
+            assert_eq!(
+                value_from_timestamp(timestamp.clone()),
+                Value {
+                    value_type: Some(ValueType::TimestampValue(timestamp))
+                }
+            );
+            Ok(())
         }
 
         #[test]
