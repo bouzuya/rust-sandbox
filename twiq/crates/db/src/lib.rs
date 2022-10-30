@@ -2,6 +2,7 @@ pub mod firestore_rest;
 pub mod firestore_rest_event_store;
 pub mod firestore_rpc;
 pub mod firestore_rpc_event_store;
+pub mod firestore_transaction;
 
 #[cfg(test)]
 mod tests {
