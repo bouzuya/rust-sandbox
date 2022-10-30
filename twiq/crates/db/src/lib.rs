@@ -7,6 +7,7 @@ pub mod firestore_rpc_event_store;
 mod tests {
     use std::{collections::HashMap, env, str::FromStr};
 
+    use anyhow::Context;
     use domain::aggregate::user::{TwitterUserId, User};
     use event_store_core::{event_store::EventStore, EventStream};
     use google_cloud_auth::{Credential, CredentialConfig};
@@ -50,11 +51,28 @@ mod tests {
         );
 
         let user = User::create(TwitterUserId::from_str("125962981")?)?;
-        event_store.store(None, EventStream::from(user)).await?;
+        let event_stream = EventStream::from(user);
+        event_store.store(None, event_stream.clone()).await?;
 
         let writes = event_store.writes().await;
         FirestoreRpcEventStore::commit(&credential, &project_id, &database_id, transaction, writes)
             .await?;
+
+        let transaction =
+            FirestoreRpcEventStore::begin_transaction(&credential, &project_id, &database_id)
+                .await?;
+        let event_store = FirestoreRpcEventStore::new(
+            credential.clone(),
+            project_id.clone(),
+            database_id.clone(),
+            transaction.clone(),
+        );
+        let event = event_stream
+            .events()
+            .last()
+            .context("empty event_stream")?
+            .clone();
+        assert_eq!(event_store.find_event(event.id()).await?, Some(event));
         Ok(())
     }
 

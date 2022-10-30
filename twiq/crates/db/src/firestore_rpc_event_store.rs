@@ -217,7 +217,6 @@ impl EventStore for FirestoreRpcEventStore {
         };
 
         // get events (run_query)
-        let database_id = "(default)";
         let parent = format!(
             "projects/{}/databases/{}/documents",
             self.project_id, self.database_id
