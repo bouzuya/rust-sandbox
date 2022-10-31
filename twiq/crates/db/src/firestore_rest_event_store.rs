@@ -13,7 +13,7 @@ use crate::{
         FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
         StructuredQuery, Timestamp, TransactionOptions, Value, Write,
     },
-    firestore_rpc::helper::path::{collection_path, database_path, document_path, documents_path},
+    firestore_rpc::helper::path::{database_path, document_path, documents_path},
 };
 use event_store_core::{
     event::Event, event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
