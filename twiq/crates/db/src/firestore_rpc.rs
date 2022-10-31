@@ -23,6 +23,54 @@ pub mod helper {
 
     use super::google::firestore::v1::{value::ValueType, Document, Value};
 
+    pub mod path {
+        /// ```rust
+        /// # use db::firestore_rpc::helper::path::database_path;
+        /// assert_eq!(database_path("1", "2"), "projects/1/databases/2");
+        /// ```
+        pub fn database_path(project_id: &str, database_id: &str) -> String {
+            format!("projects/{}/databases/{}", project_id, database_id)
+        }
+
+        /// ```rust
+        /// # use db::firestore_rpc::helper::path::documents_path;
+        /// assert_eq!(documents_path("1", "2"), "projects/1/databases/2/documents");
+        /// ```
+        pub fn documents_path(project_id: &str, database_id: &str) -> String {
+            format!(
+                "projects/{}/databases/{}/documents",
+                project_id, database_id
+            )
+        }
+
+        /// ```rust
+        /// # use db::firestore_rpc::helper::path::collection_path;
+        /// assert_eq!(collection_path("1", "2", "3"), "projects/1/databases/2/documents/3");
+        /// ```
+        pub fn collection_path(project_id: &str, database_id: &str, collection_id: &str) -> String {
+            format!(
+                "projects/{}/databases/{}/documents/{}",
+                project_id, database_id, collection_id
+            )
+        }
+
+        /// ```rust
+        /// # use db::firestore_rpc::helper::path::document_path;
+        /// assert_eq!(document_path("1", "2", "3", "4"), "projects/1/databases/2/documents/3/4");
+        /// ```
+        pub fn document_path(
+            project_id: &str,
+            database_id: &str,
+            collection_id: &str,
+            document_id: &str,
+        ) -> String {
+            format!(
+                "projects/{}/databases/{}/documents/{}/{}",
+                project_id, database_id, collection_id, document_id
+            )
+        }
+    }
+
     pub fn get_field_as_i64(document: &Document, key: &str) -> Option<i64> {
         document.fields.get(key).map(value_into_i64_unchecked)
     }
