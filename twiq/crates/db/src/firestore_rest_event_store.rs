@@ -6,11 +6,14 @@ use reqwest::Response;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
 use use_case::event_store::EventStore;
 
-use crate::firestore_rest::{
-    self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
-    CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference,
-    FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
-    StructuredQuery, Timestamp, TransactionOptions, Value, Write,
+use crate::{
+    firestore_rest::{
+        self, BeginTransactionRequestBody, BeginTransactionResponse, CollectionSelector,
+        CommitRequestBody, Direction, Document, FieldFilter, FieldOperator, FieldReference,
+        FieldTransform, Filter, Order, Precondition, Projection, RunQueryRequestBody, ServerValue,
+        StructuredQuery, Timestamp, TransactionOptions, Value, Write,
+    },
+    firestore_rpc::helper::path::{collection_path, database_path, document_path, documents_path},
 };
 use event_store_core::{
     event::Event, event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
@@ -150,10 +153,7 @@ async fn find_events_by_event_id_after(
 ) -> Result<Vec<Event>, Error> {
     // TODO: begin transaction
     let database_id = "(default)";
-    let parent = format!(
-        "projects/{}/databases/{}/documents",
-        project_id, database_id
-    );
+    let parent = documents_path(project_id, database_id);
 
     let now = OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -162,11 +162,7 @@ async fn find_events_by_event_id_after(
     let database_id = "(default)";
     let collection_id = "events";
     let document_id = event_id.to_string();
-    let document_path = format!("{}/{}", collection_id, document_id);
-    let name = format!(
-        "projects/{}/databases/{}/documents/{}",
-        project_id, database_id, document_path
-    );
+    let name = document_path(project_id, database_id, collection_id, &document_id);
     let response = firestore_rest::get(credential, &name, None, None, None)
         .await
         .map_err(|e| Error::Unknown(e.to_string()))?;
@@ -270,10 +266,7 @@ async fn find_events_by_event_stream_id(
     event_stream_id: EventStreamId,
 ) -> Result<Vec<Event>, Error> {
     let database_id = "(default)";
-    let parent = format!(
-        "projects/{}/databases/{}/documents",
-        project_id, database_id
-    );
+    let parent = documents_path(project_id, database_id);
 
     let now = OffsetDateTime::now_utc()
         .format(&Rfc3339)
@@ -395,7 +388,7 @@ async fn store(
     };
 
     let database_id = "(default)";
-    let database = format!("projects/{}/databases/{}", project_id, database_id);
+    let database = database_path(project_id, database_id);
 
     let response = firestore_rest::begin_transaction(
         credential,
@@ -420,10 +413,7 @@ async fn store(
     let collection_id = "event_streams";
     let document_id = event_stream_id.to_string();
     let event_stream_document = Document {
-        name: format!(
-            "projects/{}/databases/{}/documents/{}/{}",
-            project_id, &database_id, collection_id, document_id
-        ),
+        name: document_path(project_id, database_id, collection_id, &document_id),
         fields: event_stream_to_fields(event_stream_id, last_event_stream_seq),
         create_time: None,
         update_time: None,
@@ -458,10 +448,7 @@ async fn store(
         writes.push(Write::Update {
             current_document: Some(Precondition::Exists(false)),
             update: Document {
-                name: format!(
-                    "projects/{}/databases/{}/documents/{}/{}",
-                    &project_id, &database_id, collection_id, document_id
-                ),
+                name: document_path(&project_id, &database_id, collection_id, &document_id),
                 fields: event_to_fields(&event),
                 create_time: None,
                 update_time: None,
@@ -499,10 +486,7 @@ async fn get_event_stream(
 ) -> Result<(EventStreamId, EventStreamSeq, Timestamp), Error> {
     let collection_id = "event_streams";
     let document_id = event_stream_id.to_string();
-    let name = format!(
-        "projects/{}/databases/{}/documents/{}/{}",
-        project_id, database_id, collection_id, document_id
-    );
+    let name = document_path(project_id, database_id, collection_id, &document_id);
     let response = firestore_rest::get(credential, &name, None, Some(transaction), None)
         .await
         .map_err(|e| Error::Unknown(e.to_string()))?;

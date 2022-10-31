@@ -36,8 +36,9 @@ use crate::firestore_rpc::{
         RunQueryRequest, StructuredQuery, TransactionOptions, Value, Write,
     },
     helper::{
-        get_field_as_i64, get_field_as_str, get_field_as_timestamp, value_from_i64,
-        value_from_string, value_from_timestamp,
+        get_field_as_i64, get_field_as_str, get_field_as_timestamp,
+        path::{database_path, document_path, documents_path},
+        value_from_i64, value_from_string, value_from_timestamp,
     },
 };
 
@@ -84,7 +85,7 @@ impl FirestoreRpcEventStore {
         let mut client = Self::client(credential)
             .await
             .map_err(|status| Error::Unknown(status.to_string()))?;
-        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let database = database_path(project_id, database_id);
         let response = client
             .begin_transaction(BeginTransactionRequest {
                 database,
@@ -107,7 +108,7 @@ impl FirestoreRpcEventStore {
         transaction: Vec<u8>,
         writes: Vec<Write>,
     ) -> Result<()> {
-        let database = format!("projects/{}/databases/{}", project_id, database_id);
+        let database = database_path(project_id, database_id);
         let mut client = Self::client(credential).await?;
         let _ = client
             .commit(CommitRequest {
@@ -161,9 +162,11 @@ impl EventStore for FirestoreRpcEventStore {
             .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
         let collection_id = "events";
         let document_id = event_id.to_string();
-        let name = format!(
-            "projects/{}/databases/{}/documents/{}/{}",
-            self.project_id, self.database_id, collection_id, document_id
+        let name = document_path(
+            &self.project_id,
+            &self.database_id,
+            collection_id,
+            &document_id,
         );
         let response = client
             .get_document(GetDocumentRequest {
@@ -195,10 +198,11 @@ impl EventStore for FirestoreRpcEventStore {
         let requested_at = {
             let collection_id = "events";
             let document_id = event_id.to_string();
-            let document_path = format!("{}/{}", collection_id, document_id);
-            let name = format!(
-                "projects/{}/databases/{}/documents/{}",
-                self.project_id, self.database_id, document_path
+            let name = document_path(
+                &self.project_id,
+                &self.database_id,
+                collection_id,
+                &document_id,
             );
             let response = client
                 .get_document(GetDocumentRequest {
@@ -217,10 +221,7 @@ impl EventStore for FirestoreRpcEventStore {
         };
 
         // get events (run_query)
-        let parent = format!(
-            "projects/{}/databases/{}/documents",
-            self.project_id, self.database_id
-        );
+        let parent = documents_path(&self.project_id, &self.database_id);
         let now = OffsetDateTime::now_utc()
             .format(&Rfc3339)
             .map_err(|e| event_store::Error::Unknown(e.to_string()))
@@ -325,9 +326,11 @@ impl EventStore for FirestoreRpcEventStore {
         let collection_id = "event_streams";
         let document_id = event_stream.id().to_string();
         let event_stream_document = Document {
-            name: format!(
-                "projects/{}/databases/{}/documents/{}/{}",
-                self.project_id, self.database_id, collection_id, document_id
+            name: document_path(
+                &self.project_id,
+                &self.database_id,
+                collection_id,
+                &document_id,
             ),
             fields: event_stream_to_fields(event_stream.id(), event_stream.seq()),
             create_time: None,
@@ -378,9 +381,11 @@ impl EventStore for FirestoreRpcEventStore {
                     condition_type: Some(ConditionType::Exists(false)),
                 }),
                 operation: Some(Operation::Update(Document {
-                    name: format!(
-                        "projects/{}/databases/{}/documents/{}/{}",
-                        &self.project_id, &self.database_id, collection_id, document_id
+                    name: document_path(
+                        &self.project_id,
+                        &self.database_id,
+                        collection_id,
+                        &document_id,
                     ),
                     fields: event_to_fields(&event),
                     create_time: None,
@@ -453,10 +458,7 @@ async fn get_event_stream(
 ) -> Result<(EventStreamId, EventStreamSeq, Timestamp), Error> {
     let collection_id = "event_streams";
     let document_id = event_stream_id.to_string();
-    let name = format!(
-        "projects/{}/databases/{}/documents/{}/{}",
-        project_id, database_id, collection_id, document_id
-    );
+    let name = document_path(project_id, database_id, collection_id, &document_id);
     let response = client
         .get_document(GetDocumentRequest {
             name,

@@ -9,10 +9,13 @@ use tonic::{
     Request, Status,
 };
 
-use crate::firestore_rpc::google::firestore::v1::{
-    firestore_client::FirestoreClient,
-    transaction_options::{Mode, ReadWrite},
-    BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
+use crate::firestore_rpc::{
+    google::firestore::v1::{
+        firestore_client::FirestoreClient,
+        transaction_options::{Mode, ReadWrite},
+        BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
+    },
+    helper::path::{collection_path, database_path, document_path},
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -77,7 +80,7 @@ impl FirestoreTransaction {
     }
 
     pub fn collection_path(&self, collection_id: &str) -> String {
-        format!("{}/documents/{}", self.database_path(), collection_id)
+        collection_path(&self.project_id, &self.database_id, collection_id)
     }
 
     pub fn database_id(&self) -> String {
@@ -89,7 +92,12 @@ impl FirestoreTransaction {
     }
 
     pub fn document_path(&self, collection_id: &str, document_id: &str) -> String {
-        format!("{}/{}", self.collection_path(collection_id), document_id)
+        document_path(
+            &self.project_id,
+            &self.database_id,
+            collection_id,
+            document_id,
+        )
     }
 
     pub fn project_id(&self) -> String {
@@ -126,10 +134,6 @@ impl FirestoreTransaction {
             .build()?;
         Ok(Credential::find_default(config).await?)
     }
-}
-
-fn database_path(project_id: &str, database_id: &str) -> String {
-    format!("projects/{}/databases/{}", project_id, database_id)
 }
 
 #[cfg(test)]
