@@ -1,45 +1,40 @@
-use std::{collections::HashMap, str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use event_store_core::{
     event_store::{self, EventStore},
     Event, EventId, EventPayload, EventStream, EventStreamId, EventStreamSeq, EventType,
 };
-use google_cloud_auth::Credential;
 use prost_types::Timestamp;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
-use tokio::sync::Mutex;
-use tonic::{
-    codegen::InterceptedService,
-    metadata::AsciiMetadataValue,
-    transport::{Channel, ClientTlsConfig, Endpoint},
-    Request, Status,
-};
+use tonic::{codegen::InterceptedService, transport::Channel, Request, Status};
 
-use crate::firestore_rpc::{
-    google::firestore::v1::{
-        document_transform::{
-            field_transform::{ServerValue, TransformType},
-            FieldTransform,
+use crate::{
+    firestore_rpc::{
+        google::firestore::v1::{
+            document_transform::{
+                field_transform::{ServerValue, TransformType},
+                FieldTransform,
+            },
+            firestore_client::FirestoreClient,
+            get_document_request,
+            precondition::ConditionType,
+            run_query_request::{self},
+            structured_query::{
+                field_filter, filter::FilterType, CollectionSelector, Direction, FieldFilter,
+                FieldReference, Filter, Order, Projection,
+            },
+            transaction_options::{Mode, ReadOnly},
+            write::Operation,
+            Document, GetDocumentRequest, Precondition, RunQueryRequest, StructuredQuery,
+            TransactionOptions, Value, Write,
         },
-        firestore_client::FirestoreClient,
-        get_document_request,
-        precondition::ConditionType,
-        run_query_request::{self},
-        structured_query::{
-            field_filter, filter::FilterType, CollectionSelector, Direction, FieldFilter,
-            FieldReference, Filter, Order, Projection,
+        helper::{
+            get_field_as_i64, get_field_as_str, get_field_as_timestamp, path::document_path,
+            value_from_i64, value_from_string, value_from_timestamp,
         },
-        transaction_options::{Mode, ReadOnly, ReadWrite},
-        write::Operation,
-        BeginTransactionRequest, CommitRequest, Document, GetDocumentRequest, Precondition,
-        RunQueryRequest, StructuredQuery, TransactionOptions, Value, Write,
     },
-    helper::{
-        get_field_as_i64, get_field_as_str, get_field_as_timestamp,
-        path::{database_path, document_path, documents_path},
-        value_from_i64, value_from_string, value_from_timestamp,
-    },
+    firestore_transaction::FirestoreTransaction,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -53,127 +48,31 @@ pub enum Error {
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct FirestoreRpcEventStore {
-    credential: Credential,
-    project_id: String,
-    database_id: String,
-    transaction: Vec<u8>,
-    writes: Arc<Mutex<Vec<Write>>>,
+    transaction: FirestoreTransaction,
 }
 
 impl FirestoreRpcEventStore {
-    pub fn new(
-        credential: Credential,
-        project_id: String,
-        database_id: String,
-        transaction: Vec<u8>,
-    ) -> Self {
-        Self {
-            credential,
-            project_id,
-            database_id,
-            transaction,
-            writes: Arc::new(Mutex::new(vec![])),
-        }
-    }
-
-    // TODO: extract
-    pub async fn begin_transaction(
-        credential: &Credential,
-        project_id: &str,
-        database_id: &str,
-    ) -> Result<Vec<u8>> {
-        let mut client = Self::client(credential)
-            .await
-            .map_err(|status| Error::Unknown(status.to_string()))?;
-        let database = database_path(project_id, database_id);
-        let response = client
-            .begin_transaction(BeginTransactionRequest {
-                database,
-                options: Some(TransactionOptions {
-                    mode: Some(Mode::ReadWrite(ReadWrite {
-                        retry_transaction: vec![],
-                    })),
-                }),
-            })
-            .await
-            .map_err(|e| Error::Unknown(e.to_string()))?;
-        Ok(response.into_inner().transaction)
-    }
-
-    // TODO: extract
-    pub async fn commit(
-        credential: &Credential,
-        project_id: &str,
-        database_id: &str,
-        transaction: Vec<u8>,
-        writes: Vec<Write>,
-    ) -> Result<()> {
-        let database = database_path(project_id, database_id);
-        let mut client = Self::client(credential).await?;
-        let _ = client
-            .commit(CommitRequest {
-                database,
-                writes,
-                transaction,
-            })
-            .await
-            .map_err(|status| Error::Unknown(status.to_string()))?;
-        Ok(())
-    }
-
-    pub async fn writes(&self) -> Vec<Write> {
-        let writes = self.writes.lock().await;
-        writes.clone()
-    }
-
-    async fn client(
-        credential: &Credential,
-    ) -> Result<
-        FirestoreClient<
-            InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
-        >,
-    > {
-        let access_token = credential.access_token().await?;
-        let channel = Endpoint::from_static("https://firestore.googleapis.com")
-            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))
-            .map_err(|e| Error::Unknown(e.to_string()))?
-            .connect()
-            .await
-            .map_err(|status| Error::Unknown(status.to_string()))?;
-        let mut metadata_value =
-            AsciiMetadataValue::try_from(format!("Bearer {}", access_token.value))
-                .map_err(|e| Error::Unknown(e.to_string()))?;
-        metadata_value.set_sensitive(true);
-        let client = FirestoreClient::with_interceptor(channel, move |mut request: Request<()>| {
-            request
-                .metadata_mut()
-                .insert("authorization", metadata_value.clone());
-            Ok(request)
-        });
-        Ok(client)
+    pub fn new(transaction: FirestoreTransaction) -> Self {
+        Self { transaction }
     }
 }
 
 #[async_trait]
 impl EventStore for FirestoreRpcEventStore {
     async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
-        let mut client = Self::client(&self.credential)
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
         let collection_id = "events";
         let document_id = event_id.to_string();
-        let name = document_path(
-            &self.project_id,
-            &self.database_id,
-            collection_id,
-            &document_id,
-        );
-        let response = client
+        let name = self.transaction.document_path(collection_id, &document_id);
+        let response = self
+            .transaction
+            .client()
+            .await
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))?
             .get_document(GetDocumentRequest {
                 name,
                 mask: None,
                 consistency_selector: Some(get_document_request::ConsistencySelector::Transaction(
-                    self.transaction.clone(),
+                    self.transaction.name(),
                 )),
             })
             .await
@@ -190,27 +89,22 @@ impl EventStore for FirestoreRpcEventStore {
             None => todo!(),
         };
 
-        let mut client = Self::client(&self.credential)
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
-
         // get requested_at
         let requested_at = {
             let collection_id = "events";
             let document_id = event_id.to_string();
-            let name = document_path(
-                &self.project_id,
-                &self.database_id,
-                collection_id,
-                &document_id,
-            );
-            let response = client
+            let name = self.transaction.document_path(collection_id, &document_id);
+            let response = self
+                .transaction
+                .client()
+                .await
+                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
                 .get_document(GetDocumentRequest {
                     name,
                     mask: None,
                     consistency_selector: Some(
                         get_document_request::ConsistencySelector::Transaction(
-                            self.transaction.clone(),
+                            self.transaction.name(),
                         ),
                     ),
                 })
@@ -221,7 +115,7 @@ impl EventStore for FirestoreRpcEventStore {
         };
 
         // get events (run_query)
-        let parent = documents_path(&self.project_id, &self.database_id);
+        let parent = self.transaction.documents_path();
         let now = OffsetDateTime::now_utc()
             .format(&Rfc3339)
             .map_err(|e| event_store::Error::Unknown(e.to_string()))
@@ -229,7 +123,12 @@ impl EventStore for FirestoreRpcEventStore {
                 Timestamp::from_str(s.as_str())
                     .map_err(|e| event_store::Error::Unknown(e.to_string()))
             })?;
-        let response = client.run_query(RunQueryRequest {
+        let response = self
+                .transaction
+                .client()
+                .await
+                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+        .run_query(RunQueryRequest {
                     parent,
                     query_type: Some(run_query_request::QueryType::StructuredQuery(
                         StructuredQuery {
@@ -326,12 +225,7 @@ impl EventStore for FirestoreRpcEventStore {
         let collection_id = "event_streams";
         let document_id = event_stream.id().to_string();
         let event_stream_document = Document {
-            name: document_path(
-                &self.project_id,
-                &self.database_id,
-                collection_id,
-                &document_id,
-            ),
+            name: self.transaction.document_path(collection_id, &document_id),
             fields: event_stream_to_fields(event_stream.id(), event_stream.seq()),
             create_time: None,
             update_time: None,
@@ -340,9 +234,9 @@ impl EventStore for FirestoreRpcEventStore {
             Some(expected_event_stream_seq) => {
                 let (_, event_stream_seq, update_time) = get_event_stream(
                     &mut client,
-                    &self.project_id,
-                    self.transaction.clone(),
-                    &self.database_id,
+                    &self.transaction.project_id(),
+                    self.transaction.name(),
+                    &self.transaction.database_id(),
                     event_stream.id(),
                 )
                 .await
@@ -358,40 +252,40 @@ impl EventStore for FirestoreRpcEventStore {
                 condition_type: Some(ConditionType::Exists(false)),
             },
         };
-        let mut writes = self.writes.lock().await;
-        writes.push(Write {
-            update_mask: None,
-            update_transforms: vec![],
-            current_document: Some(precondition),
-            operation: Some(Operation::Update(event_stream_document)),
-        });
+        self.transaction
+            .push_write(Write {
+                update_mask: None,
+                update_transforms: vec![],
+                current_document: Some(precondition),
+                operation: Some(Operation::Update(event_stream_document)),
+            })
+            .await
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
 
         for event in event_stream.events() {
             let collection_id = "events";
             let document_id = event.id().to_string();
-            writes.push(Write {
-                update_mask: None,
-                update_transforms: vec![FieldTransform {
-                    field_path: "requested_at".to_owned(),
-                    transform_type: Some(TransformType::SetToServerValue(
-                        ServerValue::RequestTime as i32,
-                    )),
-                }],
-                current_document: Some(Precondition {
-                    condition_type: Some(ConditionType::Exists(false)),
-                }),
-                operation: Some(Operation::Update(Document {
-                    name: document_path(
-                        &self.project_id,
-                        &self.database_id,
-                        collection_id,
-                        &document_id,
-                    ),
-                    fields: event_to_fields(&event),
-                    create_time: None,
-                    update_time: None,
-                })),
-            });
+            self.transaction
+                .push_write(Write {
+                    update_mask: None,
+                    update_transforms: vec![FieldTransform {
+                        field_path: "requested_at".to_owned(),
+                        transform_type: Some(TransformType::SetToServerValue(
+                            ServerValue::RequestTime as i32,
+                        )),
+                    }],
+                    current_document: Some(Precondition {
+                        condition_type: Some(ConditionType::Exists(false)),
+                    }),
+                    operation: Some(Operation::Update(Document {
+                        name: self.transaction.document_path(collection_id, &document_id),
+                        fields: event_to_fields(&event),
+                        create_time: None,
+                        update_time: None,
+                    })),
+                })
+                .await
+                .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
         }
         Ok(())
     }

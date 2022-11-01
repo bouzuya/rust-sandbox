@@ -1,10 +1,12 @@
-use std::sync::Arc;
+use std::{fmt::Write, sync::Arc};
 
 use google_cloud_auth::Credential;
 use tokio::sync::Mutex;
+use tonic::{codegen::InterceptedService, transport::Channel, Request, Status};
 
 use crate::firestore_rpc::{
     google::firestore::v1::{
+        firestore_client::FirestoreClient,
         transaction_options::{Mode, ReadWrite},
         BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
     },
@@ -57,6 +59,16 @@ impl FirestoreTransaction {
         })
     }
 
+    pub async fn client(
+        &self,
+    ) -> Result<
+        FirestoreClient<
+            InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
+        >,
+    > {
+        Ok(client(&self.credential).await?)
+    }
+
     pub async fn commit(self) -> Result<()> {
         let writes = self.writes.lock().await.clone();
         let database = self.database_path();
@@ -95,11 +107,23 @@ impl FirestoreTransaction {
     pub fn project_id(&self) -> String {
         self.project_id.clone()
     }
+
+    pub fn name(&self) -> Vec<u8> {
+        self.transaction.clone()
+    }
+
+    pub async fn push_write(&self, write: impl Write) -> Result<()> {
+        let mut writes = self.writes.lock().await;
+        writes.push(write);
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     // TODO: test begin
+
+    // TODO: test client
 
     // TODO: test commit
 
@@ -112,4 +136,8 @@ mod tests {
     // TODO: test document_path
 
     // TODO: test project_id
+
+    // TODO: test name
+
+    // TODO: test push_write
 }
