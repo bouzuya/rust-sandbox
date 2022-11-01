@@ -19,9 +19,17 @@ pub mod google {
 }
 
 pub mod helper {
+    use super::google::firestore::v1::{
+        firestore_client::FirestoreClient, value::ValueType, Document, Value,
+    };
+    use google_cloud_auth::{Credential, CredentialConfig};
     use prost_types::Timestamp;
-
-    use super::google::firestore::v1::{value::ValueType, Document, Value};
+    use tonic::{
+        codegen::InterceptedService,
+        metadata::AsciiMetadataValue,
+        transport::{Channel, ClientTlsConfig, Endpoint},
+        Request, Status,
+    };
 
     pub mod path {
         /// ```rust
@@ -69,6 +77,50 @@ pub mod helper {
                 project_id, database_id, collection_id, document_id
             )
         }
+    }
+
+    #[derive(Debug, thiserror::Error)]
+    pub enum Error {
+        #[error("google_cloud_auth {0}")]
+        GoogleCloudAuth(#[from] google_cloud_auth::Error),
+        #[error("status {0}")]
+        Status(#[from] Status),
+        #[error("tonic invalid metadata value {0}")]
+        TonicInvalidMetadataValue(#[from] tonic::metadata::errors::InvalidMetadataValue),
+        #[error("transport {0}")]
+        TonicTransport(#[from] tonic::transport::Error),
+    }
+
+    pub async fn client(
+        credential: &Credential,
+    ) -> Result<
+        FirestoreClient<
+            InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
+        >,
+        Error,
+    > {
+        let access_token = credential.access_token().await?;
+        let channel = Endpoint::from_static("https://firestore.googleapis.com")
+            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
+            .connect()
+            .await?;
+        let mut metadata_value =
+            AsciiMetadataValue::try_from(format!("Bearer {}", access_token.value))?;
+        metadata_value.set_sensitive(true);
+        let client = FirestoreClient::with_interceptor(channel, move |mut request: Request<()>| {
+            request
+                .metadata_mut()
+                .insert("authorization", metadata_value.clone());
+            Ok(request)
+        });
+        Ok(client)
+    }
+
+    pub async fn credential() -> Result<Credential, Error> {
+        let config = CredentialConfig::builder()
+            .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
+            .build()?;
+        Ok(Credential::find_default(config).await?)
     }
 
     pub fn get_field_as_i64(document: &Document, key: &str) -> Option<i64> {
