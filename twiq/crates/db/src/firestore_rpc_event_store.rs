@@ -205,12 +205,12 @@ impl EventStore for FirestoreRpcEventStore {
 
     async fn find_event_stream(
         &self,
-        event_stream_id: EventStreamId,
+        _event_stream_id: EventStreamId,
     ) -> event_store::Result<Option<EventStream>> {
         todo!()
     }
 
-    async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
+    async fn find_events(&self, _after: Option<EventId>) -> event_store::Result<Vec<Event>> {
         todo!()
     }
 
@@ -219,7 +219,9 @@ impl EventStore for FirestoreRpcEventStore {
         current: Option<EventStreamSeq>,
         event_stream: EventStream,
     ) -> event_store::Result<()> {
-        let mut client = Self::client(&self.credential)
+        let mut client = self
+            .transaction
+            .client()
             .await
             .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
         let collection_id = "event_streams";

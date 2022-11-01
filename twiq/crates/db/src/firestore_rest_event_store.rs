@@ -448,7 +448,7 @@ async fn store(
         writes.push(Write::Update {
             current_document: Some(Precondition::Exists(false)),
             update: Document {
-                name: document_path(&project_id, &database_id, collection_id, &document_id),
+                name: document_path(project_id, database_id, collection_id, &document_id),
                 fields: event_to_fields(&event),
                 create_time: None,
                 update_time: None,

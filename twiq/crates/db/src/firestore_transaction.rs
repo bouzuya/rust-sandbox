@@ -1,4 +1,4 @@
-use std::{fmt::Write, sync::Arc};
+use std::sync::Arc;
 
 use google_cloud_auth::Credential;
 use tokio::sync::Mutex;
@@ -12,7 +12,7 @@ use crate::firestore_rpc::{
     },
     helper::{
         client, credential,
-        path::{collection_path, database_path, document_path},
+        path::{collection_path, database_path, document_path, documents_path},
     },
 };
 
@@ -26,6 +26,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[derive(Clone)]
 pub struct FirestoreTransaction {
     credential: Credential,
     project_id: String,
@@ -104,6 +105,10 @@ impl FirestoreTransaction {
         )
     }
 
+    pub fn documents_path(&self) -> String {
+        documents_path(&self.project_id, &self.database_id)
+    }
+
     pub fn project_id(&self) -> String {
         self.project_id.clone()
     }
@@ -112,7 +117,7 @@ impl FirestoreTransaction {
         self.transaction.clone()
     }
 
-    pub async fn push_write(&self, write: impl Write) -> Result<()> {
+    pub async fn push_write(&self, write: Write) -> Result<()> {
         let mut writes = self.writes.lock().await;
         writes.push(write);
         Ok(())

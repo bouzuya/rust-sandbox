@@ -33,41 +33,24 @@ mod tests {
             GetDocumentRequest, Precondition, TransactionOptions, Value, Write,
         },
         firestore_rpc_event_store::FirestoreRpcEventStore,
+        firestore_transaction::FirestoreTransaction,
     };
 
     #[tokio::test]
     #[ignore]
     async fn firestore_rpc_event_store_test() -> anyhow::Result<()> {
-        let credential = credential().await?;
         let project_id = env::var("PROJECT_ID")?;
         let database_id = "(default)".to_owned();
         let transaction =
-            FirestoreRpcEventStore::begin_transaction(&credential, &project_id, &database_id)
-                .await?;
-        let event_store = FirestoreRpcEventStore::new(
-            credential.clone(),
-            project_id.clone(),
-            database_id.clone(),
-            transaction.clone(),
-        );
-
+            FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
         let user = User::create(TwitterUserId::from_str("125962981")?)?;
         let event_stream = EventStream::from(user);
         event_store.store(None, event_stream.clone()).await?;
+        transaction.commit().await?;
 
-        let writes = event_store.writes().await;
-        FirestoreRpcEventStore::commit(&credential, &project_id, &database_id, transaction, writes)
-            .await?;
-
-        let transaction =
-            FirestoreRpcEventStore::begin_transaction(&credential, &project_id, &database_id)
-                .await?;
-        let event_store = FirestoreRpcEventStore::new(
-            credential.clone(),
-            project_id.clone(),
-            database_id.clone(),
-            transaction.clone(),
-        );
+        let transaction = FirestoreTransaction::begin(project_id, database_id).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction);
         let event = event_stream
             .events()
             .last()
