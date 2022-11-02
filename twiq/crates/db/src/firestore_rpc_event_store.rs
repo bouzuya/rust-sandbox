@@ -128,7 +128,7 @@ impl EventStore for FirestoreRpcEventStore {
                 .client()
                 .await
                 .map_err(|status| event_store::Error::Unknown(status.to_string()))?
-        .run_query(RunQueryRequest {
+                .run_query(RunQueryRequest {
                     parent,
                     query_type: Some(run_query_request::QueryType::StructuredQuery(
                         StructuredQuery {
@@ -205,9 +205,97 @@ impl EventStore for FirestoreRpcEventStore {
 
     async fn find_event_stream(
         &self,
-        _event_stream_id: EventStreamId,
+        event_stream_id: EventStreamId,
     ) -> event_store::Result<Option<EventStream>> {
-        todo!()
+        let parent = self.transaction.documents_path();
+
+        let now = OffsetDateTime::now_utc()
+            .format(&Rfc3339)
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))
+            .and_then(|s| {
+                Timestamp::from_str(s.as_str())
+                    .map_err(|e| event_store::Error::Unknown(e.to_string()))
+            })?;
+        let response = self
+            .transaction
+            .client()
+            .await
+            .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+            .run_query(RunQueryRequest {
+                parent,
+                query_type: Some(run_query_request::QueryType::StructuredQuery(
+                    StructuredQuery {
+                        select: Some(Projection {
+                            fields: vec![
+                                FieldReference {
+                                    field_path: "id".to_owned(),
+                                },
+                                FieldReference {
+                                    field_path: "stream_id".to_owned(),
+                                },
+                                FieldReference {
+                                    field_path: "stream_seq".to_owned(),
+                                },
+                                FieldReference {
+                                    field_path: "data".to_owned(),
+                                },
+                            ],
+                        }),
+                        from: vec![CollectionSelector {
+                            collection_id: "events".to_owned(),
+                            all_descendants: false,
+                        }],
+                        r#where: Some(Filter {
+                            filter_type: Some(FilterType::FieldFilter(FieldFilter {
+                                field: Some(FieldReference {
+                                    field_path: "stream_id".to_owned(),
+                                }),
+                                op: field_filter::Operator::Equal as i32,
+                                value: Some(value_from_string(event_stream_id.to_string())),
+                            })),
+                        }),
+                        order_by: vec![Order {
+                            field: Some(FieldReference {
+                                field_path: "stream_seq".to_owned(),
+                            }),
+                            direction: Direction::Ascending as i32,
+                        }],
+                        start_at: None,
+                        end_at: None,
+                        offset: 0,
+                        limit: Some(100),
+                    },
+                )),
+                    consistency_selector: Some(run_query_request::ConsistencySelector::NewTransaction(TransactionOptions { mode: Some(Mode::ReadOnly(ReadOnly { consistency_selector: Some(crate::firestore_rpc::google::firestore::v1::transaction_options::read_only::ConsistencySelector::ReadTime(now))})) }))
+            })
+            .await
+                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+        let mut run_query_response = response.into_inner();
+        let mut events = vec![];
+        while let Some(r) = run_query_response
+            .message()
+            .await
+            .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+        {
+            if !r.transaction.is_empty() {
+                continue;
+            }
+            if r.read_time.is_some() && r.document.is_none() {
+                continue;
+            }
+            let document = r
+                .document
+                .ok_or_else(|| event_store::Error::Unknown("document is not found".to_owned()))?;
+            events.push(
+                event_from_fields(&document)
+                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?,
+            );
+        }
+        Ok(if events.is_empty() {
+            None
+        } else {
+            Some(EventStream::new(events).map_err(|e| event_store::Error::Unknown(e.to_string()))?)
+        })
     }
 
     async fn find_events(&self, _after: Option<EventId>) -> event_store::Result<Vec<Event>> {
