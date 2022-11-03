@@ -55,6 +55,19 @@ impl FirestoreRpcEventStore {
     pub fn new(transaction: FirestoreTransaction) -> Self {
         Self { transaction }
     }
+
+    async fn client(
+        &self,
+    ) -> event_store::Result<
+        FirestoreClient<
+            InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
+        >,
+    > {
+        self.transaction
+            .client()
+            .await
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))
+    }
 }
 
 #[async_trait]
@@ -64,10 +77,8 @@ impl EventStore for FirestoreRpcEventStore {
         let document_id = event_id.to_string();
         let name = self.transaction.document_path(collection_id, &document_id);
         let response = self
-            .transaction
             .client()
-            .await
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))?
+            .await?
             .get_document(GetDocumentRequest {
                 name,
                 mask: None,
@@ -106,10 +117,8 @@ impl EventStore for FirestoreRpcEventStore {
                     .map_err(|e| event_store::Error::Unknown(e.to_string()))
             })?;
         let response = self
-            .transaction
             .client()
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+            .await?
             .run_query(RunQueryRequest {
                 parent,
                 query_type: Some(run_query_request::QueryType::StructuredQuery(
@@ -228,10 +237,8 @@ impl EventStore for FirestoreRpcEventStore {
                     .map_err(|e| event_store::Error::Unknown(e.to_string()))
             })?;
         let response = self
-                .transaction
                 .client()
-                .await
-                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+                .await?
                 .run_query(RunQueryRequest {
                     parent,
                     query_type: Some(run_query_request::QueryType::StructuredQuery(
@@ -309,11 +316,7 @@ impl EventStore for FirestoreRpcEventStore {
         current: Option<EventStreamSeq>,
         event_stream: EventStream,
     ) -> event_store::Result<()> {
-        let mut client = self
-            .transaction
-            .client()
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+        let mut client = self.client().await?;
         let collection_id = "event_streams";
         let document_id = event_stream.id().to_string();
         let event_stream_document = Document {
