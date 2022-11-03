@@ -197,34 +197,30 @@ impl EventStore for FirestoreRpcEventStore {
     }
 
     async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
-        let event_id = match after {
-            Some(a) => a,
-            None => todo!(),
-        };
-
         // get requested_at
-        let requested_at = {
-            let collection_id = "events";
-            let document_id = event_id.to_string();
-            let name = self.transaction.document_path(collection_id, &document_id);
-            let response = self
-                .transaction
-                .client()
-                .await
-                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
-                .get_document(GetDocumentRequest {
-                    name,
-                    mask: None,
-                    consistency_selector: Some(
-                        get_document_request::ConsistencySelector::Transaction(
-                            self.transaction.name(),
+        let requested_at = match after {
+            Some(event_id) => {
+                let collection_id = "events";
+                let document_id = event_id.to_string();
+                let name = self.transaction.document_path(collection_id, &document_id);
+                let response = self
+                    .client()
+                    .await?
+                    .get_document(GetDocumentRequest {
+                        name,
+                        mask: None,
+                        consistency_selector: Some(
+                            get_document_request::ConsistencySelector::Transaction(
+                                self.transaction.name(),
+                            ),
                         ),
-                    ),
-                })
-                .await
-                .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
-            let document = response.into_inner();
-            get_field_as_timestamp(&document, "requested_at").unwrap()
+                    })
+                    .await
+                    .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+                let document = response.into_inner();
+                Some(get_field_as_timestamp(&document, "requested_at").unwrap())
+            }
+            None => None,
         };
 
         // get events (run_query)
@@ -263,14 +259,16 @@ impl EventStore for FirestoreRpcEventStore {
                                 collection_id: "events".to_owned(),
                                 all_descendants: false,
                             }],
-                            r#where: Some(Filter {
-                                filter_type: Some(FilterType::FieldFilter(FieldFilter {
-                                    field: Some(FieldReference {
-                                        field_path: "requested_at".to_owned(),
-                                    }),
-                                    op: field_filter::Operator::GreaterThanOrEqual as i32,
-                                    value: Some(value_from_timestamp(requested_at)),
-                                })),
+                            r#where: requested_at.map(|requested_at| {
+                                Filter {
+                                    filter_type: Some(FilterType::FieldFilter(FieldFilter {
+                                        field: Some(FieldReference {
+                                            field_path: "requested_at".to_owned(),
+                                        }),
+                                        op: field_filter::Operator::GreaterThanOrEqual as i32,
+                                        value: Some(value_from_timestamp(requested_at)),
+                                    }))
+                                }
                             }),
                             order_by: vec![Order {
                                 field: Some(FieldReference {
