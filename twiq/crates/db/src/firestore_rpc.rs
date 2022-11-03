@@ -25,10 +25,8 @@ pub mod helper {
     use google_cloud_auth::{Credential, CredentialConfig};
     use prost_types::Timestamp;
     use tonic::{
-        codegen::InterceptedService,
-        metadata::AsciiMetadataValue,
-        transport::{Channel, ClientTlsConfig, Endpoint},
-        Request, Status,
+        codegen::InterceptedService, metadata::AsciiMetadataValue, transport::Channel, Request,
+        Status,
     };
 
     pub mod path {
@@ -93,6 +91,7 @@ pub mod helper {
 
     pub async fn client(
         credential: &Credential,
+        channel: Channel,
     ) -> Result<
         FirestoreClient<
             InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
@@ -100,10 +99,6 @@ pub mod helper {
         Error,
     > {
         let access_token = credential.access_token().await?;
-        let channel = Endpoint::from_static("https://firestore.googleapis.com")
-            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
-            .connect()
-            .await?;
         let mut metadata_value =
             AsciiMetadataValue::try_from(format!("Bearer {}", access_token.value))?;
         metadata_value.set_sensitive(true);

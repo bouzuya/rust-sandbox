@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use google_cloud_auth::Credential;
 use tokio::sync::Mutex;
-use tonic::{codegen::InterceptedService, transport::Channel, Request, Status};
+use tonic::{
+    codegen::InterceptedService,
+    transport::{Channel, ClientTlsConfig, Endpoint},
+    Request, Status,
+};
 
 use crate::firestore_rpc::{
     google::firestore::v1::{
@@ -22,23 +26,37 @@ pub enum Error {
     Error(#[from] crate::firestore_rpc::helper::Error),
     #[error("status {0}")]
     Status(#[from] tonic::Status),
+    #[error("tonic transport {0}")]
+    TonicTransportError(#[from] tonic::transport::Error),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Clone)]
 pub struct FirestoreTransaction {
+    // TODO: アプリケーションごとの初期化で十分
     credential: Credential,
     project_id: String,
     database_id: String,
+    // コマンド (トランザクション) ごとに初期化する (=FirestoreTransaction ごとで良い)
+    channel: Channel,
     transaction: Vec<u8>,
     writes: Arc<Mutex<Vec<Write>>>,
+    // リクエストごとに初期化する
+    // - access_token: AccessToken
+    // - client は access_token の設定のために await が必要になるが、
+    //   tonic::service::interceptor::Intercepter は非同期に対応していないため、
+    //   リクエストごとに初期化する必要がある
 }
 
 impl FirestoreTransaction {
     pub async fn begin(project_id: String, database_id: String) -> Result<Self> {
         let credential = credential().await?;
-        let mut client = client(&credential).await?;
+        let channel = Endpoint::from_static("https://firestore.googleapis.com")
+            .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
+            .connect()
+            .await?;
+        let mut client = client(&credential, channel.clone()).await?;
         let database = database_path(&project_id, &database_id);
         let response = client
             .begin_transaction(BeginTransactionRequest {
@@ -55,6 +73,7 @@ impl FirestoreTransaction {
             credential,
             project_id,
             database_id,
+            channel,
             transaction,
             writes: Arc::new(Mutex::new(vec![])),
         })
@@ -67,13 +86,13 @@ impl FirestoreTransaction {
             InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
         >,
     > {
-        Ok(client(&self.credential).await?)
+        Ok(client(&self.credential, self.channel.clone()).await?)
     }
 
     pub async fn commit(self) -> Result<()> {
         let writes = self.writes.lock().await.clone();
         let database = self.database_path();
-        let mut client = client(&self.credential).await?;
+        let mut client = client(&self.credential, self.channel.clone()).await?;
         let _ = client
             .commit(CommitRequest {
                 database,
