@@ -11,8 +11,10 @@ use tonic::{
 use crate::firestore_rpc::{
     google::firestore::v1::{
         firestore_client::FirestoreClient,
+        get_document_request,
         transaction_options::{Mode, ReadWrite},
-        BeginTransactionRequest, CommitRequest, TransactionOptions, Write,
+        BeginTransactionRequest, CommitRequest, Document, GetDocumentRequest, TransactionOptions,
+        Write,
     },
     helper::{
         client, credential,
@@ -87,6 +89,21 @@ impl FirestoreTransaction {
         >,
     > {
         Ok(client(&self.credential, self.channel.clone()).await?)
+    }
+
+    pub async fn get_document(&self, collection_id: &str, document_id: &str) -> Result<Document> {
+        let response = self
+            .client()
+            .await?
+            .get_document(GetDocumentRequest {
+                name: self.document_path(collection_id, document_id),
+                mask: None,
+                consistency_selector: Some(get_document_request::ConsistencySelector::Transaction(
+                    self.name(),
+                )),
+            })
+            .await?;
+        Ok(response.into_inner())
     }
 
     pub async fn commit(self) -> Result<()> {
