@@ -69,6 +69,25 @@ impl FirestoreRpcEventStore {
     }
 }
 
+fn event_fields_projection() -> Projection {
+    Projection {
+        fields: vec![
+            FieldReference {
+                field_path: "id".to_owned(),
+            },
+            FieldReference {
+                field_path: "stream_id".to_owned(),
+            },
+            FieldReference {
+                field_path: "stream_seq".to_owned(),
+            },
+            FieldReference {
+                field_path: "data".to_owned(),
+            },
+        ],
+    }
+}
+
 #[async_trait]
 impl EventStore for FirestoreRpcEventStore {
     async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
@@ -111,22 +130,7 @@ impl EventStore for FirestoreRpcEventStore {
                 parent,
                 query_type: Some(run_query_request::QueryType::StructuredQuery(
                     StructuredQuery {
-                        select: Some(Projection {
-                            fields: vec![
-                                FieldReference {
-                                    field_path: "id".to_owned(),
-                                },
-                                FieldReference {
-                                    field_path: "stream_id".to_owned(),
-                                },
-                                FieldReference {
-                                    field_path: "stream_seq".to_owned(),
-                                },
-                                FieldReference {
-                                    field_path: "data".to_owned(),
-                                },
-                            ],
-                        }),
+                        select: Some(event_fields_projection()),
                         from: vec![CollectionSelector {
                             collection_id: "events".to_owned(),
                             all_descendants: false,
@@ -214,22 +218,7 @@ impl EventStore for FirestoreRpcEventStore {
                     parent,
                     query_type: Some(run_query_request::QueryType::StructuredQuery(
                         StructuredQuery {
-                            select: Some(Projection {
-                                fields: vec![
-                                    FieldReference {
-                                        field_path: "id".to_owned(),
-                                    },
-                                    FieldReference {
-                                        field_path: "stream_id".to_owned(),
-                                    },
-                                    FieldReference {
-                                        field_path: "stream_seq".to_owned(),
-                                    },
-                                    FieldReference {
-                                        field_path: "data".to_owned(),
-                                    },
-                                ],
-                            }),
+                            select: Some(event_fields_projection()),
                             from: vec![CollectionSelector {
                                 collection_id: "events".to_owned(),
                                 all_descendants: false,
@@ -315,7 +304,7 @@ impl EventStore for FirestoreRpcEventStore {
                             "seq field can't be converted to EventStreamSeq".to_owned(),
                         )
                     })?;
-                let update_time = document.update_time.unwrap();
+                let update_time = document.update_time.expect("output contains update_time");
 
                 if event_stream_seq != expected_event_stream_seq {
                     return Err(event_store::Error::Unknown("conflict".to_owned()));
