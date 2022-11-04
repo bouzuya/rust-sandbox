@@ -112,6 +112,7 @@ pub mod helper {
     }
 
     pub async fn credential() -> Result<Credential, Error> {
+        // GOOGLE_APPLICATION_CREDENTIALS environment variable
         let config = CredentialConfig::builder()
             .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
             .build()?;

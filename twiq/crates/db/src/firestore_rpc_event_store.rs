@@ -328,6 +328,11 @@ impl EventStore for FirestoreRpcEventStore {
             .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
 
         for event in event_stream.events() {
+            if let Some(c) = current {
+                if event.stream_seq() <= c {
+                    continue;
+                }
+            }
             let collection_id = "events";
             let document_id = event.id().to_string();
             self.transaction
@@ -404,4 +409,95 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
         value_from_string(event.payload().to_string()),
     );
     map
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{env, time::Duration};
+
+    use anyhow::Context;
+    use event_store_core::{
+        event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
+    };
+    use tokio::time::sleep;
+
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test() -> anyhow::Result<()> {
+        let project_id = env::var("PROJECT_ID").context("PROJECT_ID")?;
+        let database_id = "(default)".to_owned();
+        let transaction =
+            FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+
+        let id = EventId::generate();
+        let r#type = EventType::from_str("created")?;
+        let stream_id = EventStreamId::generate();
+        let stream_seq = EventStreamSeq::from(1_u32);
+        let data = EventPayload::try_from("{}".to_owned())?;
+        let event1 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let mut event_stream = EventStream::new(vec![event1.clone()])?;
+        event_store.store(None, event_stream.clone()).await?;
+        transaction.commit().await?;
+
+        let transaction =
+            FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+        let stream_seq2 = stream_seq.next()?;
+        let id = EventId::generate();
+        let r#type = EventType::from_str("updated")?;
+        let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
+        let event2 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        event_stream.push_event(event2.clone())?;
+        event_store
+            .store(Some(stream_seq), event_stream.clone())
+            .await?;
+        transaction.commit().await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        {
+            let transaction =
+                FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+            let event_store = FirestoreRpcEventStore::new(transaction.clone());
+            assert_eq!(
+                event_store.find_event_stream(stream_id).await?,
+                Some(event_stream)
+            );
+        }
+
+        let transaction =
+            FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+        let id = EventId::generate();
+        let r#type = EventType::from_str("created")?;
+        let stream_id = EventStreamId::generate();
+        let stream_seq = EventStreamSeq::from(1_u32);
+        let data = EventPayload::try_from("{}".to_owned())?;
+        let event3 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let stream_seq2 = stream_seq.next()?;
+        let id = EventId::generate();
+        let r#type = EventType::from_str("updated")?;
+        let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
+        let event4 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        let event_stream = EventStream::new(vec![event3.clone(), event4.clone()])?;
+        event_store.store(None, event_stream.clone()).await?;
+        transaction.commit().await?;
+
+        sleep(Duration::from_secs(1)).await;
+
+        let transaction =
+            FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+        let events = event_store.find_events(Some(event1.id())).await?;
+        assert_eq!(
+            events,
+            vec![event1, event2.clone(), event3.clone(), event4.clone()]
+        );
+        let events = event_store.find_events(Some(event2.id())).await?;
+        assert_eq!(events, vec![event2, event3, event4]);
+        Ok(())
+    }
 }
