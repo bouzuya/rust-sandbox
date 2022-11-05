@@ -89,6 +89,8 @@ pub mod helper {
         TonicTransport(#[from] tonic::transport::Error),
     }
 
+    pub type Result<T, E = Error> = std::result::Result<T, E>;
+
     pub async fn client(
         credential: &Credential,
         channel: Channel,
@@ -96,7 +98,6 @@ pub mod helper {
         FirestoreClient<
             InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
         >,
-        Error,
     > {
         let access_token = credential.access_token().await?;
         let mut metadata_value =
@@ -111,7 +112,7 @@ pub mod helper {
         Ok(client)
     }
 
-    pub async fn credential() -> Result<Credential, Error> {
+    pub async fn credential() -> Result<Credential> {
         // GOOGLE_APPLICATION_CREDENTIALS environment variable
         let config = CredentialConfig::builder()
             .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])

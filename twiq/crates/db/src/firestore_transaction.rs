@@ -19,20 +19,9 @@ use crate::firestore_rpc::{
     helper::{
         client, credential,
         path::{collection_path, database_path, document_path, documents_path},
+        Result,
     },
 };
-
-#[derive(Debug, thiserror::Error)]
-pub enum Error {
-    #[error("{0}")]
-    Error(#[from] crate::firestore_rpc::helper::Error),
-    #[error("status {0}")]
-    Status(#[from] tonic::Status),
-    #[error("tonic transport {0}")]
-    TonicTransportError(#[from] tonic::transport::Error),
-}
-
-pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(Clone)]
 pub struct FirestoreTransaction {
@@ -88,7 +77,7 @@ impl FirestoreTransaction {
             InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
         >,
     > {
-        Ok(client(&self.credential, self.channel.clone()).await?)
+        client(&self.credential, self.channel.clone()).await
     }
 
     pub async fn get_document(&self, collection_id: &str, document_id: &str) -> Result<Document> {
