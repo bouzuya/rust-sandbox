@@ -76,6 +76,9 @@ fn event_fields_projection() -> Projection {
                 field_path: "id".to_owned(),
             },
             FieldReference {
+                field_path: "type".to_owned(),
+            },
+            FieldReference {
                 field_path: "stream_id".to_owned(),
             },
             FieldReference {
@@ -234,12 +237,26 @@ impl EventStore for FirestoreRpcEventStore {
                                     }))
                                 }
                             }),
-                            order_by: vec![Order {
-                                field: Some(FieldReference {
-                                    field_path: "requested_at".to_owned(),
-                                }),
-                                direction: Direction::Ascending as i32,
-                            }],
+                            order_by: vec![
+                                Order {
+                                    field: Some(FieldReference {
+                                        field_path: "requested_at".to_owned(),
+                                    }),
+                                    direction: Direction::Ascending as i32,
+                                },
+                                Order {
+                                    field: Some(FieldReference {
+                                        field_path: "stream_id".to_owned(),
+                                    }),
+                                    direction: Direction::Ascending as i32,
+                                },
+                                Order {
+                                    field: Some(FieldReference {
+                                        field_path: "stream_seq".to_owned(),
+                                    }),
+                                    direction: Direction::Ascending as i32,
+                                }
+                            ],
                             start_at: None,
                             end_at: None,
                             offset: 0,
