@@ -81,11 +81,11 @@ pub mod helper {
     pub enum Error {
         #[error("google_cloud_auth {0}")]
         GoogleCloudAuth(#[from] google_cloud_auth::Error),
-        #[error("status {0}")]
-        Status(#[from] Status),
         #[error("tonic invalid metadata value {0}")]
         TonicInvalidMetadataValue(#[from] tonic::metadata::errors::InvalidMetadataValue),
-        #[error("transport {0}")]
+        #[error("tonic status {0}")]
+        TonicStatus(#[from] tonic::Status),
+        #[error("tonic transport {0}")]
         TonicTransport(#[from] tonic::transport::Error),
     }
 
