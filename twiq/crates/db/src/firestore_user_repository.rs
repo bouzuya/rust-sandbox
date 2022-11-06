@@ -163,4 +163,27 @@ impl UserRepository for FirestoreUserRepository {
     }
 }
 
-// TODO: test
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use domain::aggregate::user::{At, TwitterUserName};
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        // TODO: add find test
+        let user = User::create(TwitterUserId::from_str("125962981")?)?;
+        let repository = FirestoreUserRepository;
+        // assert!(repository.find(user.id()).await?.is_none());
+        repository.store(None, user.clone()).await?;
+        // assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
+        // let updated = user.update(TwitterUserName::from_str("bouzuya")?, At::now())?;
+        // repository
+        //     .store(Some(user.clone()), updated.clone())
+        //     .await?;
+        // assert_eq!(repository.find(user.id()).await?, Some(updated));
+        Ok(())
+    }
+}
