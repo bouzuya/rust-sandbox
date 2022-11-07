@@ -399,14 +399,31 @@ fn event_stream_to_fields(
 }
 
 fn event_from_fields(document: &Document) -> Result<Event> {
-    // FIXME: error handling
-    let id = EventId::from_str(get_field_as_str(document, "id").unwrap()).unwrap();
-    let r#type = EventType::from_str(get_field_as_str(document, "type").unwrap()).unwrap();
-    let stream_id =
-        EventStreamId::from_str(get_field_as_str(document, "stream_id").unwrap()).unwrap();
-    let stream_seq =
-        EventStreamSeq::try_from(get_field_as_i64(document, "stream_seq").unwrap()).unwrap();
-    let payload = EventPayload::from_str(get_field_as_str(document, "data").unwrap()).unwrap();
+    let id = get_field_as_str(document, "id")
+        .map(EventId::from_str)
+        .transpose()
+        .map_err(|_| Error::Unknown("id is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("id is not found".to_owned()))?;
+    let r#type = get_field_as_str(document, "type")
+        .map(EventType::from_str)
+        .transpose()
+        .map_err(|_| Error::Unknown("type is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("type is not found".to_owned()))?;
+    let stream_id = get_field_as_str(document, "stream_id")
+        .map(EventStreamId::from_str)
+        .transpose()
+        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("stream_id is not found".to_owned()))?;
+    let stream_seq = get_field_as_i64(document, "stream_seq")
+        .map(EventStreamSeq::try_from)
+        .transpose()
+        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("stream_id is not found".to_owned()))?;
+    let payload = get_field_as_str(document, "data")
+        .map(EventPayload::from_str)
+        .transpose()
+        .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("payload is not found".to_owned()))?;
     Ok(Event::new(id, r#type, stream_id, stream_seq, payload))
 }
 
