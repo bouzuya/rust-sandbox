@@ -94,14 +94,17 @@ fn event_fields_projection() -> Projection {
 #[async_trait]
 impl EventStore for FirestoreRpcEventStore {
     async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
-        // TODO: use Option
-        let document = self
-            .transaction
+        self.transaction
             .get_document("events", &event_id.to_string())
             .await
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
-        let event = event_from_fields(&document).unwrap();
-        Ok(Some(event))
+            .map_err(|e| event_store::Error::Unknown(e.to_string()))
+            .and_then(|document| {
+                document
+                    .as_ref()
+                    .map(event_from_fields)
+                    .transpose()
+                    .map_err(|e| event_store::Error::Unknown(e.to_string()))
+            })
     }
 
     async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
@@ -194,14 +197,14 @@ impl EventStore for FirestoreRpcEventStore {
     async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
         // get requested_at
         let requested_at = match after {
-            Some(event_id) => {
-                let document = self
-                    .transaction
-                    .get_document("events", &event_id.to_string())
-                    .await
-                    .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
-                Some(get_field_as_timestamp(&document, "requested_at").unwrap())
-            }
+            Some(event_id) => self
+                .transaction
+                .get_document("events", &event_id.to_string())
+                .await
+                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+                .and_then(|document| get_field_as_timestamp(&document, "requested_at"))
+                .map(Some)
+                .ok_or_else(|| event_store::Error::Unknown("not found".to_owned()))?,
             None => None,
         };
 
@@ -310,7 +313,8 @@ impl EventStore for FirestoreRpcEventStore {
                     .transaction
                     .get_document("event_streams", &event_stream.id().to_string())
                     .await
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?
+                    .ok_or_else(|| event_store::Error::Unknown("not found".to_owned()))?;
                 let event_stream_seq = get_field_as_i64(&document, "seq")
                     .map(EventStreamSeq::try_from)
                     .ok_or_else(|| {

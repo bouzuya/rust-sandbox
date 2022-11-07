@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use tonic::{
     codegen::InterceptedService,
     transport::{Channel, ClientTlsConfig, Endpoint},
-    Request, Status,
+    Code, Request, Status,
 };
 
 use crate::firestore_rpc::{
@@ -80,9 +80,12 @@ impl FirestoreTransaction {
         client(&self.credential, self.channel.clone()).await
     }
 
-    pub async fn get_document(&self, collection_id: &str, document_id: &str) -> Result<Document> {
-        let response = self
-            .client()
+    pub async fn get_document(
+        &self,
+        collection_id: &str,
+        document_id: &str,
+    ) -> Result<Option<Document>> {
+        self.client()
             .await?
             .get_document(GetDocumentRequest {
                 name: self.document_path(collection_id, document_id),
@@ -91,8 +94,15 @@ impl FirestoreTransaction {
                     self.name(),
                 )),
             })
-            .await?;
-        Ok(response.into_inner())
+            .await
+            .map(|response| Some(response.into_inner()))
+            .or_else(|status| {
+                if matches!(status.code(), Code::NotFound) {
+                    Ok(None)
+                } else {
+                    Err(status)?
+                }
+            })
     }
 
     pub async fn commit(self) -> Result<()> {

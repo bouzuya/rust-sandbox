@@ -31,10 +31,12 @@ impl UserRepository for FirestoreUserRepository {
             .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
-        let document = transaction
-            .get_document("user_ids", &id.to_string())
-            .await
-            .unwrap();
+        let document = match transaction.get_document("user_ids", &id.to_string()).await {
+            Ok(None) => return Ok(None),
+            Ok(Some(doc)) => Ok(doc),
+            Err(e) => Err(e),
+        }
+        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
         let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
         let event_stream = event_store
@@ -84,7 +86,8 @@ impl UserRepository for FirestoreUserRepository {
                 let document = transaction
                     .get_document(collection_id, &document_id)
                     .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?
+                    .ok_or_else(|| user_repository::Error::Unknown("not found".to_owned()))?;
                 let before_event_stream_id_as_str =
                     get_field_as_str(&document, "event_stream_id").unwrap();
                 if before_event_stream_id_as_str != event_stream_id.to_string() {
@@ -133,7 +136,8 @@ impl UserRepository for FirestoreUserRepository {
                 let document = transaction
                     .get_document(collection_id, &document_id)
                     .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?
+                    .ok_or_else(|| user_repository::Error::Unknown("not found".to_owned()))?;
                 let before_user_id_as_str = get_field_as_str(&document, "user_id").unwrap();
                 if before_user_id_as_str != user_id.to_string() {
                     return Err(user_repository::Error::Unknown(
