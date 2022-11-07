@@ -1,8 +1,8 @@
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, str::FromStr};
 
 use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
-use event_store_core::{event_store::EventStore, EventStream};
+use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
 use use_case::user_repository::{self, UserRepository};
 
 use crate::{
@@ -20,8 +20,33 @@ struct FirestoreUserRepository;
 
 #[async_trait]
 impl UserRepository for FirestoreUserRepository {
-    async fn find(&self, _id: UserId) -> user_repository::Result<Option<User>> {
-        todo!()
+    async fn find(&self, id: UserId) -> user_repository::Result<Option<User>> {
+        // TODO: HasConfiguration trait
+        // begin transaction & create event_store
+        let project_id =
+            env::var("PROJECT_ID").map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let database_id = "(default)".to_owned();
+        let transaction = FirestoreTransaction::begin(project_id.clone(), database_id.clone())
+            .await
+            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+
+        let document = transaction
+            .get_document("user_ids", &id.to_string())
+            .await
+            .unwrap();
+        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
+        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
+        let event_stream = event_store
+            .find_event_stream(event_stream_id)
+            .await
+            .unwrap();
+        match event_stream {
+            None => Ok(None),
+            Some(event_stream) => User::try_from(event_stream)
+                .map(Some)
+                .map_err(|e| user_repository::Error::Unknown(e.to_string())),
+        }
     }
 
     async fn find_by_twitter_user_id(
@@ -172,18 +197,19 @@ mod tests {
     use super::*;
 
     #[tokio::test]
+    #[ignore]
     async fn test() -> anyhow::Result<()> {
-        // TODO: add find test
         let user = User::create(TwitterUserId::from_str("125962981")?)?;
         let repository = FirestoreUserRepository;
+        // TODO: support "Not Found"
         // assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
-        // assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
-        // let updated = user.update(TwitterUserName::from_str("bouzuya")?, At::now())?;
-        // repository
-        //     .store(Some(user.clone()), updated.clone())
-        //     .await?;
-        // assert_eq!(repository.find(user.id()).await?, Some(updated));
+        assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
+        let updated = user.update(TwitterUserName::from_str("bouzuya")?, At::now())?;
+        repository
+            .store(Some(user.clone()), updated.clone())
+            .await?;
+        assert_eq!(repository.find(user.id()).await?, Some(updated));
         Ok(())
     }
 }
