@@ -205,8 +205,7 @@ mod tests {
     async fn test() -> anyhow::Result<()> {
         let user = User::create(TwitterUserId::from_str("125962981")?)?;
         let repository = FirestoreUserRepository;
-        // TODO: support "Not Found"
-        // assert!(repository.find(user.id()).await?.is_none());
+        assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
         assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
         let updated = user.update(TwitterUserName::from_str("bouzuya")?, At::now())?;
