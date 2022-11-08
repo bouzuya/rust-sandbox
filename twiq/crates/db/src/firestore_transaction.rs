@@ -11,7 +11,6 @@ use tonic::{
 use crate::firestore_rpc::{
     google::firestore::v1::{
         firestore_client::FirestoreClient,
-        get_document_request,
         transaction_options::{Mode, ReadWrite},
         BeginTransactionRequest, CommitRequest, Document, GetDocumentRequest, TransactionOptions,
         Write,

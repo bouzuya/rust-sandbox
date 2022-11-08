@@ -18,6 +18,11 @@ use crate::{
 
 struct FirestoreUserRepository;
 
+impl FirestoreUserRepository {
+    const USER_IDS: &'static str = "user_ids";
+    const TWITTER_USER_IDS: &'static str = "twitter_user_ids";
+}
+
 #[async_trait]
 impl UserRepository for FirestoreUserRepository {
     async fn find(&self, id: UserId) -> user_repository::Result<Option<User>> {
@@ -31,7 +36,10 @@ impl UserRepository for FirestoreUserRepository {
             .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
-        let document = match transaction.get_document("user_ids", &id.to_string()).await {
+        let document = match transaction
+            .get_document(Self::USER_IDS, &id.to_string())
+            .await
+        {
             Ok(None) => return Ok(None),
             Ok(Some(doc)) => Ok(doc),
             Err(e) => Err(e),
@@ -53,9 +61,51 @@ impl UserRepository for FirestoreUserRepository {
 
     async fn find_by_twitter_user_id(
         &self,
-        _twitter_user_id: &TwitterUserId,
+        twitter_user_id: &TwitterUserId,
     ) -> user_repository::Result<Option<User>> {
-        todo!()
+        // TODO: HasConfiguration trait
+        // begin transaction & create event_store
+        let project_id =
+            env::var("PROJECT_ID").map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let database_id = "(default)".to_owned();
+        let transaction = FirestoreTransaction::begin(project_id.clone(), database_id.clone())
+            .await
+            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let event_store = FirestoreRpcEventStore::new(transaction.clone());
+
+        let document = match transaction
+            .get_document(Self::TWITTER_USER_IDS, &twitter_user_id.to_string())
+            .await
+        {
+            Ok(None) => return Ok(None),
+            Ok(Some(doc)) => Ok(doc),
+            Err(e) => Err(e),
+        }
+        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let user_id_as_str = get_field_as_str(&document, "user_id").unwrap();
+
+        let document = match transaction
+            .get_document(Self::USER_IDS, user_id_as_str)
+            .await
+        {
+            Ok(None) => return Ok(None),
+            Ok(Some(doc)) => Ok(doc),
+            Err(e) => Err(e),
+        }
+        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
+        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
+
+        let event_stream = event_store
+            .find_event_stream(event_stream_id)
+            .await
+            .unwrap();
+        match event_stream {
+            None => Ok(None),
+            Some(event_stream) => User::try_from(event_stream)
+                .map(Some)
+                .map_err(|e| user_repository::Error::Unknown(e.to_string())),
+        }
     }
 
     async fn store(&self, before: Option<User>, after: User) -> user_repository::Result<()> {
@@ -74,7 +124,7 @@ impl UserRepository for FirestoreUserRepository {
         let event_stream = EventStream::from(after);
         let event_stream_id = event_stream.id();
 
-        let collection_id = "user_ids";
+        let collection_id = Self::USER_IDS;
         let document_id = user_id.to_string();
         match before {
             Some(ref before_user) => {
@@ -124,7 +174,7 @@ impl UserRepository for FirestoreUserRepository {
             }
         }
 
-        let collection_id = "twitter_user_ids";
+        let collection_id = Self::TWITTER_USER_IDS;
         let document_id = twitter_user_id.to_string();
         match before {
             Some(ref before_user) => {
@@ -212,7 +262,13 @@ mod tests {
         repository
             .store(Some(user.clone()), updated.clone())
             .await?;
-        assert_eq!(repository.find(user.id()).await?, Some(updated));
+        assert_eq!(repository.find(user.id()).await?, Some(updated.clone()));
+        assert_eq!(
+            repository
+                .find_by_twitter_user_id(user.twitter_user_id())
+                .await?,
+            Some(updated)
+        );
         Ok(())
     }
 }
