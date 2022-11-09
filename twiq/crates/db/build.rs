@@ -9,10 +9,11 @@ fn main() {
         fs::remove_dir_all(&out_dir).unwrap();
     }
     fs::create_dir_all(&out_dir).unwrap();
+    // コメントに非 Rust の fenced code block があることで doctest が壊れるので
+    // 一部のコメントの出力を避ける
     let mut config = Config::new();
+    // message および field のコメント出力の無効化
     config.disable_comments(&[
-        // message や field は消せるが service や rpc は消せない
-        // 前者は prost-build crate の範囲、後者は tonic-build crate の範囲
         "google.api.HttpRule",
         "google.firestore.v1.StructuredQuery.start_at",
         "google.firestore.v1.StructuredAggregationQuery.Aggregation.alias",
@@ -22,7 +23,7 @@ fn main() {
         .build_client(true)
         .build_server(false)
         .out_dir(out_dir)
-        // service および rpc の comments 出力の廃止
+        // service および rpc のコメント出力の無効化
         .disable_comments("google.firestore.v1.Firestore")
         .disable_comments("google.firestore.v1.Firestore.RunAggregationQuery")
         .compile_with_config(
