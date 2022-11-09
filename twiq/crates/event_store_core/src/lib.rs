@@ -1,4 +1,5 @@
 pub mod event;
+pub mod event_at;
 pub mod event_id;
 pub mod event_payload;
 pub mod event_store;
@@ -9,6 +10,7 @@ pub mod event_type;
 pub(crate) mod uuid_v4;
 
 pub use self::event::Event;
+pub use self::event_at::EventAt;
 pub use self::event_id::EventId;
 pub use self::event_payload::EventPayload;
 pub use self::event_stream::EventStream;
