@@ -104,6 +104,10 @@ impl EventStream {
         self.events.push(event);
         Ok(())
     }
+
+    pub fn split_first(&self) -> (&Event, &[Event]) {
+        self.events.split_first().expect("at least one exists")
+    }
 }
 
 #[cfg(test)]
@@ -285,6 +289,31 @@ mod tests {
                 EventPayload::from_str(r#"{"key":123}"#)?,
             ))
             .is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_split_first() -> anyhow::Result<()> {
+        let mut stream = EventStream::generate(
+            EventType::from_str("created")?,
+            EventPayload::from_str("{}")?,
+        );
+        stream.push(
+            EventType::from_str("updated")?,
+            EventPayload::from_str("{}")?,
+        )?;
+        stream.push(
+            EventType::from_str("deleted")?,
+            EventPayload::from_str("{}")?,
+        )?;
+        let (head, tail) = stream.split_first();
+        assert_eq!(head.r#type().as_str(), "created");
+        assert_eq!(
+            tail.iter()
+                .map(|e| e.r#type().as_str())
+                .collect::<Vec<&str>>(),
+            vec!["updated", "deleted"]
+        );
         Ok(())
     }
 }
