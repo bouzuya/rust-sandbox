@@ -17,7 +17,7 @@ use crate::{
 };
 use event_store_core::{
     event::Event, event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
-    event_stream_seq::EventStreamSeq, EventStream, EventType,
+    event_stream_seq::EventStreamSeq, EventAt, EventStream, EventType,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -128,6 +128,20 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
             EventStreamSeq::try_from(*n)
                 .map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
         })?;
+    let field = "at";
+    let at = fields
+        .get(field)
+        .ok_or_else(|| TryFromEventError::NoField(field.to_owned()))
+        .and_then(|v| {
+            if let Value::String(s) = v {
+                Ok(s)
+            } else {
+                Err(TryFromEventError::InvalidValueType(field.to_owned()))
+            }
+        })
+        .and_then(|s| {
+            EventAt::from_str(s).map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
+        })?;
     let field = "data";
     let data = fields
         .get(field)
@@ -143,7 +157,7 @@ fn fields_to_event(fields: HashMap<String, Value>) -> Result<Event, TryFromEvent
             EventPayload::try_from(s.to_owned())
                 .map_err(|e| TryFromEventError::InvalidFormat(e.to_string()))
         })?;
-    Ok(Event::new(id, r#type, stream_id, stream_seq, data))
+    Ok(Event::new(id, r#type, stream_id, stream_seq, at, data))
 }
 
 async fn find_events_by_event_id_after(
@@ -650,15 +664,17 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
+        let at = EventAt::now();
         let data = EventPayload::try_from("{}".to_owned())?;
-        let event1 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let event1 = Event::new(id, r#type, stream_id, stream_seq, at, data);
         store(&project_id, &credential, None, vec![event1.clone()]).await?;
 
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
+        let at = EventAt::now();
         let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
-        let event2 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        let event2 = Event::new(id, r#type, stream_id, stream_seq2, at, data);
         store(
             &project_id,
             &credential,
@@ -676,13 +692,15 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
+        let at = EventAt::now();
         let data = EventPayload::try_from("{}".to_owned())?;
-        let event3 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let event3 = Event::new(id, r#type, stream_id, stream_seq, at, data);
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
+        let at = EventAt::now();
         let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
-        let event4 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        let event4 = Event::new(id, r#type, stream_id, stream_seq2, at, data);
         store(
             &project_id,
             &credential,

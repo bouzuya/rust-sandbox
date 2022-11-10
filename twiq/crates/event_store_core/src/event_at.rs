@@ -8,7 +8,7 @@ pub enum Error {
     InvalidFormat(String),
 }
 
-#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EventAt(OffsetDateTime);
 
 impl Display for EventAt {

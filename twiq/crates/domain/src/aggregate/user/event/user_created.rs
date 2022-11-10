@@ -88,7 +88,7 @@ impl TryFrom<RawEvent> for UserCreated {
 
 #[cfg(test)]
 mod tests {
-    use event_store_core::{EventId, EventStreamId, EventStreamSeq};
+    use event_store_core::{EventAt, EventId, EventStreamId, EventStreamSeq};
 
     use super::*;
 
@@ -111,6 +111,7 @@ mod tests {
                 RawEventType::from(UserCreated::r#type()),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1),
+                EventAt::now(),
                 e
             ))?,
             o

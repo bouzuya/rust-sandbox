@@ -1,4 +1,6 @@
-use crate::{event_type::EventType, Event, EventId, EventPayload, EventStreamId, EventStreamSeq};
+use crate::{
+    event_type::EventType, Event, EventAt, EventId, EventPayload, EventStreamId, EventStreamSeq,
+};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -31,6 +33,7 @@ impl EventStream {
                 event_type.into(),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1_u32),
+                EventAt::now(),
                 event_payload.into(),
             )],
         }
@@ -47,6 +50,7 @@ impl EventStream {
                 event_type.into(),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1_u32),
+                EventAt::now(),
                 EventPayload::from_structured(&event_payload).expect("FIXME"),
             )],
         }
@@ -101,6 +105,7 @@ impl EventStream {
             self.seq()
                 .next()
                 .map_err(|_| Error::OverflowEventStreamSeq(self.id()))?,
+            EventAt::now(),
             event_payload.into(),
         ));
         Ok(())
@@ -114,6 +119,7 @@ impl EventStream {
             self.seq()
                 .next()
                 .map_err(|_| Error::OverflowEventStreamSeq(self.id()))?,
+            EventAt::now(),
             event_payload,
         ));
         Ok(())
@@ -159,6 +165,7 @@ mod tests {
             EventType::from_str("created")?,
             EventStreamId::generate(),
             EventStreamSeq::from(1_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         let stream = EventStream::new(vec![event.clone()])?;
@@ -175,6 +182,7 @@ mod tests {
             EventType::from_str("created")?,
             EventStreamId::generate(),
             EventStreamSeq::from(1_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         let event2 = Event::new(
@@ -182,6 +190,7 @@ mod tests {
             EventType::from_str("updated")?,
             EventStreamId::generate(),
             EventStreamSeq::from(2_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         assert!(EventStream::new(vec![event1, event2]).is_err());
@@ -196,6 +205,7 @@ mod tests {
             EventType::from_str("created")?,
             stream_id,
             EventStreamSeq::from(1_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         let event2 = Event::new(
@@ -203,6 +213,7 @@ mod tests {
             EventType::from_str("updated")?,
             stream_id,
             EventStreamSeq::from(1_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         assert!(EventStream::new(vec![event1, event2]).is_err());
@@ -217,6 +228,7 @@ mod tests {
             EventType::from_str("created")?,
             stream_id,
             EventStreamSeq::from(1_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         let event2 = Event::new(
@@ -224,6 +236,7 @@ mod tests {
             EventType::from_str("updated")?,
             stream_id,
             EventStreamSeq::from(2_u32),
+            EventAt::now(),
             EventPayload::from_str("{}")?,
         );
         let stream = EventStream::new(vec![event1.clone(), event2.clone()])?;
@@ -252,6 +265,7 @@ mod tests {
             EventType::from_str("updated")?,
             stream.id(),
             EventStreamSeq::from(2_u32),
+            EventAt::now(),
             EventPayload::from_str(r#"{"key":123}"#)?,
         ))?;
         assert_eq!(stream.seq(), EventStreamSeq::from(2_u32));
@@ -267,6 +281,7 @@ mod tests {
                 EventType::from_str("updated")?,
                 EventStreamId::generate(),
                 EventStreamSeq::from(2_u32),
+                EventAt::now(),
                 EventPayload::from_str(r#"{"key":123}"#)?,
             ))
             .is_err());
@@ -282,6 +297,7 @@ mod tests {
                 EventType::from_str("updated")?,
                 stream.id(),
                 EventStreamSeq::from(1_u32),
+                EventAt::now(),
                 EventPayload::from_str(r#"{"key":123}"#)?,
             ))
             .is_err());

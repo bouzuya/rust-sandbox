@@ -71,7 +71,7 @@ impl TryFrom<RawEvent> for UserRequestStarted {
 
 #[cfg(test)]
 mod tests {
-    use event_store_core::{EventId, EventStreamId, EventStreamSeq};
+    use event_store_core::{EventAt, EventId, EventStreamId, EventStreamSeq};
 
     use super::*;
 
@@ -92,6 +92,7 @@ mod tests {
                 RawEventType::from(UserRequestStarted::r#type()),
                 EventStreamId::generate(),
                 EventStreamSeq::from(1),
+                EventAt::now(),
                 e
             ))?,
             o

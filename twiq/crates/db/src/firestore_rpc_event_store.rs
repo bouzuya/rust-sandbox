@@ -3,7 +3,7 @@ use std::{collections::HashMap, str::FromStr};
 use async_trait::async_trait;
 use event_store_core::{
     event_store::{self, EventStore},
-    Event, EventId, EventPayload, EventStream, EventStreamId, EventStreamSeq, EventType,
+    Event, EventAt, EventId, EventPayload, EventStream, EventStreamId, EventStreamSeq, EventType,
 };
 use prost_types::Timestamp;
 use time::{format_description::well_known::Rfc3339, OffsetDateTime};
@@ -419,12 +419,17 @@ fn event_from_fields(document: &Document) -> Result<Event> {
         .transpose()
         .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?
         .ok_or_else(|| Error::Unknown("stream_id is not found".to_owned()))?;
+    let at = get_field_as_str(document, "at")
+        .map(EventAt::from_str)
+        .transpose()
+        .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?
+        .ok_or_else(|| Error::Unknown("at is not found".to_owned()))?;
     let payload = get_field_as_str(document, "data")
         .map(EventPayload::from_str)
         .transpose()
         .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?
         .ok_or_else(|| Error::Unknown("payload is not found".to_owned()))?;
-    Ok(Event::new(id, r#type, stream_id, stream_seq, payload))
+    Ok(Event::new(id, r#type, stream_id, stream_seq, at, payload))
 }
 
 fn event_to_fields(event: &Event) -> HashMap<String, Value> {
@@ -474,8 +479,9 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
+        let at = EventAt::now();
         let data = EventPayload::try_from("{}".to_owned())?;
-        let event1 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let event1 = Event::new(id, r#type, stream_id, stream_seq, at, data);
         let mut event_stream = EventStream::new(vec![event1.clone()])?;
         event_store.store(None, event_stream.clone()).await?;
         transaction.commit().await?;
@@ -486,8 +492,9 @@ mod tests {
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
+        let at = EventAt::now();
         let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
-        let event2 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        let event2 = Event::new(id, r#type, stream_id, stream_seq2, at, data);
         event_stream.push_event(event2.clone())?;
         event_store
             .store(Some(stream_seq), event_stream.clone())
@@ -513,13 +520,15 @@ mod tests {
         let r#type = EventType::from_str("created")?;
         let stream_id = EventStreamId::generate();
         let stream_seq = EventStreamSeq::from(1_u32);
+        let at = EventAt::now();
         let data = EventPayload::try_from("{}".to_owned())?;
-        let event3 = Event::new(id, r#type, stream_id, stream_seq, data);
+        let event3 = Event::new(id, r#type, stream_id, stream_seq, at, data);
         let stream_seq2 = stream_seq.next()?;
         let id = EventId::generate();
         let r#type = EventType::from_str("updated")?;
+        let at = EventAt::now();
         let data = EventPayload::try_from(r#"{"foo":"bar"}"#.to_owned())?;
-        let event4 = Event::new(id, r#type, stream_id, stream_seq2, data);
+        let event4 = Event::new(id, r#type, stream_id, stream_seq2, at, data);
         let event_stream = EventStream::new(vec![event3.clone(), event4.clone()])?;
         event_store.store(None, event_stream.clone()).await?;
         transaction.commit().await?;
