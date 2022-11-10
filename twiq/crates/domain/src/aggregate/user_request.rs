@@ -61,7 +61,7 @@ impl UserRequest {
         let mut cloned = self.clone();
         cloned
             .event_stream
-            .push2(UserRequestFinished::r#type(), user_request_finished)
+            .push(UserRequestFinished::r#type(), user_request_finished)
             .unwrap();
         Ok(cloned)
     }
@@ -84,7 +84,7 @@ impl UserRequest {
         let mut cloned = self.clone();
         cloned
             .event_stream
-            .push2(UserRequestStarted::r#type(), user_request_started)
+            .push(UserRequestStarted::r#type(), user_request_started)
             .unwrap();
         Ok(cloned)
     }

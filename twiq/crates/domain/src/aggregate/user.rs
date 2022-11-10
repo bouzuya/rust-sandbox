@@ -59,7 +59,7 @@ impl User {
         let mut cloned = self.clone();
         cloned
             .event_stream
-            .push2(
+            .push(
                 UserRequested::r#type(),
                 UserRequested::new(at, self.twitter_user_id.clone(), user_id, user_request_id),
             )
@@ -82,7 +82,7 @@ impl User {
         let mut cloned = self.clone();
         cloned
             .event_stream
-            .push2(
+            .push(
                 UserUpdated::r#type(),
                 UserUpdated::new(at, self.twitter_user_id.clone(), name, self.user_id),
             )
@@ -162,7 +162,7 @@ mod tests {
             UserCreated::r#type(),
             UserCreated::new(At::now(), twitter_user_id.clone(), user_id),
         );
-        event_stream.push2(
+        event_stream.push(
             UserRequested::r#type(),
             UserRequested::new(
                 At::now(),

@@ -76,7 +76,7 @@ impl EventStream {
         self.events.clone()
     }
 
-    pub fn push2<T, U>(&mut self, event_type: T, event_payload: U) -> Result<()>
+    pub fn push<T, U>(&mut self, event_type: T, event_payload: U) -> Result<()>
     where
         T: Into<EventType>,
         U: Into<EventPayload>,
@@ -90,20 +90,6 @@ impl EventStream {
                 .map_err(|_| Error::OverflowEventStreamSeq(self.id()))?,
             EventAt::now(),
             event_payload.into(),
-        ));
-        Ok(())
-    }
-
-    pub fn push(&mut self, event_type: EventType, event_payload: EventPayload) -> Result<()> {
-        self.events.push(Event::new(
-            EventId::generate(),
-            event_type,
-            self.id(),
-            self.seq()
-                .next()
-                .map_err(|_| Error::OverflowEventStreamSeq(self.id()))?,
-            EventAt::now(),
-            event_payload,
         ));
         Ok(())
     }
