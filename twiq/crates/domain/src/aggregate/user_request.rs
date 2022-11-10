@@ -34,7 +34,7 @@ impl UserRequest {
     ) -> Result<Self> {
         let user_request_created = UserRequestCreated::new(At::now(), twitter_user_id, user_id, id);
         let event_stream =
-            EventStream::generate2(UserRequestCreated::r#type(), user_request_created);
+            EventStream::generate(UserRequestCreated::r#type(), user_request_created);
         Ok(Self {
             event_stream,
             id,

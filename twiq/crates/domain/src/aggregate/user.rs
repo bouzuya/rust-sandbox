@@ -34,7 +34,7 @@ impl User {
         let user_created = UserCreated::new(At::now(), twitter_user_id.clone(), UserId::generate());
         let user_id = user_created.user_id();
         let event_stream =
-            EventStream::generate2(UserCreated::r#type(), EventPayload::from(user_created));
+            EventStream::generate(UserCreated::r#type(), EventPayload::from(user_created));
         Ok(Self {
             event_stream,
             fetch_requested_at: None,
@@ -158,7 +158,7 @@ mod tests {
     fn event_stream_conversion_test() -> anyhow::Result<()> {
         let twitter_user_id = TwitterUserId::from_str("123")?;
         let user_id = UserId::generate();
-        let mut event_stream = EventStream::generate2(
+        let mut event_stream = EventStream::generate(
             UserCreated::r#type(),
             UserCreated::new(At::now(), twitter_user_id.clone(), user_id),
         );
