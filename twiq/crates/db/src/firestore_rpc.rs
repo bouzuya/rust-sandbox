@@ -1,20 +1,20 @@
 pub mod google {
     pub mod api {
-        tonic::include_proto!("google.api");
+        include!("firestore_rpc/google.api.rs");
     }
     pub mod firestore {
         pub mod v1 {
-            tonic::include_proto!("google.firestore.v1");
+            include!("firestore_rpc/google.firestore.v1.rs");
         }
     }
     pub mod protobuf {
-        tonic::include_proto!("google.protobuf");
+        include!("firestore_rpc/google.protobuf.rs");
     }
     pub mod r#type {
-        tonic::include_proto!("google.r#type");
+        include!("firestore_rpc/google.r#type.rs");
     }
     pub mod rpc {
-        tonic::include_proto!("google.rpc");
+        include!("firestore_rpc/google.rpc.rs");
     }
 }
 
