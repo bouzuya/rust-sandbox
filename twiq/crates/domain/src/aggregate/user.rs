@@ -31,7 +31,7 @@ pub struct User {
 
 impl User {
     pub fn create(twitter_user_id: TwitterUserId) -> Result<Self> {
-        let user_created = UserCreated::new(At::now(), twitter_user_id.clone(), UserId::generate());
+        let user_created = UserCreated::new(twitter_user_id.clone(), UserId::generate());
         let user_id = user_created.user_id();
         let event_stream =
             EventStream::generate(UserCreated::r#type(), EventPayload::from(user_created));
@@ -160,7 +160,7 @@ mod tests {
         let user_id = UserId::generate();
         let mut event_stream = EventStream::generate(
             UserCreated::r#type(),
-            UserCreated::new(At::now(), twitter_user_id.clone(), user_id),
+            UserCreated::new(twitter_user_id.clone(), user_id),
         );
         event_stream.push(
             UserRequested::r#type(),
