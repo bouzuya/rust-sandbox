@@ -5,7 +5,7 @@ use event_store_core::{Event as RawEvent, EventPayload, EventType as RawEventTyp
 use crate::{
     aggregate::user::value::twitter_user_name::TwitterUserName,
     event::EventType,
-    value::{At, TwitterUserId, UserId},
+    value::{TwitterUserId, UserId},
 };
 
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
@@ -18,7 +18,6 @@ pub enum Error {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
 struct Payload {
-    at: String,
     twitter_user_id: String,
     twitter_user_name: String,
     user_id: String,
@@ -26,7 +25,6 @@ struct Payload {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserUpdated {
-    at: At,
     twitter_user_id: TwitterUserId,
     twitter_user_name: TwitterUserName,
     user_id: UserId,
@@ -34,21 +32,15 @@ pub struct UserUpdated {
 
 impl UserUpdated {
     pub(in crate::aggregate::user) fn new(
-        at: At,
         twitter_user_id: TwitterUserId,
         twitter_user_name: TwitterUserName,
         user_id: UserId,
     ) -> Self {
         Self {
-            at,
             twitter_user_id,
             twitter_user_name,
             user_id,
         }
-    }
-
-    pub(in crate::aggregate::user) fn at(&self) -> At {
-        self.at
     }
 
     pub(in crate::aggregate::user) fn r#type() -> EventType {
@@ -71,7 +63,6 @@ impl UserUpdated {
 impl From<UserUpdated> for EventPayload {
     fn from(event: UserUpdated) -> Self {
         EventPayload::from_structured(&Payload {
-            at: event.at.to_string(),
             twitter_user_id: event.twitter_user_id.to_string(),
             twitter_user_name: event.twitter_user_name.to_string(),
             user_id: event.user_id.to_string(),
@@ -91,14 +82,13 @@ impl TryFrom<RawEvent> for UserUpdated {
             .payload()
             .to_structured()
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        let at = At::from_str(payload.at.as_str()).map_err(|e| Error::Unknown(e.to_string()))?;
         let twitter_user_id = TwitterUserId::from_str(payload.twitter_user_id.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
         let twitter_user_name = TwitterUserName::from_str(payload.twitter_user_name.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
         let user_id = UserId::from_str(payload.user_id.as_str())
             .map_err(|e| Error::Unknown(e.to_string()))?;
-        Ok(Self::new(at, twitter_user_id, twitter_user_name, user_id))
+        Ok(Self::new(twitter_user_id, twitter_user_name, user_id))
     }
 }
 
@@ -111,13 +101,11 @@ mod tests {
     #[test]
     fn raw_event_conversion_test() -> anyhow::Result<()> {
         let o = UserUpdated::new(
-            At::from_str("2022-09-06T22:58:00.000000000Z")?,
             TwitterUserId::from_str("twitter_user_id1")?,
             TwitterUserName::from_str("twitter_user_name1")?,
             UserId::from_str("c274a425-baed-4252-9f92-ed8d7e84a096")?,
         );
         let e = EventPayload::from_structured(&Payload {
-            at: "2022-09-06T22:58:00.000000000Z".to_owned(),
             twitter_user_id: "twitter_user_id1".to_owned(),
             twitter_user_name: "twitter_user_name1".to_owned(),
             user_id: "c274a425-baed-4252-9f92-ed8d7e84a096".to_owned(),

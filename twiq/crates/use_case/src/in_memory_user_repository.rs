@@ -85,7 +85,7 @@ impl UserRepository for InMemoryUserRepository {
 mod tests {
     use std::str::FromStr;
 
-    use domain::aggregate::user::{At, TwitterUserName};
+    use domain::aggregate::user::TwitterUserName;
 
     use super::*;
 
@@ -96,7 +96,7 @@ mod tests {
         assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
         assert_eq!(repository.find(user.id()).await?, Some(user.clone()));
-        let updated = user.update(TwitterUserName::from_str("twitter_user_name")?, At::now())?;
+        let updated = user.update(TwitterUserName::from_str("twitter_user_name")?)?;
         repository
             .store(Some(user.clone()), updated.clone())
             .await?;

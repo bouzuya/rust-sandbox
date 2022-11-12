@@ -1,5 +1,6 @@
 use std::{fmt::Display, str::FromStr};
 
+use event_store_core::EventAt;
 use time::{format_description::well_known::Iso8601, Duration, OffsetDateTime};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
@@ -46,6 +47,12 @@ impl TryFrom<String> for At {
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         value.parse()
+    }
+}
+
+impl From<EventAt> for At {
+    fn from(value: EventAt) -> Self {
+        Self::from_str(&value.to_string()).expect("EventAt and At have same format")
     }
 }
 

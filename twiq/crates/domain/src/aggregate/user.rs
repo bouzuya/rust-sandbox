@@ -72,21 +72,23 @@ impl User {
         &self.twitter_user_id
     }
 
-    pub fn update(&self, name: TwitterUserName, at: At) -> Result<Self> {
+    // TODO: TwitterUserName の取得日時を持っておいたほうが良いかもしれない
+    pub fn update(&self, name: TwitterUserName) -> Result<Self> {
+        let mut cloned = self.clone();
+        cloned
+            .event_stream
+            .push(
+                UserUpdated::r#type(),
+                UserUpdated::new(self.twitter_user_id.clone(), name, self.user_id),
+            )
+            .unwrap();
+        let at = At::from(cloned.event_stream.last().at());
         if let Some(updated_at) = self.updated_at {
             if at <= updated_at {
                 // TODO: error handling
                 return Err(Error::Unknown("".to_owned()));
             }
         }
-        let mut cloned = self.clone();
-        cloned
-            .event_stream
-            .push(
-                UserUpdated::r#type(),
-                UserUpdated::new(at, self.twitter_user_id.clone(), name, self.user_id),
-            )
-            .unwrap();
         cloned.updated_at = Some(at);
         Ok(cloned)
     }
@@ -127,6 +129,7 @@ impl TryFrom<EventStream> for User {
             }
         };
         for raw_event in raw_events.into_iter().skip(1) {
+            let event_at = raw_event.at();
             let user_event = try_from_raw_event(raw_event)?;
             user = match user_event {
                 Event::Created(_) => return Err(Error::Unknown("invalid event stream".to_owned())),
@@ -135,9 +138,9 @@ impl TryFrom<EventStream> for User {
                     fetch_requested_at: Some(e.at()),
                     ..user
                 },
-                Event::Updated(e) => User {
+                Event::Updated(_) => User {
                     event_stream: event_stream.clone(),
-                    updated_at: Some(e.at()),
+                    updated_at: Some(At::from(event_at)),
                     ..user
                 },
             };
@@ -211,9 +214,8 @@ mod tests {
         use event_store_core::EventType as RawEventType;
         let twitter_user_id = "123".parse::<TwitterUserId>()?;
         let user = User::create(twitter_user_id)?;
-        let at = At::now();
         let name = TwitterUserName::from_str("bouzuya")?;
-        let updated = user.update(name, at)?;
+        let updated = user.update(name)?;
         assert_eq!(
             updated.event_stream.events()[1].r#type(),
             &RawEventType::from(UserUpdated::r#type())

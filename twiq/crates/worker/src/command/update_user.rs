@@ -35,8 +35,7 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
             (_, None) => Err(worker_helper::Error::UserNotFound(event.user_id())),
             (Some(_), Some(user)) => {
                 let twitter_user_name = event.user_response().parse()?;
-                let at = event.at();
-                let updated = user.update(twitter_user_name, at)?;
+                let updated = user.update(twitter_user_name)?;
                 Ok(user_repository.store(Some(user), updated).await?)
             }
         }?;
