@@ -76,6 +76,14 @@ impl EventStream {
         self.events.clone()
     }
 
+    pub fn first(&self) -> &Event {
+        self.events.first().expect("at least one exists")
+    }
+
+    pub fn last(&self) -> &Event {
+        self.events.last().expect("at least one exists")
+    }
+
     pub fn push<T, U>(&mut self, event_type: T, event_payload: U) -> Result<()>
     where
         T: Into<EventType>,
@@ -219,6 +227,34 @@ mod tests {
         assert_eq!(stream.id(), event1.stream_id());
         assert_eq!(stream.seq(), event2.stream_seq());
         assert_eq!(stream.events(), vec![event1, event2]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_first() -> anyhow::Result<()> {
+        let mut stream = EventStream::generate(
+            EventType::from_str("created")?,
+            EventPayload::from_str("{}")?,
+        );
+        stream.push(
+            EventType::from_str("updated")?,
+            EventPayload::from_str(r#"{"key":123}"#)?,
+        )?;
+        assert_eq!(stream.first().r#type(), &EventType::from_str("created")?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_last() -> anyhow::Result<()> {
+        let mut stream = EventStream::generate(
+            EventType::from_str("created")?,
+            EventPayload::from_str("{}")?,
+        );
+        stream.push(
+            EventType::from_str("updated")?,
+            EventPayload::from_str(r#"{"key":123}"#)?,
+        )?;
+        assert_eq!(stream.last().r#type(), &EventType::from_str("updated")?);
         Ok(())
     }
 
