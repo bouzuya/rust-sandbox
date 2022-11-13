@@ -85,6 +85,9 @@ fn event_fields_projection() -> Projection {
                 field_path: "stream_seq".to_owned(),
             },
             FieldReference {
+                field_path: "at".to_owned(),
+            },
+            FieldReference {
                 field_path: "data".to_owned(),
             },
         ],
@@ -386,16 +389,16 @@ fn event_stream_to_fields(
     event_stream_id: EventStreamId,
     event_stream_seq: EventStreamSeq,
 ) -> HashMap<String, Value> {
-    let mut map = HashMap::new();
-    map.insert(
+    let mut fields = HashMap::new();
+    fields.insert(
         "id".to_owned(),
         value_from_string(event_stream_id.to_string()),
     );
-    map.insert(
+    fields.insert(
         "seq".to_owned(),
         value_from_i64(i64::from(event_stream_seq)),
     );
-    map
+    fields
 }
 
 fn event_from_fields(document: &Document) -> Result<Event> {
@@ -433,25 +436,26 @@ fn event_from_fields(document: &Document) -> Result<Event> {
 }
 
 fn event_to_fields(event: &Event) -> HashMap<String, Value> {
-    let mut map = HashMap::new();
-    map.insert("id".to_owned(), value_from_string(event.id().to_string()));
-    map.insert(
+    let mut fields = HashMap::new();
+    fields.insert("id".to_owned(), value_from_string(event.id().to_string()));
+    fields.insert(
         "type".to_owned(),
         value_from_string(event.r#type().to_string()),
     );
-    map.insert(
+    fields.insert(
         "stream_id".to_owned(),
         value_from_string(event.stream_id().to_string()),
     );
-    map.insert(
+    fields.insert(
         "stream_seq".to_owned(),
         value_from_i64(i64::from(event.stream_seq())),
     );
-    map.insert(
+    fields.insert("at".to_owned(), value_from_string(event.at().to_string()));
+    fields.insert(
         "data".to_owned(),
         value_from_string(event.payload().to_string()),
     );
-    map
+    fields
 }
 
 #[cfg(test)]
