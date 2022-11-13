@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, str::FromStr};
+use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
@@ -6,6 +6,7 @@ use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
 use use_case::user_repository::{self, UserRepository};
 
 use crate::{
+    config::Config,
     firestore_rpc::{
         google::firestore::v1::{
             precondition::ConditionType, write::Operation, Document, Precondition, Write,
@@ -16,7 +17,9 @@ use crate::{
     firestore_transaction::FirestoreTransaction,
 };
 
-struct FirestoreUserRepository;
+struct FirestoreUserRepository {
+    config: Config,
+}
 
 impl FirestoreUserRepository {
     const USER_IDS: &'static str = "user_ids";
@@ -26,14 +29,12 @@ impl FirestoreUserRepository {
 #[async_trait]
 impl UserRepository for FirestoreUserRepository {
     async fn find(&self, id: UserId) -> user_repository::Result<Option<User>> {
-        // TODO: HasConfiguration trait
         // begin transaction & create event_store
-        let project_id =
-            env::var("PROJECT_ID").map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let database_id = "(default)".to_owned();
-        let transaction = FirestoreTransaction::begin(project_id.clone(), database_id.clone())
-            .await
-            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
+        let transaction =
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
+                .await
+                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let document = match transaction
@@ -63,14 +64,12 @@ impl UserRepository for FirestoreUserRepository {
         &self,
         twitter_user_id: &TwitterUserId,
     ) -> user_repository::Result<Option<User>> {
-        // TODO: HasConfiguration trait
         // begin transaction & create event_store
-        let project_id =
-            env::var("PROJECT_ID").map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let database_id = "(default)".to_owned();
-        let transaction = FirestoreTransaction::begin(project_id.clone(), database_id.clone())
-            .await
-            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
+        let transaction =
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
+                .await
+                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let document = match transaction
@@ -109,14 +108,12 @@ impl UserRepository for FirestoreUserRepository {
     }
 
     async fn store(&self, before: Option<User>, after: User) -> user_repository::Result<()> {
-        // TODO: HasConfiguration trait
         // begin transaction & create event_store
-        let project_id =
-            env::var("PROJECT_ID").map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let database_id = "(default)".to_owned();
-        let transaction = FirestoreTransaction::begin(project_id.clone(), database_id.clone())
-            .await
-            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
+        let transaction =
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
+                .await
+                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let twitter_user_id = after.twitter_user_id().clone();
@@ -254,7 +251,8 @@ mod tests {
     #[ignore]
     async fn test() -> anyhow::Result<()> {
         let user = User::create(TwitterUserId::from_str("125962981")?)?;
-        let repository = FirestoreUserRepository;
+        let config = Config::load_from_env();
+        let repository = FirestoreUserRepository { config };
         assert!(repository.find(user.id()).await?.is_none());
         repository.store(None, user.clone()).await?;
         assert_eq!(repository.find(user.id()).await?, Some(user.clone()));

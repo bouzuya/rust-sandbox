@@ -1,3 +1,4 @@
+pub mod config;
 pub mod firestore_rpc;
 pub mod firestore_rpc_event_store;
 pub mod firestore_transaction;
@@ -22,6 +23,7 @@ mod tests {
     };
 
     use crate::{
+        config::Config,
         firestore_rpc::google::firestore::v1::{
             firestore_client::FirestoreClient,
             get_document_request::ConsistencySelector,
@@ -39,8 +41,11 @@ mod tests {
     #[tokio::test]
     #[ignore]
     async fn firestore_rpc_event_store_test() -> anyhow::Result<()> {
-        let project_id = env::var("PROJECT_ID")?;
-        let database_id = "(default)".to_owned();
+        let config = Config::load_from_env();
+        let (project_id, database_id) = (
+            config.project_id().to_owned(),
+            config.database_id().to_owned(),
+        );
         let transaction =
             FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());

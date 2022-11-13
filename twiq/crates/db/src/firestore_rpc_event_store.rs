@@ -460,21 +460,25 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
 
 #[cfg(test)]
 mod tests {
-    use std::{env, time::Duration};
+    use std::time::Duration;
 
-    use anyhow::Context;
     use event_store_core::{
         event_id::EventId, event_payload::EventPayload, event_stream_id::EventStreamId,
     };
     use tokio::time::sleep;
+
+    use crate::config::Config;
 
     use super::*;
 
     #[tokio::test]
     #[ignore]
     async fn test() -> anyhow::Result<()> {
-        let project_id = env::var("PROJECT_ID").context("PROJECT_ID")?;
-        let database_id = "(default)".to_owned();
+        let config = Config::load_from_env();
+        let (project_id, database_id) = (
+            config.project_id().to_owned(),
+            config.database_id().to_owned(),
+        );
         let transaction =
             FirestoreTransaction::begin(project_id.clone(), database_id.clone()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
