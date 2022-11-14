@@ -26,7 +26,15 @@ impl Config {
 
 #[cfg(test)]
 mod tests {
-    // TODO: test load_from_env
-    // TODO: test database_id
-    // TODO: test project_id
+    use std::env;
+
+    use crate::config::Config;
+
+    #[test]
+    fn test() {
+        env::set_var("PROJECT_ID", "project_id1");
+        let config = Config::load_from_env();
+        assert_eq!(config.project_id(), "project_id1");
+        assert_eq!(config.database_id(), "(default)");
+    }
 }
