@@ -55,9 +55,17 @@ impl FromStr for EventType {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let raw_event_type =
-            RawEventType::from_str(s).map_err(|e| Error::Unknown(e.to_string()))?;
-        EventType::try_from(raw_event_type)
+        use EventType::*;
+        let event_type = match s {
+            "user_created" => UserCreated,
+            "user_requested" => UserRequested,
+            "user_updated" => UserUpdated,
+            "user_request_created" => UserRequestCreated,
+            "user_request_started" => UserRequestStarted,
+            "user_request_finished" => UserRequestFinished,
+            _ => return Err(Error::Unknown("unknown event_type".to_owned())),
+        };
+        Ok(event_type)
     }
 }
 
@@ -80,17 +88,7 @@ impl TryFrom<RawEventType> for EventType {
     type Error = Error;
 
     fn try_from(value: RawEventType) -> Result<Self, Self::Error> {
-        use EventType::*;
-        let event_type = match value.as_str() {
-            "user_created" => UserCreated,
-            "user_requested" => UserRequested,
-            "user_updated" => UserUpdated,
-            "user_request_created" => UserRequestCreated,
-            "user_request_started" => UserRequestStarted,
-            "user_request_finished" => UserRequestFinished,
-            _ => return Err(Error::Unknown("unknown event_type".to_owned())),
-        };
-        Ok(event_type)
+        Self::from_str(value.as_str())
     }
 }
 
