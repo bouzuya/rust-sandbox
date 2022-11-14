@@ -20,6 +20,8 @@ jobs:
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       - uses: actions/cache@v2
         with:
           path: |
@@ -41,6 +43,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: true
       # deploy to GitHub Container Registry
       - uses: VaultVulp/gp-docker-action@1.2.0
         with:
