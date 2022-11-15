@@ -2,13 +2,13 @@ use std::{fs, path::Path};
 
 use prost_build::Config;
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     // brew install protobuf
     let out_dir = Path::new("src/firestore_rpc");
     if out_dir.exists() {
-        fs::remove_dir_all(&out_dir).unwrap();
+        fs::remove_dir_all(&out_dir)?;
     }
-    fs::create_dir_all(&out_dir).unwrap();
+    fs::create_dir_all(&out_dir)?;
     // コメントに非 Rust の fenced code block があることで doctest が壊れるので
     // 一部のコメントの出力を避ける
     let mut config = Config::new();
@@ -30,6 +30,6 @@ fn main() {
             config,
             &["proto/googleapis/google/firestore/v1/firestore.proto"],
             &["proto/googleapis"],
-        )
-        .unwrap();
+        )?;
+    Ok(())
 }
