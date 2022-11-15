@@ -84,10 +84,10 @@ impl From<EventType> for RawEventType {
     }
 }
 
-impl TryFrom<RawEventType> for EventType {
+impl TryFrom<&RawEventType> for EventType {
     type Error = Error;
 
-    fn try_from(value: RawEventType) -> Result<Self, Self::Error> {
+    fn try_from(value: &RawEventType) -> Result<Self, Self::Error> {
         Self::from_str(value.as_str())
     }
 }
@@ -148,7 +148,7 @@ impl TryFrom<RawEvent> for Event {
     type Error = Error;
 
     fn try_from(raw_event: RawEvent) -> Result<Self, Self::Error> {
-        let event_type = EventType::try_from(raw_event.r#type().clone())?;
+        let event_type = EventType::try_from(raw_event.r#type())?;
         let event = match event_type {
             EventType::UserCreated => Event::from(
                 UserCreated::try_from(raw_event).map_err(|e| Error::Unknown(e.to_string()))?,
@@ -252,7 +252,7 @@ pub(crate) mod tests {
             (UserRequestFinished, "user_request_finished", UserRequest),
         ];
         for (t, s, st) in types {
-            assert_eq!(EventType::try_from(RawEventType::from(t))?, t);
+            assert_eq!(EventType::try_from(&RawEventType::from(t))?, t);
             assert_eq!(RawEventType::from_str(s)?.as_str(), s);
             assert_eq!(t.event_stream_type(), st);
         }

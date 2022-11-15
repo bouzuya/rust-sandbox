@@ -209,7 +209,7 @@ mod tests {
             .find_events(None)
             .await?
             .into_iter()
-            .map(|event| EventType::try_from(event.r#type().clone()).map_err(anyhow::Error::from))
+            .map(|event| EventType::try_from(event.r#type()).map_err(anyhow::Error::from))
             .collect::<anyhow::Result<Vec<EventType>>>()?;
         assert_eq!(
             event_types,

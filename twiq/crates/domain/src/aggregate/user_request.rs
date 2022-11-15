@@ -48,7 +48,7 @@ impl UserRequest {
             .events()
             .last()
             .map(|event| {
-                EventType::try_from(event.r#type().clone()).unwrap() == UserRequestStarted::r#type()
+                EventType::try_from(event.r#type()).unwrap() == UserRequestStarted::r#type()
             })
             .unwrap_or_default()
         {
@@ -72,7 +72,7 @@ impl UserRequest {
             .events()
             .last()
             .map(|event| {
-                EventType::try_from(event.r#type().clone()).unwrap() == UserRequestCreated::r#type()
+                EventType::try_from(event.r#type()).unwrap() == UserRequestCreated::r#type()
             })
             .unwrap_or_default()
         {
