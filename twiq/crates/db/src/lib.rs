@@ -4,6 +4,7 @@ pub mod firestore_rpc_event_store;
 pub mod firestore_transaction;
 pub mod firestore_user_repository;
 pub mod firestore_user_request_repository;
+pub mod firestore_user_store;
 
 #[cfg(test)]
 mod tests {
