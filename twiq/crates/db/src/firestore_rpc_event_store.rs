@@ -88,7 +88,7 @@ fn event_fields_projection() -> Projection {
                 field_path: "at".to_owned(),
             },
             FieldReference {
-                field_path: "data".to_owned(),
+                field_path: "payload".to_owned(),
             },
         ],
     }
@@ -427,7 +427,7 @@ fn event_from_fields(document: &Document) -> Result<Event> {
         .transpose()
         .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?
         .ok_or_else(|| Error::Unknown("at is not found".to_owned()))?;
-    let payload = get_field_as_str(document, "data")
+    let payload = get_field_as_str(document, "payload")
         .map(EventPayload::from_str)
         .transpose()
         .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?
@@ -452,7 +452,7 @@ fn event_to_fields(event: &Event) -> HashMap<String, Value> {
     );
     fields.insert("at".to_owned(), value_from_string(event.at().to_string()));
     fields.insert(
-        "data".to_owned(),
+        "payload".to_owned(),
         value_from_string(event.payload().to_string()),
     );
     fields
