@@ -227,6 +227,7 @@ dependencies = [
  "prost",
  "prost-build",
  "prost-types",
+ "query_handler",
  "thiserror",
  "time 0.3.17",
  "tokio",

@@ -12,6 +12,7 @@ event_store_core = { path = "../event_store_core" }
 google-cloud-auth = { git = "https://github.com/googleapis/google-cloud-rust", rev = "b82d4462900db232b14029f69766e5016743fcc4" }
 prost = "0.11.0"
 prost-types = "0.11.1"
+query_handler = { path = "../query_handler" }
 thiserror = "1.0.32"
 time = { version = "0.3.14", features = ["parsing", "formatting"] }
 tokio = { version = "1.20.1", features = ["full"] }
