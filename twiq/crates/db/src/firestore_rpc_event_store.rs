@@ -205,9 +205,9 @@ impl EventStore for FirestoreRpcEventStore {
                 .get_document("events", &event_id.to_string())
                 .await
                 .map_err(|status| event_store::Error::Unknown(status.to_string()))?
-                .and_then(|document| get_field_as_timestamp(&document, "requested_at"))
-                .map(Some)
-                .ok_or_else(|| event_store::Error::Unknown("not found".to_owned()))?,
+                .map(|document| get_field_as_timestamp(&document, "requested_at"))
+                .transpose()
+                .map_err(|get_field| event_store::Error::Unknown(get_field.to_string()))?,
             None => None,
         };
 
@@ -318,15 +318,11 @@ impl EventStore for FirestoreRpcEventStore {
                     .await
                     .map_err(|e| event_store::Error::Unknown(e.to_string()))?
                     .ok_or_else(|| event_store::Error::Unknown("not found".to_owned()))?;
-                let event_stream_seq = get_field_as_i64(&document, "seq")
-                    .map(EventStreamSeq::try_from)
-                    .ok_or_else(|| {
-                        event_store::Error::Unknown("seq field is not found".to_owned())
-                    })?
-                    .map_err(|_| {
-                        event_store::Error::Unknown(
-                            "seq field can't be converted to EventStreamSeq".to_owned(),
-                        )
+                let event_stream_seq: EventStreamSeq = get_field_as_i64(&document, "seq")
+                    .map_err(|get_field| event_store::Error::Unknown(get_field.to_string()))
+                    .and_then(|i| {
+                        EventStreamSeq::try_from(i)
+                            .map_err(|e| event_store::Error::Unknown(e.to_string()))
                     })?;
                 let update_time = document.update_time.expect("output contains update_time");
 
@@ -404,34 +400,28 @@ fn event_stream_to_fields(
 fn event_from_fields(document: &Document) -> Result<Event> {
     let id = get_field_as_str(document, "id")
         .map(EventId::from_str)
-        .transpose()
-        .map_err(|_| Error::Unknown("id is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("id is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("id is not well-formed".to_owned()))?;
     let r#type = get_field_as_str(document, "type")
         .map(EventType::from_str)
-        .transpose()
-        .map_err(|_| Error::Unknown("type is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("type is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("type is not well-formed".to_owned()))?;
     let stream_id = get_field_as_str(document, "stream_id")
         .map(EventStreamId::from_str)
-        .transpose()
-        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("stream_id is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
     let stream_seq = get_field_as_i64(document, "stream_seq")
         .map(EventStreamSeq::try_from)
-        .transpose()
-        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("stream_id is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
     let at = get_field_as_str(document, "at")
         .map(EventAt::from_str)
-        .transpose()
-        .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("at is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?;
     let payload = get_field_as_str(document, "payload")
         .map(EventPayload::from_str)
-        .transpose()
-        .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?
-        .ok_or_else(|| Error::Unknown("payload is not found".to_owned()))?;
+        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?;
     Ok(Event::new(id, r#type, stream_id, stream_seq, at, payload))
 }
 

@@ -120,16 +120,108 @@ pub mod helper {
         Ok(Credential::find_default(config).await?)
     }
 
-    pub fn get_field_as_i64(document: &Document, key: &str) -> Option<i64> {
-        document.fields.get(key).map(value_into_i64_unchecked)
+    #[derive(Debug, thiserror::Error)]
+    pub enum GetFieldError {
+        #[error("invalid value type {field} {expected} {actual}")]
+        InvalidValueType {
+            actual: String,
+            expected: String,
+            field: String,
+        },
+        #[error("key not found {0}")]
+        KeyNotFound(String),
     }
 
-    pub fn get_field_as_str<'a>(document: &'a Document, key: &'a str) -> Option<&'a str> {
-        document.fields.get(key).map(value_as_str_unchecked)
+    pub fn get_field_as_i64(document: &Document, key: &str) -> Result<i64, GetFieldError> {
+        get_field(document, key, value_as_i64)
     }
 
-    pub fn get_field_as_timestamp(document: &Document, key: &str) -> Option<Timestamp> {
-        document.fields.get(key).map(value_to_timestamp_unchecked)
+    pub fn get_field_as_str<'a, 'b>(
+        document: &'a Document,
+        key: &'b str,
+    ) -> Result<&'a str, GetFieldError> {
+        get_field(document, key, value_as_str)
+    }
+
+    pub fn get_field_as_timestamp(
+        document: &Document,
+        key: &str,
+    ) -> Result<Timestamp, GetFieldError> {
+        get_field(document, key, value_as_timestamp)
+    }
+
+    pub fn get_field<'a, 'b, F, T>(
+        document: &'a Document,
+        key: &'b str,
+        f: F,
+    ) -> Result<T, GetFieldError>
+    where
+        F: Fn(&'b str, &'a Value) -> Result<T, GetFieldError>,
+    {
+        document
+            .fields
+            .get(key)
+            .ok_or_else(|| GetFieldError::KeyNotFound(key.to_owned()))
+            .and_then(|value| f(key, value))
+    }
+
+    fn value_type_string(value_type: &ValueType) -> String {
+        match value_type {
+            ValueType::NullValue(_) => "nullValue",
+            ValueType::BooleanValue(_) => "booleanValue",
+            ValueType::IntegerValue(_) => "integerValue",
+            ValueType::DoubleValue(_) => "doubleValue",
+            ValueType::TimestampValue(_) => "timestampValue",
+            ValueType::StringValue(_) => "stringValue",
+            ValueType::BytesValue(_) => "bytesValue",
+            ValueType::ReferenceValue(_) => "referenceValue",
+            ValueType::GeoPointValue(_) => "geoPointValue",
+            ValueType::ArrayValue(_) => "arrayValue",
+            ValueType::MapValue(_) => "mapValue",
+        }
+        .to_owned()
+    }
+
+    fn value_as_i64(field: &str, value: &Value) -> Result<i64, GetFieldError> {
+        match value.value_type.as_ref() {
+            Some(value_type) => match value_type {
+                ValueType::IntegerValue(i) => Ok(*i),
+                _ => Err(GetFieldError::InvalidValueType {
+                    actual: value_type_string(value_type),
+                    expected: value_type_string(&ValueType::IntegerValue(Default::default())),
+                    field: field.to_owned(),
+                }),
+            },
+            None => unreachable!(),
+        }
+    }
+
+    fn value_as_str<'a, 'b>(field: &'a str, value: &'b Value) -> Result<&'b str, GetFieldError> {
+        match value.value_type.as_ref() {
+            Some(value_type) => match value_type {
+                ValueType::StringValue(s) => Ok(s.as_str()),
+                _ => Err(GetFieldError::InvalidValueType {
+                    actual: value_type_string(value_type),
+                    expected: value_type_string(&ValueType::StringValue(Default::default())),
+                    field: field.to_owned(),
+                }),
+            },
+            None => unreachable!(),
+        }
+    }
+
+    fn value_as_timestamp(field: &str, value: &Value) -> Result<Timestamp, GetFieldError> {
+        match value.value_type.as_ref() {
+            Some(value_type) => match value_type {
+                ValueType::TimestampValue(t) => Ok(t.clone()),
+                _ => Err(GetFieldError::InvalidValueType {
+                    actual: value_type_string(value_type),
+                    expected: value_type_string(&ValueType::StringValue(Default::default())),
+                    field: field.to_owned(),
+                }),
+            },
+            None => unreachable!(),
+        }
     }
 
     // panic if value_type is not string
@@ -191,7 +283,7 @@ pub mod helper {
         use super::*;
 
         #[test]
-        fn get_field_as_i64_test() {
+        fn get_field_as_i64_test() -> anyhow::Result<()> {
             assert_eq!(
                 get_field_as_i64(
                     &Document {
@@ -205,13 +297,14 @@ pub mod helper {
                         update_time: None
                     },
                     "key"
-                ),
-                Some(123)
+                )?,
+                123
             );
+            Ok(())
         }
 
         #[test]
-        fn get_field_as_str_test() {
+        fn get_field_as_str_test() -> anyhow::Result<()> {
             assert_eq!(
                 get_field_as_str(
                     &Document {
@@ -225,9 +318,10 @@ pub mod helper {
                         update_time: None
                     },
                     "key"
-                ),
-                Some("val")
+                )?,
+                "val"
             );
+            Ok(())
         }
 
         #[test]
@@ -247,8 +341,8 @@ pub mod helper {
                         update_time: None
                     },
                     "key"
-                ),
-                Some(timestamp)
+                )?,
+                timestamp
             );
             Ok(())
         }
