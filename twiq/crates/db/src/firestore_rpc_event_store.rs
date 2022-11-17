@@ -38,10 +38,30 @@ use crate::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("event_store_core::event_stream {0}")]
+    EventStream(#[from] event_store_core::event_stream::Error),
+    #[error("event_store_core::event_stream_seq {0}")]
+    EventStreamSeq(#[from] event_store_core::event_stream_seq::Error),
+    #[error("firestore_rpc::helper {0}")]
+    FirestoreRpcHelper(#[from] crate::firestore_rpc::helper::Error),
+    #[error("firestore_rpc::helper::GetFieldError {0}")]
+    FirestoreRpcHelperGetField(#[from] crate::firestore_rpc::helper::GetFieldError),
     #[error("google_cloud_auth {0}")]
     GoogleCloudAuth(#[from] google_cloud_auth::Error),
+    #[error("prost_types::TimestampError {0}")]
+    ProstTypesTimestamp(#[from] prost_types::TimestampError),
+    #[error("time::error::Format {0}")]
+    TimeFormat(#[from] time::error::Format),
+    #[error("tonic::Status {0}")]
+    TonicStatus(#[from] tonic::Status),
     #[error("unknown {0}")]
     Unknown(String),
+}
+
+impl From<Error> for event_store::Error {
+    fn from(e: Error) -> Self {
+        event_store::Error::Unknown(e.to_string())
+    }
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -57,84 +77,32 @@ impl FirestoreRpcEventStore {
 
     async fn client(
         &self,
-    ) -> event_store::Result<
+    ) -> Result<
         FirestoreClient<
             InterceptedService<Channel, impl Fn(Request<()>) -> Result<Request<()>, Status>>,
         >,
     > {
-        self.transaction
-            .client()
-            .await
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))
+        Ok(self.transaction.client().await?)
     }
-}
 
-fn event_fields_projection() -> Projection {
-    Projection {
-        fields: vec![
-            FieldReference {
-                field_path: "id".to_owned(),
-            },
-            FieldReference {
-                field_path: "type".to_owned(),
-            },
-            FieldReference {
-                field_path: "stream_id".to_owned(),
-            },
-            FieldReference {
-                field_path: "stream_seq".to_owned(),
-            },
-            FieldReference {
-                field_path: "at".to_owned(),
-            },
-            FieldReference {
-                field_path: "payload".to_owned(),
-            },
-        ],
-    }
-}
-
-#[async_trait]
-impl EventStore for FirestoreRpcEventStore {
-    async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
-        self.transaction
+    async fn find_event(&self, event_id: EventId) -> Result<Option<Event>> {
+        let document = self
+            .transaction
             .get_document("events", &event_id.to_string())
-            .await
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            .and_then(|document| {
-                document
-                    .as_ref()
-                    .map(event_from_fields)
-                    .transpose()
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            })
-    }
-
-    async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
-        Ok(self
-            .find_events(after)
-            .await?
-            .into_iter()
-            .map(|event| event.id())
-            .collect::<Vec<EventId>>())
+            .await?;
+        document.as_ref().map(event_from_fields).transpose()
     }
 
     async fn find_event_stream(
         &self,
         event_stream_id: EventStreamId,
-    ) -> event_store::Result<Option<EventStream>> {
+    ) -> Result<Option<EventStream>> {
         let parent = self.transaction.documents_path();
 
-        let now = OffsetDateTime::now_utc()
-            .format(&Rfc3339)
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            .and_then(|s| {
-                Timestamp::from_str(s.as_str())
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            })?;
-        let response = self
-            .client()
-            .await?
+        let s = OffsetDateTime::now_utc().format(&Rfc3339)?;
+        let now = Timestamp::from_str(s.as_str())?;
+        let mut client = self.client().await?;
+        let response = client
             .run_query(RunQueryRequest {
                 parent,
                 query_type: Some(run_query_request::QueryType::StructuredQuery(
@@ -167,15 +135,10 @@ impl EventStore for FirestoreRpcEventStore {
                 )),
                     consistency_selector: Some(run_query_request::ConsistencySelector::NewTransaction(TransactionOptions { mode: Some(Mode::ReadOnly(ReadOnly { consistency_selector: Some(crate::firestore_rpc::google::firestore::v1::transaction_options::read_only::ConsistencySelector::ReadTime(now))})) }))
             })
-            .await
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+            .await?;
         let mut run_query_response = response.into_inner();
         let mut events = vec![];
-        while let Some(r) = run_query_response
-            .message()
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?
-        {
+        while let Some(r) = run_query_response.message().await? {
             if !r.transaction.is_empty() {
                 continue;
             }
@@ -184,45 +147,34 @@ impl EventStore for FirestoreRpcEventStore {
             }
             let document = r
                 .document
-                .ok_or_else(|| event_store::Error::Unknown("document is not found".to_owned()))?;
-            events.push(
-                event_from_fields(&document)
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?,
-            );
+                .ok_or_else(|| Error::Unknown("document is not found".to_owned()))?;
+            events.push(event_from_fields(&document)?);
         }
         Ok(if events.is_empty() {
             None
         } else {
-            Some(EventStream::new(events).map_err(|e| event_store::Error::Unknown(e.to_string()))?)
+            Some(EventStream::new(events)?)
         })
     }
 
-    async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
+    async fn find_events(&self, after: Option<EventId>) -> Result<Vec<Event>> {
         // get requested_at
         let requested_at = match after {
             Some(event_id) => self
                 .transaction
                 .get_document("events", &event_id.to_string())
-                .await
-                .map_err(|status| event_store::Error::Unknown(status.to_string()))?
+                .await?
                 .map(|document| get_field_as_timestamp(&document, "requested_at"))
-                .transpose()
-                .map_err(|get_field| event_store::Error::Unknown(get_field.to_string()))?,
+                .transpose()?,
             None => None,
         };
 
         // get events (run_query)
         let parent = self.transaction.documents_path();
-        let now = OffsetDateTime::now_utc()
-            .format(&Rfc3339)
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            .and_then(|s| {
-                Timestamp::from_str(s.as_str())
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))
-            })?;
-        let response = self
-                .client()
-                .await?
+        let s = OffsetDateTime::now_utc().format(&Rfc3339)?;
+        let now = Timestamp::from_str(s.as_str())?;
+        let mut client = self.client().await?;
+        let response = client
                 .run_query(RunQueryRequest {
                     parent,
                     query_type: Some(run_query_request::QueryType::StructuredQuery(
@@ -270,15 +222,10 @@ impl EventStore for FirestoreRpcEventStore {
                         },
                     )),
                     consistency_selector: Some(run_query_request::ConsistencySelector::NewTransaction(TransactionOptions { mode: Some(Mode::ReadOnly(ReadOnly { consistency_selector: Some(crate::firestore_rpc::google::firestore::v1::transaction_options::read_only::ConsistencySelector::ReadTime(now))})) }))
-                }).await
-                        .map_err(|status| event_store::Error::Unknown(status.to_string()))?;
+                }).await?;
         let mut run_query_response = response.into_inner();
         let mut events = vec![];
-        while let Some(r) = run_query_response
-            .message()
-            .await
-            .map_err(|status| event_store::Error::Unknown(status.to_string()))?
-        {
+        while let Some(r) = run_query_response.message().await? {
             if !r.transaction.is_empty() {
                 continue;
             }
@@ -287,11 +234,8 @@ impl EventStore for FirestoreRpcEventStore {
             }
             let document = r
                 .document
-                .ok_or_else(|| event_store::Error::Unknown("document is not found".to_owned()))?;
-            events.push(
-                event_from_fields(&document)
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?,
-            );
+                .ok_or_else(|| Error::Unknown("document is not found".to_owned()))?;
+            events.push(event_from_fields(&document)?);
         }
         Ok(events)
     }
@@ -300,7 +244,7 @@ impl EventStore for FirestoreRpcEventStore {
         &self,
         current: Option<EventStreamSeq>,
         event_stream: EventStream,
-    ) -> event_store::Result<()> {
+    ) -> Result<()> {
         let collection_id = "event_streams";
         let document_id = event_stream.id().to_string();
         let event_stream_document = Document {
@@ -315,19 +259,14 @@ impl EventStore for FirestoreRpcEventStore {
                 let document = self
                     .transaction
                     .get_document("event_streams", &event_stream.id().to_string())
-                    .await
-                    .map_err(|e| event_store::Error::Unknown(e.to_string()))?
-                    .ok_or_else(|| event_store::Error::Unknown("not found".to_owned()))?;
-                let event_stream_seq: EventStreamSeq = get_field_as_i64(&document, "seq")
-                    .map_err(|get_field| event_store::Error::Unknown(get_field.to_string()))
-                    .and_then(|i| {
-                        EventStreamSeq::try_from(i)
-                            .map_err(|e| event_store::Error::Unknown(e.to_string()))
-                    })?;
+                    .await?
+                    .ok_or_else(|| Error::Unknown("not found".to_owned()))?;
+                let field = get_field_as_i64(&document, "seq")?;
+                let event_stream_seq = EventStreamSeq::try_from(field)?;
                 let update_time = document.update_time.expect("output contains update_time");
 
                 if event_stream_seq != expected_event_stream_seq {
-                    return Err(event_store::Error::Unknown("conflict".to_owned()));
+                    return Err(Error::Unknown("conflict".to_owned()));
                 }
                 Precondition {
                     condition_type: Some(ConditionType::UpdateTime(update_time)),
@@ -344,8 +283,7 @@ impl EventStore for FirestoreRpcEventStore {
                 current_document: Some(precondition),
                 operation: Some(Operation::Update(event_stream_document)),
             })
-            .await
-            .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+            .await?;
 
         for event in event_stream.events() {
             if let Some(c) = current {
@@ -374,10 +312,69 @@ impl EventStore for FirestoreRpcEventStore {
                         update_time: None,
                     })),
                 })
-                .await
-                .map_err(|e| event_store::Error::Unknown(e.to_string()))?;
+                .await?;
         }
         Ok(())
+    }
+}
+
+fn event_fields_projection() -> Projection {
+    Projection {
+        fields: vec![
+            FieldReference {
+                field_path: "id".to_owned(),
+            },
+            FieldReference {
+                field_path: "type".to_owned(),
+            },
+            FieldReference {
+                field_path: "stream_id".to_owned(),
+            },
+            FieldReference {
+                field_path: "stream_seq".to_owned(),
+            },
+            FieldReference {
+                field_path: "at".to_owned(),
+            },
+            FieldReference {
+                field_path: "payload".to_owned(),
+            },
+        ],
+    }
+}
+
+#[async_trait]
+impl EventStore for FirestoreRpcEventStore {
+    async fn find_event(&self, event_id: EventId) -> event_store::Result<Option<Event>> {
+        Ok(self.find_event(event_id).await?)
+    }
+
+    async fn find_event_ids(&self, after: Option<EventId>) -> event_store::Result<Vec<EventId>> {
+        Ok(self
+            .find_events(after)
+            .await?
+            .into_iter()
+            .map(|event| event.id())
+            .collect::<Vec<EventId>>())
+    }
+
+    async fn find_event_stream(
+        &self,
+        event_stream_id: EventStreamId,
+    ) -> event_store::Result<Option<EventStream>> {
+        Ok(self.find_event_stream(event_stream_id).await?)
+    }
+
+    async fn find_events(&self, after: Option<EventId>) -> event_store::Result<Vec<Event>> {
+        Ok(self.find_events(after).await?)
+    }
+
+    async fn store(
+        &self,
+        current: Option<EventStreamSeq>,
+        event_stream: EventStream,
+    ) -> event_store::Result<()> {
+        Ok(self.store(current, event_stream).await?)
     }
 }
 
@@ -399,28 +396,22 @@ fn event_stream_to_fields(
 
 fn event_from_fields(document: &Document) -> Result<Event> {
     let id = get_field_as_str(document, "id")
-        .map(EventId::from_str)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventId::from_str)?
         .map_err(|_| Error::Unknown("id is not well-formed".to_owned()))?;
     let r#type = get_field_as_str(document, "type")
-        .map(EventType::from_str)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventType::from_str)?
         .map_err(|_| Error::Unknown("type is not well-formed".to_owned()))?;
     let stream_id = get_field_as_str(document, "stream_id")
-        .map(EventStreamId::from_str)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventStreamId::from_str)?
         .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
     let stream_seq = get_field_as_i64(document, "stream_seq")
-        .map(EventStreamSeq::try_from)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventStreamSeq::try_from)?
         .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
     let at = get_field_as_str(document, "at")
-        .map(EventAt::from_str)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventAt::from_str)?
         .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?;
     let payload = get_field_as_str(document, "payload")
-        .map(EventPayload::from_str)
-        .map_err(|get_field| Error::Unknown(get_field.to_string()))?
+        .map(EventPayload::from_str)?
         .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?;
     Ok(Event::new(id, r#type, stream_id, stream_seq, at, payload))
 }
