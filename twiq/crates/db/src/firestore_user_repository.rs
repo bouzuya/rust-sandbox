@@ -21,20 +21,39 @@ struct FirestoreUserRepository {
     config: Config,
 }
 
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("event_store_core::event_store {0}")]
+    EventStore(#[from] event_store_core::event_store::Error),
+    #[error("event_store_core::event_stream_id {0}")]
+    EventStreamId(#[from] event_store_core::event_stream_id::Error),
+    #[error("firestore_rpc::helper {0}")]
+    FirestoreRpcHelper(#[from] crate::firestore_rpc::helper::Error),
+    #[error("firestore_rpc::helper::GetFieldError {0}")]
+    FirestoreRpcHelperGetField(#[from] crate::firestore_rpc::helper::GetFieldError),
+    #[error("domain::aggregate::user {0}")]
+    User(#[from] domain::aggregate::user::Error),
+    #[error("unknown {0}")]
+    Unknown(String),
+}
+
+impl From<Error> for user_repository::Error {
+    fn from(e: Error) -> Self {
+        user_repository::Error::Unknown(e.to_string())
+    }
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 impl FirestoreUserRepository {
     const USER_IDS: &'static str = "user_ids";
     const TWITTER_USER_IDS: &'static str = "twitter_user_ids";
-}
 
-#[async_trait]
-impl UserRepository for FirestoreUserRepository {
-    async fn find(&self, id: UserId) -> user_repository::Result<Option<User>> {
+    async fn find(&self, id: UserId) -> Result<Option<User>> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =
-            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
-                .await
-                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let document = match transaction
@@ -44,32 +63,24 @@ impl UserRepository for FirestoreUserRepository {
             Ok(None) => return Ok(None),
             Ok(Some(doc)) => Ok(doc),
             Err(e) => Err(e),
-        }
-        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
-        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
-        let event_stream = event_store
-            .find_event_stream(event_stream_id)
-            .await
-            .unwrap();
+        }?;
+        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id")?;
+        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str)?;
+        let event_stream = event_store.find_event_stream(event_stream_id).await?;
         match event_stream {
             None => Ok(None),
-            Some(event_stream) => User::try_from(event_stream)
-                .map(Some)
-                .map_err(|e| user_repository::Error::Unknown(e.to_string())),
+            Some(event_stream) => Ok(User::try_from(event_stream).map(Some)?),
         }
     }
 
     async fn find_by_twitter_user_id(
         &self,
         twitter_user_id: &TwitterUserId,
-    ) -> user_repository::Result<Option<User>> {
+    ) -> Result<Option<User>> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =
-            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
-                .await
-                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let document = match transaction
@@ -79,9 +90,8 @@ impl UserRepository for FirestoreUserRepository {
             Ok(None) => return Ok(None),
             Ok(Some(doc)) => Ok(doc),
             Err(e) => Err(e),
-        }
-        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let user_id_as_str = get_field_as_str(&document, "user_id").unwrap();
+        }?;
+        let user_id_as_str = get_field_as_str(&document, "user_id")?;
 
         let document = match transaction
             .get_document(Self::USER_IDS, user_id_as_str)
@@ -90,30 +100,22 @@ impl UserRepository for FirestoreUserRepository {
             Ok(None) => return Ok(None),
             Ok(Some(doc)) => Ok(doc),
             Err(e) => Err(e),
-        }
-        .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
-        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
-        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
+        }?;
+        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id")?;
+        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str)?;
 
-        let event_stream = event_store
-            .find_event_stream(event_stream_id)
-            .await
-            .unwrap();
+        let event_stream = event_store.find_event_stream(event_stream_id).await?;
         match event_stream {
             None => Ok(None),
-            Some(event_stream) => User::try_from(event_stream)
-                .map(Some)
-                .map_err(|e| user_repository::Error::Unknown(e.to_string())),
+            Some(event_stream) => Ok(User::try_from(event_stream).map(Some)?),
         }
     }
 
-    async fn store(&self, before: Option<User>, after: User) -> user_repository::Result<()> {
+    async fn store(&self, before: Option<User>, after: User) -> Result<()> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =
-            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
-                .await
-                .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let twitter_user_id = after.twitter_user_id().clone();
@@ -126,21 +128,15 @@ impl UserRepository for FirestoreUserRepository {
         match before {
             Some(ref before_user) => {
                 if before_user.id() != user_id {
-                    return Err(user_repository::Error::Unknown(
-                        "user_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("user_id not match".to_owned()));
                 }
                 let document = transaction
                     .get_document(collection_id, &document_id)
-                    .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?
-                    .ok_or_else(|| user_repository::Error::Unknown("not found".to_owned()))?;
-                let before_event_stream_id_as_str =
-                    get_field_as_str(&document, "event_stream_id").unwrap();
+                    .await?
+                    .ok_or_else(|| Error::Unknown("not found".to_owned()))?;
+                let before_event_stream_id_as_str = get_field_as_str(&document, "event_stream_id")?;
                 if before_event_stream_id_as_str != event_stream_id.to_string() {
-                    return Err(user_repository::Error::Unknown(
-                        "event_stream_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("event_stream_id not match".to_owned()));
                 }
             }
             None => {
@@ -166,8 +162,7 @@ impl UserRepository for FirestoreUserRepository {
                             update_time: None,
                         })),
                     })
-                    .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+                    .await?;
             }
         }
 
@@ -176,20 +171,15 @@ impl UserRepository for FirestoreUserRepository {
         match before {
             Some(ref before_user) => {
                 if before_user.twitter_user_id() != &twitter_user_id {
-                    return Err(user_repository::Error::Unknown(
-                        "twitter_user_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("twitter_user_id not match".to_owned()));
                 }
                 let document = transaction
                     .get_document(collection_id, &document_id)
-                    .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?
-                    .ok_or_else(|| user_repository::Error::Unknown("not found".to_owned()))?;
-                let before_user_id_as_str = get_field_as_str(&document, "user_id").unwrap();
+                    .await?
+                    .ok_or_else(|| Error::Unknown("not found".to_owned()))?;
+                let before_user_id_as_str = get_field_as_str(&document, "user_id")?;
                 if before_user_id_as_str != user_id.to_string() {
-                    return Err(user_repository::Error::Unknown(
-                        "user_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("user_id not match".to_owned()));
                 }
             }
             None => {
@@ -218,8 +208,7 @@ impl UserRepository for FirestoreUserRepository {
                             update_time: None,
                         })),
                     })
-                    .await
-                    .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+                    .await?;
             }
         };
 
@@ -228,14 +217,28 @@ impl UserRepository for FirestoreUserRepository {
                 before.map(|aggregate| EventStream::from(aggregate).seq()),
                 event_stream,
             )
-            .await
-            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+            .await?;
 
-        transaction
-            .commit()
-            .await
-            .map_err(|e| user_repository::Error::Unknown(e.to_string()))?;
+        transaction.commit().await?;
         Ok(())
+    }
+}
+
+#[async_trait]
+impl UserRepository for FirestoreUserRepository {
+    async fn find(&self, id: UserId) -> user_repository::Result<Option<User>> {
+        Ok(self.find(id).await?)
+    }
+
+    async fn find_by_twitter_user_id(
+        &self,
+        twitter_user_id: &TwitterUserId,
+    ) -> user_repository::Result<Option<User>> {
+        Ok(self.find_by_twitter_user_id(twitter_user_id).await?)
+    }
+
+    async fn store(&self, before: Option<User>, after: User) -> user_repository::Result<()> {
+        Ok(self.store(before, after).await?)
     }
 }
 
