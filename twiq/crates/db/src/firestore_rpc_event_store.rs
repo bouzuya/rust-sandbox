@@ -38,10 +38,20 @@ use crate::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("event_store_core::event_at {0}")]
+    EventAt(#[from] event_store_core::event_at::Error),
+    #[error("event_store_core::event_id {0}")]
+    EventId(#[from] event_store_core::event_id::Error),
+    #[error("event_store_core::event_payload {0}")]
+    EventPayload(#[from] event_store_core::event_payload::Error),
     #[error("event_store_core::event_stream {0}")]
     EventStream(#[from] event_store_core::event_stream::Error),
+    #[error("event_store_core::event_stream_id {0}")]
+    EventStreamId(#[from] event_store_core::event_stream_id::Error),
     #[error("event_store_core::event_stream_seq {0}")]
     EventStreamSeq(#[from] event_store_core::event_stream_seq::Error),
+    #[error("event_store_core::event_type {0}")]
+    EventType(#[from] event_store_core::event_type::Error),
     #[error("firestore_rpc::helper {0}")]
     FirestoreRpcHelper(#[from] crate::firestore_rpc::helper::Error),
     #[error("firestore_rpc::helper::GetFieldError {0}")]
@@ -395,24 +405,12 @@ fn event_stream_to_fields(
 }
 
 fn event_from_fields(document: &Document) -> Result<Event> {
-    let id = get_field_as_str(document, "id")
-        .map(EventId::from_str)?
-        .map_err(|_| Error::Unknown("id is not well-formed".to_owned()))?;
-    let r#type = get_field_as_str(document, "type")
-        .map(EventType::from_str)?
-        .map_err(|_| Error::Unknown("type is not well-formed".to_owned()))?;
-    let stream_id = get_field_as_str(document, "stream_id")
-        .map(EventStreamId::from_str)?
-        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
-    let stream_seq = get_field_as_i64(document, "stream_seq")
-        .map(EventStreamSeq::try_from)?
-        .map_err(|_| Error::Unknown("stream_id is not well-formed".to_owned()))?;
-    let at = get_field_as_str(document, "at")
-        .map(EventAt::from_str)?
-        .map_err(|_| Error::Unknown("at is not well-formed".to_owned()))?;
-    let payload = get_field_as_str(document, "payload")
-        .map(EventPayload::from_str)?
-        .map_err(|_| Error::Unknown("payload is not well-formed".to_owned()))?;
+    let id = EventId::from_str(get_field_as_str(document, "id")?)?;
+    let r#type = EventType::from_str(get_field_as_str(document, "type")?)?;
+    let stream_id = EventStreamId::from_str(get_field_as_str(document, "stream_id")?)?;
+    let stream_seq = EventStreamSeq::try_from(get_field_as_i64(document, "stream_seq")?)?;
+    let at = EventAt::from_str(get_field_as_str(document, "at")?)?;
+    let payload = EventPayload::from_str(get_field_as_str(document, "payload")?)?;
     Ok(Event::new(id, r#type, stream_id, stream_seq, at, payload))
 }
 
