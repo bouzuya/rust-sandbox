@@ -16,26 +16,44 @@ use domain::aggregate::{user::UserRequestId, user_request::UserRequest};
 use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
 use use_case::user_request_repository::{self, UserRequestRepository};
 
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("event_store_core::event_store {0}")]
+    EventStore(#[from] event_store_core::event_store::Error),
+    #[error("event_store_core::event_stream_id {0}")]
+    EventStreamId(#[from] event_store_core::event_stream_id::Error),
+    #[error("firestore_rpc::helper {0}")]
+    FirestoreRpcHelper(#[from] crate::firestore_rpc::helper::Error),
+    #[error("firestore_rpc::helper::GetFieldError {0}")]
+    FirestoreRpcHelperGetField(#[from] crate::firestore_rpc::helper::GetFieldError),
+    #[error("domain::aggregate::user_request {0}")]
+    UserRequest(#[from] domain::aggregate::user_request::Error),
+    #[error("user_request_id not found {0}")]
+    UserRequestIdNotFound(UserRequestId),
+    #[error("unknown {0}")]
+    Unknown(String),
+}
+
+impl From<Error> for user_request_repository::Error {
+    fn from(e: Error) -> Self {
+        user_request_repository::Error::Unknown(e.to_string())
+    }
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
+
 struct FirestoreUserRequestRepository {
     config: Config,
 }
 
 impl FirestoreUserRequestRepository {
     const USER_REQUEST_IDS: &'static str = "user_request_ids";
-}
 
-#[async_trait]
-impl UserRequestRepository for FirestoreUserRequestRepository {
-    async fn find(
-        &self,
-        id: UserRequestId,
-    ) -> user_request_repository::Result<Option<UserRequest>> {
+    async fn find(&self, id: UserRequestId) -> Result<Option<UserRequest>> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =
-            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
-                .await
-                .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let document = match transaction
@@ -45,33 +63,21 @@ impl UserRequestRepository for FirestoreUserRequestRepository {
             Ok(None) => return Ok(None),
             Ok(Some(doc)) => Ok(doc),
             Err(e) => Err(e),
-        }
-        .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
-        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id").unwrap();
-        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str).unwrap();
-        let event_stream = event_store
-            .find_event_stream(event_stream_id)
-            .await
-            .unwrap();
+        }?;
+        let event_stream_id_as_str = get_field_as_str(&document, "event_stream_id")?;
+        let event_stream_id = EventStreamId::from_str(event_stream_id_as_str)?;
+        let event_stream = event_store.find_event_stream(event_stream_id).await?;
         match event_stream {
             None => Ok(None),
-            Some(event_stream) => UserRequest::try_from(event_stream)
-                .map(Some)
-                .map_err(|e| user_request_repository::Error::Unknown(e.to_string())),
+            Some(event_stream) => Ok(UserRequest::try_from(event_stream).map(Some)?),
         }
     }
 
-    async fn store(
-        &self,
-        before: Option<UserRequest>,
-        after: UserRequest,
-    ) -> user_request_repository::Result<()> {
+    async fn store(&self, before: Option<UserRequest>, after: UserRequest) -> Result<()> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =
-            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned())
-                .await
-                .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
+            FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         let event_store = FirestoreRpcEventStore::new(transaction.clone());
 
         let user_request_id = after.id();
@@ -83,23 +89,15 @@ impl UserRequestRepository for FirestoreUserRequestRepository {
         match before {
             Some(ref before_user_request) => {
                 if before_user_request.id() != user_request_id {
-                    return Err(user_request_repository::Error::Unknown(
-                        "user_request_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("user_request_id not match".to_owned()));
                 }
                 let document = transaction
                     .get_document(collection_id, &document_id)
-                    .await
-                    .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?
-                    .ok_or_else(|| {
-                        user_request_repository::Error::Unknown("not found".to_owned())
-                    })?;
-                let before_event_stream_id_as_str =
-                    get_field_as_str(&document, "event_stream_id").unwrap();
+                    .await?
+                    .ok_or(Error::UserRequestIdNotFound(user_request_id))?;
+                let before_event_stream_id_as_str = get_field_as_str(&document, "event_stream_id")?;
                 if before_event_stream_id_as_str != event_stream_id.to_string() {
-                    return Err(user_request_repository::Error::Unknown(
-                        "event_stream_id not match".to_owned(),
-                    ));
+                    return Err(Error::Unknown("event_stream_id not match".to_owned()));
                 }
             }
             None => {
@@ -125,8 +123,7 @@ impl UserRequestRepository for FirestoreUserRequestRepository {
                             update_time: None,
                         })),
                     })
-                    .await
-                    .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
+                    .await?;
             }
         }
 
@@ -135,14 +132,28 @@ impl UserRequestRepository for FirestoreUserRequestRepository {
                 before.map(|aggregate| EventStream::from(aggregate).seq()),
                 event_stream,
             )
-            .await
-            .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
+            .await?;
 
-        transaction
-            .commit()
-            .await
-            .map_err(|e| user_request_repository::Error::Unknown(e.to_string()))?;
+        transaction.commit().await?;
         Ok(())
+    }
+}
+
+#[async_trait]
+impl UserRequestRepository for FirestoreUserRequestRepository {
+    async fn find(
+        &self,
+        id: UserRequestId,
+    ) -> user_request_repository::Result<Option<UserRequest>> {
+        Ok(self.find(id).await?)
+    }
+
+    async fn store(
+        &self,
+        before: Option<UserRequest>,
+        after: UserRequest,
+    ) -> user_request_repository::Result<()> {
+        Ok(self.store(before, after).await?)
     }
 }
 
