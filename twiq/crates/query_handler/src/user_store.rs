@@ -12,7 +12,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[async_trait]
 pub trait UserStore {
-    async fn find_by_twitter_user_id(&self, twitter_user_id: &String) -> Result<Option<User>>;
+    async fn find_by_twitter_user_id(&self, twitter_user_id: &str) -> Result<Option<User>>;
     async fn store(&self, before: Option<User>, after: User) -> Result<()>;
 }
 

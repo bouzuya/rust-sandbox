@@ -25,10 +25,7 @@ pub struct InMemoryUserStore {
 #[async_trait]
 impl UserStore for InMemoryUserStore {
     #[instrument]
-    async fn find_by_twitter_user_id(
-        &self,
-        twitter_user_id: &TwitterUserId,
-    ) -> Result<Option<User>> {
+    async fn find_by_twitter_user_id(&self, twitter_user_id: &str) -> Result<Option<User>> {
         let users = self.users.lock().unwrap();
         let twitter_user_ids = self.twitter_user_ids.lock().unwrap();
         Ok(twitter_user_ids

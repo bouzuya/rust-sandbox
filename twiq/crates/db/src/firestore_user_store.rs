@@ -43,7 +43,7 @@ impl FirestoreUserStore {
         Ok(transaction)
     }
 
-    async fn find_by_twitter_user_id(&self, twitter_user_id: &String) -> Result<Option<User>> {
+    async fn find_by_twitter_user_id(&self, twitter_user_id: &str) -> Result<Option<User>> {
         let transaction = self.begin_transaction().await?;
 
         // get user_id
@@ -134,7 +134,7 @@ impl FirestoreUserStore {
 impl user_store::UserStore for FirestoreUserStore {
     async fn find_by_twitter_user_id(
         &self,
-        twitter_user_id: &String,
+        twitter_user_id: &str,
     ) -> user_store::Result<Option<User>> {
         Ok(self.find_by_twitter_user_id(twitter_user_id).await?)
     }
