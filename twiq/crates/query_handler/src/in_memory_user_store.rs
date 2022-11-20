@@ -77,12 +77,12 @@ mod tests {
         };
         user_store.store(None, user1.clone()).await?;
         assert!(user_store
-            .find_by_twitter_user_id(&"twitter_user_id2".to_owned())
+            .find_by_twitter_user_id("twitter_user_id2")
             .await?
             .is_none());
         assert_eq!(
             user_store
-                .find_by_twitter_user_id(&"twitter_user_id1".to_owned())
+                .find_by_twitter_user_id("twitter_user_id1")
                 .await?,
             Some(user1.clone())
         );
@@ -94,7 +94,7 @@ mod tests {
         user_store.store(Some(user1), user2.clone()).await?;
         assert_eq!(
             user_store
-                .find_by_twitter_user_id(&"twitter_user_id2".to_owned())
+                .find_by_twitter_user_id("twitter_user_id2")
                 .await?,
             Some(user2)
         );
