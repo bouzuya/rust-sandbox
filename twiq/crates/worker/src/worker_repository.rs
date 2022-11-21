@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use async_trait::async_trait;
 use event_store_core::event_id::EventId;
 
@@ -15,6 +17,21 @@ pub enum WorkerName {
     UpdateQueryUser,
     UpdateUser,
     SendUserRequest,
+}
+
+impl Display for WorkerName {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                WorkerName::CreateUserRequest => "create_user_request",
+                WorkerName::UpdateQueryUser => "update_query_user",
+                WorkerName::UpdateUser => "update_user",
+                WorkerName::SendUserRequest => "send_user_request",
+            }
+        )
+    }
 }
 
 #[async_trait]

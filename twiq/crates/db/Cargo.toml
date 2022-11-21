@@ -18,6 +18,7 @@ time = { version = "0.3.14", features = ["parsing", "formatting"] }
 tokio = { version = "1.20.1", features = ["full"] }
 tonic = { version = "0.8.2", features = ["tls", "tls-roots"] }
 use_case = { path = "../use_case" }
+worker = { path = "../worker" }
 
 [build-dependencies]
 anyhow = "1.0.66"

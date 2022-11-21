@@ -234,6 +234,7 @@ dependencies = [
  "tonic",
  "tonic-build",
  "use_case",
+ "worker",
 ]
 
 [[package]]

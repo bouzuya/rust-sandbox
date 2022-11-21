@@ -5,6 +5,7 @@ pub mod firestore_transaction;
 pub mod firestore_user_repository;
 pub mod firestore_user_request_repository;
 pub mod firestore_user_store;
+pub mod firestore_worker_repository;
 
 #[cfg(test)]
 mod tests {
