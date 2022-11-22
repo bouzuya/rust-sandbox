@@ -36,6 +36,10 @@ impl FirestoreUserStore {
     const QUERY_USERS: &'static str = "query_users";
     const QUERY_TWITTER_USER_IDS: &'static str = "query_twitter_user_ids";
 
+    pub fn new(config: Config) -> Self {
+        Self { config }
+    }
+
     async fn begin_transaction(&self) -> Result<FirestoreTransaction> {
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =

@@ -49,6 +49,10 @@ struct FirestoreUserRequestRepository {
 impl FirestoreUserRequestRepository {
     const USER_REQUEST_IDS: &'static str = "user_request_ids";
 
+    pub fn new(config: Config) -> Self {
+        Self { config }
+    }
+
     async fn find(&self, id: UserRequestId) -> Result<Option<UserRequest>> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());

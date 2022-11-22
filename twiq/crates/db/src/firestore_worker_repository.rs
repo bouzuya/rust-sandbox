@@ -42,6 +42,10 @@ pub struct FirestoreWorkerRepository {
 impl FirestoreWorkerRepository {
     const WORKERS: &'static str = "workers";
 
+    pub fn new(config: Config) -> Self {
+        Self { config }
+    }
+
     async fn begin_transaction(&self) -> Result<FirestoreTransaction> {
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
         let transaction =

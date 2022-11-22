@@ -49,6 +49,10 @@ impl FirestoreUserRepository {
     const USER_IDS: &'static str = "user_ids";
     const TWITTER_USER_IDS: &'static str = "twitter_user_ids";
 
+    pub fn new(config: Config) -> Self {
+        Self { config }
+    }
+
     async fn find(&self, id: UserId) -> Result<Option<User>> {
         // begin transaction & create event_store
         let (project_id, database_id) = (self.config.project_id(), self.config.database_id());
