@@ -77,13 +77,10 @@ mod tests {
     use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
     use tower::ServiceExt;
     use use_case::{
-        command::request_user,
-        event_store::{EventStore, HasEventStore},
-        in_memory_event_store::InMemoryEventStore,
+        command::request_user, event_store::EventStore, in_memory_event_store::InMemoryEventStore,
         in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
-        user_repository::HasUserRepository,
-        user_request_repository::HasUserRequestRepository,
+        user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
     };
     use worker::{
         in_memory_worker_repository::InMemoryWorkerRepository,
@@ -106,21 +103,14 @@ mod tests {
             let event_store = InMemoryEventStore::default();
             let user_repository = InMemoryUserRepository::new(event_store.clone());
             let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
+            let worker_repository = InMemoryWorkerRepository::new(event_store.clone());
             Self {
                 event_store,
                 user_repository,
                 user_request_repository,
                 user_store: Default::default(),
-                worker_repository: Default::default(),
+                worker_repository,
             }
-        }
-    }
-
-    impl HasEventStore for MockApp {
-        type EventStore = InMemoryEventStore;
-
-        fn event_store(&self) -> &Self::EventStore {
-            &self.event_store
         }
     }
 

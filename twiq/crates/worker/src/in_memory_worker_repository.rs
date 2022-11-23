@@ -2,17 +2,42 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::worker_repository::{Error, Result, WorkerName, WorkerRepository};
 use async_trait::async_trait;
-use event_store_core::EventId;
+use event_store_core::{event_store::EventStore, Event, EventId};
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
+use use_case::in_memory_event_store::InMemoryEventStore;
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct InMemoryWorkerRepository {
+    event_store: InMemoryEventStore,
     data: Arc<Mutex<HashMap<WorkerName, EventId>>>,
+}
+
+impl InMemoryWorkerRepository {
+    pub fn new(empty_event_store: InMemoryEventStore) -> Self {
+        Self {
+            event_store: empty_event_store,
+            data: Default::default(),
+        }
+    }
 }
 
 #[async_trait]
 impl WorkerRepository for InMemoryWorkerRepository {
+    async fn find_event_ids(&self, event_id: Option<EventId>) -> Result<Vec<EventId>> {
+        self.event_store
+            .find_event_ids(event_id)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))
+    }
+
+    async fn find_event(&self, event_id: EventId) -> Result<Option<Event>> {
+        self.event_store
+            .find_event(event_id)
+            .await
+            .map_err(|e| Error::Unknown(e.to_string()))
+    }
+
     async fn find_last_event_id(&self, worker_name: WorkerName) -> Result<Option<EventId>> {
         let data = self.data.lock().await;
         Ok(data.get(&worker_name).cloned())
@@ -55,7 +80,8 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let repository = InMemoryWorkerRepository::default();
+        let event_store = InMemoryEventStore::default();
+        let repository = InMemoryWorkerRepository::new(event_store);
         let worker_name1 = WorkerName::CreateUserRequest;
         let worker_name2 = WorkerName::UpdateUser;
 

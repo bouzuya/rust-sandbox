@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use async_trait::async_trait;
-use event_store_core::event_id::EventId;
+use event_store_core::{event_id::EventId, Event};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -43,6 +43,9 @@ pub trait WorkerRepository {
         before: Option<EventId>,
         after: EventId,
     ) -> Result<()>;
+    //
+    async fn find_event_ids(&self, event_id: Option<EventId>) -> Result<Vec<EventId>>;
+    async fn find_event(&self, event_id: EventId) -> Result<Option<Event>>;
 }
 
 pub trait HasWorkerRepository {

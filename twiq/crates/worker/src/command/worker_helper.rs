@@ -1,13 +1,11 @@
 use std::future::Future;
 
-use domain::aggregate::user::{UserId, UserRequestId};
-use use_case::event_store::{EventStore, HasEventStore};
-
 use crate::worker_repository::{HasWorkerRepository, WorkerName, WorkerRepository};
+use domain::aggregate::user::{UserId, UserRequestId};
 
-pub trait WorkerDeps: HasEventStore + HasWorkerRepository {}
+pub trait WorkerDeps: HasWorkerRepository {}
 
-impl<T: HasEventStore + HasWorkerRepository> WorkerDeps for T {}
+impl<T: HasWorkerRepository> WorkerDeps for T {}
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -45,16 +43,15 @@ where
     F: Fn(&'a C, domain::Event) -> Fut,
     Fut: Future<Output = Result<()>>,
 {
-    let event_store = context.event_store();
     let worker_repository = context.worker_repository();
     let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;
-    let event_ids = event_store.find_event_ids(last_event_id).await?;
+    let event_ids = worker_repository.find_event_ids(last_event_id).await?;
     for event_id in event_ids {
         if Some(event_id) == last_event_id {
             continue;
         }
 
-        let event = event_store
+        let event = worker_repository
             .find_event(event_id)
             .await?
             .ok_or_else(|| Error::Unknown("event not found".to_owned()))?;

@@ -8,7 +8,7 @@ use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use use_case::{
-    command::request_user, event_store::HasEventStore, in_memory_event_store::InMemoryEventStore,
+    command::request_user, in_memory_event_store::InMemoryEventStore,
     in_memory_user_repository::InMemoryUserRepository,
     in_memory_user_request_repository::InMemoryUserRequestRepository,
     user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
@@ -20,7 +20,6 @@ use worker::{
 };
 
 struct App {
-    event_store: InMemoryEventStore,
     user_repository: InMemoryUserRepository,
     user_request_repository: InMemoryUserRequestRepository,
     user_store: InMemoryUserStore,
@@ -33,21 +32,13 @@ impl Default for App {
         let user_repository = InMemoryUserRepository::new(event_store.clone());
         let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
         let user_store = InMemoryUserStore::default();
+        let worker_repository = InMemoryWorkerRepository::new(event_store);
         Self {
-            event_store,
             user_repository,
             user_request_repository,
             user_store,
-            worker_repository: Default::default(),
+            worker_repository,
         }
-    }
-}
-
-impl HasEventStore for App {
-    type EventStore = InMemoryEventStore;
-
-    fn event_store(&self) -> &Self::EventStore {
-        &self.event_store
     }
 }
 

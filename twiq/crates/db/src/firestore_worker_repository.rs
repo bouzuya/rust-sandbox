@@ -1,7 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
-use event_store_core::EventId;
+use event_store_core::{event_store::EventStore, Event, EventId};
 use worker::worker_repository::{self, WorkerName, WorkerRepository};
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
         },
         helper::{get_field_as_str, value_from_string},
     },
+    firestore_rpc_event_store::FirestoreRpcEventStore,
     firestore_transaction::FirestoreTransaction,
 };
 
@@ -19,6 +20,8 @@ use crate::{
 enum Error {
     #[error("event_store_core::event_id {0}")]
     EventId(#[from] event_store_core::event_id::Error),
+    #[error("event_store_core::event_store {0}")]
+    EventStore(#[from] event_store_core::event_store::Error),
     #[error("firestore_rpc::helper {0}")]
     FirestoreRpcHelper(#[from] crate::firestore_rpc::helper::Error),
     #[error("firestore_rpc::helper::GetFieldError {0}")]
@@ -51,6 +54,18 @@ impl FirestoreWorkerRepository {
         let transaction =
             FirestoreTransaction::begin(project_id.to_owned(), database_id.to_owned()).await?;
         Ok(transaction)
+    }
+
+    async fn find_event_ids(&self, event_id: Option<EventId>) -> Result<Vec<EventId>> {
+        let transaction = self.begin_transaction().await?;
+        let event_store = FirestoreRpcEventStore::new(transaction);
+        Ok(event_store.find_event_ids(event_id).await?)
+    }
+
+    async fn find_event(&self, event_id: EventId) -> Result<Option<Event>> {
+        let transaction = self.begin_transaction().await?;
+        let event_store = FirestoreRpcEventStore::new(transaction);
+        Ok(event_store.find_event(event_id).await?)
     }
 
     async fn find_last_event_id(&self, worker_name: WorkerName) -> Result<Option<EventId>> {
@@ -112,6 +127,17 @@ impl FirestoreWorkerRepository {
 
 #[async_trait]
 impl WorkerRepository for FirestoreWorkerRepository {
+    async fn find_event_ids(
+        &self,
+        event_id: Option<EventId>,
+    ) -> worker_repository::Result<Vec<EventId>> {
+        Ok(self.find_event_ids(event_id).await?)
+    }
+
+    async fn find_event(&self, event_id: EventId) -> worker_repository::Result<Option<Event>> {
+        Ok(self.find_event(event_id).await?)
+    }
+
     async fn find_last_event_id(
         &self,
         worker_name: WorkerName,
