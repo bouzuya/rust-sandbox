@@ -42,7 +42,7 @@ impl From<Error> for user_request_repository::Error {
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
-struct FirestoreUserRequestRepository {
+pub struct FirestoreUserRequestRepository {
     config: Config,
 }
 

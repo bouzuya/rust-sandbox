@@ -17,7 +17,7 @@ use crate::{
     firestore_transaction::FirestoreTransaction,
 };
 
-struct FirestoreUserRepository {
+pub struct FirestoreUserRepository {
     config: Config,
 }
 

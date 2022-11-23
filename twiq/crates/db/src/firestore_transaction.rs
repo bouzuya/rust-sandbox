@@ -89,6 +89,7 @@ impl FirestoreTransaction {
             .get_document(GetDocumentRequest {
                 name: self.document_path(collection_id, document_id),
                 mask: None,
+                // TODO
                 consistency_selector: None,
                 // Some(get_document_request::ConsistencySelector::Transaction(
                 //     self.name(),
