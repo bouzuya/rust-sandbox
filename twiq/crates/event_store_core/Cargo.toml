@@ -10,7 +10,7 @@ async-trait = "0.1.57"
 serde = "1.0.145"
 serde_json = "1.0.83"
 thiserror = "1.0.33"
-time = { version = "0.3.17", features = ["parsing", "formatting", "macros"] }
+time = { version = "0.3.17", features = ["parsing", "formatting"] }
 uuid = { version = "1.1.2", features = ["v4"] }
 
 [dev-dependencies]
