@@ -1,5 +1,6 @@
 use std::env;
 
+#[derive(Clone, Debug)]
 pub struct Config {
     database_id: String,
     project_id: String,

@@ -3,36 +3,39 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
-use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
+use db::{
+    config::Config, firestore_user_repository::FirestoreUserRepository,
+    firestore_user_request_repository::FirestoreUserRequestRepository,
+    firestore_user_store::FirestoreUserStore,
+    firestore_worker_repository::FirestoreWorkerRepository,
+};
+use query_handler::user_store::HasUserStore;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
 use use_case::{
-    command::request_user, in_memory_event_store::InMemoryEventStore,
-    in_memory_user_repository::InMemoryUserRepository,
-    in_memory_user_request_repository::InMemoryUserRequestRepository,
-    user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
+    command::request_user, user_repository::HasUserRepository,
+    user_request_repository::HasUserRequestRepository,
 };
 use worker::{
     command::{create_user_request, send_user_request, update_query_user, update_user},
-    in_memory_worker_repository::InMemoryWorkerRepository,
     worker_repository::HasWorkerRepository,
 };
 
 struct App {
-    user_repository: InMemoryUserRepository,
-    user_request_repository: InMemoryUserRequestRepository,
-    user_store: InMemoryUserStore,
-    worker_repository: InMemoryWorkerRepository,
+    user_repository: FirestoreUserRepository,
+    user_request_repository: FirestoreUserRequestRepository,
+    user_store: FirestoreUserStore,
+    worker_repository: FirestoreWorkerRepository,
 }
 
 impl Default for App {
     fn default() -> Self {
-        let event_store = InMemoryEventStore::default();
-        let user_repository = InMemoryUserRepository::new(event_store.clone());
-        let user_request_repository = InMemoryUserRequestRepository::new(event_store.clone());
-        let user_store = InMemoryUserStore::default();
-        let worker_repository = InMemoryWorkerRepository::new(event_store);
+        let config = Config::load_from_env();
+        let user_repository = FirestoreUserRepository::new(config.clone());
+        let user_request_repository = FirestoreUserRequestRepository::new(config.clone());
+        let user_store = FirestoreUserStore::new(config.clone());
+        let worker_repository = FirestoreWorkerRepository::new(config);
         Self {
             user_repository,
             user_request_repository,
@@ -43,7 +46,7 @@ impl Default for App {
 }
 
 impl HasUserRepository for App {
-    type UserRepository = InMemoryUserRepository;
+    type UserRepository = FirestoreUserRepository;
 
     fn user_repository(&self) -> &Self::UserRepository {
         &self.user_repository
@@ -51,7 +54,7 @@ impl HasUserRepository for App {
 }
 
 impl HasUserRequestRepository for App {
-    type UserRequestRepository = InMemoryUserRequestRepository;
+    type UserRequestRepository = FirestoreUserRequestRepository;
 
     fn user_request_repository(&self) -> &Self::UserRequestRepository {
         &self.user_request_repository
@@ -59,7 +62,7 @@ impl HasUserRequestRepository for App {
 }
 
 impl HasWorkerRepository for App {
-    type WorkerRepository = InMemoryWorkerRepository;
+    type WorkerRepository = FirestoreWorkerRepository;
 
     fn worker_repository(&self) -> &Self::WorkerRepository {
         &self.worker_repository
@@ -67,7 +70,7 @@ impl HasWorkerRepository for App {
 }
 
 impl HasUserStore for App {
-    type UserStore = InMemoryUserStore;
+    type UserStore = FirestoreUserStore;
 
     fn user_store(&self) -> &Self::UserStore {
         &self.user_store
