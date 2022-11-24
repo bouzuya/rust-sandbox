@@ -9,7 +9,7 @@ edition = "2021"
 async-trait = "0.1.57"
 domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
-google-cloud-auth = { git = "https://github.com/googleapis/google-cloud-rust", rev = "b82d4462900db232b14029f69766e5016743fcc4" }
+google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "10f6ca00c76fe5a56d8afe9ca6ffefacd245fe90" }
 prost = "0.11.0"
 prost-types = "0.11.1"
 query_handler = { path = "../query_handler" }
