@@ -1,4 +1,8 @@
-FROM ekidd/rust-musl-builder:stable AS builder
+FROM rust:1.65-alpine AS builder
+
+RUN apk update && \
+  apk add --no-cache musl-dev openssl-dev protobuf-dev protoc
+
 COPY ./Cargo.lock ./Cargo.lock
 COPY ./Cargo.toml ./Cargo.toml
 
@@ -30,7 +34,7 @@ RUN mkdir -p crates/worker/src/
 RUN echo "fn main() {}" > ./crates/worker/src/main.rs
 COPY ./crates/worker/Cargo.toml ./crates/worker/Cargo.toml
 
-RUN cargo build --release
+RUN cargo build --release --target=x86_64-unknown-linux-musl
 
 RUN rm ./crates/db/src/main.rs
 RUN rm ./crates/domain/src/main.rs
@@ -43,7 +47,7 @@ RUN rm ./crates/web/src/main.rs
 RUN rm ./crates/worker/src/main.rs
 
 COPY . .
-RUN cargo install --path ./crates/web
+RUN cargo install --path ./crates/web --target=x86_64-unknown-linux-musl
 
 FROM scratch
 ENV PORT=8080
