@@ -1,5 +1,7 @@
 FROM rust:1.65-alpine AS builder
 
+WORKDIR /home/rust
+
 RUN apk update && \
   apk add --no-cache musl-dev openssl-dev protobuf-dev protoc
 
@@ -51,5 +53,5 @@ RUN cargo install --path ./crates/web --target=x86_64-unknown-linux-musl
 
 FROM scratch
 ENV PORT=8080
-COPY --from=builder /home/rust/src/target/x86_64-unknown-linux-musl/release/web /usr/local/bin/web
+COPY --from=builder /usr/local/cargo/bin/web /usr/local/bin/web
 ENTRYPOINT ["web"]
