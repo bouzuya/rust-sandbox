@@ -92,4 +92,5 @@ jobs:
             --quiet \
             --region "${region}" \
             --service-account ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT }} \
-            --set-env-vars "BASE_PATH=/lab/twiq"
+            --set-env-vars "BASE_PATH=/lab/twiq" \
+            --set-env-vars "PROJECT_ID=${{ secrets.TWIQ_GCP_PROJECT_ID }}"
