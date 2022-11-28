@@ -102,7 +102,7 @@ impl FirestoreWorkerRepository {
             None => ConditionType::Exists(false),
         };
         let document = Document {
-            name: transaction.document_path(Self::WORKERS, &after.to_string()),
+            name: transaction.document_path(Self::WORKERS, &worker_name.to_string()),
             fields: {
                 let mut fields = HashMap::new();
                 fields.insert("event_id".to_owned(), value_from_string(after.to_string()));
