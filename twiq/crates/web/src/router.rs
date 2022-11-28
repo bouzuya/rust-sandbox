@@ -22,7 +22,7 @@ where
     Router::new()
         .merge(healthz::router())
         .merge(users_show::router::<T>())
-        .merge(worker::router::<T>())
+    // .merge(worker::router::<T>())
 }
 
 #[cfg(test)]
