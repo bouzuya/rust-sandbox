@@ -20,6 +20,9 @@ COPY ./crates/event_store_core/Cargo.toml ./crates/event_store_core/Cargo.toml
 RUN mkdir -p crates/import_twitter_data/src/
 RUN echo "fn main() {}" > ./crates/import_twitter_data/src/main.rs
 COPY ./crates/import_twitter_data/Cargo.toml ./crates/import_twitter_data/Cargo.toml
+RUN mkdir -p crates/job/src/
+RUN echo "fn main() {}" > ./crates/job/src/main.rs
+COPY ./crates/job/Cargo.toml ./crates/job/Cargo.toml
 RUN mkdir -p crates/query_handler/src/
 RUN echo "fn main() {}" > ./crates/query_handler/src/main.rs
 COPY ./crates/query_handler/Cargo.toml ./crates/query_handler/Cargo.toml
