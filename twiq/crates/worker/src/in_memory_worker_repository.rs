@@ -2,8 +2,9 @@ use std::{collections::HashMap, sync::Arc};
 
 use crate::worker_repository::{Error, Result, WorkerName, WorkerRepository};
 use async_trait::async_trait;
-use command_handler::in_memory_event_store::InMemoryEventStore;
-use event_store_core::{event_store::EventStore, Event, EventId};
+use event_store_core::{
+    event_store::EventStore, in_memory_event_store::InMemoryEventStore, Event, EventId,
+};
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 

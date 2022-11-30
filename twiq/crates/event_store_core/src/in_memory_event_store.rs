@@ -3,11 +3,11 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use async_trait::async_trait;
-use event_store_core::{
+use crate::{
     event_store::{Error, EventStore, Result},
     Event, EventId, EventStream, EventStreamId, EventStreamSeq,
 };
+use async_trait::async_trait;
 use tracing::{debug, instrument};
 
 #[derive(Clone, Debug, Default)]

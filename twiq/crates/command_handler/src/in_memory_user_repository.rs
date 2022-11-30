@@ -3,10 +3,10 @@ use std::{collections::HashMap, sync::Arc};
 use crate::user_repository::{Error, Result, UserRepository};
 use async_trait::async_trait;
 use domain::aggregate::user::{TwitterUserId, User, UserId};
-use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
+use event_store_core::{
+    event_store::EventStore, in_memory_event_store::InMemoryEventStore, EventStream, EventStreamId,
+};
 use tokio::sync::Mutex;
-
-use crate::in_memory_event_store::InMemoryEventStore;
 
 #[derive(Debug, Default)]
 pub struct InMemoryUserRepository {
