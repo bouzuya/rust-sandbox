@@ -1,3 +1,6 @@
+use command_handler::{
+    user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
+};
 use db::{
     config::Config, firestore_user_repository::FirestoreUserRepository,
     firestore_user_request_repository::FirestoreUserRequestRepository,
@@ -5,9 +8,6 @@ use db::{
     firestore_worker_repository::FirestoreWorkerRepository,
 };
 use query_handler::user_store::HasUserStore;
-use use_case::{
-    user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
-};
 use worker::{
     command::{
         create_user_request::{self},

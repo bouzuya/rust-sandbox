@@ -1,6 +1,6 @@
 use async_trait::async_trait;
+use command_handler::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 use domain::aggregate::user_request::UserRequest;
-use use_case::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 
 use crate::worker_repository::WorkerName;
 
@@ -11,11 +11,11 @@ pub enum Error {
     #[error("event {0}")]
     Event(#[from] domain::event::Error),
     #[error("event_store {0}")]
-    EventStore(#[from] use_case::event_store::Error),
+    EventStore(#[from] command_handler::event_store::Error),
     #[error("user_request_aggregate {0}")]
     UserRequestAggregate(#[from] domain::aggregate::user_request::Error),
     #[error("user_request_repository {0}")]
-    UserRequestRepository(#[from] use_case::user_request_repository::Error),
+    UserRequestRepository(#[from] command_handler::user_request_repository::Error),
     #[error("worker_repository {0}")]
     WorkerRepository(#[from] crate::worker_repository::Error),
     #[error("unknown {0}")]

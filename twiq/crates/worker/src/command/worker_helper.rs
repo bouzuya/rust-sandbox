@@ -12,19 +12,19 @@ pub enum Error {
     #[error("event {0}")]
     Event(#[from] domain::event::Error),
     #[error("event_store {0}")]
-    EventStore(#[from] use_case::event_store::Error),
+    EventStore(#[from] command_handler::event_store::Error),
     #[error("user_aggregate {0}")]
     UserAggregate(#[from] domain::aggregate::user::Error),
     #[error("user not found {0}")]
     UserNotFound(UserId),
     #[error("user_repository {0}")]
-    UserRepository(#[from] use_case::user_repository::Error),
+    UserRepository(#[from] command_handler::user_repository::Error),
     #[error("user_request_aggregate {0}")]
     UserRequestAggregate(#[from] domain::aggregate::user_request::Error),
     #[error("user_request not found {0}")]
     UserRequestNotFound(UserRequestId),
     #[error("user_request_repository {0}")]
-    UserRequestRepository(#[from] use_case::user_request_repository::Error),
+    UserRequestRepository(#[from] command_handler::user_request_repository::Error),
     #[error("user_response {0}")]
     UserResponse(#[from] domain::aggregate::user_request::value::user_response::Error),
     #[error("user_store {0}")]

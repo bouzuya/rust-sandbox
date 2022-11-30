@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1.57"
+command_handler = { path = "../command_handler" }
 domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
 query_handler = { path = "../query_handler" }
@@ -14,7 +15,6 @@ reqwest = { version = "0.11.11", default-features = false, features = ["rustls-t
 thiserror = "1.0.33"
 tokio = { version = "1.21.2", features = ["full"] }
 tracing = "0.1.37"
-use_case = { path = "../use_case" }
 
 [dev-dependencies]
 anyhow = "1.0.65"

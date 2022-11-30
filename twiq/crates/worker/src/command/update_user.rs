@@ -1,7 +1,9 @@
 use async_trait::async_trait;
 
-use use_case::user_repository::{HasUserRepository, UserRepository};
-use use_case::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
+use command_handler::{
+    user_repository::{HasUserRepository, UserRepository},
+    user_request_repository::{HasUserRequestRepository, UserRequestRepository},
+};
 
 use crate::worker_repository::WorkerName;
 

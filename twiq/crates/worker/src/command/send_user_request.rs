@@ -1,10 +1,10 @@
 use std::env;
 
 use async_trait::async_trait;
+use command_handler::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 use domain::aggregate::user_request::value::user_response::UserResponse;
 use reqwest::{Client, Method, Url};
 use tracing::{info, instrument};
-use use_case::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 
 use crate::worker_repository::WorkerName;
 

@@ -12,9 +12,9 @@ use crate::{
     firestore_transaction::FirestoreTransaction,
 };
 use async_trait::async_trait;
+use command_handler::user_request_repository::{self, UserRequestRepository};
 use domain::aggregate::{user::UserRequestId, user_request::UserRequest};
 use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
-use use_case::user_request_repository::{self, UserRequestRepository};
 
 #[derive(Debug, thiserror::Error)]
 enum Error {

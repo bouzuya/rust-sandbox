@@ -214,11 +214,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "command_handler"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "domain",
+ "event_store_core",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "db"
 version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "command_handler",
  "domain",
  "event_store_core",
  "google-cloud-auth",
@@ -231,7 +245,6 @@ dependencies = [
  "tokio",
  "tonic",
  "tonic-build",
- "use_case",
  "worker",
 ]
 
@@ -630,10 +643,10 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "clap",
+ "command_handler",
  "db",
  "query_handler",
  "tokio",
- "use_case",
  "worker",
 ]
 
@@ -1670,19 +1683,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "use_case"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "domain",
- "event_store_core",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "uuid"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1792,6 +1792,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "axum",
+ "command_handler",
  "db",
  "domain",
  "hyper",
@@ -1801,7 +1802,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "use_case",
  "worker",
 ]
 
@@ -1948,6 +1948,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "command_handler",
  "domain",
  "event_store_core",
  "query_handler",
@@ -1955,5 +1956,4 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
- "use_case",
 ]

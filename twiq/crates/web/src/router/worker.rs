@@ -72,16 +72,16 @@ mod tests {
     use std::str::FromStr;
 
     use axum::async_trait;
-    use domain::{aggregate::user::TwitterUserId, event::EventType};
-    use hyper::{Body, Request, StatusCode};
-    use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
-    use tower::ServiceExt;
-    use use_case::{
+    use command_handler::{
         command::request_user, event_store::EventStore, in_memory_event_store::InMemoryEventStore,
         in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
         user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
     };
+    use domain::{aggregate::user::TwitterUserId, event::EventType};
+    use hyper::{Body, Request, StatusCode};
+    use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
+    use tower::ServiceExt;
     use worker::{
         in_memory_worker_repository::InMemoryWorkerRepository,
         worker_repository::HasWorkerRepository,

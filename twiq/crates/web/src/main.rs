@@ -3,6 +3,10 @@ mod router;
 use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
+use command_handler::{
+    command::request_user, user_repository::HasUserRepository,
+    user_request_repository::HasUserRequestRepository,
+};
 use db::{
     config::Config, firestore_user_repository::FirestoreUserRepository,
     firestore_user_request_repository::FirestoreUserRequestRepository,
@@ -13,10 +17,6 @@ use query_handler::user_store::HasUserStore;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
-use use_case::{
-    command::request_user, user_repository::HasUserRepository,
-    user_request_repository::HasUserRequestRepository,
-};
 use worker::{
     command::{create_user_request, send_user_request, update_query_user, update_user},
     worker_repository::HasWorkerRepository,

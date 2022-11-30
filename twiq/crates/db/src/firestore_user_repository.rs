@@ -1,9 +1,9 @@
 use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
+use command_handler::user_repository::{self, UserRepository};
 use domain::aggregate::user::{TwitterUserId, User, UserId};
 use event_store_core::{event_store::EventStore, EventStream, EventStreamId};
-use use_case::user_repository::{self, UserRepository};
 
 use crate::{
     config::Config,

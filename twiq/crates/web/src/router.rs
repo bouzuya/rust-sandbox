@@ -4,8 +4,8 @@ mod worker;
 
 use ::worker::command::{create_user_request, send_user_request, update_query_user, update_user};
 use axum::Router;
+use command_handler::command::request_user;
 use query_handler::user_store::HasUserStore;
-use use_case::command::request_user;
 
 pub(crate) fn router<T>() -> Router
 where

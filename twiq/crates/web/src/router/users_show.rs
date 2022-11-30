@@ -1,9 +1,9 @@
 use std::{str::FromStr, sync::Arc};
 
 use axum::{extract::Path, http::StatusCode, response::IntoResponse, routing, Extension, Router};
+use command_handler::command::request_user;
 use domain::aggregate::user::TwitterUserId;
 use query_handler::user_store::{HasUserStore, UserStore};
-use use_case::command::request_user;
 
 pub(crate) fn router<T>() -> Router
 where
@@ -38,11 +38,11 @@ where
 #[cfg(test)]
 mod tests {
     use axum::async_trait;
-    use hyper::StatusCode;
-    use query_handler::in_memory_user_store::InMemoryUserStore;
-    use use_case::{
+    use command_handler::{
         in_memory_user_repository::InMemoryUserRepository, user_repository::HasUserRepository,
     };
+    use hyper::StatusCode;
+    use query_handler::in_memory_user_store::InMemoryUserStore;
 
     use crate::router::tests::test_get_request;
 

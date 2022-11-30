@@ -1,5 +1,5 @@
 [package]
-name = "use_case"
+name = "command_handler"
 version = "0.0.0"
 edition = "2021"
 
