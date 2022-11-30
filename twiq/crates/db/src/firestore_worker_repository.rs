@@ -2,7 +2,7 @@ use std::{collections::HashMap, str::FromStr};
 
 use async_trait::async_trait;
 use event_store_core::{event_store::EventStore, Event, EventId};
-use worker::worker_repository::{self, WorkerName, WorkerRepository};
+use worker_helper::worker_repository::{self, WorkerName, WorkerRepository};
 
 use crate::{
     config::Config,

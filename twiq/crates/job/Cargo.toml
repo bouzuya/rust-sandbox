@@ -13,3 +13,4 @@ db = { path = "../db" }
 query_handler = { path = "../query_handler" }
 tokio = { version = "1.22.0", features = ["full"] }
 worker = { path = "../worker" }
+worker_helper = { path = "../worker_helper" }

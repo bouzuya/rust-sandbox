@@ -5,9 +5,10 @@ use command_handler::{
     user_request_repository::{HasUserRequestRepository, UserRequestRepository},
 };
 
-use crate::worker_repository::WorkerName;
-
-use super::worker_helper::{self, WorkerDeps};
+use ::worker_helper::{
+    worker_helper::{self, WorkerDeps},
+    worker_repository::WorkerName,
+};
 
 pub struct Command;
 

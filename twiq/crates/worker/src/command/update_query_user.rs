@@ -2,9 +2,10 @@ use async_trait::async_trait;
 
 use query_handler::user_store::{HasUserStore, UserStore};
 
-use crate::worker_repository::WorkerName;
-
-use super::worker_helper::{self, WorkerDeps};
+use ::worker_helper::{
+    worker_helper::{self, WorkerDeps},
+    worker_repository::WorkerName,
+};
 
 pub struct Command;
 

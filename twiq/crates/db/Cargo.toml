@@ -18,7 +18,7 @@ thiserror = "1.0.32"
 time = { version = "0.3.17", features = ["parsing", "formatting"] }
 tokio = { version = "1.20.1", features = ["full"] }
 tonic = { version = "0.8.2", features = ["tls", "tls-webpki-roots"] }
-worker = { path = "../worker" }
+worker_helper = { path = "../worker_helper" }
 
 [build-dependencies]
 anyhow = "1.0.66"

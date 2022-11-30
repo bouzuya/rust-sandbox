@@ -82,7 +82,7 @@ mod tests {
     use hyper::{Body, Request, StatusCode};
     use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
     use tower::ServiceExt;
-    use worker::{
+    use worker_helper::{
         in_memory_worker_repository::InMemoryWorkerRepository,
         worker_repository::HasWorkerRepository,
     };

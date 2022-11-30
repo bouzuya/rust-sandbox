@@ -2,9 +2,10 @@ use async_trait::async_trait;
 use command_handler::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 use domain::aggregate::user_request::UserRequest;
 
-use crate::worker_repository::WorkerName;
-
-use super::worker_helper::{self, WorkerDeps};
+use ::worker_helper::{
+    worker_helper::{self, WorkerDeps},
+    worker_repository::WorkerName,
+};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -17,7 +18,7 @@ pub enum Error {
     #[error("user_request_repository {0}")]
     UserRequestRepository(#[from] command_handler::user_request_repository::Error),
     #[error("worker_repository {0}")]
-    WorkerRepository(#[from] crate::worker_repository::Error),
+    WorkerRepository(#[from] ::worker_helper::worker_repository::Error),
     #[error("unknown {0}")]
     Unknown(String),
 }

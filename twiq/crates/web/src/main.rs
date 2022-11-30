@@ -17,10 +17,8 @@ use query_handler::user_store::HasUserStore;
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
-use worker::{
-    command::{create_user_request, send_user_request, update_query_user, update_user},
-    worker_repository::HasWorkerRepository,
-};
+use worker::command::{create_user_request, send_user_request, update_query_user, update_user};
+use worker_helper::worker_repository::HasWorkerRepository;
 
 struct App {
     user_repository: FirestoreUserRepository,

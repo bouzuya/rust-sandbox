@@ -245,7 +245,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tonic-build",
- "worker",
+ "worker_helper",
 ]
 
 [[package]]
@@ -649,6 +649,7 @@ dependencies = [
  "query_handler",
  "tokio",
  "worker",
+ "worker_helper",
 ]
 
 [[package]]
@@ -1804,6 +1805,7 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "worker",
+ "worker_helper",
 ]
 
 [[package]]
@@ -1945,6 +1947,23 @@ dependencies = [
 
 [[package]]
 name = "worker"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "command_handler",
+ "domain",
+ "event_store_core",
+ "query_handler",
+ "reqwest",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "worker_helper",
+]
+
+[[package]]
+name = "worker_helper"
 version = "0.0.0"
 dependencies = [
  "anyhow",

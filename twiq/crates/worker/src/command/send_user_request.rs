@@ -6,9 +6,10 @@ use domain::aggregate::user_request::value::user_response::UserResponse;
 use reqwest::{Client, Method, Url};
 use tracing::{info, instrument};
 
-use crate::worker_repository::WorkerName;
-
-use super::worker_helper::{self, WorkerDeps};
+use ::worker_helper::{
+    worker_helper::{self, WorkerDeps},
+    worker_repository::WorkerName,
+};
 
 pub struct Command;
 
