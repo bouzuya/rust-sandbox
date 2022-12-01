@@ -11,24 +11,16 @@ impl<T: HasWorkerRepository> WorkerDeps for T {}
 pub enum Error {
     #[error("event {0}")]
     Event(#[from] domain::event::Error),
-    #[error("event_store {0}")]
-    EventStore(#[from] command_handler::event_store::Error),
     #[error("user_aggregate {0}")]
     UserAggregate(#[from] domain::aggregate::user::Error),
     #[error("user not found {0}")]
     UserNotFound(UserId),
-    #[error("user_repository {0}")]
-    UserRepository(#[from] command_handler::user_repository::Error),
     #[error("user_request_aggregate {0}")]
     UserRequestAggregate(#[from] domain::aggregate::user_request::Error),
     #[error("user_request not found {0}")]
     UserRequestNotFound(UserRequestId),
-    #[error("user_request_repository {0}")]
-    UserRequestRepository(#[from] command_handler::user_request_repository::Error),
     #[error("user_response {0}")]
     UserResponse(#[from] domain::aggregate::user_request::value::user_response::Error),
-    #[error("user_store {0}")]
-    UserStore(#[from] query_handler::user_store::Error),
     #[error("worker_repository {0}")]
     WorkerRepository(#[from] crate::worker_repository::Error),
     #[error("unknown {0}")]
@@ -41,7 +33,7 @@ pub async fn worker<'a, C, F, Fut>(context: &'a C, worker_name: WorkerName, hand
 where
     C: WorkerDeps,
     F: Fn(&'a C, domain::Event) -> Fut,
-    Fut: Future<Output = Result<()>>,
+    Fut: Future<Output = Result<(), Box<dyn std::error::Error + 'static>>>,
 {
     let worker_repository = context.worker_repository();
     let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;

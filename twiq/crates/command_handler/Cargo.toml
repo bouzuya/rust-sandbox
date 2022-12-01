@@ -9,9 +9,11 @@ edition = "2021"
 async-trait = "0.1.57"
 domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
+reqwest = { version = "0.11.11", default-features = false, features = ["rustls-tls"] }
 thiserror = "1.0.33"
 tokio = { version = "1.21.2", features = ["full"] }
 tracing = "0.1.37"
+worker_helper = { path = "../worker_helper" }
 
 [dev-dependencies]
 anyhow = "1.0.65"

@@ -8,6 +8,7 @@ async-trait = "0.1.57"
 domain = { path = "../domain" }
 thiserror = "1.0.37"
 tracing = "0.1.37"
+worker_helper = { path = "../worker_helper" }
 
 [dev-dependencies]
 anyhow = "1.0.65"

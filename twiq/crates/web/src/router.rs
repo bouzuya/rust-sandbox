@@ -2,10 +2,9 @@ mod healthz;
 mod users_show;
 mod worker;
 
-use ::worker::command::{create_user_request, send_user_request, update_query_user, update_user};
 use axum::Router;
-use command_handler::command::request_user;
-use query_handler::user_store::HasUserStore;
+use command_handler::command::{create_user_request, request_user, send_user_request, update_user};
+use query_handler::{update_query_user, user_store::HasUserStore};
 
 pub(crate) fn router<T>() -> Router
 where

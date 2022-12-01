@@ -4,7 +4,8 @@ use std::{env, sync::Arc};
 
 use axum::{Extension, Server};
 use command_handler::{
-    command::request_user, user_repository::HasUserRepository,
+    command::{create_user_request, request_user, send_user_request, update_user},
+    user_repository::HasUserRepository,
     user_request_repository::HasUserRequestRepository,
 };
 use db::{
@@ -13,11 +14,10 @@ use db::{
     firestore_user_store::FirestoreUserStore,
     firestore_worker_repository::FirestoreWorkerRepository,
 };
-use query_handler::user_store::HasUserStore;
+use query_handler::{update_query_user, user_store::HasUserStore};
 use tower::ServiceBuilder;
 use tower_http::trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer};
 use tracing::{info, Level};
-use worker::command::{create_user_request, send_user_request, update_query_user, update_user};
 use worker_helper::worker_repository::HasWorkerRepository;
 
 struct App {

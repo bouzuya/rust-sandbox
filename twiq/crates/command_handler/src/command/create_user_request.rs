@@ -1,5 +1,5 @@
+use crate::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 use async_trait::async_trait;
-use command_handler::user_request_repository::{HasUserRequestRepository, UserRequestRepository};
 use domain::aggregate::user_request::UserRequest;
 
 use ::worker_helper::{
@@ -12,13 +12,15 @@ pub enum Error {
     #[error("event {0}")]
     Event(#[from] domain::event::Error),
     #[error("event_store {0}")]
-    EventStore(#[from] command_handler::event_store::Error),
+    EventStore(#[from] crate::event_store::Error),
     #[error("user_request_aggregate {0}")]
     UserRequestAggregate(#[from] domain::aggregate::user_request::Error),
     #[error("user_request_repository {0}")]
-    UserRequestRepository(#[from] command_handler::user_request_repository::Error),
+    UserRequestRepository(#[from] crate::user_request_repository::Error),
     #[error("worker_repository {0}")]
     WorkerRepository(#[from] ::worker_helper::worker_repository::Error),
+    #[error("worker_helper {0}")]
+    WorkerHelper(#[from] ::worker_helper::worker_helper::Error),
     #[error("unknown {0}")]
     Unknown(String),
 }
@@ -33,12 +35,15 @@ impl<T: WorkerDeps + HasUserRequestRepository> Context for T {}
 
 #[async_trait]
 pub trait Has: Context + Sized {
-    async fn create_user_request(&self, command: Command) -> worker_helper::Result<()> {
+    async fn create_user_request(&self, command: Command) -> Result<()> {
         handler(self, command).await
     }
 }
 
-async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper::Result<()> {
+async fn handle<C: Context>(
+    context: &C,
+    event: domain::Event,
+) -> Result<(), Box<dyn std::error::Error>> {
     if let domain::Event::UserRequested(event) = event {
         let user_request_repository = context.user_request_repository();
         if user_request_repository
@@ -57,8 +62,8 @@ async fn handle<C: Context>(context: &C, event: domain::Event) -> worker_helper:
     Ok(())
 }
 
-pub async fn handler<C: Context>(context: &C, _: Command) -> worker_helper::Result<()> {
-    worker_helper::worker(context, WorkerName::CreateUserRequest, handle).await
+pub async fn handler<C: Context>(context: &C, _: Command) -> Result<()> {
+    Ok(worker_helper::worker(context, WorkerName::CreateUserRequest, handle).await?)
 }
 
 // TODO: test

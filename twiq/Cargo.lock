@@ -221,9 +221,11 @@ dependencies = [
  "async-trait",
  "domain",
  "event_store_core",
+ "reqwest",
  "thiserror",
  "tokio",
  "tracing",
+ "worker_helper",
 ]
 
 [[package]]
@@ -648,7 +650,6 @@ dependencies = [
  "db",
  "query_handler",
  "tokio",
- "worker",
  "worker_helper",
 ]
 
@@ -975,6 +976,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tracing",
+ "worker_helper",
 ]
 
 [[package]]
@@ -1797,6 +1799,7 @@ dependencies = [
  "command_handler",
  "db",
  "domain",
+ "event_store_core",
  "hyper",
  "query_handler",
  "tokio",
@@ -1804,7 +1807,6 @@ dependencies = [
  "tower-http",
  "tracing",
  "tracing-subscriber",
- "worker",
  "worker_helper",
 ]
 
@@ -1946,33 +1948,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "worker"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "command_handler",
- "domain",
- "event_store_core",
- "query_handler",
- "reqwest",
- "thiserror",
- "tokio",
- "tracing",
- "worker_helper",
-]
-
-[[package]]
 name = "worker_helper"
 version = "0.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "command_handler",
  "domain",
  "event_store_core",
- "query_handler",
- "reqwest",
  "thiserror",
  "tokio",
  "tracing",

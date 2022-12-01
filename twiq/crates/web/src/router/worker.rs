@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use axum::{response::IntoResponse, routing, Extension, Router};
-use worker::command::{create_user_request, send_user_request, update_query_user, update_user};
+use command_handler::command::{create_user_request, send_user_request, update_user};
+use query_handler::update_query_user;
 
 pub(crate) fn router<T>() -> Router
 where
@@ -73,12 +74,13 @@ mod tests {
 
     use axum::async_trait;
     use command_handler::{
-        command::request_user, event_store::EventStore, in_memory_event_store::InMemoryEventStore,
+        command::request_user, event_store::EventStore,
         in_memory_user_repository::InMemoryUserRepository,
         in_memory_user_request_repository::InMemoryUserRequestRepository,
         user_repository::HasUserRepository, user_request_repository::HasUserRequestRepository,
     };
     use domain::{aggregate::user::TwitterUserId, event::EventType};
+    use event_store_core::in_memory_event_store::InMemoryEventStore;
     use hyper::{Body, Request, StatusCode};
     use query_handler::{in_memory_user_store::InMemoryUserStore, user_store::HasUserStore};
     use tower::ServiceExt;
