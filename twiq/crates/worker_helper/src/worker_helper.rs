@@ -2,6 +2,7 @@ use std::future::Future;
 
 use crate::worker_repository::{HasWorkerRepository, WorkerName, WorkerRepository};
 use domain::aggregate::user::{UserId, UserRequestId};
+use tracing::{info, instrument};
 
 pub trait WorkerDeps: HasWorkerRepository {}
 
@@ -29,6 +30,7 @@ pub enum Error {
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
+#[instrument(skip(context, handle))]
 pub async fn worker<'a, C, F, Fut>(context: &'a C, worker_name: WorkerName, handle: F) -> Result<()>
 where
     C: WorkerDeps,
@@ -37,7 +39,9 @@ where
 {
     let worker_repository = context.worker_repository();
     let mut last_event_id = worker_repository.find_last_event_id(worker_name).await?;
+    info!("last_event_id = {:?}", last_event_id);
     let event_ids = worker_repository.find_event_ids(last_event_id).await?;
+    info!("event_ids = {:?}", event_ids);
     for event_id in event_ids {
         if Some(event_id) == last_event_id {
             continue;

@@ -650,6 +650,8 @@ dependencies = [
  "db",
  "query_handler",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
  "worker_helper",
 ]
 

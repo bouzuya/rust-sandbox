@@ -89,6 +89,7 @@ impl update_user::Has for App {}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
     use Subcommand::*;
 
     let app = App::default();
