@@ -35,9 +35,9 @@ COPY ./crates/twitter_user_id/Cargo.toml ./crates/twitter_user_id/Cargo.toml
 RUN mkdir -p crates/web/src/
 RUN echo "fn main() {}" > ./crates/web/src/main.rs
 COPY ./crates/web/Cargo.toml ./crates/web/Cargo.toml
-RUN mkdir -p crates/worker/src/
-RUN echo "fn main() {}" > ./crates/worker/src/main.rs
-COPY ./crates/worker/Cargo.toml ./crates/worker/Cargo.toml
+RUN mkdir -p crates/worker_helper/src/
+RUN echo "fn main() {}" > ./crates/worker_helper/src/main.rs
+COPY ./crates/worker_helper/Cargo.toml ./crates/worker_helper/Cargo.toml
 
 RUN cargo build --release --target=x86_64-unknown-linux-musl
 
@@ -49,12 +49,14 @@ RUN rm ./crates/import_twitter_data/src/main.rs
 RUN rm ./crates/query_handler/src/main.rs
 RUN rm ./crates/twitter_user_id/src/main.rs
 RUN rm ./crates/web/src/main.rs
-RUN rm ./crates/worker/src/main.rs
+RUN rm ./crates/worker_helper/src/main.rs
 
 COPY . .
+RUN cargo install --path ./crates/job --target=x86_64-unknown-linux-musl
 RUN cargo install --path ./crates/web --target=x86_64-unknown-linux-musl
 
 FROM scratch
 ENV PORT=8080
+COPY --from=builder /usr/local/cargo/bin/job /usr/local/bin/job
 COPY --from=builder /usr/local/cargo/bin/web /usr/local/bin/web
-ENTRYPOINT ["web"]
+CMD ["web"]
