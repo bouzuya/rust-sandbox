@@ -4,19 +4,28 @@ use event_store_core::EventAt;
 use time::{format_description::well_known::Iso8601, Duration, OffsetDateTime};
 
 #[derive(Debug, Eq, PartialEq, thiserror::Error)]
-#[error("error")]
-pub struct Error;
+pub enum Error {
+    #[error("invalid precision {0}")]
+    InvalidPrecision(String),
+    #[error("error {0}")]
+    Unknown(String),
+}
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct At(OffsetDateTime);
 
 impl At {
     pub fn now() -> Self {
-        Self(OffsetDateTime::now_utc())
+        Self(Self::truncate_nanosecond(OffsetDateTime::now_utc()))
     }
 
     pub fn plus_1day(&self) -> Self {
         Self(self.0 + Duration::days(1))
+    }
+
+    fn truncate_nanosecond(odt: OffsetDateTime) -> OffsetDateTime {
+        odt.replace_nanosecond(odt.microsecond() * 1_000)
+            .expect("nanosecond out of range")
     }
 }
 
@@ -37,8 +46,15 @@ impl FromStr for At {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         OffsetDateTime::parse(s, &Iso8601::DEFAULT)
+            .map_err(|e| Error::Unknown(e.to_string()))
+            .and_then(|odt| {
+                if odt == Self::truncate_nanosecond(odt) {
+                    Ok(odt)
+                } else {
+                    Err(Error::InvalidPrecision(odt.to_string()))
+                }
+            })
             .map(Self)
-            .map_err(|_| Error)
     }
 }
 
@@ -59,6 +75,21 @@ impl From<EventAt> for At {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_from_str() -> anyhow::Result<()> {
+        let s = "2020-01-02T03:04:05.123456000Z";
+        assert_eq!(At::from_str(s)?.to_string(), s);
+        assert!(At::from_str("2020-01-02T03:04:05.123456001Z").is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn test_now() {
+        let at = At::now();
+        assert!(at.to_string().ends_with("000Z"));
+        assert_ne!(at.to_string(), "2022-12-03T00:00:00.000000000Z");
+    }
 
     #[test]
     fn plus_1day_test() -> anyhow::Result<()> {
