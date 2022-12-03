@@ -80,6 +80,15 @@ pub struct FirestoreRpcEventStore {
     transaction: FirestoreTransaction,
 }
 
+fn timestamp_now() -> Result<Timestamp> {
+    let odt = OffsetDateTime::now_utc();
+    let odt = odt
+        .replace_nanosecond(odt.microsecond() * 1_000)
+        .expect("nanosecond out of range");
+    let s = odt.format(&Rfc3339)?;
+    Ok(Timestamp::from_str(s.as_str())?)
+}
+
 impl FirestoreRpcEventStore {
     pub fn new(transaction: FirestoreTransaction) -> Self {
         Self { transaction }
@@ -109,8 +118,7 @@ impl FirestoreRpcEventStore {
     ) -> Result<Option<EventStream>> {
         let parent = self.transaction.documents_path();
 
-        let s = OffsetDateTime::now_utc().format(&Rfc3339)?;
-        let now = Timestamp::from_str(s.as_str())?;
+        let now = timestamp_now()?;
         let mut client = self.client().await?;
         let response = client
             .run_query(RunQueryRequest {
@@ -181,8 +189,7 @@ impl FirestoreRpcEventStore {
 
         // get events (run_query)
         let parent = self.transaction.documents_path();
-        let s = OffsetDateTime::now_utc().format(&Rfc3339)?;
-        let now = Timestamp::from_str(s.as_str())?;
+        let now = timestamp_now()?;
         let mut client = self.client().await?;
         let response = client
                 .run_query(RunQueryRequest {
