@@ -57,10 +57,13 @@ jobs:
           image-name: twiq
           image-tag: ${{ github.sha }}
       # Deploy to Google Artifacts Registry & Cloud Run
+      # <https://github.com/google-github-actions/auth>
+      - uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT_PRIVATE_KEY }}
       # <https://github.com/google-github-actions/setup-gcloud>
       - uses: google-github-actions/setup-gcloud@v1
         with:
-          credentials_json: ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT_PRIVATE_KEY }}
           project_id: ${{ secrets.TWIQ_GCP_PROJECT_ID }}
       - run: |-
           region='${{ secrets.TWIQ_GCP_REGION }}'
