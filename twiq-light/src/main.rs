@@ -1,4 +1,5 @@
 mod domain;
+mod fetch;
 mod import;
 
 #[derive(Debug, clap::Parser)]
@@ -10,15 +11,15 @@ struct Args {
 
 #[derive(Debug, clap::Subcommand)]
 enum Subcommand {
+    Fetch,
     Import { file: String },
 }
 
-fn main() -> anyhow::Result<()> {
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::Parser>::parse();
     match args.subcommand {
-        Subcommand::Import { file } => {
-            import::import(file)?;
-        }
+        Subcommand::Fetch => fetch::run().await,
+        Subcommand::Import { file } => import::run(file).await,
     }
-    Ok(())
 }

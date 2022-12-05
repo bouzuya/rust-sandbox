@@ -140,7 +140,7 @@ impl Item {
     }
 }
 
-pub fn import<P: AsRef<Path>>(file: P) -> anyhow::Result<()> {
+pub async fn run<P: AsRef<Path>>(file: P) -> anyhow::Result<()> {
     let s = fs::read_to_string(file)?;
     let json: Vec<Item> = serde_json::from_str(s.trim_start_matches("window.YTD.tweet.part0 = "))?;
     let mut data = BTreeMap::new();
