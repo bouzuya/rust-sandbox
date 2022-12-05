@@ -1,6 +1,7 @@
 mod domain;
 mod fetch;
 mod import;
+mod search;
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -13,6 +14,7 @@ struct Args {
 enum Subcommand {
     Fetch,
     Import { file: String },
+    Search { query: Option<String> },
 }
 
 #[tokio::main]
@@ -21,5 +23,6 @@ async fn main() -> anyhow::Result<()> {
     match args.subcommand {
         Subcommand::Fetch => fetch::run().await,
         Subcommand::Import { file } => import::run(file).await,
+        Subcommand::Search { query } => search::run(query).await,
     }
 }
