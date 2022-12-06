@@ -1,7 +1,10 @@
+use store::TweetStore;
+
 mod domain;
 mod fetch;
 mod import;
 mod search;
+mod store;
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -19,10 +22,11 @@ enum Subcommand {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let store = TweetStore::default();
     let args = <Args as clap::Parser>::parse();
     match args.subcommand {
-        Subcommand::Fetch => fetch::run().await,
-        Subcommand::Import { file } => import::run(file).await,
-        Subcommand::Search { query } => search::run(query).await,
+        Subcommand::Fetch => fetch::run(store).await,
+        Subcommand::Import { file } => import::run(store, file).await,
+        Subcommand::Search { query } => search::run(store, query).await,
     }
 }

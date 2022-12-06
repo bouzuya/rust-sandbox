@@ -1,8 +1,8 @@
-use std::{collections::BTreeMap, env, fs, path::Path};
+use std::{collections::BTreeMap, env, fs};
 
 use reqwest::{Client, Method};
 
-use crate::domain::MyTweet;
+use crate::{domain::MyTweet, store::TweetStore};
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct TweetResponse {
@@ -49,13 +49,12 @@ async fn get_tweets(
     Ok(response.json().await?)
 }
 
-pub async fn run() -> anyhow::Result<()> {
-    let path = Path::new(&env::var("HOME")?).join("twiq-light.json");
+pub async fn run(store: TweetStore) -> anyhow::Result<()> {
     let (mut data, last_id_str) = {
-        if !path.exists() {
+        if !store.path().exists() {
             (BTreeMap::new(), None)
         } else {
-            let s = fs::read_to_string(&path)?;
+            let s = fs::read_to_string(store.path())?;
             let data: BTreeMap<String, MyTweet> = serde_json::from_str(&s)?;
             let mut at_id = data
                 .iter()
@@ -97,7 +96,7 @@ pub async fn run() -> anyhow::Result<()> {
         data.insert(tweet.id_str.clone(), tweet);
     }
 
-    fs::write(&path, serde_json::to_string(&data)?)?;
+    fs::write(store.path(), serde_json::to_string(&data)?)?;
 
     Ok(())
 }

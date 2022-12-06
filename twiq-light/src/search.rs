@@ -1,14 +1,13 @@
-use std::{collections::BTreeMap, env, fs, path::Path};
+use std::{collections::BTreeMap, fs};
 
-use crate::domain::MyTweet;
+use crate::{domain::MyTweet, store::TweetStore};
 
-pub async fn run(query: Option<String>) -> anyhow::Result<()> {
-    let path = Path::new(&env::var("HOME")?).join("twiq-light.json");
+pub async fn run(store: TweetStore, query: Option<String>) -> anyhow::Result<()> {
     let data = {
-        if !path.exists() {
+        if !store.path().exists() {
             BTreeMap::new()
         } else {
-            let s = fs::read_to_string(&path)?;
+            let s = fs::read_to_string(store.path())?;
             let data: BTreeMap<String, MyTweet> = serde_json::from_str(&s)?;
             data
         }

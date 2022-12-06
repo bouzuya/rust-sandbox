@@ -1,6 +1,6 @@
-use std::{collections::BTreeMap, env, fs, path::Path};
+use std::{collections::BTreeMap, fs, path::Path};
 
-use crate::domain;
+use crate::{domain, store::TweetStore};
 use anyhow::Context;
 use time::{
     format_description::{self, well_known::Iso8601},
@@ -140,14 +140,13 @@ impl Item {
     }
 }
 
-pub async fn run<P: AsRef<Path>>(file: P) -> anyhow::Result<()> {
+pub async fn run<P: AsRef<Path>>(store: TweetStore, file: P) -> anyhow::Result<()> {
     let s = fs::read_to_string(file)?;
     let json: Vec<Item> = serde_json::from_str(s.trim_start_matches("window.YTD.tweet.part0 = "))?;
     let mut data = BTreeMap::new();
     for tweet in json.into_iter().map(|item| item.parse()) {
         data.insert(tweet.id_str.clone(), tweet);
     }
-    let path = Path::new(&env::var("HOME")?).join("twiq-light.json");
-    fs::write(path, serde_json::to_string(&data)?)?;
+    fs::write(store.path(), serde_json::to_string(&data)?)?;
     Ok(())
 }
