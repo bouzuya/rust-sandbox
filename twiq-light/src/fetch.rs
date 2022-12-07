@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, env, fs};
+use std::env;
 
 use reqwest::{Client, Method};
 
@@ -50,20 +50,14 @@ async fn get_tweets(
 }
 
 pub async fn run(store: TweetStore) -> anyhow::Result<()> {
-    let (mut data, last_id_str) = {
-        if !store.path().exists() {
-            (BTreeMap::new(), None)
-        } else {
-            let s = fs::read_to_string(store.path())?;
-            let data: BTreeMap<String, MyTweet> = serde_json::from_str(&s)?;
-            let mut at_id = data
-                .iter()
-                .map(|(_, t)| (t.at.as_ref(), t.id_str.as_ref()))
-                .collect::<Vec<(&str, &str)>>();
-            at_id.sort();
-            let last_id_str = at_id.last().cloned().map(|(_, id_str)| id_str.to_owned());
-            (data, last_id_str)
-        }
+    let mut data = store.read_all()?;
+    let last_id_str = {
+        let mut at_id = data
+            .iter()
+            .map(|(_, t)| (t.at.as_ref(), t.id_str.as_ref()))
+            .collect::<Vec<(&str, &str)>>();
+        at_id.sort();
+        at_id.last().cloned().map(|(_, id_str)| id_str.to_owned())
     };
 
     let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
@@ -96,7 +90,7 @@ pub async fn run(store: TweetStore) -> anyhow::Result<()> {
         data.insert(tweet.id_str.clone(), tweet);
     }
 
-    fs::write(store.path(), serde_json::to_string(&data)?)?;
+    store.write_all(&data)?;
 
     Ok(())
 }

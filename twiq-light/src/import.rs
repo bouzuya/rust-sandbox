@@ -147,6 +147,7 @@ pub async fn run<P: AsRef<Path>>(store: TweetStore, file: P) -> anyhow::Result<(
     for tweet in json.into_iter().map(|item| item.parse()) {
         data.insert(tweet.id_str.clone(), tweet);
     }
-    fs::write(store.path(), serde_json::to_string(&data)?)?;
+
+    store.write_all(&data)?;
     Ok(())
 }

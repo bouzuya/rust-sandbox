@@ -1,17 +1,7 @@
-use std::{collections::BTreeMap, fs};
-
-use crate::{domain::MyTweet, store::TweetStore};
+use crate::store::TweetStore;
 
 pub async fn run(store: TweetStore, query: Option<String>) -> anyhow::Result<()> {
-    let data = {
-        if !store.path().exists() {
-            BTreeMap::new()
-        } else {
-            let s = fs::read_to_string(store.path())?;
-            let data: BTreeMap<String, MyTweet> = serde_json::from_str(&s)?;
-            data
-        }
-    };
+    let data = store.read_all()?;
 
     let mut result = vec![];
     for (_, tweet) in data {
