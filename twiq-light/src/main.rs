@@ -22,6 +22,7 @@ enum Subcommand {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::fmt::init();
     let store = TweetStore::default();
     let args = <Args as clap::Parser>::parse();
     match args.subcommand {
