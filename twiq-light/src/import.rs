@@ -143,11 +143,11 @@ impl Item {
 pub async fn run<P: AsRef<Path>>(store: TweetStore, file: P) -> anyhow::Result<()> {
     let s = fs::read_to_string(file)?;
     let json: Vec<Item> = serde_json::from_str(s.trim_start_matches("window.YTD.tweet.part0 = "))?;
-    let mut data = BTreeMap::new();
+
+    let mut data = store.read_all()?;
     for tweet in json.into_iter().map(|item| item.parse()) {
         data.insert(tweet.id_str.clone(), tweet);
     }
-
     store.write_all(&data)?;
     Ok(())
 }
