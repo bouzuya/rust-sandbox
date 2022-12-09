@@ -1,5 +1,6 @@
 use store::TweetStore;
 
+mod dequeue;
 mod domain;
 mod fetch;
 mod import;
