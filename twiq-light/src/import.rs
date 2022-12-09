@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fs, path::Path};
+use std::{fs, path::Path};
 
 use crate::{domain, store::TweetStore};
 use anyhow::Context;
