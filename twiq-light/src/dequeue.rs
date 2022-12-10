@@ -6,10 +6,10 @@ async fn post_tweet(tweet: ScheduledTweet) -> anyhow::Result<()> {
 }
 
 pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
-    let mut queue = store.read_all()?;
+    let mut queue = store.read_all().await?;
     if let Some(item) = queue.pop_front() {
         post_tweet(item).await?;
-        store.write_all(&queue)?;
+        store.write_all(&queue).await?;
     }
     Ok(())
 }

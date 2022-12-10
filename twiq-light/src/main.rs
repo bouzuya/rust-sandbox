@@ -4,6 +4,7 @@ mod dequeue;
 mod domain;
 mod enqueue;
 mod fetch;
+mod google;
 mod import;
 mod search;
 mod store;

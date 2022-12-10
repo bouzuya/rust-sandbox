@@ -50,7 +50,7 @@ impl Default for TweetQueueStore {
 }
 
 impl TweetQueueStore {
-    pub fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
+    pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
         if !self.path().exists() {
             Ok(VecDeque::new())
         } else {
@@ -59,7 +59,7 @@ impl TweetQueueStore {
         }
     }
 
-    pub fn write_all(&self, data: &VecDeque<ScheduledTweet>) -> anyhow::Result<()> {
+    pub async fn write_all(&self, data: &VecDeque<ScheduledTweet>) -> anyhow::Result<()> {
         Ok(fs::write(self.path(), serde_json::to_string(data)?)?)
     }
 
