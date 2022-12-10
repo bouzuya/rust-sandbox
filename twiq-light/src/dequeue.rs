@@ -1,24 +1,15 @@
-use std::collections::VecDeque;
-
-use crate::domain::ScheduledTweet;
-
-async fn load_queue() -> anyhow::Result<VecDeque<ScheduledTweet>> {
-    Ok(VecDeque::new())
-}
+use crate::{domain::ScheduledTweet, store::TweetQueueStore};
 
 async fn post_tweet(tweet: ScheduledTweet) -> anyhow::Result<()> {
+    println!("TODO: post {:?}", tweet);
     Ok(())
 }
 
-async fn save_queue(_queue: VecDeque<ScheduledTweet>) -> anyhow::Result<()> {
-    Ok(())
-}
-
-pub async fn run() -> anyhow::Result<()> {
-    let mut queue = load_queue().await?;
+pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
+    let mut queue = store.read_all()?;
     if let Some(item) = queue.pop_front() {
         post_tweet(item).await?;
-        save_queue(queue).await?;
+        store.write_all(&queue)?;
     }
     Ok(())
 }

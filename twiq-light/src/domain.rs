@@ -5,7 +5,7 @@ pub struct MyTweet {
     pub text: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ScheduledTweet {
     pub text: String,
 }
