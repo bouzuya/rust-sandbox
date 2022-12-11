@@ -67,21 +67,17 @@ type MyInterceptor = Box<dyn Fn(Request<()>) -> Result<Request<()>, Status>>;
 type Client = FirestoreClient<InterceptedService<Channel, MyInterceptor>>;
 
 impl TweetQueueStore {
+    const DATABASE_ID: &str = "(default)";
+    const COLLECTION_ID: &str = "twiq-light";
+    const DOCUMENT_ID: &str = "queue";
+    const FIELD_NAME: &str = "data";
+
     pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
         let mut client = Self::get_client().await?;
         let document_path = Self::get_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         Ok(match document {
-            Some(doc) => {
-                let value = doc.fields.get("data").expect("data field not found");
-                match value.value_type.as_ref() {
-                    Some(value_type) => match value_type {
-                        ValueType::StringValue(s) => serde_json::from_str(s.as_str())?,
-                        _ => unreachable!("data field value_type is not string"),
-                    },
-                    None => unreachable!(),
-                }
-            }
+            Some(doc) => serde_json::from_str(Self::data_from_document(&doc))?,
             None => VecDeque::default(),
         })
     }
@@ -106,21 +102,7 @@ impl TweetQueueStore {
             }
             None => ConditionType::Exists(false),
         };
-        let document = Document {
-            name: document_path,
-            fields: {
-                let mut fields = HashMap::new();
-                fields.insert(
-                    "data".to_owned(),
-                    Value {
-                        value_type: Some(ValueType::StringValue(s)),
-                    },
-                );
-                fields
-            },
-            create_time: None,
-            update_time: None,
-        };
+        let document = Self::document_from_data(document_path, s);
         let writes = vec![Write {
             update_mask: None,
             update_transforms: vec![],
@@ -137,6 +119,38 @@ impl TweetQueueStore {
             })
             .await?;
         Ok(())
+    }
+
+    fn data_from_document(document: &Document) -> &str {
+        let value = document
+            .fields
+            .get(Self::FIELD_NAME)
+            .expect("field not found");
+        match value.value_type.as_ref() {
+            Some(value_type) => match value_type {
+                ValueType::StringValue(s) => s.as_str(),
+                _ => unreachable!("value_type is not string"),
+            },
+            None => unreachable!(),
+        }
+    }
+
+    fn document_from_data(document_path: String, s: String) -> Document {
+        Document {
+            name: document_path,
+            fields: {
+                let mut fields = HashMap::new();
+                fields.insert(
+                    Self::FIELD_NAME.to_owned(),
+                    Value {
+                        value_type: Some(ValueType::StringValue(s)),
+                    },
+                );
+                fields
+            },
+            create_time: None,
+            update_time: None,
+        }
     }
 
     async fn get_client() -> anyhow::Result<Client> {
@@ -168,8 +182,7 @@ impl TweetQueueStore {
 
     fn get_database_path() -> anyhow::Result<String> {
         let project_id = env::var("PROJECT_ID")?;
-        let database_id = "(default)";
-        let database_path = format!("projects/{}/databases/{}", project_id, database_id);
+        let database_path = format!("projects/{}/databases/{}", project_id, Self::DATABASE_ID);
         Ok(database_path)
     }
 
@@ -197,11 +210,11 @@ impl TweetQueueStore {
 
     fn get_document_path() -> anyhow::Result<String> {
         let database_path = Self::get_database_path()?;
-        let collection_id = "twiq-light";
-        let document_id = "queue";
         let document_path = format!(
             "{}/documents/{}/{}",
-            database_path, collection_id, document_id
+            database_path,
+            Self::COLLECTION_ID,
+            Self::DOCUMENT_ID
         );
         Ok(document_path)
     }
