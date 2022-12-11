@@ -6,6 +6,7 @@ mod enqueue;
 mod fetch;
 mod google;
 mod import;
+mod reorder;
 mod search;
 mod store;
 
@@ -22,6 +23,7 @@ enum Subcommand {
     Enqueue { tweet: String },
     Fetch,
     Import { file: String },
+    Reorder { src: usize, dst: usize },
     Search { query: Option<String> },
 }
 
@@ -36,6 +38,7 @@ async fn main() -> anyhow::Result<()> {
         Subcommand::Enqueue { tweet } => enqueue::run(queue_store, tweet).await,
         Subcommand::Fetch => fetch::run(store).await,
         Subcommand::Import { file } => import::run(store, file).await,
+        Subcommand::Reorder { src, dst } => reorder::run(queue_store, src, dst).await,
         Subcommand::Search { query } => search::run(store, query).await,
     }
 }
