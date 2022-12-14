@@ -29,3 +29,28 @@ pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    #[ignore]
+    async fn test() -> anyhow::Result<()> {
+        let response_type = "code";
+        let client_id = env::var("TWITTER_CLIENT_ID")?;
+        let redirect_uri = env::var("TWITTER_REDIRECT_URI")?;
+        let state = "state";
+        let code_challenge = "challenge";
+        let url = format!(
+            "https://twitter.com/i/oauth2/authorize?response_type={}&client_id={}&redirect_uri={}&scope=tweet.read%20tweet.write%20users.read&state={}&code_challenge={}&code_challenge_method=plain",
+            response_type,
+            client_id,
+            redirect_uri,
+            state,
+            code_challenge
+        );
+        println!("{}", url);
+        Ok(())
+    }
+}
