@@ -20,7 +20,7 @@ async fn post_tweet(bearer_token: &str, tweet: ScheduledTweet) -> anyhow::Result
 }
 
 pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
-    let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
+    let bearer_token = env::var("TWITTER_BEARER_TOKEN2")?;
     debug!(bearer_token);
     let mut queue = store.read_all().await?;
     if let Some(item) = queue.pop_front() {
