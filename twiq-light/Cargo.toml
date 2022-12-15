@@ -19,6 +19,7 @@ tokio = { version = "1.22.0", features = ["full"] }
 tonic = { version = "0.8.2", features = ["tls", "tls-webpki-roots"] }
 tracing = "0.1.37"
 tracing-subscriber = "0.3.16"
+url = "2.3.1"
 
 [build-dependencies]
 anyhow = "1.0.66"
