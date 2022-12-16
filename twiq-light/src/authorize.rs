@@ -3,6 +3,7 @@ use std::{collections::HashMap, env, io};
 use anyhow::bail;
 use rand::{rngs::ThreadRng, RngCore};
 use reqwest::{Client, Method};
+use sha2::{Digest, Sha256};
 use url::Url;
 
 pub async fn run() -> anyhow::Result<()> {
@@ -14,17 +15,18 @@ pub async fn run() -> anyhow::Result<()> {
     let mut rng = ThreadRng::default();
     let mut state_buf = vec![0; 96];
     rng.fill_bytes(&mut state_buf);
+    let mut code_verifier_buf = vec![0; 96];
+    rng.fill_bytes(&mut code_verifier_buf);
     let base64_engine = base64::engine::fast_portable::FastPortable::from(
         &base64::alphabet::URL_SAFE,
         base64::engine::fast_portable::NO_PAD,
     );
 
-    // FIXME: scope offline.access
     let scope = "tweet.read%20tweet.write%20users.read%20offline.access";
     let state = base64::encode_engine(&state_buf, &base64_engine);
-    // FIXME: code_challenge_method s256
-    let code_challenge = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM";
-    let code_verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
+    let code_verifier = base64::encode_engine(&code_verifier_buf, &base64_engine);
+    let code_challenge =
+        base64::encode_engine(Sha256::digest(code_verifier.as_bytes()), &base64_engine);
     let code_challenge_method = "s256";
     let url = format!(
             "https://twitter.com/i/oauth2/authorize?response_type={}&client_id={}&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method={}",
@@ -62,7 +64,7 @@ pub async fn run() -> anyhow::Result<()> {
             form.insert("grant_type", "authorization_code");
             form.insert("client_id", &client_id);
             form.insert("redirect_uri", &redirect_uri);
-            form.insert("code_verifier", code_verifier);
+            form.insert("code_verifier", &code_verifier);
             form
         })
         .send()
