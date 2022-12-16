@@ -4,6 +4,7 @@ use anyhow::bail;
 use rand::{rngs::ThreadRng, RngCore};
 use reqwest::{Client, Method};
 use sha2::{Digest, Sha256};
+use tracing::debug;
 use url::Url;
 
 pub async fn run() -> anyhow::Result<()> {
@@ -41,10 +42,12 @@ pub async fn run() -> anyhow::Result<()> {
 
     println!("{}", url);
 
+    // read redirect_uri
     let mut buffer = String::new();
     let stdin = io::stdin();
     stdin.read_line(&mut buffer)?;
 
+    // parse url and check state
     let url = Url::parse(buffer.trim())?;
     let (_, response_state) = url.query_pairs().find(|(k, _)| k == "state").unwrap();
     if response_state.to_string().as_str() != state {
@@ -53,25 +56,59 @@ pub async fn run() -> anyhow::Result<()> {
     let (_, code) = url.query_pairs().find(|(k, _)| k == "code").unwrap();
     let code = code.to_string();
 
+    // <https://www.rfc-editor.org/rfc/rfc6749#section-5.1>
+    #[derive(Debug, serde::Deserialize)]
+    #[allow(dead_code)]
+    struct AccessTokenResponse {
+        access_token: String,          // ...
+        token_type: String,            // "bearer"
+        expires_in: Option<u32>,       // 7200
+        scope: Option<String>,         // "tweet.write users.read tweet.read offline.access"
+        refresh_token: Option<String>, // ...
+    }
+
     let response = Client::builder()
         .build()?
         .request(Method::POST, "https://api.twitter.com/2/oauth2/token")
         .header("Content-Type", "application/x-www-form-urlencoded")
-        .basic_auth(&client_id, Some(client_secret))
+        .basic_auth(&client_id, Some(&client_secret))
         .form(&{
             let mut form = HashMap::new();
             form.insert("code", code.as_str());
             form.insert("grant_type", "authorization_code");
-            form.insert("client_id", &client_id);
             form.insert("redirect_uri", &redirect_uri);
             form.insert("code_verifier", &code_verifier);
             form
         })
         .send()
         .await?;
+    let access_token_response: AccessTokenResponse = response.json().await?;
 
-    // FIXME: store access_token and refresh_token
-    assert_eq!(format!("{:?}", response.text().await?), "");
+    debug!("access_token_response={:?}", access_token_response);
+
+    let refresh_token = &access_token_response.refresh_token.expect(
+        "If offline.access is specified, a refresh_token must be included in the response.",
+    );
+
+    // refresh (access_)token
+    let response = Client::builder()
+        .build()?
+        .request(Method::POST, "https://api.twitter.com/2/oauth2/token")
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .basic_auth(&client_id, Some(&client_secret))
+        .form(&{
+            let mut form = HashMap::new();
+            form.insert("grant_type", "refresh_token");
+            form.insert("refresh_token", refresh_token.as_str());
+            form
+        })
+        .send()
+        .await?;
+    let access_token_response: AccessTokenResponse = response.json().await?;
+
+    debug!("access_token_response={:?}", access_token_response);
+
+    // FIXME: use access_token
     Ok(())
 }
 
