@@ -12,7 +12,7 @@ use crate::store::{Token, TweetQueueStore};
 
 // <https://www.rfc-editor.org/rfc/rfc6749#section-5.1>
 #[derive(Debug, serde::Deserialize)]
-struct AccessTokenResponse {
+pub struct AccessTokenResponse {
     access_token: String, // ...
     #[allow(dead_code)]
     token_type: String, // "bearer"

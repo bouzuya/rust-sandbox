@@ -107,6 +107,16 @@ impl TweetQueueStore {
         })
     }
 
+    pub async fn read_token(&self) -> anyhow::Result<Option<Token>> {
+        let mut client = Self::get_client().await?;
+        let document_path = Self::get_token_document_path()?;
+        let document = Self::get_document(&mut client, &document_path).await?;
+        Ok(match document {
+            Some(doc) => Some(serde_json::from_str(Self::data_from_document(&doc))?),
+            None => None,
+        })
+    }
+
     pub async fn write_token(&self, token: &Token) -> anyhow::Result<()> {
         let s = token.to_string();
 
