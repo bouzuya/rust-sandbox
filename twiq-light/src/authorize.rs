@@ -1,69 +1,16 @@
-use std::{collections::HashMap, env, io};
+use std::{env, io};
 
-use anyhow::{bail, Context};
+use anyhow::bail;
 use rand::{rngs::ThreadRng, RngCore};
-use reqwest::{Client, Method};
 use sha2::{Digest, Sha256};
-use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
+use time::OffsetDateTime;
 use tracing::debug;
 use url::Url;
 
-use crate::store::{Token, TweetQueueStore};
-
-// <https://www.rfc-editor.org/rfc/rfc6749#section-5.1>
-#[derive(Debug, serde::Deserialize)]
-pub struct AccessTokenResponse {
-    access_token: String, // ...
-    #[allow(dead_code)]
-    token_type: String, // "bearer"
-    expires_in: Option<u32>, // 7200
-    #[allow(dead_code)]
-    scope: Option<String>, // "tweet.write users.read tweet.read offline.access"
-    refresh_token: Option<String>, // ...
-}
-
-impl AccessTokenResponse {
-    pub fn try_into(self, unix_timestamp: i64) -> anyhow::Result<Token> {
-        let now = OffsetDateTime::from_unix_timestamp(unix_timestamp)?;
-
-        let access_token = self.access_token;
-        let expires_in = self.expires_in.context("expires_in is none")?;
-        let refresh_token = self.refresh_token.context("refresh_token is none")?;
-
-        let expires = now + Duration::seconds(i64::from(expires_in));
-        let expires = expires.format(&Rfc3339)?;
-        Ok(Token {
-            access_token,
-            expires,
-            refresh_token,
-        })
-    }
-}
-
-async fn token_request(
-    client_id: &str,
-    client_secret: &str,
-    code: &str,
-    redirect_uri: &str,
-    code_verifier: &str,
-) -> anyhow::Result<AccessTokenResponse> {
-    let response = Client::builder()
-        .build()?
-        .request(Method::POST, "https://api.twitter.com/2/oauth2/token")
-        .header("Content-Type", "application/x-www-form-urlencoded")
-        .basic_auth(client_id, Some(client_secret))
-        .form(&{
-            let mut form = HashMap::new();
-            form.insert("code", code);
-            form.insert("grant_type", "authorization_code");
-            form.insert("redirect_uri", redirect_uri);
-            form.insert("code_verifier", code_verifier);
-            form
-        })
-        .send()
-        .await?;
-    Ok(response.json().await?)
-}
+use crate::{
+    store::{Token, TweetQueueStore},
+    twitter,
+};
 
 pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
     let response_type = "code";
@@ -114,7 +61,7 @@ pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
     let (_, code) = url.query_pairs().find(|(k, _)| k == "code").unwrap();
     let code = code.to_string();
 
-    let access_token_response = token_request(
+    let access_token_response = twitter::issue_token(
         &client_id,
         &client_secret,
         code.as_str(),
@@ -125,7 +72,10 @@ pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
 
     debug!("{:?}", access_token_response);
 
-    let token = access_token_response.try_into(OffsetDateTime::now_utc().unix_timestamp())?;
+    let token = Token::try_from(
+        access_token_response,
+        OffsetDateTime::now_utc().unix_timestamp(),
+    )?;
 
     store.write_token(&token).await?;
 

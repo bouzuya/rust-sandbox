@@ -11,6 +11,7 @@ mod list_queue;
 mod reorder;
 mod search;
 mod store;
+mod twitter;
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
