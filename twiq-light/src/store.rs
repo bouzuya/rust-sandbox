@@ -1,7 +1,10 @@
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
-    env, fs,
+    env,
+    fmt::Display,
+    fs,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use anyhow::bail;
@@ -20,6 +23,27 @@ use crate::{
         write::Operation, CommitRequest, Document, GetDocumentRequest, Precondition, Value, Write,
     },
 };
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct Token {
+    pub access_token: String,
+    pub expires: String,
+    pub refresh_token: String,
+}
+
+impl FromStr for Token {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(serde_json::from_str(s)?)
+    }
+}
+
+impl Display for Token {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::to_string(self).expect("to_string"))
+    }
+}
 
 #[derive(Debug)]
 pub struct TweetStore {
@@ -71,6 +95,7 @@ impl TweetQueueStore {
     const COLLECTION_ID: &str = "twiq-light";
     const DOCUMENT_ID: &str = "queue";
     const FIELD_NAME: &str = "data";
+    const TOKEN_DOCUMENT_ID: &str = "token";
 
     pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
         let mut client = Self::get_client().await?;
@@ -80,6 +105,46 @@ impl TweetQueueStore {
             Some(doc) => serde_json::from_str(Self::data_from_document(&doc))?,
             None => VecDeque::default(),
         })
+    }
+
+    pub async fn write_token(&self, token: &Token) -> anyhow::Result<()> {
+        let s = token.to_string();
+
+        // <https://cloud.google.com/firestore/quotas>
+        // Maximum size of a field value: 1 MiB - 89 bytes (1,048,487 bytes)
+        let byte_length = s.len();
+        if byte_length > 1_000_000 {
+            bail!("Maximum field size exceeded");
+        }
+
+        let mut client = Self::get_client().await?;
+        let database_path = Self::get_database_path()?;
+        let document_path = Self::get_token_document_path()?;
+        let document = Self::get_document(&mut client, &document_path).await?;
+        let condition_type = match document {
+            Some(doc) => {
+                let update_time = doc.update_time.expect("output contains update_time");
+                ConditionType::UpdateTime(update_time)
+            }
+            None => ConditionType::Exists(false),
+        };
+        let document = Self::document_from_data(document_path, s);
+        let writes = vec![Write {
+            update_mask: None,
+            update_transforms: vec![],
+            current_document: Some(Precondition {
+                condition_type: Some(condition_type),
+            }),
+            operation: Some(Operation::Update(document)),
+        }];
+        client
+            .commit(CommitRequest {
+                database: database_path,
+                writes,
+                transaction: vec![],
+            })
+            .await?;
+        Ok(())
     }
 
     pub async fn write_all(&self, data: &VecDeque<ScheduledTweet>) -> anyhow::Result<()> {
@@ -215,6 +280,17 @@ impl TweetQueueStore {
             database_path,
             Self::COLLECTION_ID,
             Self::DOCUMENT_ID
+        );
+        Ok(document_path)
+    }
+
+    fn get_token_document_path() -> anyhow::Result<String> {
+        let database_path = Self::get_database_path()?;
+        let document_path = format!(
+            "{}/documents/{}/{}",
+            database_path,
+            Self::COLLECTION_ID,
+            Self::TOKEN_DOCUMENT_ID
         );
         Ok(document_path)
     }

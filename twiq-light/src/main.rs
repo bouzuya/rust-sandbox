@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
     let args = <Args as clap::Parser>::parse();
     match args.resource {
         Resource::Queue(command) => match command {
-            QueueSubcommand::Authorize => authorize::run().await,
+            QueueSubcommand::Authorize => authorize::run(queue_store).await,
             QueueSubcommand::Dequeue => dequeue::run(queue_store).await,
             QueueSubcommand::Enqueue { tweet } => enqueue::run(queue_store, tweet).await,
             QueueSubcommand::List => list_queue::run(queue_store).await,
