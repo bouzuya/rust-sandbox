@@ -57,8 +57,8 @@ pub async fn run(store: TweetStore) -> anyhow::Result<()> {
     let mut data = store.read_all()?;
     let last_id_str = {
         let mut at_id = data
-            .iter()
-            .map(|(_, t)| (t.at.as_ref(), t.id_str.as_ref()))
+            .values()
+            .map(|t| (t.at.as_ref(), t.id_str.as_ref()))
             .collect::<Vec<(&str, &str)>>();
         at_id.sort();
         at_id.last().cloned().map(|(_, id_str)| id_str.to_owned())
