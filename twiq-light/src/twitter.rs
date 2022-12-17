@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use anyhow::bail;
 use reqwest::{Client, Method};
-use tracing::debug;
 
 // <https://www.rfc-editor.org/rfc/rfc6749#section-5.1>
 #[derive(Debug, serde::Deserialize)]
@@ -59,9 +58,11 @@ pub async fn get_users_id_tweets(
         .bearer_auth(bearer_token)
         .send()
         .await?;
-
-    debug!("response.status={:?}", response.status());
-    Ok(response.json().await?)
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        bail!("response.status={:?}", response.status());
+    }
 }
 
 // <https://www.rfc-editor.org/rfc/rfc6749#section-5>
@@ -87,7 +88,11 @@ pub async fn issue_token(
         })
         .send()
         .await?;
-    Ok(response.json().await?)
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        bail!("response.status={:?}", response.status());
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -119,15 +124,12 @@ pub async fn post_tweets(
         .json(&tweet)
         .send()
         .await?;
-
-    debug!("response.status={:?}", response.status());
-
-    if response.status() != 201 {
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
         let text = response.text().await?;
         bail!(text);
     }
-
-    Ok(response.json().await?)
 }
 
 // <https://www.rfc-editor.org/rfc/rfc6749#section-6>
@@ -150,5 +152,9 @@ pub async fn refresh_access_token(
         })
         .send()
         .await?;
-    Ok(response.json().await?)
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        bail!("response.status={}", response.status());
+    }
 }
