@@ -1,5 +1,3 @@
-use std::env;
-
 use tracing::{debug, instrument};
 
 use crate::{
@@ -11,7 +9,7 @@ use crate::{
 };
 
 #[instrument(skip_all)]
-pub async fn run(store: TweetStore) -> anyhow::Result<()> {
+pub async fn run(store: TweetStore, bearer_token: String) -> anyhow::Result<()> {
     let mut data = store.read_all()?;
     let last_id_str = {
         let mut at_id = data
@@ -23,8 +21,6 @@ pub async fn run(store: TweetStore) -> anyhow::Result<()> {
     };
     debug!(last_id_str);
 
-    let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
-    debug!(bearer_token);
     let path_params = GetUsersIdTweetsPathParams {
         id: "125962981".to_owned(),
     };

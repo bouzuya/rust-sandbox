@@ -1,5 +1,3 @@
-use std::env;
-
 use anyhow::bail;
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tracing::debug;
@@ -9,7 +7,11 @@ use crate::{
     twitter::{self, PostTweetsRequestBody},
 };
 
-async fn ensure_token(store: &TweetQueueStore) -> anyhow::Result<Token> {
+async fn ensure_token(
+    store: &TweetQueueStore,
+    client_id: &str,
+    client_secret: &str,
+) -> anyhow::Result<Token> {
     let token = store.read_token().await?;
     match token {
         Some(token) => {
@@ -18,11 +20,9 @@ async fn ensure_token(store: &TweetQueueStore) -> anyhow::Result<Token> {
                 Ok(token)
             } else {
                 // use refresh token
-                let client_id = env::var("TWITTER_CLIENT_ID")?;
-                let client_secret = env::var("TWITTER_CLIENT_SECRET")?;
                 let access_token_response = twitter::refresh_access_token(
-                    &client_id,
-                    &client_secret,
+                    client_id,
+                    client_secret,
                     token.refresh_token.as_str(),
                 )
                 .await?;
@@ -42,8 +42,12 @@ async fn ensure_token(store: &TweetQueueStore) -> anyhow::Result<Token> {
     }
 }
 
-pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
-    let token = ensure_token(&store).await?;
+pub async fn run(
+    store: TweetQueueStore,
+    client_id: String,
+    client_secret: String,
+) -> anyhow::Result<()> {
+    let token = ensure_token(&store, &client_id, &client_secret).await?;
     debug!("{:?}", token);
     let mut queue = store.read_all().await?;
     if let Some(item) = queue.pop_front() {

@@ -1,4 +1,4 @@
-use std::{env, io};
+use std::io;
 
 use anyhow::bail;
 use rand::{rngs::ThreadRng, RngCore};
@@ -12,11 +12,13 @@ use crate::{
     twitter,
 };
 
-pub async fn run(store: TweetQueueStore) -> anyhow::Result<()> {
+pub async fn run(
+    store: TweetQueueStore,
+    client_id: String,
+    client_secret: String,
+    redirect_uri: String,
+) -> anyhow::Result<()> {
     let response_type = "code";
-    let client_id = env::var("TWITTER_CLIENT_ID")?;
-    let client_secret = env::var("TWITTER_CLIENT_SECRET")?;
-    let redirect_uri = env::var("TWITTER_REDIRECT_URI")?;
 
     let mut rng = ThreadRng::default();
     let mut state_buf = vec![0; 96];
