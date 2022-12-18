@@ -106,11 +106,14 @@ impl TweetStore {
 // firestore
 
 #[derive(Debug)]
-pub struct TweetQueueStore;
+pub struct TweetQueueStore {
+    project_id: String,
+}
 
 impl Default for TweetQueueStore {
     fn default() -> Self {
-        Self
+        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID");
+        Self { project_id }
     }
 }
 
@@ -126,7 +129,7 @@ impl TweetQueueStore {
 
     pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
         let mut client = Self::get_client().await?;
-        let document_path = Self::get_document_path()?;
+        let document_path = self.get_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         Ok(match document {
             Some(doc) => serde_json::from_str(Self::data_from_document(&doc))?,
@@ -136,7 +139,7 @@ impl TweetQueueStore {
 
     pub async fn read_token(&self) -> anyhow::Result<Option<Token>> {
         let mut client = Self::get_client().await?;
-        let document_path = Self::get_token_document_path()?;
+        let document_path = self.get_token_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         Ok(match document {
             Some(doc) => Some(serde_json::from_str(Self::data_from_document(&doc))?),
@@ -155,8 +158,8 @@ impl TweetQueueStore {
         }
 
         let mut client = Self::get_client().await?;
-        let database_path = Self::get_database_path()?;
-        let document_path = Self::get_token_document_path()?;
+        let database_path = self.get_database_path()?;
+        let document_path = self.get_token_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         let condition_type = match document {
             Some(doc) => {
@@ -194,8 +197,8 @@ impl TweetQueueStore {
         }
 
         let mut client = Self::get_client().await?;
-        let database_path = Self::get_database_path()?;
-        let document_path = Self::get_document_path()?;
+        let database_path = self.get_database_path()?;
+        let document_path = self.get_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         let condition_type = match document {
             Some(doc) => {
@@ -282,9 +285,12 @@ impl TweetQueueStore {
         Ok(client)
     }
 
-    fn get_database_path() -> anyhow::Result<String> {
-        let project_id = env::var("PROJECT_ID")?;
-        let database_path = format!("projects/{}/databases/{}", project_id, Self::DATABASE_ID);
+    fn get_database_path(&self) -> anyhow::Result<String> {
+        let database_path = format!(
+            "projects/{}/databases/{}",
+            self.project_id,
+            Self::DATABASE_ID
+        );
         Ok(database_path)
     }
 
@@ -310,8 +316,8 @@ impl TweetQueueStore {
         Ok(document)
     }
 
-    fn get_document_path() -> anyhow::Result<String> {
-        let database_path = Self::get_database_path()?;
+    fn get_document_path(&self) -> anyhow::Result<String> {
+        let database_path = self.get_database_path()?;
         let document_path = format!(
             "{}/documents/{}/{}",
             database_path,
@@ -321,8 +327,8 @@ impl TweetQueueStore {
         Ok(document_path)
     }
 
-    fn get_token_document_path() -> anyhow::Result<String> {
-        let database_path = Self::get_database_path()?;
+    fn get_token_document_path(&self) -> anyhow::Result<String> {
+        let database_path = self.get_database_path()?;
         let document_path = format!(
             "{}/documents/{}/{}",
             database_path,
