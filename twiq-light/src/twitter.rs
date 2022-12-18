@@ -15,6 +15,16 @@ pub struct AccessTokenResponse {
     pub refresh_token: Option<String>, // ...
 }
 
+pub struct GetUsersIdTweetsPathParams {
+    pub id: String,
+}
+
+pub struct GetUsersIdTweetsQueryParams {
+    pub max_results: Option<u8>, // 5..=100 (default: 10)
+    pub pagination_token: Option<String>,
+    // ...
+}
+
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct TweetResponse {
     pub data: Vec<TweetResponseDataItem>,
@@ -40,14 +50,17 @@ pub struct TweetResponseMeta {
 // <https://developer.twitter.com/en/docs/twitter-api/tweets/timelines/api-reference/get-users-id-tweets>
 pub async fn get_users_id_tweets(
     bearer_token: &str,
-    pagination_token: Option<&str>,
+    path_params: &GetUsersIdTweetsPathParams,
+    query_params: &GetUsersIdTweetsQueryParams,
 ) -> anyhow::Result<TweetResponse> {
-    let id = "125962981";
     let url = format!(
-        "https://api.twitter.com/2/users/{}/tweets?max_results={}&tweet.fields=created_at{}",
-        id,
-        100,
-        match pagination_token {
+        "https://api.twitter.com/2/users/{}/tweets?tweet.fields=created_at{}{}",
+        path_params.id,
+        match query_params.max_results {
+            Some(t) => format!("&max_results={}", t),
+            None => "".to_owned(),
+        },
+        match query_params.pagination_token.as_ref() {
             Some(t) => format!("&pagination_token={}", t),
             None => "".to_owned(),
         }

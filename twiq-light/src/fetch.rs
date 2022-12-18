@@ -5,7 +5,9 @@ use tracing::{debug, instrument};
 use crate::{
     domain::MyTweet,
     store::TweetStore,
-    twitter::{self, TweetResponseDataItem},
+    twitter::{
+        self, GetUsersIdTweetsPathParams, GetUsersIdTweetsQueryParams, TweetResponseDataItem,
+    },
 };
 
 #[instrument(skip_all)]
@@ -23,8 +25,19 @@ pub async fn run(store: TweetStore) -> anyhow::Result<()> {
 
     let bearer_token = env::var("TWITTER_BEARER_TOKEN")?;
     debug!(bearer_token);
+    let path_params = GetUsersIdTweetsPathParams {
+        id: "125962981".to_owned(),
+    };
     let mut tweets = vec![];
-    let mut response = twitter::get_users_id_tweets(&bearer_token, None).await?;
+    let mut response = twitter::get_users_id_tweets(
+        &bearer_token,
+        &path_params,
+        &GetUsersIdTweetsQueryParams {
+            max_results: Some(100),
+            pagination_token: None,
+        },
+    )
+    .await?;
     while let Some(ref pagination_token) = response.meta.next_token {
         if let Some(ref id_str) = last_id_str {
             if response.data.iter().any(|d| &d.id == id_str) {
@@ -32,8 +45,15 @@ pub async fn run(store: TweetStore) -> anyhow::Result<()> {
             }
         }
         tweets.extend(response.data);
-        response =
-            twitter::get_users_id_tweets(&bearer_token, Some(pagination_token.as_ref())).await?;
+        response = twitter::get_users_id_tweets(
+            &bearer_token,
+            &path_params,
+            &GetUsersIdTweetsQueryParams {
+                max_results: Some(100),
+                pagination_token: Some(pagination_token.to_owned()),
+            },
+        )
+        .await?;
     }
     tweets.extend(if let Some(ref id_str) = last_id_str {
         response
