@@ -1,6 +1,6 @@
 use std::io;
 
-use anyhow::bail;
+use anyhow::{bail, Context};
 use rand::{rngs::ThreadRng, RngCore};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
@@ -56,11 +56,17 @@ pub async fn run(
 
     // parse url and check state
     let url = Url::parse(buffer.trim())?;
-    let (_, response_state) = url.query_pairs().find(|(k, _)| k == "state").unwrap();
+    let (_, response_state) = url
+        .query_pairs()
+        .find(|(k, _)| k == "state")
+        .context("state not found")?;
     if response_state.to_string().as_str() != state {
         bail!("state does not match");
     }
-    let (_, code) = url.query_pairs().find(|(k, _)| k == "code").unwrap();
+    let (_, code) = url
+        .query_pairs()
+        .find(|(k, _)| k == "code")
+        .context("code not found")?;
     let code = code.to_string();
 
     let access_token_response = twitter::issue_token(
