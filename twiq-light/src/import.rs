@@ -6,6 +6,7 @@ use time::{
     format_description::{self, well_known::Iso8601},
     OffsetDateTime,
 };
+use tracing::instrument;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Item {
@@ -140,6 +141,7 @@ impl Item {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn run<P: AsRef<Path>>(store: TweetStore, file: P) -> anyhow::Result<()> {
     let s = fs::read_to_string(file)?;
     let json: Vec<Item> = serde_json::from_str(s.trim_start_matches("window.YTD.tweet.part0 = "))?;

@@ -4,7 +4,7 @@ use anyhow::{bail, Context};
 use rand::{rngs::ThreadRng, RngCore};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
-use tracing::debug;
+use tracing::{debug, instrument};
 use url::Url;
 
 use crate::{
@@ -12,6 +12,7 @@ use crate::{
     twitter,
 };
 
+#[instrument(skip_all)]
 pub async fn run(
     store: TweetQueueStore,
     client_id: String,

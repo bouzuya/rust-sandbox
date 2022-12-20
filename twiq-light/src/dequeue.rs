@@ -1,6 +1,6 @@
 use anyhow::bail;
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use crate::{
     store::{Token, TweetQueueStore},
@@ -42,6 +42,7 @@ async fn ensure_token(
     }
 }
 
+#[instrument(skip_all)]
 pub async fn run(
     store: TweetQueueStore,
     client_id: String,

@@ -1,5 +1,8 @@
+use tracing::instrument;
+
 use crate::store::TweetStore;
 
+#[instrument(skip_all)]
 pub async fn run(store: TweetStore, query: Option<String>) -> anyhow::Result<()> {
     let data = store.read_all()?;
 
