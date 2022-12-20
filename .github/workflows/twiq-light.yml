@@ -1,0 +1,81 @@
+name: twiq-light
+on:
+  push:
+    branches: [master]
+    paths:
+      - "twiq-light/**"
+      - ".github/workflows/twiq-light.yml"
+    tags:
+      - "twiq-light/*"
+defaults:
+  run:
+    working-directory: twiq-light
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: arduino/setup-protoc@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      - uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo test --verbose
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: macos-latest
+            target: x86_64-apple-darwin
+  deploy:
+    # FIXME:
+    # if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      # <https://github.com/actions/checkout>
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+      # deploy to GitHub Container Registry
+      # <https://github.com/VaultVulp/gp-docker-action>
+      - uses: VaultVulp/gp-docker-action@1.5.0
+        with:
+          build-context: twiq-light/
+          dockerfile: twiq-light/Dockerfile
+          # extract-git-tag: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          image-name: twiq-light
+          image-tag: ${{ github.sha }}
+      # Deploy to Google Artifacts Registry & Cloud Run
+      # <https://github.com/google-github-actions/auth>
+      - uses: "google-github-actions/auth@v1"
+        with:
+          credentials_json: ${{ secrets.TWIQ_GCP_SERVICE_ACCOUNT_PRIVATE_KEY }}
+      # <https://github.com/google-github-actions/setup-gcloud>
+      - uses: google-github-actions/setup-gcloud@v1
+        with:
+          project_id: ${{ secrets.TWIQ_GCP_PROJECT_ID }}
+      - run: |-
+          region='${{ secrets.TWIQ_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          gcloud auth configure-docker "${host}"
+      - run: |-
+          region='${{ secrets.TWIQ_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          project_id='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          repo='${{ secrets.TWIQ_GCP_PROJECT_ID }}'
+          image='${{ secrets.TWIQ_GCP_PROJECT_ID }}-light'
+          tag='${{ github.sha }}'
+          url="${host}/${project_id}/${repo}/${image}:${tag}"
+          docker build -t "${url}" .
+          docker push "${url}"
