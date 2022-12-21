@@ -6,12 +6,12 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.57"
+async-trait = { workspace = true }
 domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
-thiserror = "1.0.33"
-tokio = { version = "1.21.2", features = ["full"] }
-tracing = "0.1.37"
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
 
 [dev-dependencies]
 anyhow = { workspace = true }

@@ -9,9 +9,9 @@ edition = "2021"
 anyhow = { workspace = true, features = ["backtrace"] }
 event_store_core = { path = "../event_store_core" }
 reqwest = { version = "0.11.11", features = ["json", "rustls-tls"], default-features = false }
-serde = { version = "1.0.142", features = ["derive"] }
-serde_json = "1.0.83"
-thiserror = "1.0.33"
-time = { version = "0.3.17", features = ["parsing", "formatting"] }
-tokio = { version = "1.20.1", features = ["full"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
 uuid = { version = "1.1.2", features = ["v4", "serde"] }

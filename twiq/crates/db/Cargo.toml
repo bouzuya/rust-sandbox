@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.57"
+async-trait = { workspace = true }
 command_handler = { path = "../command_handler" }
 domain = { path = "../domain" }
 event_store_core = { path = "../event_store_core" }
@@ -14,9 +14,9 @@ google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev 
 prost = "0.11.0"
 prost-types = "0.11.1"
 query_handler = { path = "../query_handler" }
-thiserror = "1.0.32"
-time = { version = "0.3.17", features = ["parsing", "formatting"] }
-tokio = { version = "1.20.1", features = ["full"] }
+thiserror = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true }
 tonic = { version = "0.8.2", features = ["tls", "tls-webpki-roots"] }
 worker_helper = { path = "../worker_helper" }
 
