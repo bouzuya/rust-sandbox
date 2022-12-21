@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = { version = "1.0.60", features = ["backtrace"] }
+anyhow = { workspace = true, features = ["backtrace"] }
 event_store_core = { path = "../event_store_core" }
 reqwest = { version = "0.11.11", features = ["json", "rustls-tls"], default-features = false }
 serde = { version = "1.0.142", features = ["derive"] }

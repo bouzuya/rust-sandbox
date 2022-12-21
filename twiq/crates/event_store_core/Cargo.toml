@@ -15,4 +15,4 @@ tracing = "0.1.37"
 uuid = { version = "1.1.2", features = ["v4"] }
 
 [dev-dependencies]
-anyhow = "1.0.64"
+anyhow = { workspace = true }

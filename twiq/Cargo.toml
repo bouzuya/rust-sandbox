@@ -3,3 +3,6 @@ members = ["crates/*"]
 
 [patch.crates-io]
 tonic-build = { git = "https://github.com/bouzuya/tonic", branch = "add-disable-comments" }
+
+[workspace.dependencies]
+anyhow = "1.0.66"
