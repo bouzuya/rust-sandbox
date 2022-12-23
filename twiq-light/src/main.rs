@@ -37,20 +37,31 @@ enum QueueSubcommand {
         client_secret: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_REDIRECT_URI")]
         redirect_uri: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
     },
     Dequeue {
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_ID")]
         client_id: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
         client_secret: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
     },
     Enqueue {
         tweet: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
     },
-    List,
+    List {
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
+    },
     Reorder {
         src: usize,
         dst: usize,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
     },
 }
 
@@ -73,23 +84,53 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
     let args = <Args as clap::Parser>::parse();
     match args.resource {
-        Resource::Queue(command) => {
-            let queue_store = TweetQueueStore::default();
-            match command {
-                QueueSubcommand::Authorize {
+        Resource::Queue(command) => match command {
+            QueueSubcommand::Authorize {
+                client_id,
+                client_secret,
+                redirect_uri,
+                google_application_credentials,
+            } => {
+                authorize::run(
+                    TweetQueueStore::new(google_application_credentials),
                     client_id,
                     client_secret,
                     redirect_uri,
-                } => authorize::run(queue_store, client_id, client_secret, redirect_uri).await,
-                QueueSubcommand::Dequeue {
+                )
+                .await
+            }
+            QueueSubcommand::Dequeue {
+                client_id,
+                client_secret,
+                google_application_credentials,
+            } => {
+                dequeue::run(
+                    TweetQueueStore::new(google_application_credentials),
                     client_id,
                     client_secret,
-                } => dequeue::run(queue_store, client_id, client_secret).await,
-                QueueSubcommand::Enqueue { tweet } => enqueue::run(queue_store, tweet).await,
-                QueueSubcommand::List => list_queue::run(queue_store).await,
-                QueueSubcommand::Reorder { src, dst } => reorder::run(queue_store, src, dst).await,
+                )
+                .await
             }
-        }
+            QueueSubcommand::Enqueue {
+                tweet,
+                google_application_credentials,
+            } => enqueue::run(TweetQueueStore::new(google_application_credentials), tweet).await,
+            QueueSubcommand::List {
+                google_application_credentials,
+            } => list_queue::run(TweetQueueStore::new(google_application_credentials)).await,
+            QueueSubcommand::Reorder {
+                src,
+                dst,
+                google_application_credentials,
+            } => {
+                reorder::run(
+                    TweetQueueStore::new(google_application_credentials),
+                    src,
+                    dst,
+                )
+                .await
+            }
+        },
         Resource::Tweet(command) => {
             let store = TweetStore::default();
             match command {

@@ -108,13 +108,7 @@ impl TweetStore {
 #[derive(Debug)]
 pub struct TweetQueueStore {
     project_id: String,
-}
-
-impl Default for TweetQueueStore {
-    fn default() -> Self {
-        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID");
-        Self { project_id }
-    }
+    google_application_credentials: Option<PathBuf>,
 }
 
 type MyInterceptor = Box<dyn Fn(Request<()>) -> Result<Request<()>, Status>>;
@@ -127,8 +121,16 @@ impl TweetQueueStore {
     const FIELD_NAME: &str = "data";
     const TOKEN_DOCUMENT_ID: &str = "token";
 
+    pub fn new(google_application_credentials: Option<String>) -> Self {
+        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID");
+        Self {
+            project_id,
+            google_application_credentials: google_application_credentials.map(PathBuf::from),
+        }
+    }
+
     pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
-        let mut client = Self::get_client().await?;
+        let mut client = self.get_client().await?;
         let document_path = self.get_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         Ok(match document {
@@ -138,7 +140,7 @@ impl TweetQueueStore {
     }
 
     pub async fn read_token(&self) -> anyhow::Result<Option<Token>> {
-        let mut client = Self::get_client().await?;
+        let mut client = self.get_client().await?;
         let document_path = self.get_token_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
         Ok(match document {
@@ -157,7 +159,7 @@ impl TweetQueueStore {
             bail!("Maximum field size exceeded");
         }
 
-        let mut client = Self::get_client().await?;
+        let mut client = self.get_client().await?;
         let database_path = self.get_database_path()?;
         let document_path = self.get_token_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
@@ -196,7 +198,7 @@ impl TweetQueueStore {
             bail!("Maximum field size exceeded");
         }
 
-        let mut client = Self::get_client().await?;
+        let mut client = self.get_client().await?;
         let database_path = self.get_database_path()?;
         let document_path = self.get_document_path()?;
         let document = Self::get_document(&mut client, &document_path).await?;
@@ -258,12 +260,17 @@ impl TweetQueueStore {
         }
     }
 
-    async fn get_client() -> anyhow::Result<Client> {
-        // GOOGLE_APPLICATION_CREDENTIALS environment variable
+    async fn get_client(&self) -> anyhow::Result<Client> {
         let config = CredentialConfig::builder()
             .scopes(vec!["https://www.googleapis.com/auth/cloud-platform".into()])
             .build()?;
-        let credential = Credential::find_default(config).await?;
+        let credential = match self.google_application_credentials.as_ref() {
+            Some(file_path) => Credential::find(file_path, config).await?,
+            None => {
+                // GOOGLE_APPLICATION_CREDENTIALS environment variable
+                Credential::find_default(config).await?
+            }
+        };
         let channel = Endpoint::from_static("https://firestore.googleapis.com")
             .tls_config(ClientTlsConfig::new().domain_name("firestore.googleapis.com"))?
             .connect()
@@ -338,36 +345,3 @@ impl TweetQueueStore {
         Ok(document_path)
     }
 }
-
-// fs
-
-// #[derive(Debug)]
-// pub struct TweetQueueStore {
-//     path: PathBuf,
-// }
-
-// impl Default for TweetQueueStore {
-//     fn default() -> Self {
-//         let path = Path::new(&env::var("HOME").expect("env HOME")).join("twiq-light-queue.json");
-//         Self { path }
-//     }
-// }
-
-// impl TweetQueueStore {
-//     pub async fn read_all(&self) -> anyhow::Result<VecDeque<ScheduledTweet>> {
-//         if !self.path().exists() {
-//             Ok(VecDeque::new())
-//         } else {
-//             let s = fs::read_to_string(self.path())?;
-//             Ok(serde_json::from_str(&s)?)
-//         }
-//     }
-
-//     pub async fn write_all(&self, data: &VecDeque<ScheduledTweet>) -> anyhow::Result<()> {
-//         Ok(fs::write(self.path(), serde_json::to_string(data)?)?)
-//     }
-
-//     fn path(&self) -> &Path {
-//         &self.path
-//     }
-// }

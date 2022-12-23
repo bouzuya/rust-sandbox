@@ -9,7 +9,7 @@ edition = "2021"
 anyhow = "1.0.66"
 base64 = "0.20.0"
 clap = { version = "4.0.29", features = ["derive", "env"] }
-google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "0b1c0108c28c22139a24638dbe95c92a0f0b769b" }
+google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "6f66bcd03959e7b534df9ddff192b78a33995da8" }
 prost = "0.11.0"
 prost-types = "0.11.1"
 rand = "0.8.5"
