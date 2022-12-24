@@ -8,6 +8,7 @@ mod fetch;
 mod google;
 mod import;
 mod list_queue;
+mod remove;
 mod reorder;
 mod search;
 mod store;
@@ -54,6 +55,11 @@ enum QueueSubcommand {
         google_application_credentials: Option<String>,
     },
     List {
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+        google_application_credentials: Option<String>,
+    },
+    Remove {
+        index: usize,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
@@ -118,6 +124,10 @@ async fn main() -> anyhow::Result<()> {
             QueueSubcommand::List {
                 google_application_credentials,
             } => list_queue::run(TweetQueueStore::new(google_application_credentials)).await,
+            QueueSubcommand::Remove {
+                index,
+                google_application_credentials,
+            } => remove::run(TweetQueueStore::new(google_application_credentials), index).await,
             QueueSubcommand::Reorder {
                 src,
                 dst,
