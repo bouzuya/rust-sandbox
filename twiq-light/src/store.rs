@@ -121,8 +121,7 @@ impl TweetQueueStore {
     const FIELD_NAME: &str = "data";
     const TOKEN_DOCUMENT_ID: &str = "token";
 
-    pub fn new(google_application_credentials: Option<String>) -> Self {
-        let project_id = env::var("PROJECT_ID").expect("PROJECT_ID");
+    pub fn new(project_id: String, google_application_credentials: Option<String>) -> Self {
         Self {
             project_id,
             google_application_credentials: google_application_credentials.map(PathBuf::from),

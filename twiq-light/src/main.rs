@@ -38,6 +38,8 @@ enum QueueSubcommand {
         client_secret: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_REDIRECT_URI")]
         redirect_uri: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
@@ -46,26 +48,36 @@ enum QueueSubcommand {
         client_id: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
         client_secret: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
     Enqueue {
         tweet: String,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
     List {
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
     Remove {
         index: usize,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
     Reorder {
         src: usize,
         dst: usize,
+        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+        project_id: String,
         #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
         google_application_credentials: Option<String>,
     },
@@ -95,10 +107,11 @@ async fn main() -> anyhow::Result<()> {
                 client_id,
                 client_secret,
                 redirect_uri,
+                project_id,
                 google_application_credentials,
             } => {
                 authorize::run(
-                    TweetQueueStore::new(google_application_credentials),
+                    TweetQueueStore::new(project_id, google_application_credentials),
                     client_id,
                     client_secret,
                     redirect_uri,
@@ -108,10 +121,11 @@ async fn main() -> anyhow::Result<()> {
             QueueSubcommand::Dequeue {
                 client_id,
                 client_secret,
+                project_id,
                 google_application_credentials,
             } => {
                 dequeue::run(
-                    TweetQueueStore::new(google_application_credentials),
+                    TweetQueueStore::new(project_id, google_application_credentials),
                     client_id,
                     client_secret,
                 )
@@ -119,22 +133,44 @@ async fn main() -> anyhow::Result<()> {
             }
             QueueSubcommand::Enqueue {
                 tweet,
+                project_id,
                 google_application_credentials,
-            } => enqueue::run(TweetQueueStore::new(google_application_credentials), tweet).await,
+            } => {
+                enqueue::run(
+                    TweetQueueStore::new(project_id, google_application_credentials),
+                    tweet,
+                )
+                .await
+            }
             QueueSubcommand::List {
+                project_id,
                 google_application_credentials,
-            } => list_queue::run(TweetQueueStore::new(google_application_credentials)).await,
+            } => {
+                list_queue::run(TweetQueueStore::new(
+                    project_id,
+                    google_application_credentials,
+                ))
+                .await
+            }
             QueueSubcommand::Remove {
                 index,
+                project_id,
                 google_application_credentials,
-            } => remove::run(TweetQueueStore::new(google_application_credentials), index).await,
+            } => {
+                remove::run(
+                    TweetQueueStore::new(project_id, google_application_credentials),
+                    index,
+                )
+                .await
+            }
             QueueSubcommand::Reorder {
                 src,
                 dst,
+                project_id,
                 google_application_credentials,
             } => {
                 reorder::run(
-                    TweetQueueStore::new(google_application_credentials),
+                    TweetQueueStore::new(project_id, google_application_credentials),
                     src,
                     dst,
                 )
