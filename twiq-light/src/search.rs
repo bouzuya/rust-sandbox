@@ -1,6 +1,6 @@
 use tracing::instrument;
 
-use crate::store::TweetStore;
+use crate::tweet_store::TweetStore;
 
 #[instrument(skip_all)]
 pub async fn run(store: TweetStore, query: Option<String>) -> anyhow::Result<()> {

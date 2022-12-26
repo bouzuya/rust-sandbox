@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::{domain, store::TweetStore};
+use crate::{domain, tweet_store::TweetStore};
 use anyhow::Context;
 use time::{
     format_description::{self, well_known::Iso8601},

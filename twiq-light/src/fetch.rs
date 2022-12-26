@@ -2,7 +2,7 @@ use tracing::{debug, instrument};
 
 use crate::{
     domain::MyTweet,
-    store::TweetStore,
+    tweet_store::TweetStore,
     twitter::{
         self, GetUsersIdTweetsPathParams, GetUsersIdTweetsQueryParams, TweetResponseDataItem,
     },

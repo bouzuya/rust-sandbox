@@ -1,6 +1,3 @@
-use anyhow::Context;
-use store::{TweetQueueStore, TweetStore};
-
 mod authorize;
 mod dequeue;
 mod domain;
@@ -13,7 +10,12 @@ mod remove;
 mod reorder;
 mod search;
 mod store;
+mod tweet_store;
 mod twitter;
+
+use anyhow::Context;
+use store::TweetQueueStore;
+use tweet_store::TweetStore;
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
