@@ -1,3 +1,4 @@
+use anyhow::Context;
 use store::{TweetQueueStore, TweetStore};
 
 mod authorize;
@@ -29,6 +30,14 @@ enum Resource {
     Tweet(TweetSubcommand),
 }
 
+#[derive(Clone, Debug, clap::Args)]
+struct ConfigOptions {
+    #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
+    project_id: Option<String>,
+    #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
+    google_application_credentials: Option<String>,
+}
+
 #[derive(Clone, Debug, clap::Subcommand)]
 enum QueueSubcommand {
     Authorize {
@@ -38,48 +47,36 @@ enum QueueSubcommand {
         client_secret: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_REDIRECT_URI")]
         redirect_uri: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     Dequeue {
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_ID")]
         client_id: String,
         #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
         client_secret: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     Enqueue {
         tweet: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     List {
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     Remove {
         index: usize,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     Reorder {
         src: usize,
         dst: usize,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_PROJECT_ID")]
-        project_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")]
-        google_application_credentials: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
 }
 
@@ -97,6 +94,13 @@ enum TweetSubcommand {
     },
 }
 
+fn tweet_queue_store(config: ConfigOptions) -> anyhow::Result<TweetQueueStore> {
+    Ok(TweetQueueStore::new(
+        config.project_id.context("project_id")?,
+        config.google_application_credentials,
+    ))
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
@@ -107,11 +111,10 @@ async fn main() -> anyhow::Result<()> {
                 client_id,
                 client_secret,
                 redirect_uri,
-                project_id,
-                google_application_credentials,
+                config,
             } => {
                 authorize::run(
-                    TweetQueueStore::new(project_id, google_application_credentials),
+                    tweet_queue_store(config)?,
                     client_id,
                     client_secret,
                     redirect_uri,
@@ -121,60 +124,17 @@ async fn main() -> anyhow::Result<()> {
             QueueSubcommand::Dequeue {
                 client_id,
                 client_secret,
-                project_id,
-                google_application_credentials,
-            } => {
-                dequeue::run(
-                    TweetQueueStore::new(project_id, google_application_credentials),
-                    client_id,
-                    client_secret,
-                )
-                .await
+                config,
+            } => dequeue::run(tweet_queue_store(config)?, client_id, client_secret).await,
+            QueueSubcommand::Enqueue { tweet, config } => {
+                enqueue::run(tweet_queue_store(config)?, tweet).await
             }
-            QueueSubcommand::Enqueue {
-                tweet,
-                project_id,
-                google_application_credentials,
-            } => {
-                enqueue::run(
-                    TweetQueueStore::new(project_id, google_application_credentials),
-                    tweet,
-                )
-                .await
+            QueueSubcommand::List { config } => list_queue::run(tweet_queue_store(config)?).await,
+            QueueSubcommand::Remove { index, config } => {
+                remove::run(tweet_queue_store(config)?, index).await
             }
-            QueueSubcommand::List {
-                project_id,
-                google_application_credentials,
-            } => {
-                list_queue::run(TweetQueueStore::new(
-                    project_id,
-                    google_application_credentials,
-                ))
-                .await
-            }
-            QueueSubcommand::Remove {
-                index,
-                project_id,
-                google_application_credentials,
-            } => {
-                remove::run(
-                    TweetQueueStore::new(project_id, google_application_credentials),
-                    index,
-                )
-                .await
-            }
-            QueueSubcommand::Reorder {
-                src,
-                dst,
-                project_id,
-                google_application_credentials,
-            } => {
-                reorder::run(
-                    TweetQueueStore::new(project_id, google_application_credentials),
-                    src,
-                    dst,
-                )
-                .await
+            QueueSubcommand::Reorder { src, dst, config } => {
+                reorder::run(tweet_queue_store(config)?, src, dst).await
             }
         },
         Resource::Tweet(command) => {
