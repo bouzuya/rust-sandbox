@@ -1,3 +1,4 @@
+mod firestore;
 mod fs;
 
 use async_trait::async_trait;
