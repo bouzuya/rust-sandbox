@@ -9,6 +9,7 @@ mod list_queue;
 mod remove;
 mod reorder;
 mod search;
+mod storage;
 mod store;
 mod token;
 mod tweet_store;

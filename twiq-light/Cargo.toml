@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.66"
+async-trait = "0.1.60"
 base64 = "0.20.0"
 clap = { version = "4.0.29", features = ["derive", "env"] }
 google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "6f66bcd03959e7b534df9ddff192b78a33995da8" }
@@ -28,3 +29,6 @@ url = "2.3.1"
 anyhow = "1.0.66"
 prost-build = "0.11.1"
 tonic-build = "0.8.2"
+
+[dev-dependencies]
+tempfile = "3.3.0"
