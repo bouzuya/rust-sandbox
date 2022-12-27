@@ -7,10 +7,7 @@ use time::OffsetDateTime;
 use tracing::{debug, instrument};
 use url::Url;
 
-use crate::{
-    store::{Token, TweetQueueStore},
-    twitter,
-};
+use crate::{store::TweetQueueStore, token::Token, twitter};
 
 #[instrument(skip_all)]
 pub async fn run(

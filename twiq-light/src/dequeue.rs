@@ -3,7 +3,8 @@ use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tracing::{debug, instrument};
 
 use crate::{
-    store::{Token, TweetQueueStore},
+    store::TweetQueueStore,
+    token::Token,
     twitter::{self, PostTweetsRequestBody},
 };
 
