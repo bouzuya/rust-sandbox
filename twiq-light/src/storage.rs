@@ -1,5 +1,5 @@
-mod firestore;
-mod fs;
+pub mod firestore;
+pub mod fs;
 
 use async_trait::async_trait;
 

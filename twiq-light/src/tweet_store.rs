@@ -1,38 +1,41 @@
-use std::{
-    collections::BTreeMap,
-    env, fs,
-    path::{Path, PathBuf},
-};
+use std::{collections::BTreeMap, env, path::PathBuf};
 
-use crate::domain::MyTweet;
+use crate::{
+    domain::MyTweet,
+    storage::{fs::FsStorage, Storage},
+};
 
 #[derive(Debug)]
 pub struct TweetStore {
-    path: PathBuf,
+    storage: FsStorage,
 }
 
 impl Default for TweetStore {
     fn default() -> Self {
-        let path = Path::new(&env::var("HOME").expect("env HOME")).join("twiq-light.json");
-        Self { path }
+        let storage = FsStorage::new(PathBuf::from(&env::var("HOME").expect("env HOME")));
+        Self { storage }
     }
 }
 
 impl TweetStore {
-    pub fn read_all(&self) -> anyhow::Result<BTreeMap<String, MyTweet>> {
-        if !self.path().exists() {
-            Ok(BTreeMap::new())
-        } else {
-            let s = fs::read_to_string(self.path())?;
-            Ok(serde_json::from_str(&s)?)
-        }
+    pub async fn read_all(&self) -> anyhow::Result<BTreeMap<String, MyTweet>> {
+        let item = self
+            .storage
+            .get_item(PathBuf::from("twiq-light.json"))
+            .await?;
+        Ok(match item {
+            None => BTreeMap::default(),
+            Some(s) => serde_json::from_str(&s)?,
+        })
     }
 
-    pub fn write_all(&self, data: &BTreeMap<String, MyTweet>) -> anyhow::Result<()> {
-        Ok(fs::write(self.path(), serde_json::to_string(data)?)?)
-    }
-
-    fn path(&self) -> &Path {
-        &self.path
+    pub async fn write_all(&self, data: &BTreeMap<String, MyTweet>) -> anyhow::Result<()> {
+        Ok(self
+            .storage
+            .set_item(
+                PathBuf::from("twiq-light.json"),
+                serde_json::to_string(data)?,
+            )
+            .await?)
     }
 }

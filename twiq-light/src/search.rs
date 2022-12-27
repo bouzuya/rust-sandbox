@@ -4,7 +4,8 @@ use crate::tweet_store::TweetStore;
 
 #[instrument(skip_all)]
 pub async fn run(store: TweetStore, query: Option<String>) -> anyhow::Result<()> {
-    let data = store.read_all()?;
+    let data = store.read_all().await?;
+    println!("{}", data.len());
 
     let mut result = vec![];
     for (_, tweet) in data {

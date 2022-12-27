@@ -10,7 +10,7 @@ use crate::{
 
 #[instrument(skip_all)]
 pub async fn run(store: TweetStore, bearer_token: String) -> anyhow::Result<()> {
-    let mut data = store.read_all()?;
+    let mut data = store.read_all().await?;
     let last_id_str = {
         let mut at_id = data
             .values()
@@ -71,7 +71,7 @@ pub async fn run(store: TweetStore, bearer_token: String) -> anyhow::Result<()> 
         data.insert(tweet.id_str.clone(), tweet);
     }
 
-    store.write_all(&data)?;
+    store.write_all(&data).await?;
 
     Ok(())
 }

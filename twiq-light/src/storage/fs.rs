@@ -4,6 +4,7 @@ use async_trait::async_trait;
 
 use super::Storage;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FsStorage {
     root: PathBuf,
 }
