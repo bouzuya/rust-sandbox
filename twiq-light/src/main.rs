@@ -87,8 +87,12 @@ enum QueueSubcommand {
 #[derive(Clone, Debug, clap::Subcommand)]
 enum TweetSubcommand {
     Fetch {
-        #[arg(long, env = "TWIQ_LIGHT_TWITTER_BEARER_TOKEN")]
-        bearer_token: String,
+        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_ID")]
+        client_id: String,
+        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
+        client_secret: String,
+        #[command(flatten)]
+        config: ConfigOptions,
     },
     Import {
         file: String,
@@ -147,7 +151,19 @@ async fn main() -> anyhow::Result<()> {
         Resource::Tweet(command) => {
             let store = TweetStore::default();
             match command {
-                TweetSubcommand::Fetch { bearer_token } => fetch::run(store, bearer_token).await,
+                TweetSubcommand::Fetch {
+                    client_id,
+                    client_secret,
+                    config,
+                } => {
+                    fetch::run(
+                        store,
+                        tweet_queue_store(config).await?,
+                        client_id,
+                        client_secret,
+                    )
+                    .await
+                }
                 TweetSubcommand::Import { file } => import::run(store, file).await,
                 TweetSubcommand::Search { query } => search::run(store, query).await,
             }
