@@ -4,9 +4,8 @@ use tracing::{debug, instrument};
 
 use crate::{
     domain::MyTweet,
-    store::TweetQueueStore,
+    store::{TweetQueueStore, TweetStore},
     token::Token,
-    tweet_store::TweetStore,
     twitter::{
         self, GetUsersIdTweetsPathParams, GetUsersIdTweetsQueryParams, TweetResponseDataItem,
     },

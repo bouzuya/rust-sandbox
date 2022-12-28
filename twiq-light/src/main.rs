@@ -12,12 +12,10 @@ mod search;
 mod storage;
 mod store;
 mod token;
-mod tweet_store;
 mod twitter;
 
 use anyhow::Context;
-use store::TweetQueueStore;
-use tweet_store::TweetStore;
+use store::{TweetQueueStore, TweetStore};
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
