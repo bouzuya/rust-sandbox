@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use anyhow::bail;
 use async_trait::async_trait;
 use google_cloud_auth::{Credential, CredentialConfig};
 use tonic::{
@@ -189,6 +190,13 @@ impl Storage for FirestoreStorage {
     }
 
     async fn set_item(&self, key: Self::Key, value: Self::Value) -> anyhow::Result<()> {
+        // <https://cloud.google.com/firestore/quotas>
+        // Maximum size of a field value: 1 MiB - 89 bytes (1,048,487 bytes)
+        let byte_length = value.len();
+        if byte_length > 1_000_000 {
+            bail!("Maximum field size exceeded");
+        }
+
         let name = format!(
             "projects/{}/databases/{}/documents/{}/{}",
             self.project_id, self.database_id, self.collection_id, key

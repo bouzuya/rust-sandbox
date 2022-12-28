@@ -98,11 +98,12 @@ enum TweetSubcommand {
     },
 }
 
-fn tweet_queue_store(config: ConfigOptions) -> anyhow::Result<TweetQueueStore> {
-    Ok(TweetQueueStore::new(
+async fn tweet_queue_store(config: ConfigOptions) -> anyhow::Result<TweetQueueStore> {
+    TweetQueueStore::new(
         config.project_id.context("project_id")?,
         config.google_application_credentials,
-    ))
+    )
+    .await
 }
 
 #[tokio::main]
@@ -118,7 +119,7 @@ async fn main() -> anyhow::Result<()> {
                 config,
             } => {
                 authorize::run(
-                    tweet_queue_store(config)?,
+                    tweet_queue_store(config).await?,
                     client_id,
                     client_secret,
                     redirect_uri,
@@ -129,16 +130,18 @@ async fn main() -> anyhow::Result<()> {
                 client_id,
                 client_secret,
                 config,
-            } => dequeue::run(tweet_queue_store(config)?, client_id, client_secret).await,
+            } => dequeue::run(tweet_queue_store(config).await?, client_id, client_secret).await,
             QueueSubcommand::Enqueue { tweet, config } => {
-                enqueue::run(tweet_queue_store(config)?, tweet).await
+                enqueue::run(tweet_queue_store(config).await?, tweet).await
             }
-            QueueSubcommand::List { config } => list_queue::run(tweet_queue_store(config)?).await,
+            QueueSubcommand::List { config } => {
+                list_queue::run(tweet_queue_store(config).await?).await
+            }
             QueueSubcommand::Remove { index, config } => {
-                remove::run(tweet_queue_store(config)?, index).await
+                remove::run(tweet_queue_store(config).await?, index).await
             }
             QueueSubcommand::Reorder { src, dst, config } => {
-                reorder::run(tweet_queue_store(config)?, src, dst).await
+                reorder::run(tweet_queue_store(config).await?, src, dst).await
             }
         },
         Resource::Tweet(command) => {

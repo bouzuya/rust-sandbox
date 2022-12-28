@@ -30,12 +30,11 @@ impl TweetStore {
     }
 
     pub async fn write_all(&self, data: &BTreeMap<String, MyTweet>) -> anyhow::Result<()> {
-        Ok(self
-            .storage
+        self.storage
             .set_item(
                 PathBuf::from("twiq-light.json"),
                 serde_json::to_string(data)?,
             )
-            .await?)
+            .await
     }
 }
