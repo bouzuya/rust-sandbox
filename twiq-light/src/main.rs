@@ -1,4 +1,5 @@
 mod authorize;
+mod credential;
 mod dequeue;
 mod domain;
 mod enqueue;
