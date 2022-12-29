@@ -1,15 +1,7 @@
-mod authorize;
+mod command;
 mod credential;
-mod dequeue;
 mod domain;
-mod enqueue;
-mod fetch;
 mod google;
-mod import;
-mod list_queue;
-mod remove;
-mod reorder;
-mod search;
 mod storage;
 mod store;
 mod token;
@@ -121,7 +113,7 @@ async fn main() -> anyhow::Result<()> {
                 redirect_uri,
                 config,
             } => {
-                authorize::run(
+                command::authorize::run(
                     tweet_queue_store(config).await?,
                     client_id,
                     client_secret,
@@ -133,18 +125,21 @@ async fn main() -> anyhow::Result<()> {
                 client_id,
                 client_secret,
                 config,
-            } => dequeue::run(tweet_queue_store(config).await?, client_id, client_secret).await,
+            } => {
+                command::dequeue::run(tweet_queue_store(config).await?, client_id, client_secret)
+                    .await
+            }
             QueueSubcommand::Enqueue { tweet, config } => {
-                enqueue::run(tweet_queue_store(config).await?, tweet).await
+                command::enqueue::run(tweet_queue_store(config).await?, tweet).await
             }
             QueueSubcommand::List { config } => {
-                list_queue::run(tweet_queue_store(config).await?).await
+                command::list_queue::run(tweet_queue_store(config).await?).await
             }
             QueueSubcommand::Remove { index, config } => {
-                remove::run(tweet_queue_store(config).await?, index).await
+                command::remove::run(tweet_queue_store(config).await?, index).await
             }
             QueueSubcommand::Reorder { src, dst, config } => {
-                reorder::run(tweet_queue_store(config).await?, src, dst).await
+                command::reorder::run(tweet_queue_store(config).await?, src, dst).await
             }
         },
         Resource::Tweet(command) => {
@@ -155,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
                     client_secret,
                     config,
                 } => {
-                    fetch::run(
+                    command::fetch::run(
                         store,
                         tweet_queue_store(config).await?,
                         client_id,
@@ -163,8 +158,8 @@ async fn main() -> anyhow::Result<()> {
                     )
                     .await
                 }
-                TweetSubcommand::Import { file } => import::run(store, file).await,
-                TweetSubcommand::Search { query } => search::run(store, query).await,
+                TweetSubcommand::Import { file } => command::import::run(store, file).await,
+                TweetSubcommand::Search { query } => command::search::run(store, query).await,
             }
         }
     }
