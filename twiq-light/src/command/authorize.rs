@@ -7,11 +7,16 @@ use time::OffsetDateTime;
 use tracing::{debug, instrument};
 use url::Url;
 
-use crate::{store::TweetQueueStore, token::Token, twitter};
+use crate::{
+    credential::{Credential, TwitterClientKey},
+    store::CredentialStore,
+    token::Token,
+    twitter,
+};
 
 #[instrument(skip_all)]
 pub async fn run(
-    store: TweetQueueStore,
+    credential_store: CredentialStore,
     client_id: String,
     client_secret: String,
     redirect_uri: String,
@@ -83,7 +88,15 @@ pub async fn run(
         OffsetDateTime::now_utc().unix_timestamp(),
     )?;
 
-    store.write_token(&token).await?;
+    let credential = Credential {
+        client: TwitterClientKey {
+            id: client_id,
+            secret: client_secret,
+        },
+        token,
+    };
+
+    credential_store.write(&credential).await?;
 
     Ok(())
 }

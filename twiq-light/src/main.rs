@@ -8,7 +8,7 @@ mod token;
 mod twitter;
 
 use anyhow::Context;
-use store::{TweetQueueStore, TweetStore};
+use store::{CredentialStore, TweetQueueStore, TweetStore};
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -114,7 +114,11 @@ async fn main() -> anyhow::Result<()> {
                 config,
             } => {
                 command::authorize::run(
-                    tweet_queue_store(config).await?,
+                    CredentialStore::new(
+                        config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
+                        config.google_application_credentials,
+                    )
+                    .await?,
                     client_id,
                     client_secret,
                     redirect_uri,
