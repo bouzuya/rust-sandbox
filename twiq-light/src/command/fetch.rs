@@ -1,10 +1,10 @@
-use anyhow::bail;
+use anyhow::{bail, Context};
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tracing::{debug, instrument};
 
 use crate::{
     domain::MyTweet,
-    store::{TweetQueueStore, TweetStore},
+    store::{CredentialStore, TweetQueueStore, TweetStore},
     token::Token,
     twitter::{
         self, GetUsersIdTweetsPathParams, GetUsersIdTweetsQueryParams, TweetResponseDataItem,
@@ -51,10 +51,18 @@ async fn ensure_token(
 pub async fn run(
     store: TweetStore,
     tweet_queue_store: TweetQueueStore,
-    client_id: String,
-    client_secret: String,
+    credential_store: CredentialStore,
 ) -> anyhow::Result<()> {
-    let token = ensure_token(&tweet_queue_store, &client_id, &client_secret).await?;
+    let credential = credential_store
+        .read()
+        .await?
+        .context("Use `twiq-light queue authorize`")?;
+    let token = ensure_token(
+        &tweet_queue_store,
+        &credential.client.id,
+        &credential.client.secret,
+    )
+    .await?;
     debug!("{:?}", token);
     let mut data = store.read_all().await?;
     let last_id_str = {

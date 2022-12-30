@@ -46,10 +46,6 @@ enum QueueSubcommand {
         config: ConfigOptions,
     },
     Dequeue {
-        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_ID")]
-        client_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
-        client_secret: String,
         #[command(flatten)]
         config: ConfigOptions,
     },
@@ -78,10 +74,6 @@ enum QueueSubcommand {
 #[derive(Clone, Debug, clap::Subcommand)]
 enum TweetSubcommand {
     Fetch {
-        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_ID")]
-        client_id: String,
-        #[arg(long, env = "TWIQ_LIGHT_TWITTER_CLIENT_SECRET")]
-        client_secret: String,
         #[command(flatten)]
         config: ConfigOptions,
     },
@@ -125,13 +117,16 @@ async fn main() -> anyhow::Result<()> {
                 )
                 .await
             }
-            QueueSubcommand::Dequeue {
-                client_id,
-                client_secret,
-                config,
-            } => {
-                command::dequeue::run(tweet_queue_store(config).await?, client_id, client_secret)
-                    .await
+            QueueSubcommand::Dequeue { config } => {
+                command::dequeue::run(
+                    tweet_queue_store(config.clone()).await?,
+                    CredentialStore::new(
+                        config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
+                        config.google_application_credentials,
+                    )
+                    .await?,
+                )
+                .await
             }
             QueueSubcommand::Enqueue { tweet, config } => {
                 command::enqueue::run(tweet_queue_store(config).await?, tweet).await
@@ -149,16 +144,15 @@ async fn main() -> anyhow::Result<()> {
         Resource::Tweet(command) => {
             let store = TweetStore::default();
             match command {
-                TweetSubcommand::Fetch {
-                    client_id,
-                    client_secret,
-                    config,
-                } => {
+                TweetSubcommand::Fetch { config } => {
                     command::fetch::run(
                         store,
-                        tweet_queue_store(config).await?,
-                        client_id,
-                        client_secret,
+                        tweet_queue_store(config.clone()).await?,
+                        CredentialStore::new(
+                            config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
+                            config.google_application_credentials,
+                        )
+                        .await?,
                     )
                     .await
                 }

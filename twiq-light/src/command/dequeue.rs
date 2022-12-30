@@ -1,9 +1,9 @@
-use anyhow::bail;
+use anyhow::{bail, Context};
 use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tracing::{debug, instrument};
 
 use crate::{
-    store::TweetQueueStore,
+    store::{CredentialStore, TweetQueueStore},
     token::Token,
     twitter::{self, PostTweetsRequestBody},
 };
@@ -44,12 +44,12 @@ async fn ensure_token(
 }
 
 #[instrument(skip_all)]
-pub async fn run(
-    store: TweetQueueStore,
-    client_id: String,
-    client_secret: String,
-) -> anyhow::Result<()> {
-    let token = ensure_token(&store, &client_id, &client_secret).await?;
+pub async fn run(store: TweetQueueStore, credential_store: CredentialStore) -> anyhow::Result<()> {
+    let credential = credential_store
+        .read()
+        .await?
+        .context("Use `twiq-light queue authorize`")?;
+    let token = ensure_token(&store, &credential.client.id, &credential.client.secret).await?;
     debug!("{:?}", token);
     let mut queue = store.read_all().await?;
     if let Some(item) = queue.pop_front() {
