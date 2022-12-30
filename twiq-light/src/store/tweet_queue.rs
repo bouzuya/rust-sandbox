@@ -3,7 +3,6 @@ use std::collections::VecDeque;
 use crate::{
     domain::ScheduledTweet,
     storage::{firestore::FirestoreStorage, Storage},
-    token::Token,
 };
 
 pub struct TweetQueueStore {
@@ -14,7 +13,6 @@ impl TweetQueueStore {
     const DATABASE_ID: &str = "(default)";
     const COLLECTION_ID: &str = "twiq-light";
     const QUEUE_DOCUMENT_ID: &str = "queue";
-    const TOKEN_DOCUMENT_ID: &str = "token";
 
     pub async fn new(
         project_id: String,
@@ -39,23 +37,6 @@ impl TweetQueueStore {
             Some(d) => serde_json::from_str(&d)?,
             None => VecDeque::default(),
         })
-    }
-
-    pub async fn read_token(&self) -> anyhow::Result<Option<Token>> {
-        let data = self
-            .storage
-            .get_item(Self::TOKEN_DOCUMENT_ID.to_owned())
-            .await?;
-        Ok(match data {
-            Some(d) => Some(serde_json::from_str(&d)?),
-            None => None,
-        })
-    }
-
-    pub async fn write_token(&self, token: &Token) -> anyhow::Result<()> {
-        self.storage
-            .set_item(Self::TOKEN_DOCUMENT_ID.to_owned(), token.to_string())
-            .await
     }
 
     pub async fn write_all(&self, data: &VecDeque<ScheduledTweet>) -> anyhow::Result<()> {

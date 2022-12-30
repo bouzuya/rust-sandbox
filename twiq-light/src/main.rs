@@ -147,7 +147,6 @@ async fn main() -> anyhow::Result<()> {
                 TweetSubcommand::Fetch { config } => {
                     command::fetch::run(
                         store,
-                        tweet_queue_store(config.clone()).await?,
                         CredentialStore::new(
                             config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
                             config.google_application_credentials,
