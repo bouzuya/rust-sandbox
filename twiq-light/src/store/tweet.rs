@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, env, path::PathBuf};
 
 use crate::{
-    domain::MyTweet,
+    data::MyTweet,
     storage::{fs::FsStorage, Storage},
 };
 

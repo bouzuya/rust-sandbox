@@ -1,10 +1,3 @@
-#[derive(Debug, serde::Deserialize, serde::Serialize)]
-pub struct MyTweet {
-    pub id_str: String,
-    pub at: String,
-    pub text: String,
-}
-
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ScheduledTweet {
     pub text: String,

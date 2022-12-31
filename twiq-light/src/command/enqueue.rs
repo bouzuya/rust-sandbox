@@ -1,7 +1,7 @@
 use anyhow::bail;
 use tracing::instrument;
 
-use crate::{domain::ScheduledTweet, store::TweetQueueStore};
+use crate::{data::ScheduledTweet, store::TweetQueueStore};
 
 #[instrument(skip_all)]
 pub async fn run(store: TweetQueueStore, tweet: String) -> anyhow::Result<()> {

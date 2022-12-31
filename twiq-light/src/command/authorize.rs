@@ -8,9 +8,8 @@ use tracing::{debug, instrument};
 use url::Url;
 
 use crate::{
-    credential::{Credential, TwitterClientKey},
+    data::{Credential, Token, TwitterClientKey},
     store::CredentialStore,
-    token::Token,
     twitter,
 };
 

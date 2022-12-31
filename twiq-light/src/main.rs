@@ -1,10 +1,9 @@
 mod command;
 mod credential;
-mod domain;
+mod data;
 mod google;
 mod storage;
 mod store;
-mod token;
 mod twitter;
 
 use anyhow::Context;

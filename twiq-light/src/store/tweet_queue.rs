@@ -1,7 +1,7 @@
 use std::collections::VecDeque;
 
 use crate::{
-    domain::ScheduledTweet,
+    data::ScheduledTweet,
     storage::{firestore::FirestoreStorage, Storage},
 };
 

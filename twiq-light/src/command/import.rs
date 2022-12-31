@@ -1,6 +1,6 @@
 use std::{fs, path::Path};
 
-use crate::{domain, store::TweetStore};
+use crate::{data, store::TweetStore};
 use anyhow::Context;
 use time::{
     format_description::{self, well_known::Iso8601},
@@ -123,13 +123,13 @@ struct TweetEntitiesUrl {
 }
 
 impl Item {
-    fn parse(self) -> domain::MyTweet {
+    fn parse(self) -> data::MyTweet {
         let asctime = format_description::parse(
             "[weekday repr:short case_sensitive:true] [month repr:short case_sensitive:true] [day padding:zero] [hour padding:zero repr:24]:[minute padding:zero]:[second padding:zero] [offset_hour padding:zero sign:mandatory][offset_minute padding:zero] [year padding:none repr:full base:calendar sign:automatic]",
         ).unwrap();
         let tweet = self.tweet;
         let text = tweet.full_text;
-        domain::MyTweet {
+        data::MyTweet {
             id_str: tweet.id_str,
             at: OffsetDateTime::parse(tweet.created_at.as_str(), &asctime)
                 .with_context(|| tweet.created_at)

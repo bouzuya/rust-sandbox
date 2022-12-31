@@ -3,9 +3,9 @@ use time::{format_description::well_known::Rfc3339, Duration, OffsetDateTime};
 use tracing::debug;
 
 use crate::{
-    credential::Credential,
+    data::Credential,
+    data::Token,
     storage::{firestore::FirestoreStorage, Storage},
-    token::Token,
     twitter,
 };
 
