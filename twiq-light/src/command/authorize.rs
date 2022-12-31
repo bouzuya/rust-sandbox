@@ -8,18 +8,25 @@ use tracing::{debug, instrument};
 use url::Url;
 
 use crate::{
-    data::{Credential, Token, TwitterClientKey},
-    store::CredentialStore,
+    data::{Config, Credential, Token, TwitterClientKey},
+    store::{ConfigStore, CredentialStore},
     twitter,
 };
 
 #[instrument(skip_all)]
 pub async fn run(
-    credential_store: CredentialStore,
+    config_store: ConfigStore,
+    project_id: String,
+    google_application_credentials: String,
     client_id: String,
     client_secret: String,
     redirect_uri: String,
 ) -> anyhow::Result<()> {
+    let credential_store = CredentialStore::new(
+        project_id.clone(),
+        Some(google_application_credentials.clone()),
+    )
+    .await?;
     let response_type = "code";
 
     let mut rng = ThreadRng::default();
@@ -96,6 +103,12 @@ pub async fn run(
     };
 
     credential_store.write(&credential).await?;
+    config_store
+        .write(&Config {
+            project_id,
+            google_application_credentials,
+        })
+        .await?;
 
     Ok(())
 }

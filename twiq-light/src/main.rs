@@ -7,7 +7,7 @@ mod store;
 mod twitter;
 
 use anyhow::Context;
-use store::{CredentialStore, TweetQueueStore, TweetStore};
+use store::{ConfigStore, CredentialStore, TweetQueueStore, TweetStore};
 
 #[derive(Debug, clap::Parser)]
 #[command(author, version, about, long_about = None)]
@@ -105,11 +105,13 @@ async fn main() -> anyhow::Result<()> {
                 config,
             } => {
                 command::authorize::run(
-                    CredentialStore::new(
-                        config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
-                        config.google_application_credentials,
-                    )
-                    .await?,
+                    ConfigStore::default(),
+                    config
+                        .project_id
+                        .context("no TWIQ_LIGHT_GOOGLE_PROJECT_ID")?,
+                    config
+                        .google_application_credentials
+                        .context("no TWIQ_LIGHT_GOOGLE_APPLICATION_CREDENTIALS")?,
                     client_id,
                     client_secret,
                     redirect_uri,
