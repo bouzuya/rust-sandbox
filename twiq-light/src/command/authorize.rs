@@ -106,7 +106,7 @@ pub async fn run(
     config_store
         .write(&Config {
             project_id,
-            google_application_credentials,
+            google_application_credentials: Some(google_application_credentials),
         })
         .await?;
 

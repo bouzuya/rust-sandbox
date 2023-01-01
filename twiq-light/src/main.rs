@@ -7,6 +7,7 @@ mod store;
 mod twitter;
 
 use anyhow::Context;
+use data::Config;
 use store::{ConfigStore, CredentialStore, TweetQueueStore, TweetStore};
 
 #[derive(Debug, clap::Parser)]
@@ -84,17 +85,26 @@ enum TweetSubcommand {
     },
 }
 
-async fn tweet_queue_store(config: ConfigOptions) -> anyhow::Result<TweetQueueStore> {
-    TweetQueueStore::new(
-        config.project_id.context("project_id")?,
-        config.google_application_credentials,
-    )
-    .await
+async fn ensure_config(config_store: ConfigStore, config: ConfigOptions) -> anyhow::Result<Config> {
+    Ok(match config_store.read().await? {
+        None => Config {
+            project_id: config
+                .project_id
+                .context("no TWIQ_LIGHT_GOOGLE_PROJECT_ID")?,
+            google_application_credentials: config.google_application_credentials,
+        },
+        Some(config) => config,
+    })
+}
+
+async fn tweet_queue_store(config: Config) -> anyhow::Result<TweetQueueStore> {
+    TweetQueueStore::new(config.project_id, config.google_application_credentials).await
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
+    let config_store = ConfigStore::default();
     let args = <Args as clap::Parser>::parse();
     match args.resource {
         Resource::Queue(command) => match command {
@@ -105,7 +115,7 @@ async fn main() -> anyhow::Result<()> {
                 config,
             } => {
                 command::authorize::run(
-                    ConfigStore::default(),
+                    config_store,
                     config
                         .project_id
                         .context("no TWIQ_LIGHT_GOOGLE_PROJECT_ID")?,
@@ -119,26 +129,28 @@ async fn main() -> anyhow::Result<()> {
                 .await
             }
             QueueSubcommand::Dequeue { config } => {
+                let config = ensure_config(config_store, config).await?;
                 command::dequeue::run(
                     tweet_queue_store(config.clone()).await?,
-                    CredentialStore::new(
-                        config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
-                        config.google_application_credentials,
-                    )
-                    .await?,
+                    CredentialStore::new(config.project_id, config.google_application_credentials)
+                        .await?,
                 )
                 .await
             }
             QueueSubcommand::Enqueue { tweet, config } => {
+                let config = ensure_config(config_store, config).await?;
                 command::enqueue::run(tweet_queue_store(config).await?, tweet).await
             }
             QueueSubcommand::List { config } => {
+                let config = ensure_config(config_store, config).await?;
                 command::list_queue::run(tweet_queue_store(config).await?).await
             }
             QueueSubcommand::Remove { index, config } => {
+                let config = ensure_config(config_store, config).await?;
                 command::remove::run(tweet_queue_store(config).await?, index).await
             }
             QueueSubcommand::Reorder { src, dst, config } => {
+                let config = ensure_config(config_store, config).await?;
                 command::reorder::run(tweet_queue_store(config).await?, src, dst).await
             }
         },
@@ -146,10 +158,11 @@ async fn main() -> anyhow::Result<()> {
             let store = TweetStore::default();
             match command {
                 TweetSubcommand::Fetch { config } => {
+                    let config = ensure_config(config_store, config).await?;
                     command::fetch::run(
                         store,
                         CredentialStore::new(
-                            config.project_id.context("no TWIQ_LIGHT_PROJECT_ID")?,
+                            config.project_id,
                             config.google_application_credentials,
                         )
                         .await?,
