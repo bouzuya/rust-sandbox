@@ -20,17 +20,28 @@ async fn handle_healthz() -> impl IntoResponse {
     "OK"
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let app = Router::new()
+fn build_router(base_path: String) -> Router {
+    let router = Router::new()
         .route("/", get(handle_root))
         .route("/healthz", get(handle_healthz));
+    if base_path.is_empty() {
+        router
+    } else {
+        Router::new()
+            .route("/", get(handle_root))
+            .nest(base_path.as_str(), router)
+    }
+}
 
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let base_path = std::env::var("BASE_PATH").unwrap_or_else(|_| "".to_string());
+    let router = build_router(base_path);
     let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
     let host = "0.0.0.0";
     let addr = format!("{}:{}", host, port).parse()?;
-
-    Server::bind(&addr).serve(app.into_make_service()).await?;
-
+    Server::bind(&addr)
+        .serve(router.into_make_service())
+        .await?;
     Ok(())
 }

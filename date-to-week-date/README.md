@@ -22,12 +22,26 @@ $ curl -s 'http://localhost:8080/?date=2023-01-02'
 2023-W01-1
 ```
 
+### `PORT` env
+
 ```console
 $ env PORT=3000 cargo run
 # ...
 
 $ # in other terminal
 $ curl -s 'http://localhost:3000/?date=2023-01-02'
+2023-W01-1
+
+```
+
+### `BASE_PATH` env
+
+```console
+$ env BASE_PATH=/date-to-week-date cargo run
+# ...
+
+$ # in other terminal
+$ curl -s 'http://localhost:8080/date-to-week-date?date=2023-01-02'
 2023-W01-1
 
 ```
