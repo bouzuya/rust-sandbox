@@ -1,19 +1,19 @@
-use axum::{extract::Query, response::IntoResponse, routing::get, Router, Server};
-use time::{macros::format_description, Date};
+mod command;
 
-#[derive(Debug, serde::Deserialize)]
-struct RootQuery {
-    date: String,
-}
+use axum::{
+    extract::Query, http::StatusCode, response::IntoResponse, routing::get, Router, Server,
+};
+use command::date_to_week_date;
 
-async fn handle_root(Query(query): Query<RootQuery>) -> impl IntoResponse {
-    let date_format = format_description!("[year]-[month]-[day]");
-    // TODO: unwrap
-    let date = Date::parse(&query.date, &date_format).unwrap();
-    let week_date_format =
-        format_description!("[year base:iso_week]-W[week_number repr:iso]-[weekday repr:monday]");
-    // TODO: unwrap
-    date.format(&week_date_format).unwrap()
+async fn handle_root(Query(command): Query<date_to_week_date::Command>) -> impl IntoResponse {
+    date_to_week_date::handle(command).map_err(|e| match e {
+        date_to_week_date::Error::InvalidDateFormat => {
+            (StatusCode::BAD_REQUEST, "Invalid `date` parameter")
+        }
+        date_to_week_date::Error::InvalidWeekDateFormat => {
+            (StatusCode::INTERNAL_SERVER_ERROR, "week_date_format")
+        }
+    })
 }
 
 async fn handle_healthz() -> impl IntoResponse {
