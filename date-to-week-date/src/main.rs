@@ -26,7 +26,9 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(handle_root))
         .route("/healthz", get(handle_healthz));
 
-    let addr = "0.0.0.0:3000".parse()?;
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let host = "0.0.0.0";
+    let addr = format!("{}:{}", host, port).parse()?;
 
     Server::bind(&addr).serve(app.into_make_service()).await?;
 
