@@ -42,7 +42,7 @@ jobs:
     #   DATE_TO_WEEK_DATE_GCP_SERVICE_ACCOUNT_PRIVATE_KEY
     env:
       IMAGE_URL: ${{ secrets.DATE_TO_WEEK_DATE_GCP_REGION }}-docker.pkg.dev/${{ secrets.DATE_TO_WEEK_DATE_GCP_PROJECT_ID }}/${{ secrets.DATE_TO_WEEK_DATE_GCP_SERVICE }}/${{ secrets.DATE_TO_WEEK_DATE_GCP_SERVICE }}:${{ github.sha }}
-    if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
+    # if: ${{ success() && startsWith(github.ref, 'refs/tags/') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
