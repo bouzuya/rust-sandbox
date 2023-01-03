@@ -6,7 +6,7 @@
 # gcloud config set project "${project_id}"
 
 # gcloud services list --available | grep artifact
-name=iam.googleapis.com
+name=artifactregistry.googleapis.com
 if ! gcloud services list --enabled | grep "${name}" > /dev/null
 then
   gcloud services enable "${name}"
