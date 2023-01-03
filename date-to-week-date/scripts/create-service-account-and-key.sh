@@ -1,5 +1,7 @@
 #!/bin/bash -ex
 
+# create a service account for deployment
+
 # <https://cloud.google.com/iam/docs/creating-managing-service-accounts>
 
 project_id=
@@ -21,7 +23,17 @@ gcloud iam service-accounts create "${service_account_name}" \
 
 # gcloud iam service-accounts list
 
-# TODO: set role
+gcloud projects add-iam-policy-binding "${project_id}" \
+    --member="serviceAccount:${service_account_name}@${project_id}.iam.gserviceaccount.com" \
+    --role="roles/artifactregistry.writer"
+
+gcloud projects add-iam-policy-binding "${project_id}" \
+    --member="serviceAccount:${service_account_name}@${project_id}.iam.gserviceaccount.com" \
+    --role="roles/run.developer"
+
+gcloud projects add-iam-policy-binding "${project_id}" \
+    --member="serviceAccount:${service_account_name}@${project_id}.iam.gserviceaccount.com" \
+    --role="roles/iam.serviceAccountUser"
 
 gcloud iam service-accounts keys create "${key_file}" \
     --iam-account="${service_account_name}@${project_id}.iam.gserviceaccount.com"
