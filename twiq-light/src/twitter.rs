@@ -78,6 +78,34 @@ pub async fn get_users_id_tweets(
     }
 }
 
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserResponse {
+    pub data: UserResponseData,
+}
+
+#[derive(Debug, serde::Deserialize, serde::Serialize)]
+pub struct UserResponseData {
+    pub id: String,
+    pub name: String,
+    pub username: String,
+}
+
+// <https://developer.twitter.com/en/docs/twitter-api/users/lookup/api-reference/get-users-me>
+pub async fn get_users_me(bearer_token: &str) -> anyhow::Result<UserResponse> {
+    let url = "https://api.twitter.com/2/users/me";
+    let response = Client::builder()
+        .build()?
+        .request(Method::GET, url)
+        .bearer_auth(bearer_token)
+        .send()
+        .await?;
+    if response.status().is_success() {
+        Ok(response.json().await?)
+    } else {
+        bail!("response.status={:?}", response.status());
+    }
+}
+
 // <https://www.rfc-editor.org/rfc/rfc6749#section-5>
 pub async fn issue_token(
     client_id: &str,

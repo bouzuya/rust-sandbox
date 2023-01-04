@@ -12,6 +12,9 @@ use crate::{
 pub async fn run(store: TweetStore, credential_store: CredentialStore) -> anyhow::Result<()> {
     let token = credential_store.ensure_token().await?;
     debug!("{:?}", token);
+    let user = twitter::get_users_me(&token.access_token).await?;
+    debug!("{:?}", user);
+    let user_id = user.data.id;
     let mut data = store.read_all().await?;
     let last_id_str = {
         let mut at_id = data
@@ -23,9 +26,7 @@ pub async fn run(store: TweetStore, credential_store: CredentialStore) -> anyhow
     };
     debug!(last_id_str);
 
-    let path_params = GetUsersIdTweetsPathParams {
-        id: "125962981".to_owned(),
-    };
+    let path_params = GetUsersIdTweetsPathParams { id: user_id };
     let mut tweets = vec![];
     let mut response = twitter::get_users_id_tweets(
         &token.access_token,
