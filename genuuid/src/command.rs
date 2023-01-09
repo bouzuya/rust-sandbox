@@ -3,7 +3,7 @@ use axum::{
     http::{header::LOCATION, HeaderMap, HeaderValue, StatusCode},
     response::IntoResponse,
     routing::get,
-    AddExtensionLayer, Router, Server,
+    Router, Server,
 };
 use std::{collections::HashMap, sync::Arc};
 use uuid::Uuid;
@@ -72,7 +72,7 @@ pub async fn server() -> anyhow::Result<()> {
             .route("/", get(handler_root))
             .nest(base_path.as_str(), router)
     }
-    .layer(AddExtensionLayer::new(Arc::new(state)));
+    .layer(Extension(Arc::new(state)));
 
     Ok(Server::bind(&addr)
         .serve(wrapped_router.into_make_service())

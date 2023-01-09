@@ -6,13 +6,14 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.45"
-axum = "0.3.0"
-structopt = "0.3.25"
-thiserror = "1.0.30"
+anyhow = "1.0.68"
+axum = "0.6.1"
+clap = { version = "4.0.32", features = ["derive"] }
+clap_complete = "4.0.7"
+thiserror = "1.0.38"
 tokio = { version = "1", features = ["full"] }
-uuid = { version = "0.8.2", features = ["serde", "v4"] }
+uuid = { version = "1.2.2", features = ["serde", "v4"] }
 
 [dev-dependencies]
-assert_cmd = "2.0.2"
-predicates = "2.0.3"
+assert_cmd = "2.0.7"
+predicates = "2.1.5"
