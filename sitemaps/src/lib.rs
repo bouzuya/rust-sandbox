@@ -1,3 +1,5 @@
+mod writer;
+
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("invalid loc")]
