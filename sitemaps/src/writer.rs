@@ -59,6 +59,13 @@ impl<W: Write> SitemapWriter<W> {
             self.0.write_event(Event::End(BytesEnd::new(name)))?;
         }
 
+        if let Some(content) = url.priority {
+            let name = "priority";
+            self.0.write_event(Event::Start(BytesStart::new(name)))?;
+            self.0.write_event(Event::Text(BytesText::new(content)))?;
+            self.0.write_event(Event::End(BytesEnd::new(name)))?;
+        }
+
         self.0.write_event(Event::End(BytesEnd::new("url")))?;
         Ok(())
     }
@@ -77,6 +84,7 @@ pub struct Url<'a> {
     pub loc: &'a str,
     pub lastmod: Option<&'a str>,
     pub changefreq: Option<&'a str>,
+    pub priority: Option<&'a str>,
 }
 
 impl<'a> From<&'a str> for Url<'a> {
@@ -91,6 +99,7 @@ impl<'a> Url<'a> {
             loc,
             lastmod: None,
             changefreq: None,
+            priority: None,
         }
     }
 }
@@ -99,6 +108,7 @@ pub struct UrlBuilder<'a> {
     loc: &'a str,
     lastmod: Option<&'a str>,
     changefreq: Option<&'a str>,
+    priority: Option<&'a str>,
 }
 
 impl<'a> UrlBuilder<'a> {
@@ -107,6 +117,7 @@ impl<'a> UrlBuilder<'a> {
             loc: self.loc,
             lastmod: self.lastmod,
             changefreq: self.changefreq,
+            priority: self.priority,
         }
     }
 
@@ -117,6 +128,11 @@ impl<'a> UrlBuilder<'a> {
 
     pub fn lastmod(mut self, s: &'a str) -> Self {
         self.lastmod = Some(s);
+        self
+    }
+
+    pub fn priority(mut self, s: &'a str) -> Self {
+        self.priority = Some(s);
         self
     }
 }
@@ -148,6 +164,33 @@ mod tests {
 
     #[test]
     fn test_url_builder() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(
+            Url::builder("http://www.example.com/")
+                .lastmod("2005-01-01")
+                .changefreq("monthly")
+                .priority("0.8")
+                .build(),
+        )?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<lastmod>2005-01-01</lastmod>"#,
+            r#"<changefreq>monthly</changefreq>"#,
+            r#"<priority>0.8</priority>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_loc() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(Url::builder("http://www.example.com/").build())?;
         writer.end()?;
@@ -203,6 +246,29 @@ mod tests {
             r#"<url>"#,
             r#"<loc>http://www.example.com/</loc>"#,
             r#"<changefreq>monthly</changefreq>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_priority() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(
+            Url::builder("http://www.example.com/")
+                .priority("0.8")
+                .build(),
+        )?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<priority>0.8</priority>"#,
             r#"</url>"#,
             r#"</urlset>"#
         );
