@@ -10,6 +10,7 @@ ordered-float = "3.4.0"
 quick-xml = "0.27.1"
 strum = { version = "0.24.1", features = ["derive"] }
 thiserror = "1.0.38"
+time = { version = "0.3.17", features = ["formatting", "macros", "parsing"] }
 url = "2.3.1"
 
 [dev-dependencies]
