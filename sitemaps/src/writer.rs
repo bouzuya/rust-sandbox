@@ -32,10 +32,14 @@ impl<W: Write> SitemapWriter<W> {
         Ok(Self(writer))
     }
 
-    pub fn write(&mut self, url_loc: &str) -> Result<()> {
+    pub fn write<'a, U>(&mut self, url: U) -> Result<()>
+    where
+        U: Into<Url<'a>>,
+    {
+        let url = url.into();
         self.0.write_event(Event::Start(BytesStart::new("url")))?;
         self.0.write_event(Event::Start(BytesStart::new("loc")))?;
-        self.0.write_event(Event::Text(BytesText::new(url_loc)))?;
+        self.0.write_event(Event::Text(BytesText::new(url.loc)))?;
         self.0.write_event(Event::End(BytesEnd::new("loc")))?;
         self.0.write_event(Event::End(BytesEnd::new("url")))?;
         Ok(())
@@ -51,6 +55,32 @@ impl<W: Write> SitemapWriter<W> {
     }
 }
 
+pub struct Url<'a> {
+    pub loc: &'a str,
+}
+
+impl<'a> From<&'a str> for Url<'a> {
+    fn from(loc: &'a str) -> Self {
+        Self::builder(loc).build()
+    }
+}
+
+impl<'a> Url<'a> {
+    pub fn builder(s: &'a str) -> UrlBuilder {
+        UrlBuilder { loc: s }
+    }
+}
+
+pub struct UrlBuilder<'a> {
+    loc: &'a str,
+}
+
+impl<'a> UrlBuilder<'a> {
+    pub fn build(self) -> Url<'a> {
+        Url { loc: self.loc }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -59,9 +89,27 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn test() -> anyhow::Result<()> {
+    fn test_url_from_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write("http://www.example.com/")?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(Url::builder("http://www.example.com/").build())?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
