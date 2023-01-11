@@ -21,12 +21,14 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 pub struct SitemapWriter<W: Write>(Writer<W>);
 
 impl<W: Write> SitemapWriter<W> {
-    pub fn new(inner: W) -> Result<Self> {
+    pub fn start(inner: W) -> Result<Self> {
         let mut writer = Writer::new(inner);
         writer.write_event(Event::Decl(BytesDecl::new("1.0", Some("UTF-8"), None)))?;
-        let mut elm = BytesStart::new("urlset");
-        elm.push_attribute(("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9"));
-        writer.write_event(Event::Start(elm))?;
+        writer.write_event(Event::Start({
+            let mut elm = BytesStart::new("urlset");
+            elm.push_attribute(("xmlns", "http://www.sitemaps.org/schemas/sitemap/0.9"));
+            elm
+        }))?;
         Ok(Self(writer))
     }
 
@@ -39,9 +41,13 @@ impl<W: Write> SitemapWriter<W> {
         Ok(())
     }
 
-    pub fn into_inner(mut self) -> Result<W> {
+    pub fn end(&mut self) -> Result<()> {
         self.0.write_event(Event::End(BytesEnd::new("urlset")))?;
-        Ok(self.0.into_inner())
+        Ok(())
+    }
+
+    pub fn into_inner(self) -> W {
+        self.0.into_inner()
     }
 }
 
@@ -54,9 +60,10 @@ mod tests {
 
     #[test]
     fn test() -> anyhow::Result<()> {
-        let mut writer = SitemapWriter::new(Cursor::new(Vec::new()))?;
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write("http://www.example.com/")?;
-        let result = writer.into_inner()?.into_inner();
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
             r#"<?xml version="1.0" encoding="UTF-8"?>"#,
             r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -65,7 +72,7 @@ mod tests {
             r#"</url>"#,
             r#"</urlset>"#
         );
-        assert_eq!(result, expected.as_bytes());
+        assert_eq!(actual, expected);
         Ok(())
     }
 
