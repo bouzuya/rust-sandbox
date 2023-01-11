@@ -40,14 +40,22 @@ impl<W: Write> SitemapWriter<W> {
         self.0.write_event(Event::Start(BytesStart::new("url")))?;
 
         let name = "loc";
+        let content = url.loc;
         self.0.write_event(Event::Start(BytesStart::new(name)))?;
-        self.0.write_event(Event::Text(BytesText::new(url.loc)))?;
+        self.0.write_event(Event::Text(BytesText::new(content)))?;
         self.0.write_event(Event::End(BytesEnd::new(name)))?;
 
-        if let Some(lastmod) = url.lastmod {
+        if let Some(content) = url.lastmod {
             let name = "lastmod";
             self.0.write_event(Event::Start(BytesStart::new(name)))?;
-            self.0.write_event(Event::Text(BytesText::new(lastmod)))?;
+            self.0.write_event(Event::Text(BytesText::new(content)))?;
+            self.0.write_event(Event::End(BytesEnd::new(name)))?;
+        }
+
+        if let Some(content) = url.changefreq {
+            let name = "changefreq";
+            self.0.write_event(Event::Start(BytesStart::new(name)))?;
+            self.0.write_event(Event::Text(BytesText::new(content)))?;
             self.0.write_event(Event::End(BytesEnd::new(name)))?;
         }
 
@@ -68,6 +76,7 @@ impl<W: Write> SitemapWriter<W> {
 pub struct Url<'a> {
     pub loc: &'a str,
     pub lastmod: Option<&'a str>,
+    pub changefreq: Option<&'a str>,
 }
 
 impl<'a> From<&'a str> for Url<'a> {
@@ -78,13 +87,18 @@ impl<'a> From<&'a str> for Url<'a> {
 
 impl<'a> Url<'a> {
     pub fn builder(loc: &'a str) -> UrlBuilder {
-        UrlBuilder { loc, lastmod: None }
+        UrlBuilder {
+            loc,
+            lastmod: None,
+            changefreq: None,
+        }
     }
 }
 
 pub struct UrlBuilder<'a> {
     loc: &'a str,
     lastmod: Option<&'a str>,
+    changefreq: Option<&'a str>,
 }
 
 impl<'a> UrlBuilder<'a> {
@@ -92,7 +106,13 @@ impl<'a> UrlBuilder<'a> {
         Url {
             loc: self.loc,
             lastmod: self.lastmod,
+            changefreq: self.changefreq,
         }
+    }
+
+    pub fn changefreq(mut self, s: &'a str) -> Self {
+        self.changefreq = Some(s);
+        self
     }
 
     pub fn lastmod(mut self, s: &'a str) -> Self {
@@ -166,6 +186,30 @@ mod tests {
         assert_eq!(actual, expected);
         Ok(())
     }
+
+    #[test]
+    fn test_url_builder_changefreq() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(
+            Url::builder("http://www.example.com/")
+                .changefreq("monthly")
+                .build(),
+        )?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<changefreq>monthly</changefreq>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
     #[test]
     fn test_quick_xml() -> anyhow::Result<()> {
         let mut writer = Writer::new(Cursor::new(Vec::new()));
