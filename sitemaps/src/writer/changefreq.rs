@@ -1,4 +1,4 @@
-#[derive(Copy, Clone, Debug, Eq, PartialEq, strum::AsRefStr, strum::EnumString)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, strum::AsRefStr, strum::EnumString)]
 #[strum(serialize_all = "lowercase")]
 pub enum Changefreq {
     Always,

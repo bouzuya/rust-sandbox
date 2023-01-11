@@ -1,4 +1,5 @@
 mod changefreq;
+mod priority;
 
 use std::io::Write;
 
@@ -7,7 +8,7 @@ use quick_xml::{
     Writer,
 };
 
-use self::changefreq::Changefreq;
+use self::{changefreq::Changefreq, priority::Priority};
 
 // TODO: improve error
 #[derive(Clone, Debug, thiserror::Error)]
@@ -64,8 +65,10 @@ impl<W: Write> SitemapWriter<W> {
             self.0.write_event(Event::End(BytesEnd::new(name)))?;
         }
 
-        if let Some(content) = url.priority {
+        if let Some(priority) = url.priority {
             let name = "priority";
+            let content = priority.to_string();
+            let content = content.as_str();
             self.0.write_event(Event::Start(BytesStart::new(name)))?;
             self.0.write_event(Event::Text(BytesText::new(content)))?;
             self.0.write_event(Event::End(BytesEnd::new(name)))?;
@@ -89,7 +92,7 @@ pub struct Url<'a> {
     pub loc: &'a str,
     pub lastmod: Option<&'a str>,
     pub changefreq: Option<Changefreq>,
-    pub priority: Option<&'a str>,
+    pub priority: Option<Priority>,
 }
 
 impl<'a> From<&'a str> for Url<'a> {
@@ -113,7 +116,7 @@ pub struct UrlBuilder<'a> {
     loc: &'a str,
     lastmod: Option<&'a str>,
     changefreq: Option<Changefreq>,
-    priority: Option<&'a str>,
+    priority: Option<Priority>,
 }
 
 impl<'a> UrlBuilder<'a> {
@@ -126,9 +129,9 @@ impl<'a> UrlBuilder<'a> {
         }
     }
 
-    pub fn changefreq<C>(mut self, s: C) -> Result<Self>
+    pub fn changefreq<S>(mut self, s: S) -> Result<Self>
     where
-        C: TryInto<Changefreq>,
+        S: TryInto<Changefreq>,
     {
         let changefreq = s.try_into().map_err(|_| Error)?;
         self.changefreq = Some(changefreq);
@@ -140,9 +143,13 @@ impl<'a> UrlBuilder<'a> {
         self
     }
 
-    pub fn priority(mut self, s: &'a str) -> Self {
-        self.priority = Some(s);
-        self
+    pub fn priority<S>(mut self, s: S) -> Result<Self>
+    where
+        S: TryInto<Priority>,
+    {
+        let priority = s.try_into().map_err(|_| Error)?;
+        self.priority = Some(priority);
+        Ok(self)
     }
 }
 
@@ -176,7 +183,7 @@ mod tests {
             Url::builder("http://www.example.com/")
                 .lastmod("2005-01-01")
                 .changefreq("monthly")?
-                .priority("0.8")
+                .priority("0.8")?
                 .build(),
         )?;
         writer.end()?;
@@ -288,7 +295,53 @@ mod tests {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(
             Url::builder("http://www.example.com/")
-                .priority("0.8")
+                .priority(Priority::try_from("0.8")?)?
+                .build(),
+        )?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<priority>0.8</priority>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_priority_f64() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(
+            Url::builder("http://www.example.com/")
+                .priority(0.8_f64)?
+                .build(),
+        )?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<priority>0.8</priority>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_priority_str() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(
+            Url::builder("http://www.example.com/")
+                .priority("0.8")?
                 .build(),
         )?;
         writer.end()?;
