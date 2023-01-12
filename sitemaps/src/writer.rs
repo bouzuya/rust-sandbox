@@ -92,43 +92,25 @@ impl<W: Write> SitemapWriter<W> {
 }
 
 pub struct Url<'a> {
-    pub loc: &'a str,
-    pub lastmod: Option<Lastmod>,
-    pub changefreq: Option<Changefreq>,
-    pub priority: Option<Priority>,
-}
-
-impl<'a> From<&'a str> for Url<'a> {
-    fn from(loc: &'a str) -> Self {
-        Self::builder(loc).build()
-    }
-}
-
-impl<'a> Url<'a> {
-    pub fn builder(loc: &'a str) -> UrlBuilder {
-        UrlBuilder {
-            loc,
-            lastmod: None,
-            changefreq: None,
-            priority: None,
-        }
-    }
-}
-
-pub struct UrlBuilder<'a> {
     loc: &'a str,
     lastmod: Option<Lastmod>,
     changefreq: Option<Changefreq>,
     priority: Option<Priority>,
 }
 
-impl<'a> UrlBuilder<'a> {
-    pub fn build(self) -> Url<'a> {
-        Url {
-            loc: self.loc,
-            lastmod: self.lastmod,
-            changefreq: self.changefreq,
-            priority: self.priority,
+impl<'a> From<&'a str> for Url<'a> {
+    fn from(loc: &'a str) -> Self {
+        Self::loc(loc)
+    }
+}
+
+impl<'a> Url<'a> {
+    pub fn loc(loc: &'a str) -> Self {
+        Self {
+            loc,
+            lastmod: None,
+            changefreq: None,
+            priority: None,
         }
     }
 
@@ -187,11 +169,10 @@ mod tests {
     fn test_url_builder() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(
-            Url::builder("http://www.example.com/")
+            Url::loc("http://www.example.com/")
                 .lastmod("2005-01-01")?
                 .changefreq("monthly")?
-                .priority("0.8")?
-                .build(),
+                .priority("0.8")?,
         )?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
@@ -213,7 +194,7 @@ mod tests {
     #[test]
     fn test_url_builder_loc() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::builder("http://www.example.com/").build())?;
+        writer.write(Url::loc("http://www.example.com/"))?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -232,9 +213,7 @@ mod tests {
     fn test_url_builder_lastmod() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(
-            Url::builder("http://www.example.com/")
-                .lastmod(Lastmod::try_from("2005-01-01")?)?
-                .build(),
+            Url::loc("http://www.example.com/").lastmod(Lastmod::try_from("2005-01-01")?)?,
         )?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
@@ -254,11 +233,7 @@ mod tests {
     #[test]
     fn test_url_builder_lastmod_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .lastmod("2005-01-01")?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").lastmod("2005-01-01")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -277,11 +252,7 @@ mod tests {
     #[test]
     fn test_url_builder_changefreq() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .changefreq(Changefreq::Monthly)?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").changefreq(Changefreq::Monthly)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -300,11 +271,7 @@ mod tests {
     #[test]
     fn test_url_builder_changefreq_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .changefreq("monthly")?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").changefreq("monthly")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -323,11 +290,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .priority(Priority::try_from("0.8")?)?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").priority(Priority::try_from("0.8")?)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -346,11 +309,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority_f64() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .priority(0.8_f64)?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").priority(0.8_f64)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -369,11 +328,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(
-            Url::builder("http://www.example.com/")
-                .priority("0.8")?
-                .build(),
-        )?;
+        writer.write(Url::loc("http://www.example.com/").priority("0.8")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
