@@ -1,10 +1,11 @@
 mod changefreq;
 mod lastmod;
+mod loc;
 mod priority;
 
 use std::{borrow::Cow, io::Write};
 
-use self::{changefreq::Changefreq, lastmod::Lastmod, priority::Priority};
+use self::{changefreq::Changefreq, lastmod::Lastmod, loc::Loc, priority::Priority};
 
 // TODO: improve error
 #[derive(Clone, Debug, thiserror::Error)]
@@ -42,14 +43,14 @@ impl<W: Write> SitemapWriter<W> {
 
     pub fn write<'a, U>(&mut self, url: U) -> Result<()>
     where
-        U: Into<Url<'a>>,
+        U: TryInto<Url<'a>>,
     {
         if self.number_of_urls + 1 > Self::MAX_NUMBER_OF_URLS {
             return Err(Error::MaxNumberOfUrls);
         }
         self.number_of_urls += 1;
 
-        let url = url.into();
+        let url = url.try_into().map_err(|_| Error::Uncategorized)?;
         self.write_inner(br#"<url>"#)?;
 
         let content = url.loc;
@@ -149,20 +150,26 @@ pub struct Url<'a> {
     priority: Option<Priority>,
 }
 
-impl<'a> From<&'a str> for Url<'a> {
-    fn from(loc: &'a str) -> Self {
-        Self::loc(loc)
+impl<'a> TryFrom<&'a str> for Url<'a> {
+    type Error = Error;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::loc(value)
     }
 }
 
 impl<'a> Url<'a> {
-    pub fn loc(loc: &'a str) -> Self {
-        Self {
-            loc,
+    pub fn loc<S>(loc: S) -> Result<Self>
+    where
+        S: TryInto<Loc<'a>>,
+    {
+        let loc = loc.try_into().map_err(|_| Error::Uncategorized)?;
+        Ok(Self {
+            loc: loc.into_inner(),
             lastmod: None,
             changefreq: None,
             priority: None,
-        }
+        })
     }
 
     pub fn changefreq<S>(mut self, s: S) -> Result<Self>
@@ -220,7 +227,7 @@ mod tests {
     fn test_url_builder() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(
-            Url::loc("http://www.example.com/")
+            Url::loc("http://www.example.com/")?
                 .lastmod("2005-01-01")?
                 .changefreq("monthly")?
                 .priority("0.8")?,
@@ -245,7 +252,7 @@ mod tests {
     #[test]
     fn test_url_builder_loc() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/"))?;
+        writer.write(Url::loc("http://www.example.com/")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -264,7 +271,7 @@ mod tests {
     fn test_url_builder_lastmod() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(
-            Url::loc("http://www.example.com/").lastmod(Lastmod::try_from("2005-01-01")?)?,
+            Url::loc("http://www.example.com/")?.lastmod(Lastmod::try_from("2005-01-01")?)?,
         )?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
@@ -284,7 +291,7 @@ mod tests {
     #[test]
     fn test_url_builder_lastmod_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").lastmod("2005-01-01")?)?;
+        writer.write(Url::loc("http://www.example.com/")?.lastmod("2005-01-01")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -303,7 +310,7 @@ mod tests {
     #[test]
     fn test_url_builder_changefreq() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").changefreq(Changefreq::Monthly)?)?;
+        writer.write(Url::loc("http://www.example.com/")?.changefreq(Changefreq::Monthly)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -322,7 +329,7 @@ mod tests {
     #[test]
     fn test_url_builder_changefreq_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").changefreq("monthly")?)?;
+        writer.write(Url::loc("http://www.example.com/")?.changefreq("monthly")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -341,7 +348,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").priority(Priority::try_from("0.8")?)?)?;
+        writer.write(Url::loc("http://www.example.com/")?.priority(Priority::try_from("0.8")?)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -360,7 +367,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority_f64() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").priority(0.8_f64)?)?;
+        writer.write(Url::loc("http://www.example.com/")?.priority(0.8_f64)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
@@ -379,7 +386,7 @@ mod tests {
     #[test]
     fn test_url_builder_priority_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc("http://www.example.com/").priority("0.8")?)?;
+        writer.write(Url::loc("http://www.example.com/")?.priority("0.8")?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
