@@ -24,6 +24,7 @@ pub struct SitemapWriter<W: Write> {
     write: W,
     byte_length: usize,
     number_of_urls: usize,
+    pretty: bool,
 }
 
 impl<W: Write> SitemapWriter<W> {
@@ -31,14 +32,11 @@ impl<W: Write> SitemapWriter<W> {
     const MAX_NUMBER_OF_URLS: usize = 50_000;
 
     pub fn start(inner: W) -> Result<Self> {
-        let mut s = Self {
-            write: inner,
-            byte_length: 0_usize,
-            number_of_urls: 0_usize,
-        };
-        s.write_inner(br#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
-        s.write_inner(br#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#)?;
-        Ok(s)
+        Self::start_inner(inner, false)
+    }
+
+    pub fn start_with_indent(inner: W) -> Result<Self> {
+        Self::start_inner(inner, true)
     }
 
     pub fn write<'a, U>(&mut self, url: U) -> Result<()>
@@ -51,41 +49,73 @@ impl<W: Write> SitemapWriter<W> {
         self.number_of_urls += 1;
 
         let url: Url<'a> = url.try_into().map_err(|_| Error::Uncategorized)?;
+        self.write_indent(1)?;
         self.write_inner(br#"<url>"#)?;
 
         let content = url.loc;
-        self.write_inner(br#"<loc>"#)?;
-        self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
-        self.write_inner(br#"</loc>"#)?;
+        self.write_element(b"loc", content.as_ref())?;
 
         if let Some(content) = url.lastmod {
-            self.write_inner(br#"<lastmod>"#)?;
-            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
-            self.write_inner(br#"</lastmod>"#)?;
+            self.write_element(b"lastmod", content.as_ref())?;
         }
 
         if let Some(content) = url.changefreq {
-            self.write_inner(br#"<changefreq>"#)?;
-            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
-            self.write_inner(br#"</changefreq>"#)?;
+            self.write_element(b"changefreq", content.as_ref())?;
         }
 
         if let Some(content) = url.priority {
-            self.write_inner(br#"<priority>"#)?;
-            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
-            self.write_inner(br#"</priority>"#)?;
+            self.write_element(b"priority", content.as_ref())?;
         }
 
+        self.write_indent(1)?;
         self.write_inner(br#"</url>"#)?;
         Ok(())
     }
 
     pub fn end(&mut self) -> Result<()> {
+        self.write_indent(0)?;
         self.write_inner(br#"</urlset>"#)
     }
 
     pub fn into_inner(self) -> W {
         self.write
+    }
+
+    fn start_inner(inner: W, pretty: bool) -> Result<Self> {
+        let mut s = Self {
+            write: inner,
+            byte_length: 0_usize,
+            number_of_urls: 0_usize,
+            pretty,
+        };
+        s.write_inner(br#"<?xml version="1.0" encoding="UTF-8"?>"#)?;
+        s.write_indent(0)?;
+        s.write_inner(br#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#)?;
+        Ok(s)
+    }
+
+    fn write_element(&mut self, name: &[u8], content: &str) -> Result<()> {
+        self.write_indent(2)?;
+        self.write_inner(b"<")?;
+        self.write_inner(name)?;
+        self.write_inner(b">")?;
+        self.write_inner(entity_escape(content).as_bytes())?;
+        self.write_inner(b"</")?;
+        self.write_inner(name)?;
+        self.write_inner(b">")?;
+        Ok(())
+    }
+
+    fn write_indent(&mut self, level: usize) -> Result<()> {
+        if !self.pretty {
+            return Ok(());
+        }
+
+        self.write_inner(b"\n")?;
+        for _ in 0..level {
+            self.write_inner(b"  ")?;
+        }
+        Ok(())
     }
 
     fn write_inner(&mut self, buf: &[u8]) -> Result<()> {
@@ -202,6 +232,22 @@ impl<'a> Url<'a> {
 mod tests {
     use super::*;
     use std::io::Cursor;
+
+    #[test]
+    fn test_start_with_indent() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start_with_indent(Cursor::new(Vec::new()))?;
+        writer.write("http://www.example.com/")?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = r#"<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>http://www.example.com/</loc>
+  </url>
+</urlset>"#;
+        assert_eq!(actual, expected);
+        Ok(())
+    }
 
     #[test]
     fn test_url_from_str() -> anyhow::Result<()> {
