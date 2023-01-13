@@ -21,10 +21,11 @@ impl<'a> TryFrom<&'a str> for Loc<'a> {
         if value.chars().count() >= 2048 {
             return Err(Error);
         }
-        let u = url::Url::parse(value).map_err(|_| Error)?;
-        if u.as_str() != value {
-            return Err(Error);
-        }
+        // too slow
+        // let u = url::Url::parse(value).map_err(|_| Error)?;
+        // if u.as_str() != value {
+        //     return Err(Error);
+        // }
         Ok(Self(Cow::Borrowed(value)))
     }
 }
@@ -51,7 +52,7 @@ mod tests {
         assert_eq!(Loc::try_from(s)?.into_inner(), s);
 
         let s = "https://example.com";
-        assert!(Loc::try_from(s).is_err());
+        assert_eq!(Loc::try_from(s)?.into_inner(), s);
 
         let s = format!("https://example.com/{}", "a".repeat(2028));
         assert_eq!(s.len(), 2048);
