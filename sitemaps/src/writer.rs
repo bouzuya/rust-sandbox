@@ -64,18 +64,15 @@ impl<W: Write> SitemapWriter<W> {
             self.write_inner(br#"</lastmod>"#)?;
         }
 
-        if let Some(changefreq) = url.changefreq {
-            let content = changefreq.as_ref();
+        if let Some(content) = url.changefreq {
             self.write_inner(br#"<changefreq>"#)?;
-            self.write_inner(entity_escape(content).as_bytes())?;
+            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
             self.write_inner(br#"</changefreq>"#)?;
         }
 
-        if let Some(priority) = url.priority {
-            let content = priority.to_string();
-            let content = content.as_str();
+        if let Some(content) = url.priority {
             self.write_inner(br#"<priority>"#)?;
-            self.write_inner(entity_escape(content).as_bytes())?;
+            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
             self.write_inner(br#"</priority>"#)?;
         }
 
@@ -145,7 +142,7 @@ pub struct Url<'a> {
     loc: Cow<'a, str>,
     lastmod: Option<Cow<'a, str>>,
     changefreq: Option<Changefreq>,
-    priority: Option<Priority>,
+    priority: Option<Cow<'a, str>>,
 }
 
 impl<'a> TryFrom<&'a str> for Url<'a> {
@@ -193,9 +190,9 @@ impl<'a> Url<'a> {
 
     pub fn priority<S>(mut self, s: S) -> Result<Self>
     where
-        S: TryInto<Priority>,
+        S: TryInto<Priority<'a>>,
     {
-        let priority = s.try_into().map_err(|_| Error::Uncategorized)?;
+        let priority = s.try_into().map_err(|_| Error::Uncategorized)?.into_inner();
         self.priority = Some(priority);
         Ok(self)
     }

@@ -1,31 +1,32 @@
-use ordered_float::NotNan;
+use std::borrow::Cow;
 
 // TODO: Error
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 #[error("error")]
 pub struct Error;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Priority(NotNan<f64>);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Priority<'a>(Cow<'a, str>);
 
-impl std::fmt::Display for Priority {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+impl<'a> Priority<'a> {
+    pub(crate) fn into_inner(self) -> Cow<'a, str> {
+        self.0
     }
 }
 
-impl TryFrom<&str> for Priority {
+impl<'a> TryFrom<&'a str> for Priority<'a> {
     type Error = Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Self::try_from(value.parse::<f64>().map_err(|_| Error)?)
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        value.parse::<f64>().map_err(|_| Error)?;
+        Ok(Self(Cow::Borrowed(value)))
     }
 }
 
-impl TryFrom<f64> for Priority {
+impl<'a> TryFrom<f64> for Priority<'a> {
     type Error = Error;
 
     fn try_from(value: f64) -> Result<Self, Self::Error> {
-        NotNan::new(value).map(Self).map_err(|_| Error)
+        Ok(Self(Cow::Owned(value.to_string())))
     }
 }
