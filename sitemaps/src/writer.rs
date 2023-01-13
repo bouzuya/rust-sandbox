@@ -7,15 +7,24 @@ use std::{borrow::Cow, io::Write};
 
 use self::{changefreq::Changefreq, lastmod::Lastmod, loc::Loc, priority::Priority};
 
-// TODO: improve error
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("invalid changefreq")]
+    InvalidChangefreq,
+    #[error("invalid lastmod")]
+    InvalidLastmod,
+    #[error("invalid loc")]
+    InvalidLoc,
+    #[error("invalid priority")]
+    InvalidPriority,
+    #[error("invalid url")]
+    InvalidUrl,
+    #[error("io")]
+    Io(#[from] std::io::Error),
     #[error("max byte length is 50 MB (52,428,800 bytes)")]
     MaxByteLength,
     #[error("max number of urls is 50,000")]
     MaxNumberOfUrls,
-    #[error("uncategorized")]
-    Uncategorized,
 }
 
 type Result<T, E = Error> = std::result::Result<T, E>;
@@ -48,7 +57,7 @@ impl<W: Write> SitemapWriter<W> {
         }
         self.number_of_urls += 1;
 
-        let url: Url<'a> = url.try_into().map_err(|_| Error::Uncategorized)?;
+        let url: Url<'a> = url.try_into().map_err(|_| Error::InvalidUrl)?;
         self.write_indent(1)?;
         self.write_inner(br#"<url>"#)?;
 
@@ -125,9 +134,7 @@ impl<W: Write> SitemapWriter<W> {
         }
         self.byte_length += l;
 
-        self.write
-            .write_all(buf)
-            .map_err(|_| Error::Uncategorized)?;
+        self.write.write_all(buf)?;
         Ok(())
     }
 }
@@ -188,10 +195,7 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Loc<'a>>,
     {
-        let loc = loc
-            .try_into()
-            .map_err(|_| Error::Uncategorized)?
-            .into_inner();
+        let loc = loc.try_into().map_err(|_| Error::InvalidLoc)?.into_inner();
         Ok(Self {
             loc,
             lastmod: None,
@@ -204,7 +208,7 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Changefreq>,
     {
-        let changefreq = s.try_into().map_err(|_| Error::Uncategorized)?;
+        let changefreq = s.try_into().map_err(|_| Error::InvalidChangefreq)?;
         self.changefreq = Some(changefreq);
         Ok(self)
     }
@@ -213,7 +217,10 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Lastmod<'a>>,
     {
-        let lastmod = s.try_into().map_err(|_| Error::Uncategorized)?.into_inner();
+        let lastmod = s
+            .try_into()
+            .map_err(|_| Error::InvalidLastmod)?
+            .into_inner();
         self.lastmod = Some(lastmod);
         Ok(self)
     }
@@ -222,7 +229,10 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Priority<'a>>,
     {
-        let priority = s.try_into().map_err(|_| Error::Uncategorized)?.into_inner();
+        let priority = s
+            .try_into()
+            .map_err(|_| Error::InvalidPriority)?
+            .into_inner();
         self.priority = Some(priority);
         Ok(self)
     }
