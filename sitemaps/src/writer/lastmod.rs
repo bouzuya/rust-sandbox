@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use time::format_description::well_known::Iso8601;
 
 // TODO: Error
@@ -5,52 +7,45 @@ use time::format_description::well_known::Iso8601;
 #[error("error")]
 pub struct Error;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Lastmod(LastmodInner);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Lastmod<'a>(Cow<'a, str>);
 
-impl std::fmt::Display for Lastmod {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
+impl<'a> Lastmod<'a> {
+    pub(crate) fn into_inner(self) -> Cow<'a, str> {
+        self.0
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum LastmodInner {
-    Date(time::Date),
-    OffsetDateTime(time::OffsetDateTime),
-}
-
-impl std::fmt::Display for LastmodInner {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            LastmodInner::Date(d) => {
-                let format = time::macros::format_description!("[year]-[month]-[day]");
-                d.format(&format).expect("formattable date").fmt(f)
-            }
-            LastmodInner::OffsetDateTime(odt) => odt
-                .format(&Iso8601::DEFAULT)
-                .expect("formattable offset date time")
-                .fmt(f),
-        }
-    }
-}
-
-impl TryFrom<&str> for Lastmod {
+impl<'a> TryFrom<&'a str> for Lastmod<'a> {
     type Error = Error;
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         if value.len() == 10 {
             let format = time::macros::format_description!("[year]-[month]-[day]");
-            time::Date::parse(value, &format)
-                .map(LastmodInner::Date)
-                .map(Self)
-                .map_err(|_| Error)
+            time::Date::parse(value, &format).map_err(|_| Error)?;
         } else {
-            time::OffsetDateTime::parse(value, &Iso8601::DEFAULT)
-                .map(LastmodInner::OffsetDateTime)
-                .map(Self)
-                .map_err(|_| Error)
+            time::OffsetDateTime::parse(value, &Iso8601::DEFAULT).map_err(|_| Error)?;
         }
+        Ok(Self(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> TryFrom<time::Date> for Lastmod<'a> {
+    type Error = Error;
+
+    fn try_from(value: time::Date) -> Result<Self, Self::Error> {
+        let format = time::macros::format_description!("[year]-[month]-[day]");
+        let s = value.format(&format).map_err(|_| Error)?;
+        Ok(Self(Cow::Owned(s)))
+    }
+}
+
+impl<'a> TryFrom<time::OffsetDateTime> for Lastmod<'a> {
+    type Error = Error;
+
+    fn try_from(value: time::OffsetDateTime) -> Result<Self, Self::Error> {
+        let s = value.format(&Iso8601::DEFAULT).map_err(|_| Error)?;
+        Ok(Self(Cow::Owned(s)))
     }
 }
 
@@ -61,35 +56,26 @@ mod tests {
     #[test]
     fn test() -> anyhow::Result<()> {
         let lastmod = Lastmod::try_from("2005-01-01")?;
-        assert_eq!(
-            lastmod,
-            Lastmod(LastmodInner::Date(time::macros::date!(2005 - 01 - 01)))
-        );
-        assert_eq!(lastmod.to_string(), "2005-01-01");
-
-        let lastmod = Lastmod::try_from("2004-12-23")?;
-        assert_eq!(
-            lastmod,
-            Lastmod(LastmodInner::Date(time::macros::date!(2004 - 12 - 23)))
-        );
-        assert_eq!(lastmod.to_string(), "2004-12-23");
+        assert_eq!(lastmod.into_inner(), "2005-01-01");
 
         let lastmod = Lastmod::try_from("2004-12-23T18:00:15+00:00")?;
-        assert_eq!(
-            lastmod,
-            Lastmod(LastmodInner::OffsetDateTime(
-                time::macros::datetime!(2004-12-23 18:00:15 +00:00)
-            ))
-        );
-        // TODO
-        assert_eq!(lastmod.to_string(), "2004-12-23T18:00:15.000000000Z");
+        assert_eq!(lastmod.into_inner(), "2004-12-23T18:00:15+00:00");
+        Ok(())
+    }
 
-        let lastmod = Lastmod::try_from("2004-11-23")?;
-        assert_eq!(
-            lastmod,
-            Lastmod(LastmodInner::Date(time::macros::date!(2004 - 11 - 23)))
-        );
-        assert_eq!(lastmod.to_string(), "2004-11-23");
+    #[test]
+    fn test_date() -> anyhow::Result<()> {
+        #[rustfmt::skip]
+        let lastmod = Lastmod::try_from(time::macros::date!(2005-01-01))?;
+        assert_eq!(lastmod.into_inner(), "2005-01-01");
+        Ok(())
+    }
+
+    #[test]
+    fn test_date_time() -> anyhow::Result<()> {
+        #[rustfmt::skip]
+        let lastmod = Lastmod::try_from(time::macros::datetime!(2004-12-23 18:00:15 +00:00))?;
+        assert_eq!(lastmod.into_inner(), "2004-12-23T18:00:15.000000000Z");
         Ok(())
     }
 }

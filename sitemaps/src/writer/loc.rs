@@ -9,7 +9,7 @@ pub struct Error;
 pub struct Loc<'a>(Cow<'a, str>);
 
 impl<'a> Loc<'a> {
-    pub fn into_inner(self) -> Cow<'a, str> {
+    pub(crate) fn into_inner(self) -> Cow<'a, str> {
         self.0
     }
 }

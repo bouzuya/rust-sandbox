@@ -55,14 +55,12 @@ impl<W: Write> SitemapWriter<W> {
 
         let content = url.loc;
         self.write_inner(br#"<loc>"#)?;
-        self.write_inner(entity_escape(&content).as_bytes())?;
+        self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
         self.write_inner(br#"</loc>"#)?;
 
-        if let Some(lastmod) = url.lastmod {
-            let content = lastmod.to_string();
-            let content = content.as_ref();
+        if let Some(content) = url.lastmod {
             self.write_inner(br#"<lastmod>"#)?;
-            self.write_inner(entity_escape(content).as_bytes())?;
+            self.write_inner(entity_escape(content.as_ref()).as_bytes())?;
             self.write_inner(br#"</lastmod>"#)?;
         }
 
@@ -145,7 +143,7 @@ fn entity_escape(s: &str) -> Cow<str> {
 
 pub struct Url<'a> {
     loc: Cow<'a, str>,
-    lastmod: Option<Lastmod>,
+    lastmod: Option<Cow<'a, str>>,
     changefreq: Option<Changefreq>,
     priority: Option<Priority>,
 }
@@ -186,9 +184,9 @@ impl<'a> Url<'a> {
 
     pub fn lastmod<S>(mut self, s: S) -> Result<Self>
     where
-        S: TryInto<Lastmod>,
+        S: TryInto<Lastmod<'a>>,
     {
-        let lastmod = s.try_into().map_err(|_| Error::Uncategorized)?;
+        let lastmod = s.try_into().map_err(|_| Error::Uncategorized)?.into_inner();
         self.lastmod = Some(lastmod);
         Ok(self)
     }
@@ -302,6 +300,46 @@ mod tests {
             r#"<url>"#,
             r#"<loc>http://www.example.com/</loc>"#,
             r#"<lastmod>2005-01-01</lastmod>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_lastmod_time_date() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        #[rustfmt::skip]
+        writer.write(Url::loc("http://www.example.com/")?.lastmod(time::macros::date!(2005-01-01))?)?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<lastmod>2005-01-01</lastmod>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_lastmod_time_date_time() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        #[rustfmt::skip]
+        writer.write(Url::loc("http://www.example.com/")?.lastmod(time::macros::datetime!(2004-12-23 18:00:15 +00:00))?)?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"<lastmod>2004-12-23T18:00:15.000000000Z</lastmod>"#,
             r#"</url>"#,
             r#"</urlset>"#
         );
