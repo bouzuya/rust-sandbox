@@ -1,13 +1,15 @@
+use std::borrow::Cow;
+
 // TODO: Error
 #[derive(Clone, Debug, Eq, PartialEq, thiserror::Error)]
 #[error("error")]
 pub struct Error;
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub struct Loc<'a>(&'a str);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Loc<'a>(Cow<'a, str>);
 
 impl<'a> Loc<'a> {
-    pub fn into_inner(self) -> &'a str {
+    pub fn into_inner(self) -> Cow<'a, str> {
         self.0
     }
 }
@@ -23,7 +25,19 @@ impl<'a> TryFrom<&'a str> for Loc<'a> {
         if u.as_str() != value {
             return Err(Error);
         }
-        Ok(Self(value))
+        Ok(Self(Cow::Borrowed(value)))
+    }
+}
+
+impl<'a> TryFrom<url::Url> for Loc<'a> {
+    type Error = Error;
+
+    fn try_from(value: url::Url) -> Result<Self, Self::Error> {
+        let s = value.to_string();
+        if s.chars().count() >= 2048 {
+            return Err(Error);
+        }
+        Ok(Self(Cow::Owned(s)))
     }
 }
 

@@ -50,12 +50,12 @@ impl<W: Write> SitemapWriter<W> {
         }
         self.number_of_urls += 1;
 
-        let url = url.try_into().map_err(|_| Error::Uncategorized)?;
+        let url: Url<'a> = url.try_into().map_err(|_| Error::Uncategorized)?;
         self.write_inner(br#"<url>"#)?;
 
         let content = url.loc;
         self.write_inner(br#"<loc>"#)?;
-        self.write_inner(entity_escape(content).as_bytes())?;
+        self.write_inner(entity_escape(&content).as_bytes())?;
         self.write_inner(br#"</loc>"#)?;
 
         if let Some(lastmod) = url.lastmod {
@@ -144,7 +144,7 @@ fn entity_escape(s: &str) -> Cow<str> {
 }
 
 pub struct Url<'a> {
-    loc: &'a str,
+    loc: Cow<'a, str>,
     lastmod: Option<Lastmod>,
     changefreq: Option<Changefreq>,
     priority: Option<Priority>,
@@ -163,9 +163,12 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Loc<'a>>,
     {
-        let loc = loc.try_into().map_err(|_| Error::Uncategorized)?;
+        let loc = loc
+            .try_into()
+            .map_err(|_| Error::Uncategorized)?
+            .into_inner();
         Ok(Self {
-            loc: loc.into_inner(),
+            loc,
             lastmod: None,
             changefreq: None,
             priority: None,
@@ -250,7 +253,25 @@ mod tests {
     }
 
     #[test]
-    fn test_url_builder_loc() -> anyhow::Result<()> {
+    fn test_url_builder_loc_url() -> anyhow::Result<()> {
+        let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+        writer.write(Url::loc(url::Url::parse("http://www.example.com/")?)?)?;
+        writer.end()?;
+        let actual = String::from_utf8(writer.into_inner().into_inner())?;
+        let expected = concat!(
+            r#"<?xml version="1.0" encoding="UTF-8"?>"#,
+            r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
+            r#"<url>"#,
+            r#"<loc>http://www.example.com/</loc>"#,
+            r#"</url>"#,
+            r#"</urlset>"#
+        );
+        assert_eq!(actual, expected);
+        Ok(())
+    }
+
+    #[test]
+    fn test_url_builder_loc_str() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
         writer.write(Url::loc("http://www.example.com/")?)?;
         writer.end()?;
