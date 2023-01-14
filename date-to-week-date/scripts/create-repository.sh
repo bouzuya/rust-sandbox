@@ -2,10 +2,10 @@
 
 # <https://cloud.google.com/artifact-registry/docs/repositories/create-repos#gcloud>
 
-location=
-repository=
+location="${1}"
+repository="${2}"
 
-if [ -z "${repository}" ] || [ -z "${service_account_name}" ]
+if [ -z "${location}" ] || [ -z "${repository}" ]
 then
   exit 1
 fi
