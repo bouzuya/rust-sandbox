@@ -66,7 +66,7 @@ jobs:
           region=${{ secrets.ONLINE_SITEMAP_BUILDER_GCP_REGION }}
           gcloud auth configure-docker ${region}-docker.pkg.dev
       - run: |-
-          docker build -t ${IMAGE_URL} .
+          docker build --build-arg BASE_PATH=/lab/online-sitemap-builder -t ${IMAGE_URL} .
           docker push ${IMAGE_URL}
       - run: |-
           gcloud run deploy ${{ secrets.ONLINE_SITEMAP_BUILDER_GCP_SERVICE }} \
@@ -77,5 +77,4 @@ jobs:
             --platform "managed" \
             --quiet \
             --region ${{ secrets.ONLINE_SITEMAP_BUILDER_GCP_REGION }} \
-            --service-account ${{ secrets.ONLINE_SITEMAP_BUILDER_GCP_SERVICE_ACCOUNT }} \
-            --set-env-vars "BASE_PATH=/lab/online-sitemap-builder"
+            --service-account ${{ secrets.ONLINE_SITEMAP_BUILDER_GCP_SERVICE_ACCOUNT }}
