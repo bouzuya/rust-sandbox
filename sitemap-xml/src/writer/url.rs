@@ -1,8 +1,10 @@
 use std::borrow::Cow;
 
-use crate::writer::{changefreq::Changefreq, lastmod::Lastmod, loc::Loc, priority::Priority};
+use crate::writer::{
+    changefreq::Changefreq, lastmod::Lastmod, loc::Loc, priority::Priority, sitemap_writer::Error,
+};
 
-type Result<T, E = crate::writer::Error> = std::result::Result<T, E>;
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct Url<'a> {
     pub(in crate::writer) loc: Cow<'a, str>,
@@ -12,7 +14,7 @@ pub struct Url<'a> {
 }
 
 impl<'a> TryFrom<&'a str> for Url<'a> {
-    type Error = crate::writer::Error;
+    type Error = Error;
 
     fn try_from(value: &'a str) -> Result<Self, Self::Error> {
         Self::loc(value)
@@ -24,10 +26,7 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Loc<'a>>,
     {
-        let loc = loc
-            .try_into()
-            .map_err(|_| crate::writer::Error::InvalidLoc)?
-            .into_inner();
+        let loc = loc.try_into().map_err(|_| Error::InvalidLoc)?.into_inner();
         Ok(Self {
             loc,
             lastmod: None,
@@ -40,9 +39,7 @@ impl<'a> Url<'a> {
     where
         S: TryInto<Changefreq>,
     {
-        let changefreq = s
-            .try_into()
-            .map_err(|_| crate::writer::Error::InvalidChangefreq)?;
+        let changefreq = s.try_into().map_err(|_| Error::InvalidChangefreq)?;
         self.changefreq = Some(changefreq);
         Ok(self)
     }
@@ -53,7 +50,7 @@ impl<'a> Url<'a> {
     {
         let lastmod = s
             .try_into()
-            .map_err(|_| crate::writer::Error::InvalidLastmod)?
+            .map_err(|_| Error::InvalidLastmod)?
             .into_inner();
         self.lastmod = Some(lastmod);
         Ok(self)
@@ -65,7 +62,7 @@ impl<'a> Url<'a> {
     {
         let priority = s
             .try_into()
-            .map_err(|_| crate::writer::Error::InvalidPriority)?
+            .map_err(|_| Error::InvalidPriority)?
             .into_inner();
         self.priority = Some(priority);
         Ok(self)

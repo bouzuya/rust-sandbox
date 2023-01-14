@@ -1,8 +1,28 @@
 use std::{borrow::Cow, io::Write};
 
-use crate::writer::{url::Url, Error, Result};
+use crate::writer::url::Url;
 
 use self::private::SealedTryIntoUrl;
+
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("invalid changefreq")]
+    InvalidChangefreq,
+    #[error("invalid lastmod")]
+    InvalidLastmod,
+    #[error("invalid loc")]
+    InvalidLoc,
+    #[error("invalid priority")]
+    InvalidPriority,
+    #[error("io")]
+    Io(#[from] std::io::Error),
+    #[error("max byte length is 50 MiB (52,428,800 bytes)")]
+    MaxByteLength,
+    #[error("max number of urls is 50,000")]
+    MaxNumberOfUrls,
+}
+
+type Result<T, E = Error> = std::result::Result<T, E>;
 
 pub struct SitemapWriter<W: Write> {
     write: W,
@@ -154,18 +174,20 @@ fn entity_escape(s: &str) -> Cow<str> {
 mod private {
     use crate::writer::Url;
 
+    use super::Error;
+
     pub trait SealedTryIntoUrl<'a> {
-        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error>;
+        fn try_into_url(self) -> Result<Url<'a>, Error>;
     }
 
     impl<'a> SealedTryIntoUrl<'a> for Url<'a> {
-        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error> {
+        fn try_into_url(self) -> Result<Url<'a>, Error> {
             Ok(self)
         }
     }
 
     impl<'a> SealedTryIntoUrl<'a> for &'a str {
-        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error> {
+        fn try_into_url(self) -> Result<Url<'a>, Error> {
             Url::loc(self)
         }
     }
