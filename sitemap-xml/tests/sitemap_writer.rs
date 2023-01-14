@@ -4,10 +4,10 @@ use std::io::Cursor;
 
 #[test]
 fn test_sitemap_writer_start_with_indent() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start_with_indent(Cursor::new(Vec::new()))?;
-    sitemap_writer.write("http://www.example.com/")?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start_with_indent(Cursor::new(Vec::new()))?;
+    writer.write("http://www.example.com/")?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = r#"<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -20,10 +20,10 @@ fn test_sitemap_writer_start_with_indent() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_str() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write("http://www.example.com/")?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write("http://www.example.com/")?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -38,14 +38,14 @@ fn test_sitemap_writer_write_str() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(
         Url::loc("http://www.example.com/")?
             .lastmod("2005-01-01")?
             .changefreq("monthly")?
             .priority("0.8")?,
     )?;
-    sitemap_writer.write(
+    writer.write(
         // <https://crates.io/crates/url> support
         // If you want to ensure that the URL is Valid, use `::url::Url`.
         // If you use &str, the URL is assumed to be valid and only the length check and XML entity escaping are performed.
@@ -55,25 +55,25 @@ fn test_sitemap_writer_write_url() -> anyhow::Result<()> {
         .changefreq(Changefreq::Monthly)?,
     )?;
     #[rustfmt::skip]
-    sitemap_writer.write(
+    writer.write(
         Url::loc("http://www.example.com/catalog?item=73&desc=vacation_new_zealand")?
             // <https://crates.io/crates/time> support (`time::Date`)
             .lastmod(::time::macros::date!(2004-12-23))?
             .changefreq(Changefreq::Weekly)?
     )?;
     #[rustfmt::skip]
-    sitemap_writer.write(
+    writer.write(
         Url::loc("http://www.example.com/catalog?item=74&desc=vacation_newfoundland")?
             // <https://crates.io/crates/time> support (`time::DateTime`)
             .lastmod(::time::macros::datetime!(2004-12-23 18:00:15 +00:00))?
             .priority(0.3)?
     )?;
-    sitemap_writer.write(
+    writer.write(
         Url::loc("http://www.example.com/catalog?item=83&desc=vacation_usa")?
             .lastmod("2004-11-23")?,
     )?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     // Sample XML Sitemap in <https://sitemaps.org/protocol.html>
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
@@ -111,15 +111,15 @@ fn test_sitemap_writer_write_url() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url_typed() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(
         Url::loc(Loc::try_from("http://www.example.com/")?)?
             .lastmod(Lastmod::try_from("2005-01-01")?)?
             .changefreq(Changefreq::try_from("monthly")?)?
             .priority(Priority::try_from("0.8")?)?,
     )?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -137,10 +137,10 @@ fn test_sitemap_writer_write_url_typed() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url_loc() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(Url::loc("http://www.example.com/")?)?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(Url::loc("http://www.example.com/")?)?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -155,10 +155,10 @@ fn test_sitemap_writer_write_url_loc() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url_lastmod() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(Url::loc("http://www.example.com/")?.lastmod("2005-01-01")?)?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(Url::loc("http://www.example.com/")?.lastmod("2005-01-01")?)?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -174,10 +174,10 @@ fn test_sitemap_writer_write_url_lastmod() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url_changefreq() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(Url::loc("http://www.example.com/")?.changefreq("monthly")?)?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(Url::loc("http://www.example.com/")?.changefreq("monthly")?)?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
@@ -193,10 +193,10 @@ fn test_sitemap_writer_write_url_changefreq() -> anyhow::Result<()> {
 
 #[test]
 fn test_sitemap_writer_write_url_priority() -> anyhow::Result<()> {
-    let mut sitemap_writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-    sitemap_writer.write(Url::loc("http://www.example.com/")?.priority("0.8")?)?;
-    sitemap_writer.end()?;
-    let actual = String::from_utf8(sitemap_writer.into_inner().into_inner())?;
+    let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
+    writer.write(Url::loc("http://www.example.com/")?.priority("0.8")?)?;
+    writer.end()?;
+    let actual = String::from_utf8(writer.into_inner().into_inner())?;
     let expected = concat!(
         r#"<?xml version="1.0" encoding="UTF-8"?>"#,
         r#"<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">"#,
