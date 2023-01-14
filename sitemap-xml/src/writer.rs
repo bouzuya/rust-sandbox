@@ -2,10 +2,11 @@ mod changefreq;
 mod lastmod;
 mod loc;
 mod priority;
+mod url;
 
 use std::{borrow::Cow, io::Write};
 
-use self::{changefreq::Changefreq, lastmod::Lastmod, loc::Loc, priority::Priority};
+use self::url::Url;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -175,71 +176,10 @@ fn entity_escape(s: &str) -> Cow<str> {
     }
 }
 
-pub struct Url<'a> {
-    loc: Cow<'a, str>,
-    lastmod: Option<Cow<'a, str>>,
-    changefreq: Option<Changefreq>,
-    priority: Option<Cow<'a, str>>,
-}
-
-impl<'a> TryFrom<&'a str> for Url<'a> {
-    type Error = Error;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::loc(value)
-    }
-}
-
-impl<'a> Url<'a> {
-    pub fn loc<S>(loc: S) -> Result<Self>
-    where
-        S: TryInto<Loc<'a>>,
-    {
-        let loc = loc.try_into().map_err(|_| Error::InvalidLoc)?.into_inner();
-        Ok(Self {
-            loc,
-            lastmod: None,
-            changefreq: None,
-            priority: None,
-        })
-    }
-
-    pub fn changefreq<S>(mut self, s: S) -> Result<Self>
-    where
-        S: TryInto<Changefreq>,
-    {
-        let changefreq = s.try_into().map_err(|_| Error::InvalidChangefreq)?;
-        self.changefreq = Some(changefreq);
-        Ok(self)
-    }
-
-    pub fn lastmod<S>(mut self, s: S) -> Result<Self>
-    where
-        S: TryInto<Lastmod<'a>>,
-    {
-        let lastmod = s
-            .try_into()
-            .map_err(|_| Error::InvalidLastmod)?
-            .into_inner();
-        self.lastmod = Some(lastmod);
-        Ok(self)
-    }
-
-    pub fn priority<S>(mut self, s: S) -> Result<Self>
-    where
-        S: TryInto<Priority<'a>>,
-    {
-        let priority = s
-            .try_into()
-            .map_err(|_| Error::InvalidPriority)?
-            .into_inner();
-        self.priority = Some(priority);
-        Ok(self)
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use crate::writer::{changefreq::Changefreq, lastmod::Lastmod, priority::Priority};
+
     use super::*;
     use std::io::Cursor;
 
@@ -306,7 +246,7 @@ mod tests {
     #[test]
     fn test_url_builder_loc_url() -> anyhow::Result<()> {
         let mut writer = SitemapWriter::start(Cursor::new(Vec::new()))?;
-        writer.write(Url::loc(url::Url::parse("http://www.example.com/")?)?)?;
+        writer.write(Url::loc(::url::Url::parse("http://www.example.com/")?)?)?;
         writer.end()?;
         let actual = String::from_utf8(writer.into_inner().into_inner())?;
         let expected = concat!(
