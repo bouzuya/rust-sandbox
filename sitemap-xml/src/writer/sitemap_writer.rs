@@ -2,6 +2,8 @@ use std::{borrow::Cow, io::Write};
 
 use crate::writer::{url::Url, Error, Result};
 
+use self::private::SealedTryIntoUrl;
+
 pub struct SitemapWriter<W: Write> {
     write: W,
     byte_length: usize,
@@ -23,14 +25,14 @@ impl<W: Write> SitemapWriter<W> {
 
     pub fn write<'a, U>(&mut self, url: U) -> Result<()>
     where
-        U: TryInto<Url<'a>>,
+        U: SealedTryIntoUrl<'a>,
     {
         if self.number_of_urls + 1 > Self::MAX_NUMBER_OF_URLS {
             return Err(Error::MaxNumberOfUrls);
         }
         self.number_of_urls += 1;
 
-        let url: Url<'a> = url.try_into().map_err(|_| Error::InvalidUrl)?;
+        let url: Url<'a> = url.try_into_url()?;
         self.write_indent(1)?;
         self.write_inner(br#"<url>"#)?;
 
@@ -146,6 +148,26 @@ fn entity_escape(s: &str) -> Cow<str> {
         Cow::Owned(String::from_utf8(escaped).expect("valid UTF-8"))
     } else {
         Cow::Borrowed(s)
+    }
+}
+
+mod private {
+    use crate::writer::Url;
+
+    pub trait SealedTryIntoUrl<'a> {
+        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error>;
+    }
+
+    impl<'a> SealedTryIntoUrl<'a> for Url<'a> {
+        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error> {
+            Ok(self)
+        }
+    }
+
+    impl<'a> SealedTryIntoUrl<'a> for &'a str {
+        fn try_into_url(self) -> Result<Url<'a>, crate::writer::Error> {
+            Url::loc(self)
+        }
     }
 }
 

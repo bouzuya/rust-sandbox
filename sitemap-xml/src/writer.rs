@@ -22,8 +22,6 @@ pub enum Error {
     InvalidLoc,
     #[error("invalid priority")]
     InvalidPriority,
-    #[error("invalid url")]
-    InvalidUrl,
     #[error("io")]
     Io(#[from] std::io::Error),
     #[error("max byte length is 50 MB (52,428,800 bytes)")]
