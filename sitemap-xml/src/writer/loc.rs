@@ -5,6 +5,7 @@ use std::borrow::Cow;
 #[error("error")]
 pub struct Error;
 
+/// A `loc` child entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Loc<'a>(Cow<'a, str>);
 

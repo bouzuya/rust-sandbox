@@ -35,6 +35,7 @@ impl From<crate::writer::sitemap_xml_writer::Error> for Error {
 
 type Result<T, E = Error> = std::result::Result<T, E>;
 
+/// A writer for sitemap file.
 pub struct SitemapWriter<W: Write> {
     writer: SitemapXmlWriter<W>,
     number_of_urls: usize,

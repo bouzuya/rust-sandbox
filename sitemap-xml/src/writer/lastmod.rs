@@ -7,6 +7,7 @@ use time::format_description::well_known::Iso8601;
 #[error("error")]
 pub struct Error;
 
+/// A `lastmod` child entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Lastmod<'a>(Cow<'a, str>);
 

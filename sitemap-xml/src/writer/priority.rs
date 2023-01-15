@@ -10,6 +10,7 @@ pub enum Error {
     Range,
 }
 
+/// A `priority` child entry.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Priority<'a>(Cow<'a, str>);
 
@@ -19,6 +20,7 @@ impl<'a> Priority<'a> {
     }
 
     fn is_valid_format(s: &str) -> Result<(), Error> {
+        // <https://www.w3.org/TR/xmlschema11-2/#decimal>
         lazy_static! {
             static ref RE: Regex =
                 Regex::new(r#"\A(\+|-)?([0-9]+(\.[0-9]*)?|\.[0-9]+)\z"#).unwrap();

@@ -1,6 +1,6 @@
 # sitemaps
 
-<https://www.sitemaps.org/>
+The sitemap-xml crate provides writers for [`sitemap.xml`](https://www.sitemaps.org/).
 
 ## Usage
 
