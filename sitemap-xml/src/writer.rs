@@ -5,6 +5,7 @@ mod priority;
 mod sitemap;
 mod sitemap_index_writer;
 mod sitemap_writer;
+mod sitemap_xml_writer;
 mod url;
 
 pub use self::changefreq::Changefreq;
