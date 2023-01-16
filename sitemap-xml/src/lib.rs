@@ -13,4 +13,5 @@
 //!
 
 // #[warn(missing_docs)]
+pub mod reader;
 pub mod writer;
