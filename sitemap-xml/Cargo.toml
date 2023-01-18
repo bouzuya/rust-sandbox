@@ -10,8 +10,12 @@ lazy_static = "1.4.0"
 regex = "1.7.1"
 strum = { version = "0.24", features = ["derive"] }
 thiserror = "1"
-time = { version = "0.3", features = ["formatting", "macros", "parsing"] }
+time = { version = "0.3", features = ["formatting", "macros", "parsing"], optional = true }
 url = "2"
 
 [dev-dependencies]
 anyhow = "1"
+
+[features]
+default = []
+time = ["dep:time"]
