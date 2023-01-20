@@ -1,6 +1,7 @@
 use hatena_blog_api::{Entry, EntryId, FixedDateTime};
 
-use crate::{data::DateTime, hatena_blog::HatenaBlogEntryId};
+use crate::hatena_blog::HatenaBlogEntryId;
+use bbn_data::DateTime;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HatenaBlogEntry {

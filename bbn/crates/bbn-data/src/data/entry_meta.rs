@@ -1,8 +1,8 @@
-use crate::{data::DateTime, hatena_blog::HatenaBlogEntryId};
+use crate::data::DateTime;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EntryMeta {
-    pub hatena_blog_entry_id: Option<HatenaBlogEntryId>,
+    pub hatena_blog_entry_id: Option<String>,
     pub hatena_blog_entry_url: Option<String>,
     pub hatena_blog_ignore: Option<bool>,
     pub minutes: u64,

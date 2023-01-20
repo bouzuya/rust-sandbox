@@ -1,11 +1,9 @@
-use crate::{
-    data::{DateTime, EntryMeta, Timestamp},
-    hatena_blog::{
-        HatenaBlogEntry, HatenaBlogEntryId, HatenaBlogListEntriesResponse, Indexing, IndexingId,
-        MemberRequest, MemberRequestId, MemberResponseId,
-    },
+use crate::hatena_blog::{
+    HatenaBlogEntry, HatenaBlogEntryId, HatenaBlogListEntriesResponse, Indexing, IndexingId,
+    MemberRequest, MemberRequestId, MemberResponseId,
 };
 use anyhow::Context as _;
+use bbn_data::{DateTime, EntryMeta, Timestamp};
 use hatena_blog_api::{Entry, EntryId, FixedDateTime};
 use sqlx::{
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteRow},
@@ -226,7 +224,10 @@ impl HatenaBlogRepository {
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
         match entry_meta.hatena_blog_entry_id.clone() {
             None => self.find_entry_by_updated(entry_meta.pubdate.into()).await,
-            Some(entry_id) => self.find_entry_by_id(entry_id).await,
+            Some(entry_id) => {
+                self.find_entry_by_id(HatenaBlogEntryId::from_str(entry_id.as_str())?)
+                    .await
+            }
         }
     }
 

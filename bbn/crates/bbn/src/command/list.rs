@@ -1,8 +1,7 @@
 use anyhow::Context;
 
-use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository, data::EntryId, query::Query,
-};
+use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository, query::Query};
+use bbn_data::EntryId;
 use std::convert::TryFrom;
 
 pub fn list(json: bool, query: String) -> anyhow::Result<()> {

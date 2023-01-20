@@ -1,9 +1,9 @@
 use crate::{
     bbn_repository::BbnRepository,
-    data::{EntryId, Timestamp},
     hatena_blog::{HatenaBlogClient, HatenaBlogRepository},
 };
 use anyhow::Context;
+use bbn_data::{EntryId, Timestamp};
 use date_range::date::Date;
 use thiserror::Error;
 

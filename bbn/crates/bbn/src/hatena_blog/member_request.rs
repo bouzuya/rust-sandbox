@@ -1,7 +1,5 @@
-use crate::{
-    data::Timestamp,
-    hatena_blog::{HatenaBlogEntryId, MemberRequestId},
-};
+use crate::hatena_blog::{HatenaBlogEntryId, MemberRequestId};
+use bbn_data::Timestamp;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MemberRequest {

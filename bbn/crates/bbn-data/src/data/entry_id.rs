@@ -1,5 +1,4 @@
 use date_range::date::Date;
-use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EntryId {
@@ -7,7 +6,7 @@ pub struct EntryId {
     id_title: Option<String>,
 }
 
-#[derive(Debug, Error)]
+#[derive(Debug, thiserror::Error)]
 #[error("parse entry id")]
 pub struct ParseEntryId;
 

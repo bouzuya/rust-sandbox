@@ -1,8 +1,6 @@
-use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository, data::EntryId,
-    data::EntryMeta,
-};
+use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository};
 use anyhow::Context;
+use bbn_data::{EntryId, EntryMeta};
 use date_range::date::Date;
 use serde::Serialize;
 

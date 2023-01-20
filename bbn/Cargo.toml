@@ -1,2 +1,9 @@
 [workspace]
 members = ["crates/*"]
+
+[workspace.dependencies]
+anyhow = "1.0.41"
+chrono = "0.4.19"
+date-range = { path = "../date-range" }
+hatena-blog-api = { git = "https://github.com/bouzuya/rust-hatena-blog-api", tag = "0.1.0" }
+thiserror = "1.0.30"

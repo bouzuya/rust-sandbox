@@ -1,12 +1,12 @@
 use crate::{
     bbn_repository::BbnRepository,
     config_repository::ConfigRepository,
-    data::{DateTime, EntryId, EntryMeta, Timestamp},
     hatena_blog::{
         download_entry, HatenaBlogClient, HatenaBlogEntry, HatenaBlogRepository, IndexingId,
     },
 };
 use anyhow::Context;
+use bbn_data::{DateTime, EntryId, EntryMeta, Timestamp};
 use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
 use hatena_blog_api::{Entry, GetEntryResponse};
@@ -103,7 +103,7 @@ fn update_bbn_entry(
     bbn_repository: &BbnRepository,
 ) -> anyhow::Result<()> {
     let entry = match bbn_repository.find_entry_by_id(&entry_id)? {
-        None => crate::data::Entry::new(
+        None => bbn_data::Entry::new(
             entry_id,
             EntryMeta::new(
                 15,

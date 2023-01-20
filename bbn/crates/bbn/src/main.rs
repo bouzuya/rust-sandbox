@@ -4,7 +4,6 @@ mod command;
 mod config;
 mod config_repository;
 mod credentials;
-mod data;
 mod hatena_blog;
 mod query;
 
