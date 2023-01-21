@@ -40,6 +40,8 @@ enum Subcommand {
         #[structopt(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
     },
+    #[structopt(name = "json", about = "...")]
+    Json,
     #[structopt(name = "list", about = "Lists the blog posts")]
     List {
         #[structopt(long = "json", help = "json")]
@@ -122,6 +124,7 @@ async fn main() -> anyhow::Result<()> {
             hatena_blog_data_file,
         } => command::config(data_dir, hatena_blog_data_file),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
+        Subcommand::Json => command::json(),
         Subcommand::List { json, query } => command::list(json, query),
         Subcommand::HatenaBlog { subcommand } => match subcommand {
             HatenaBlogSubcommand::Diff { date } => command::hatena_blog::diff(date).await,
