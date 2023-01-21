@@ -74,8 +74,8 @@ mod tests {
         let s1 = "2021-02-03T16:17:18Z";
         let s2 = "2021-02-03T16:17:18+00:00";
         let s3 = "2021-02-03T16:17:18+09:00";
-        assert_eq!(f(s1).is_ok(), true);
-        assert_eq!(f(s2).is_ok(), true);
+        assert!(f(s1).is_ok());
+        assert!(f(s2).is_ok());
         assert_eq!(f(s1), f(s2));
         assert_eq!(f(s1).map(g), Ok(s1.to_string()));
         assert_eq!(f(s2).map(g), Ok(s1.to_string())); // +00:00 -> Z

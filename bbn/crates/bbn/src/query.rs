@@ -272,60 +272,60 @@ mod tests {
     fn match_year() {
         let f = |s: &str, t: &str| -> bool {
             let q = Query::try_from(s).unwrap();
-            q.match_year(&OsStr::new(t))
+            q.match_year(OsStr::new(t))
         };
-        assert_eq!(f("date:2021-02-03", "2021"), true);
-        assert_eq!(f("date:2021-02-03", "2020"), false);
-        assert_eq!(f("date:2021-02", "2021"), true);
-        assert_eq!(f("date:2021", "2021"), true);
-        assert_eq!(f("date:--02-03", "2021"), true);
-        assert_eq!(f("date:--02-03", "2020"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2020"), false);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2021"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2022"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2023"), false);
+        assert!(f("date:2021-02-03", "2021"));
+        assert!(!f("date:2021-02-03", "2020"));
+        assert!(f("date:2021-02", "2021"));
+        assert!(f("date:2021", "2021"));
+        assert!(f("date:--02-03", "2021"));
+        assert!(f("date:--02-03", "2020"));
+        assert!(!f("date:2021-02-03/2022-03-04", "2020"));
+        assert!(f("date:2021-02-03/2022-03-04", "2021"));
+        assert!(f("date:2021-02-03/2022-03-04", "2022"));
+        assert!(!f("date:2021-02-03/2022-03-04", "2023"));
     }
 
     #[test]
     fn match_month() {
         let f = |s: &str, t: &str| -> bool {
             let q = Query::try_from(s).unwrap();
-            q.match_month(&OsStr::new(t))
+            q.match_month(OsStr::new(t))
         };
-        assert_eq!(f("date:2021-02-03", "02"), true);
-        assert_eq!(f("date:2021-02-03", "01"), false);
-        assert_eq!(f("date:2021-02", "02"), true);
-        assert_eq!(f("date:2021", "02"), true);
-        assert_eq!(f("date:2021", "01"), true);
-        assert_eq!(f("date:---03", "02"), true);
-        assert_eq!(f("date:---03", "01"), true);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "01"), false);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "02"), true);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "03"), true);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "04"), false);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "01"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "12"), true);
+        assert!(f("date:2021-02-03", "02"));
+        assert!(!f("date:2021-02-03", "01"));
+        assert!(f("date:2021-02", "02"));
+        assert!(f("date:2021", "02"));
+        assert!(f("date:2021", "01"));
+        assert!(f("date:---03", "02"));
+        assert!(f("date:---03", "01"));
+        assert!(!f("date:2021-02-03/2021-03-04", "01"));
+        assert!(f("date:2021-02-03/2021-03-04", "02"));
+        assert!(f("date:2021-02-03/2021-03-04", "03"));
+        assert!(!f("date:2021-02-03/2021-03-04", "04"));
+        assert!(f("date:2021-02-03/2022-03-04", "01"));
+        assert!(f("date:2021-02-03/2022-03-04", "12"));
     }
 
     #[test]
     fn match_day() {
         let f = |s: &str, t: &str| -> bool {
             let q = Query::try_from(s).unwrap();
-            q.match_day(&OsStr::new(t))
+            q.match_day(OsStr::new(t))
         };
-        assert_eq!(f("date:2021-02-03", "03"), true);
-        assert_eq!(f("date:2021-02-03", "02"), false);
-        assert_eq!(f("date:---03", "03"), true);
-        assert_eq!(f("date:---03", "02"), false);
-        assert_eq!(f("date:2021-02", "03"), true);
-        assert_eq!(f("date:2021-02-03/2021-02-04", "02"), false);
-        assert_eq!(f("date:2021-02-03/2021-02-04", "03"), true);
-        assert_eq!(f("date:2021-02-03/2021-02-04", "04"), true);
-        assert_eq!(f("date:2021-02-03/2021-02-04", "05"), false);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "01"), true);
-        assert_eq!(f("date:2021-02-03/2021-03-04", "31"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "01"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "31"), true);
+        assert!(f("date:2021-02-03", "03"));
+        assert!(!f("date:2021-02-03", "02"));
+        assert!(f("date:---03", "03"));
+        assert!(!f("date:---03", "02"));
+        assert!(f("date:2021-02", "03"));
+        assert!(!f("date:2021-02-03/2021-02-04", "02"));
+        assert!(f("date:2021-02-03/2021-02-04", "03"));
+        assert!(f("date:2021-02-03/2021-02-04", "04"));
+        assert!(!f("date:2021-02-03/2021-02-04", "05"));
+        assert!(f("date:2021-02-03/2021-03-04", "01"));
+        assert!(f("date:2021-02-03/2021-03-04", "31"));
+        assert!(f("date:2021-02-03/2022-03-04", "01"));
+        assert!(f("date:2021-02-03/2022-03-04", "31"));
     }
 
     #[test]
@@ -334,18 +334,18 @@ mod tests {
             let q = Query::try_from(s).unwrap();
             q.match_date(t)
         };
-        assert_eq!(f("date:2021-02-03", "2021-02-03"), true);
-        assert_eq!(f("date:2021-02-03", "2021-02-02"), false);
-        assert_eq!(f("date:2021-02", "2021-02-03"), true);
-        assert_eq!(f("date:2021-02", "2021-03-01"), false);
-        assert_eq!(f("date:2021", "2021-02-03"), true);
-        assert_eq!(f("date:2021", "2022-01-01"), false);
-        assert_eq!(f("date:--02-03", "2021-02-03"), true);
-        assert_eq!(f("date:--02-03", "2020-02-03"), true);
-        assert_eq!(f("date:--02-03", "2020-02-04"), false);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2021-02-02"), false);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2021-02-03"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2022-03-04"), true);
-        assert_eq!(f("date:2021-02-03/2022-03-04", "2022-03-05"), false);
+        assert!(f("date:2021-02-03", "2021-02-03"));
+        assert!(!f("date:2021-02-03", "2021-02-02"));
+        assert!(f("date:2021-02", "2021-02-03"));
+        assert!(!f("date:2021-02", "2021-03-01"));
+        assert!(f("date:2021", "2021-02-03"));
+        assert!(!f("date:2021", "2022-01-01"));
+        assert!(f("date:--02-03", "2021-02-03"));
+        assert!(f("date:--02-03", "2020-02-03"));
+        assert!(!f("date:--02-03", "2020-02-04"));
+        assert!(!f("date:2021-02-03/2022-03-04", "2021-02-02"));
+        assert!(f("date:2021-02-03/2022-03-04", "2021-02-03"));
+        assert!(f("date:2021-02-03/2022-03-04", "2022-03-04"));
+        assert!(!f("date:2021-02-03/2022-03-04", "2022-03-05"));
     }
 }

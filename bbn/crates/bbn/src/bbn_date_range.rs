@@ -85,16 +85,16 @@ mod tests {
         assert_eq!(year_month("2021-01"), Ok(("", ("2021", "01"))));
         assert_eq!(year_month("2021-12"), Ok(("", ("2021", "12"))));
         assert_eq!(year_month("2021-13"), Ok(("", ("2021", "13"))));
-        assert_eq!(year_month("2021-0a").is_err(), true);
+        assert!(year_month("2021-0a").is_err());
     }
 
     #[test]
     fn week_range_try_from_month_test() {
         let f = week_range_try_from_month;
-        assert_eq!(f("00").is_none(), true);
+        assert!(f("00").is_none());
         assert_eq!(f("01"), Some(("01", "04")));
         assert_eq!(f("04"), Some(("14", "17")));
         assert_eq!(f("12"), Some(("49", "52")));
-        assert_eq!(f("13").is_none(), true);
+        assert!(f("13").is_none());
     }
 }

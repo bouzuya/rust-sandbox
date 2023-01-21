@@ -7,6 +7,7 @@ use bbn_data::{EntryId, Timestamp};
 use date_range::date::Date;
 use thiserror::Error;
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, Error, Eq, PartialEq)]
 pub enum DownloadEntryError {
     #[error("no entry id")]

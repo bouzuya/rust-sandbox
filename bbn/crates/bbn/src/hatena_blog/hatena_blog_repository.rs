@@ -13,7 +13,6 @@ use std::{path::PathBuf, str::FromStr};
 
 #[derive(Debug)]
 pub struct HatenaBlogRepository {
-    data_file: PathBuf,
     pool: Pool<Sqlite>,
 }
 
@@ -43,7 +42,7 @@ impl HatenaBlogRepository {
             sqlx::query(migration).execute(&pool).await?;
         }
 
-        Ok(Self { data_file, pool })
+        Ok(Self { pool })
     }
 
     pub async fn create_collection_response(
@@ -66,7 +65,7 @@ impl HatenaBlogRepository {
             .bind(entry.id.to_string())
             .bind(entry.author_name)
             .bind(entry.content)
-            .bind(if entry.draft { 1_i64 } else { 0_i64 })
+            .bind(i64::from(entry.draft))
             .bind(i64::from(Timestamp::from(DateTime::from(entry.edited))))
             .bind(entry.edit_url)
             .bind(i64::from(Timestamp::from(DateTime::from(entry.published))))
@@ -313,6 +312,7 @@ impl HatenaBlogRepository {
         Ok(row.map(|(at,)| Timestamp::from(at)))
     }
 
+    #[allow(dead_code)]
     async fn find_indexing(&self, id: IndexingId) -> anyhow::Result<Option<Indexing>> {
         let row: Option<(i64, i64)> = sqlx::query_as(include_str!("../../sql/find_indexing.sql"))
             .bind(i64::from(id))

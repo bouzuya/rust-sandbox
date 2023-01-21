@@ -51,7 +51,7 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 impl From<EntryMeta> for MetaJson {
     fn from(meta: EntryMeta) -> Self {
         Self {
-            hatena_blog_entry_id: meta.hatena_blog_entry_id.map(|i| i.to_string()),
+            hatena_blog_entry_id: meta.hatena_blog_entry_id,
             hatena_blog_entry_url: meta.hatena_blog_entry_url,
             hatena_blog_ignore: meta.hatena_blog_ignore,
             minutes: meta.minutes,
