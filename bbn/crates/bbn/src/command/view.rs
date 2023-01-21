@@ -1,6 +1,7 @@
-use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository};
+use crate::config_repository::ConfigRepository;
 use anyhow::Context;
 use bbn_data::{EntryId, EntryMeta};
+use bbn_repository::BbnRepository;
 use date_range::date::Date;
 use serde::Serialize;
 
@@ -113,7 +114,7 @@ fn entry_url(entry_id: &EntryId) -> String {
 }
 
 pub fn view(date: Date, content: bool, json: bool, meta: bool, web: bool) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;

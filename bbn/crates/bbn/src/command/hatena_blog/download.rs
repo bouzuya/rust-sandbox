@@ -1,12 +1,10 @@
-use crate::{
-    bbn_repository::BbnRepository,
-    config_repository::ConfigRepository,
-    hatena_blog::{
-        download_entry, HatenaBlogClient, HatenaBlogEntry, HatenaBlogRepository, IndexingId,
-    },
-};
+use crate::config_repository::ConfigRepository;
 use anyhow::Context;
 use bbn_data::{DateTime, EntryId, EntryMeta, Timestamp};
+use bbn_hatena_blog::{
+    download_entry, HatenaBlogClient, HatenaBlogEntry, HatenaBlogRepository, IndexingId,
+};
+use bbn_repository::BbnRepository;
 use chrono::{Local, NaiveDateTime, TimeZone};
 use date_range::date::Date;
 use hatena_blog_api::{Entry, GetEntryResponse};
@@ -247,7 +245,7 @@ async fn download_impl(
 }
 
 pub async fn download(data_file_only: bool, date: Option<Date>) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;

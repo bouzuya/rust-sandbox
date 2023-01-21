@@ -11,7 +11,7 @@ use date_range::date::{Date, YearMonth};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::{hatena_blog::HatenaBlogEntryId, query::Query};
+use crate::query::Query;
 use bbn_data::{DateTime, Entry, EntryId, EntryMeta};
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -33,11 +33,7 @@ impl std::convert::TryFrom<MetaJson> for EntryMeta {
 
     fn try_from(json: MetaJson) -> Result<Self, Self::Error> {
         Ok(Self {
-            hatena_blog_entry_id: json
-                .hatena_blog_entry_id
-                .map(|s| HatenaBlogEntryId::from_str(s.as_str()))
-                .transpose()?
-                .map(|id| id.to_string()),
+            hatena_blog_entry_id: json.hatena_blog_entry_id,
             hatena_blog_entry_url: json.hatena_blog_entry_url,
             hatena_blog_ignore: json.hatena_blog_ignore,
             minutes: json.minutes,

@@ -5,7 +5,7 @@ use anyhow::Context;
 use crate::{config::Config, config_repository::ConfigRepository};
 
 pub fn config(data_dir: PathBuf, hatena_blog_data_file: PathBuf) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = Config::new(data_dir, hatena_blog_data_file);
     config_repository.save(config)?;
     println!(

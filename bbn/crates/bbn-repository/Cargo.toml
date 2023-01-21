@@ -1,0 +1,17 @@
+[package]
+name = "bbn-repository"
+version = "0.0.0"
+authors = ["bouzuya <m@bouzuya.net>"]
+edition = "2021"
+
+[dependencies]
+anyhow = { workspace = true }
+bbn-data = { workspace = true }
+date-range = { workspace = true }
+nom = { workspace = true }
+serde = { version = "1.0.126", features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

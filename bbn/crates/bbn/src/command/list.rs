@@ -1,7 +1,8 @@
 use anyhow::Context;
 
-use crate::{bbn_repository::BbnRepository, config_repository::ConfigRepository, query::Query};
+use crate::config_repository::ConfigRepository;
 use bbn_data::EntryId;
+use bbn_repository::{BbnRepository, Query};
 use std::convert::TryFrom;
 
 pub fn list(json: bool, query: String) -> anyhow::Result<()> {
@@ -12,7 +13,7 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
         url: String,
     }
 
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;

@@ -1,9 +1,10 @@
 use anyhow::Context;
 
-use crate::{config_repository::ConfigRepository, hatena_blog::HatenaBlogRepository};
+use crate::config_repository::ConfigRepository;
+use bbn_hatena_blog::HatenaBlogRepository;
 
 pub async fn list() -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;

@@ -1,13 +1,12 @@
 use anyhow::Context;
 
-use crate::{
-    bbn_repository::BbnRepository, config_repository::ConfigRepository,
-    hatena_blog::HatenaBlogRepository, query::Query,
-};
+use crate::config_repository::ConfigRepository;
+use bbn_hatena_blog::HatenaBlogRepository;
+use bbn_repository::{BbnRepository, Query};
 use std::convert::TryFrom;
 
 pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
-    let config_repository = ConfigRepository::new();
+    let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
         .context("The configuration file does not found. Use `bbn config` command.")?;

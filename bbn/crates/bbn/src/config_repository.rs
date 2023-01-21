@@ -1,4 +1,7 @@
-use std::{env, fs, path::PathBuf};
+use std::{
+    env, fs,
+    path::{Path, PathBuf},
+};
 
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
@@ -55,15 +58,19 @@ impl From<Credentials> for CredentialsJson {
 }
 
 #[derive(Debug)]
-pub struct ConfigRepository;
+pub struct ConfigRepository(PathBuf);
 
 impl ConfigRepository {
-    pub fn new() -> Self {
-        Self
+    pub fn new() -> anyhow::Result<Self> {
+        let prefix = "net.bouzuya.rust-sandbox.bbn";
+        Ok(Self(match env::var_os("BBN_TEST_CONFIG_DIR") {
+            Some(test_config_dir) => PathBuf::from(test_config_dir),
+            None => BaseDirectories::with_prefix(prefix)?.get_config_home(),
+        }))
     }
 
     pub fn load(&self) -> anyhow::Result<Config> {
-        let config_file = ConfigRepository::config_file()?;
+        let config_file = self.config_file()?;
         let content = fs::read_to_string(config_file.as_path())?;
         let config_json = serde_json::from_str::<'_, ConfigJson>(content.as_str())?;
         let config = Config::from(config_json);
@@ -71,7 +78,7 @@ impl ConfigRepository {
     }
 
     pub fn load_credentials(&self) -> anyhow::Result<Credentials> {
-        let credential_file = ConfigRepository::credential_file()?;
+        let credential_file = self.credential_file()?;
         let content = fs::read_to_string(credential_file.as_path())?;
         let credentials_json = serde_json::from_str::<'_, CredentialsJson>(content.as_str())?;
         let credentials = Credentials::from(credentials_json);
@@ -80,16 +87,16 @@ impl ConfigRepository {
 
     // NOTE: The repository exposes its dependency on fs.
     pub fn credential_file_path(&self) -> anyhow::Result<PathBuf> {
-        ConfigRepository::credential_file()
+        self.credential_file()
     }
 
     // NOTE: The repository exposes its dependency on fs.
     pub fn path(&self) -> anyhow::Result<PathBuf> {
-        ConfigRepository::config_file()
+        self.config_file()
     }
 
     pub fn save(&self, config: Config) -> anyhow::Result<()> {
-        let config_file = ConfigRepository::config_file()?;
+        let config_file = self.config_file()?;
         let parent = config_file.parent().context("no config_dir")?;
         fs::create_dir_all(parent)?;
         let config_json = ConfigJson::from(config);
@@ -97,22 +104,18 @@ impl ConfigRepository {
         Ok(())
     }
 
-    fn config_file() -> anyhow::Result<PathBuf> {
-        let config_dir = ConfigRepository::config_dir()?;
+    fn config_dir(&self) -> &Path {
+        self.0.as_path()
+    }
+
+    fn config_file(&self) -> anyhow::Result<PathBuf> {
+        let config_dir = self.config_dir();
         let config_file = config_dir.join("config.json");
         Ok(config_file)
     }
 
-    fn config_dir() -> anyhow::Result<PathBuf> {
-        let prefix = "net.bouzuya.rust-sandbox.bbn";
-        Ok(match env::var_os("BBN_TEST_CONFIG_DIR") {
-            Some(test_config_dir) => PathBuf::from(test_config_dir),
-            None => BaseDirectories::with_prefix(prefix)?.get_config_home(),
-        })
-    }
-
-    fn credential_file() -> anyhow::Result<PathBuf> {
-        let config_dir = ConfigRepository::config_dir()?;
+    fn credential_file(&self) -> anyhow::Result<PathBuf> {
+        let config_dir = self.config_dir();
         let credential_file = config_dir.join("credentials.json");
         Ok(credential_file)
     }
@@ -150,7 +153,7 @@ mod tests {
             hatena_id.to_string(),
         );
 
-        let repository = ConfigRepository::new();
+        let repository = ConfigRepository::new()?;
         let loaded = repository.load_credentials()?;
         assert_eq!(loaded, credentials);
 
@@ -176,7 +179,7 @@ mod tests {
         );
 
         let config = Config::new(data_dir.clone(), hatena_blog_data_file.clone());
-        let repository = ConfigRepository::new();
+        let repository = ConfigRepository::new()?;
         repository.save(config.clone())?;
         let loaded = repository.load()?;
         assert_eq!(loaded, config);
