@@ -1,5 +1,6 @@
 use anyhow::Context;
 use bbn_repository::{BbnRepository, Query};
+use pulldown_cmark::{html, Parser};
 use std::{
     collections::BTreeMap,
     convert::TryFrom,
@@ -13,7 +14,7 @@ use crate::config_repository::ConfigRepository;
 // <https://github.com/bouzuya/kraken/tree/v4.0.2/doc#all-json>
 // all json (`/posts.json`)
 #[derive(serde::Serialize)]
-pub struct AllJson(Vec<AllJsonItem>);
+pub struct AllJson(pub Vec<AllJsonItem>);
 
 #[derive(serde::Serialize)]
 pub struct AllJsonItem {
@@ -26,10 +27,24 @@ pub struct AllJsonItem {
     pub title: String,
 }
 
+// <https://github.com/bouzuya/kraken/tree/v4.0.2/doc#daily-json>
+#[derive(serde::Serialize)]
+pub struct DailyJson {
+    pub data: String, // "markdown"
+    pub date: String, // "YYYY-MM-DD" in "+09:00"
+    pub minutes: u32,
+    pub html: String, // "<p>markdown</p>"
+    #[serde(skip_serializing)]
+    pub id_title: Option<String>, // "title" (obsolete)
+    pub pubdate: String, // "YYYY-MM-DDTHH:MM:SSZ"
+    pub tags: Vec<String>,
+    pub title: String,
+}
+
 // <https://github.com/bouzuya/kraken/tree/v4.0.2/doc#tags-json>
 // tags json (`/tags.json`)
 #[derive(serde::Serialize)]
-pub struct TagsJson(Vec<TagsJsonItem>);
+pub struct TagsJson(pub Vec<TagsJsonItem>);
 
 #[derive(serde::Serialize)]
 pub struct TagsJsonItem {
@@ -45,12 +60,42 @@ fn write_all_json(out_dir: &Path, all_json: &AllJson) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn write_daily_json(out_dir: &Path, daily_json: &DailyJson) -> anyhow::Result<()> {
+    let date = daily_json.date.split('-').collect::<Vec<&str>>();
+    let yyyy = date[0];
+    let mm = date[1];
+    let dd = date[2];
+    let id_title = daily_json.id_title.as_deref().unwrap_or("diary");
+    let file_names = vec![
+        format!("{yyyy}/{mm}/{dd}.json"),
+        format!("{yyyy}/{mm}/{dd}/index.json"),
+        format!("{yyyy}/{mm}/{dd}/{id_title}.json"),
+        format!("{yyyy}/{mm}/{dd}/{id_title}/index.json"),
+    ];
+    for file_name in file_names {
+        let path = out_dir.join(file_name);
+        if let Some(parent) = path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let file = File::create(path)?;
+        let writer = BufWriter::new(file);
+        serde_json::to_writer(writer, daily_json)?;
+    }
+    Ok(())
+}
+
 fn write_tags_json(out_dir: &Path, tags_json: &TagsJson) -> anyhow::Result<()> {
     let path = out_dir.join("tags.json");
     let file = File::create(path)?;
     let writer = BufWriter::new(file);
     serde_json::to_writer(writer, tags_json)?;
     Ok(())
+}
+
+fn markdown_to_html(markdown: &str) -> String {
+    let mut html_output = String::new();
+    html::push_html(&mut html_output, Parser::new(markdown));
+    html_output
 }
 
 pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
@@ -71,6 +116,9 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
         let meta = bbn_repository
             .find_meta_by_id(&entry_id)?
             .context("meta not found")?;
+        let content = bbn_repository
+            .find_content_by_id(&entry_id)?
+            .context("content not found")?;
 
         for name in meta.tags.clone() {
             *tag_count_map.entry(name).or_insert(0) += 1;
@@ -81,10 +129,23 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
             id_title: entry_id.id_title().map(|s| s.to_owned()),
             minutes: u32::try_from(meta.minutes)?,
             pubdate: meta.pubdate.to_string(),
+            tags: meta.tags.clone(),
+            title: meta.title.clone(),
+        };
+        all_json_items.push(all_json_item);
+
+        let html = markdown_to_html(&content);
+        let daily_json = DailyJson {
+            data: content,
+            date: entry_id.date().to_string(),
+            html,
+            id_title: entry_id.id_title().map(|s| s.to_owned()),
+            minutes: u32::try_from(meta.minutes)?,
+            pubdate: meta.pubdate.to_string(),
             tags: meta.tags,
             title: meta.title,
         };
-        all_json_items.push(all_json_item);
+        write_daily_json(out_dir.as_path(), &daily_json)?;
     }
 
     let tags_json = TagsJson(
