@@ -17,7 +17,8 @@ pub struct AllJson(Vec<AllJsonItem>);
 
 #[derive(serde::Serialize)]
 pub struct AllJsonItem {
-    pub date: String,             // "YYYY-MM-DD"
+    pub date: String, // "YYYY-MM-DD"
+    #[serde(skip_serializing)]
     pub id_title: Option<String>, // "title" (obsolete)
     pub minutes: u32,
     pub pubdate: String, // "YYYY-MM-DDTHH:MM:SSZ"
