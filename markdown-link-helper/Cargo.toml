@@ -2,14 +2,18 @@
 name = "markdown-link-helper"
 version = "0.3.0"
 authors = ["bouzuya <m@bouzuya.net>"]
-edition = "2018"
+edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anyhow = "1.0.40"
-pulldown-cmark = "0.8.0"
-regex = "1.4.6"
-serde_json = "1.0.64"
-structopt = "0.3.21"
+anyhow = "1"
+clap = { version = "4.1.2", features = ["derive"] }
+pulldown-cmark = "0.9.2"
+regex = "1"
+serde_json = "1"
 thiserror = "1.0.38"
+
+[dev-dependencies]
+assert_cmd = "2.0.8"
+tempfile = "3.3.0"

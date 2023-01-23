@@ -8,7 +8,7 @@ use std::{collections::BTreeSet, convert::TryFrom, fs, path::PathBuf};
 fn broken_links(content: &str) -> Vec<String> {
     let mut res = vec![];
     let mut callback = |broken_link: BrokenLink| {
-        res.push(broken_link.reference.to_owned());
+        res.push(broken_link.reference.to_string());
         None
     };
     let parser =
