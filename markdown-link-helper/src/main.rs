@@ -11,9 +11,10 @@ struct Opt {
     file: String,
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let opt = Opt::from_args();
-    let content = fs::read_to_string(&opt.file).unwrap();
-    let rules = build_rules(&opt.rule_file).unwrap();
+    let content = fs::read_to_string(&opt.file)?;
+    let rules = build_rules(&opt.rule_file)?;
     run(&rules, &content);
+    Ok(())
 }

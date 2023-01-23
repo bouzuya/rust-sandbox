@@ -11,14 +11,14 @@ fn broken_links(content: &str) -> Vec<String> {
         res.push(broken_link.reference.to_owned());
         None
     };
-    let mut parser =
-        Parser::new_with_broken_link_callback(&content, Options::empty(), Some(&mut callback));
-    while let Some(_) = parser.next() {}
+    let parser =
+        Parser::new_with_broken_link_callback(content, Options::empty(), Some(&mut callback));
+    for _ in parser {}
     res
 }
 
-pub fn run(rules: &Vec<Rule>, content: &str) {
-    let links = broken_links(&content);
+pub fn run(rules: &[Rule], content: &str) {
+    let links = broken_links(content);
     let links = links.into_iter().collect::<BTreeSet<String>>();
     for link in links {
         let mut m = None;
@@ -40,6 +40,6 @@ pub fn build_rules(path: &PathBuf) -> anyhow::Result<Vec<Rule>> {
     let json: Vec<(String, String)> = serde_json::from_str(content.as_str())?;
     json.into_iter()
         .map(|i| Rule::try_from((i.0.as_str(), i.1.as_str())))
-        .collect::<Result<Vec<Rule>, &'static str>>()
+        .collect::<Result<Vec<Rule>, rule::Error>>()
         .map_err(|e| anyhow!(e))
 }
