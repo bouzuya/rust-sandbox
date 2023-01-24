@@ -1,5 +1,16 @@
 # markdown-link-helper
 
+markdown-link-helper is a command-line tool that outputs link reference definitions for missing link reference definitions in the specified Markdown file according to a rule file.
+
+Supported reference links:
+
+- full reference link (`[text][ref]`)
+  <https://spec.commonmark.org/0.30/#full-reference-link>
+- collapsed reference link (`[ref][]`)
+  <https://spec.commonmark.org/0.30/#collapsed-reference-link>
+- shortcut reference link (`[ref]`)
+  <https://spec.commonmark.org/0.30/#shortcut-reference-link>
+
 ## Usage
 
 ```console
