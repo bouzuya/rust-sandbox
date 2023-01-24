@@ -1,8 +1,9 @@
 use anyhow::Context;
 use bbn_repository::{BbnRepository, Query};
 use pulldown_cmark::{html, Parser};
+use regex::Regex;
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     convert::TryFrom,
     fs::{self, File},
     io::BufWriter,
@@ -98,6 +99,15 @@ fn markdown_to_html(markdown: &str) -> String {
     html_output
 }
 
+fn parse_links(markdown: &str) -> HashSet<String> {
+    let mut links = HashSet::new();
+    let regex = Regex::new(r#"\[([0-9]{4}-[0-1][0-9]-[0-3][0-9])\]"#).unwrap();
+    for captures in regex.captures_iter(markdown) {
+        links.insert(captures.get(1).map(|m| m.as_str().to_owned()).unwrap());
+    }
+    links
+}
+
 pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
     let config_repository = ConfigRepository::new()?;
     let config = config_repository
@@ -161,4 +171,24 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
     write_all_json(out_dir.as_path(), &all_json)?;
     write_tags_json(out_dir.as_path(), &tags_json)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test() {
+        assert_eq!(
+            parse_links(
+                "[2021-02-03] [2021-02-04]\n\n[2021-02-03]: https://blog.bouzuya.net/2021/02/03/"
+            ),
+            {
+                let mut set = HashSet::new();
+                set.insert("2021-02-03".to_owned());
+                set.insert("2021-02-04".to_owned());
+                set
+            }
+        );
+    }
 }
