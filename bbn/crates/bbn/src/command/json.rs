@@ -3,11 +3,12 @@ use bbn_repository::{BbnRepository, Query};
 use pulldown_cmark::{html, Parser};
 use regex::Regex;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet},
     convert::TryFrom,
     fs::{self, File},
     io::BufWriter,
     path::{Path, PathBuf},
+    str::FromStr,
 };
 
 use crate::config_repository::ConfigRepository;
@@ -85,6 +86,24 @@ fn write_daily_json(out_dir: &Path, daily_json: &DailyJson) -> anyhow::Result<()
     Ok(())
 }
 
+fn write_linked_json(
+    out_dir: &Path,
+    inbounds: &BTreeMap<date_range::date::Date, BTreeSet<date_range::date::Date>>,
+) -> anyhow::Result<()> {
+    let mut linked = BTreeMap::new();
+    for (k, v) in inbounds.iter() {
+        linked.insert(
+            k.to_string(),
+            v.iter().map(|v_i| v_i.to_string()).collect::<Vec<String>>(),
+        );
+    }
+    let path = out_dir.join("linked.json");
+    let file = File::create(path)?;
+    let writer = BufWriter::new(file);
+    serde_json::to_writer(writer, &linked)?;
+    Ok(())
+}
+
 fn write_tags_json(out_dir: &Path, tags_json: &TagsJson) -> anyhow::Result<()> {
     let path = out_dir.join("tags.json");
     let file = File::create(path)?;
@@ -99,11 +118,16 @@ fn markdown_to_html(markdown: &str) -> String {
     html_output
 }
 
-fn parse_links(markdown: &str) -> HashSet<String> {
-    let mut links = HashSet::new();
+fn parse_links(markdown: &str) -> BTreeSet<date_range::date::Date> {
+    let mut links = BTreeSet::new();
     let regex = Regex::new(r#"\[([0-9]{4}-[0-1][0-9]-[0-3][0-9])\]"#).unwrap();
     for captures in regex.captures_iter(markdown) {
-        links.insert(captures.get(1).map(|m| m.as_str().to_owned()).unwrap());
+        links.insert(
+            captures
+                .get(1)
+                .map(|m| date_range::date::Date::from_str(m.as_str()).unwrap())
+                .unwrap(),
+        );
     }
     links
 }
@@ -122,6 +146,9 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
 
     let mut all_json_items = vec![];
     let mut tag_count_map = BTreeMap::new();
+    let mut inbounds = BTreeMap::new();
+    let mut outbounds = BTreeMap::new();
+    let mut same_days = BTreeMap::new();
     for entry_id in entry_ids {
         let meta = bbn_repository
             .find_meta_by_id(&entry_id)?
@@ -129,6 +156,7 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
         let content = bbn_repository
             .find_content_by_id(&entry_id)?
             .context("content not found")?;
+        let links = parse_links(&content);
 
         for name in meta.tags.clone() {
             *tag_count_map.entry(name).or_insert(0) += 1;
@@ -156,6 +184,25 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
             title: meta.title,
         };
         write_daily_json(out_dir.as_path(), &daily_json)?;
+
+        for link in links.iter().cloned() {
+            inbounds
+                .entry(link)
+                .or_insert_with(BTreeSet::new)
+                .insert(entry_id.date().to_owned());
+        }
+
+        outbounds.insert(entry_id.date().to_owned(), links);
+
+        let mmdd = format!(
+            "--{}-{}",
+            entry_id.date().month(),
+            entry_id.date().day_of_month()
+        );
+        same_days
+            .entry(mmdd)
+            .or_insert_with(BTreeSet::new)
+            .insert(entry_id.date().to_owned());
     }
 
     let tags_json = TagsJson(
@@ -170,6 +217,7 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
     fs::create_dir_all(out_dir.as_path())?;
     write_all_json(out_dir.as_path(), &all_json)?;
     write_tags_json(out_dir.as_path(), &tags_json)?;
+    write_linked_json(out_dir.as_path(), &inbounds)?;
     Ok(())
 }
 
@@ -178,17 +226,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test() {
+    fn test() -> anyhow::Result<()> {
         assert_eq!(
             parse_links(
                 "[2021-02-03] [2021-02-04]\n\n[2021-02-03]: https://blog.bouzuya.net/2021/02/03/"
             ),
             {
-                let mut set = HashSet::new();
-                set.insert("2021-02-03".to_owned());
-                set.insert("2021-02-04".to_owned());
+                let mut set = BTreeSet::new();
+                set.insert(date_range::date::Date::from_str("2021-02-03")?);
+                set.insert(date_range::date::Date::from_str("2021-02-04")?);
                 set
             }
         );
+        Ok(())
     }
 }
