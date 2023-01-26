@@ -1,5 +1,7 @@
 use date_range::date::Date;
 
+pub type EntryKey = Date;
+
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct EntryId {
     date: Date,
