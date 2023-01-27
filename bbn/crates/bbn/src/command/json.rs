@@ -1,4 +1,5 @@
 use anyhow::Context;
+use bbn_data::EntryKey;
 use bbn_repository::{BbnRepository, Query};
 use pulldown_cmark::{html, Parser};
 use regex::Regex;
@@ -88,7 +89,7 @@ fn write_daily_json(out_dir: &Path, daily_json: &DailyJson) -> anyhow::Result<()
 
 fn write_linked_json(
     out_dir: &Path,
-    inbounds: &BTreeMap<date_range::date::Date, BTreeSet<date_range::date::Date>>,
+    inbounds: &BTreeMap<EntryKey, BTreeSet<EntryKey>>,
 ) -> anyhow::Result<()> {
     let mut linked = BTreeMap::new();
     for (k, v) in inbounds.iter() {
@@ -118,7 +119,7 @@ fn markdown_to_html(markdown: &str) -> String {
     html_output
 }
 
-fn parse_links(markdown: &str) -> BTreeSet<date_range::date::Date> {
+fn parse_links(markdown: &str) -> BTreeSet<EntryKey> {
     let mut links = BTreeSet::new();
     let regex = Regex::new(r#"\[([0-9]{4}-[0-1][0-9]-[0-3][0-9])\]"#).unwrap();
     for captures in regex.captures_iter(markdown) {
