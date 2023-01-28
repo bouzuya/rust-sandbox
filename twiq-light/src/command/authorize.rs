@@ -1,6 +1,7 @@
 use std::io;
 
 use anyhow::{bail, Context};
+use base64::Engine;
 use rand::{rngs::ThreadRng, RngCore};
 use sha2::{Digest, Sha256};
 use time::OffsetDateTime;
@@ -34,16 +35,12 @@ pub async fn run(
     rng.fill_bytes(&mut state_buf);
     let mut code_verifier_buf = vec![0; 96];
     rng.fill_bytes(&mut code_verifier_buf);
-    let base64_engine = base64::engine::fast_portable::FastPortable::from(
-        &base64::alphabet::URL_SAFE,
-        base64::engine::fast_portable::NO_PAD,
-    );
+    let base64_engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
 
     let scope = "tweet.read%20tweet.write%20users.read%20offline.access";
-    let state = base64::encode_engine(&state_buf, &base64_engine);
-    let code_verifier = base64::encode_engine(&code_verifier_buf, &base64_engine);
-    let code_challenge =
-        base64::encode_engine(Sha256::digest(code_verifier.as_bytes()), &base64_engine);
+    let state = base64_engine.encode(&state_buf);
+    let code_verifier = base64_engine.encode(&code_verifier_buf);
+    let code_challenge = base64_engine.encode(Sha256::digest(code_verifier.as_bytes()));
     let code_challenge_method = "s256";
     println!("https://twitter.com/i/oauth2/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&state={state}&code_challenge={code_challenge}&code_challenge_method={code_challenge_method}");
 
@@ -112,11 +109,8 @@ mod tests {
         let mut rng = ThreadRng::default();
         let mut state_buf = vec![0; 96];
         rng.fill_bytes(&mut state_buf);
-        let base64_engine = base64::engine::fast_portable::FastPortable::from(
-            &base64::alphabet::URL_SAFE,
-            base64::engine::fast_portable::NO_PAD,
-        );
-        let state = base64::encode_engine(&state_buf, &base64_engine);
+        let base64_engine = base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let state = base64_engine.encode(&state_buf);
         assert_eq!(state.len(), 128);
     }
 }
