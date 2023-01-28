@@ -2,7 +2,7 @@ use tracing::{debug, instrument};
 
 use crate::{
     store::{CredentialStore, TweetQueueStore},
-    twitter::{self, PostTweetsRequestBody},
+    twitter::{self, PostTweetsRequestBody, PostTweetsRequestBodyReply},
 };
 
 #[instrument(skip_all)]
@@ -15,6 +15,9 @@ pub async fn run(store: TweetQueueStore, credential_store: CredentialStore) -> a
             &token.access_token,
             PostTweetsRequestBody {
                 text: Some(item.text),
+                reply: item.reply.map(|r| PostTweetsRequestBodyReply {
+                    in_reply_to_tweet_id: Some(r),
+                }),
             },
         )
         .await?;

@@ -139,6 +139,13 @@ pub async fn issue_token(
 #[derive(Debug, serde::Serialize)]
 pub struct PostTweetsRequestBody {
     pub text: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reply: Option<PostTweetsRequestBodyReply>,
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct PostTweetsRequestBodyReply {
+    pub in_reply_to_tweet_id: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]

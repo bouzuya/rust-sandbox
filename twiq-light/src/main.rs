@@ -51,6 +51,8 @@ enum QueueSubcommand {
     },
     Enqueue {
         tweet: String,
+        #[arg(long)]
+        reply: Option<String>,
         #[command(flatten)]
         config: ConfigOptions,
     },
@@ -137,9 +139,13 @@ async fn main() -> anyhow::Result<()> {
                 )
                 .await
             }
-            QueueSubcommand::Enqueue { tweet, config } => {
+            QueueSubcommand::Enqueue {
+                reply,
+                tweet,
+                config,
+            } => {
                 let config = ensure_config(config_store, config).await?;
-                command::enqueue::run(tweet_queue_store(config).await?, tweet).await
+                command::enqueue::run(tweet_queue_store(config).await?, tweet, reply).await
             }
             QueueSubcommand::List { config } => {
                 let config = ensure_config(config_store, config).await?;

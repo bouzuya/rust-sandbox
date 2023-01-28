@@ -1,6 +1,7 @@
 #[derive(Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct ScheduledTweet {
     pub text: String,
+    pub reply: Option<String>,
 }
 
 #[cfg(test)]
@@ -10,7 +11,10 @@ mod tests {
     use super::ScheduledTweet;
 
     fn f(s: &'static str) -> ScheduledTweet {
-        ScheduledTweet { text: s.to_owned() }
+        ScheduledTweet {
+            text: s.to_owned(),
+            reply: None,
+        }
     }
 
     #[test]
