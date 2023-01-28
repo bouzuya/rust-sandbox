@@ -4,6 +4,7 @@ pub mod enqueue;
 pub mod fetch;
 pub mod import;
 pub mod list_queue;
+pub mod post;
 pub mod remove;
 pub mod reorder;
 pub mod search;

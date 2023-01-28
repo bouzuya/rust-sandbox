@@ -82,6 +82,13 @@ enum TweetSubcommand {
     Import {
         file: String,
     },
+    Post {
+        tweet: String,
+        #[arg(long)]
+        reply: Option<String>,
+        #[command(flatten)]
+        config: ConfigOptions,
+    },
     Search {
         query: Option<String>,
     },
@@ -176,6 +183,23 @@ async fn main() -> anyhow::Result<()> {
                     .await
                 }
                 TweetSubcommand::Import { file } => command::import::run(store, file).await,
+                TweetSubcommand::Post {
+                    tweet,
+                    reply,
+                    config,
+                } => {
+                    let config = ensure_config(config_store, config).await?;
+                    command::post::run(
+                        CredentialStore::new(
+                            config.project_id,
+                            config.google_application_credentials,
+                        )
+                        .await?,
+                        tweet,
+                        reply,
+                    )
+                    .await
+                }
                 TweetSubcommand::Search { query } => command::search::run(store, query).await,
             }
         }
