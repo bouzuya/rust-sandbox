@@ -57,11 +57,11 @@ pub async fn get_users_id_tweets(
         "https://api.twitter.com/2/users/{}/tweets?tweet.fields=created_at{}{}",
         path_params.id,
         match query_params.max_results {
-            Some(t) => format!("&max_results={}", t),
+            Some(t) => format!("&max_results={t}"),
             None => "".to_owned(),
         },
         match query_params.pagination_token.as_ref() {
-            Some(t) => format!("&pagination_token={}", t),
+            Some(t) => format!("&pagination_token={t}"),
             None => "".to_owned(),
         }
     );

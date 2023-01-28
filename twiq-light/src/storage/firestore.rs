@@ -151,7 +151,7 @@ impl Storage for FirestoreStorage {
             self.project_id, self.database_id
         );
         let collection_id = self.collection_id.clone();
-        let prefix = format!("{}/{}/", parent, collection_id);
+        let prefix = format!("{parent}/{collection_id}/");
         let response = client
             .list_documents(ListDocumentsRequest {
                 parent,

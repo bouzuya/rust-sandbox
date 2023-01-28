@@ -45,18 +45,7 @@ pub async fn run(
     let code_challenge =
         base64::encode_engine(Sha256::digest(code_verifier.as_bytes()), &base64_engine);
     let code_challenge_method = "s256";
-    let url = format!(
-            "https://twitter.com/i/oauth2/authorize?response_type={}&client_id={}&redirect_uri={}&scope={}&state={}&code_challenge={}&code_challenge_method={}",
-            response_type,
-            client_id,
-            redirect_uri,
-            scope,
-            state,
-            code_challenge,
-            code_challenge_method,
-        );
-
-    println!("{}", url);
+    println!("https://twitter.com/i/oauth2/authorize?response_type={response_type}&client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&state={state}&code_challenge={code_challenge}&code_challenge_method={code_challenge_method}");
 
     // read redirect_uri
     let mut buffer = String::new();
