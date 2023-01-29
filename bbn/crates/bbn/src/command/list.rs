@@ -54,7 +54,7 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
     } else {
         output.join("\n")
     };
-    println!("{}", output);
+    println!("{output}");
     Ok(())
 }
 

@@ -114,20 +114,20 @@ fn show_2line_diff(left: &str, right: &str) {
     let mut q = VecDeque::<StyledObject<String>>::new();
     for diff_result in diff::lines(left, right) {
         let (d, output) = match diff_result {
-            diff::Result::Left(l) => (true, console::style(format!("-{}", l)).red()),
-            diff::Result::Right(r) => (true, console::style(format!("+{}", r)).green()),
-            diff::Result::Both(l, _) => (false, console::style(format!(" {}", l))),
+            diff::Result::Left(l) => (true, console::style(format!("-{l}")).red()),
+            diff::Result::Right(r) => (true, console::style(format!("+{r}")).green()),
+            diff::Result::Both(l, _) => (false, console::style(format!(" {l}"))),
         };
         q.push_back(output);
         if d {
             while let Some(o) = q.pop_front() {
-                println!("{}", o);
+                println!("{o}");
             }
             c = 2;
         } else if c > 0 {
             c -= 1;
             while let Some(o) = q.pop_front() {
-                println!("{}", o);
+                println!("{o}");
             }
         } else if q.len() >= 2 {
             q.pop_front();

@@ -73,7 +73,7 @@ impl BbnRepository {
             .data_dir
             .join(entry_id.date().year().to_string())
             .join(entry_id.date().month().to_string())
-            .join(format!("{}.md", entry_id));
+            .join(format!("{entry_id}.md"));
         if !path.is_file() {
             return Ok(None);
         }
@@ -106,7 +106,7 @@ impl BbnRepository {
             .data_dir
             .join(entry_id.date().year().to_string())
             .join(entry_id.date().month().to_string())
-            .join(format!("{}.json", entry_id));
+            .join(format!("{entry_id}.json"));
         if !path.is_file() {
             return Ok(None);
         }

@@ -90,7 +90,7 @@ async fn parse_entry(hatena_blog_repository: &HatenaBlogRepository) -> anyhow::R
         hatena_blog_repository
             .create_entry(entry, Timestamp::now()?)
             .await?;
-        eprintln!("parsed member id: {}", entry_id);
+        eprintln!("parsed member id: {entry_id}");
     }
     Ok(())
 }
@@ -173,7 +173,7 @@ async fn download_impl(
             hatena_blog_client,
         )
         .await?;
-        println!("downloaded member id: {}", entry_id);
+        println!("downloaded member id: {entry_id}");
 
         parse_entry(hatena_blog_repository).await?;
 

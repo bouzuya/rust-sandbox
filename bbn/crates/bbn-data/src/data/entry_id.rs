@@ -39,7 +39,7 @@ impl std::fmt::Display for EntryId {
             self.date,
             self.id_title
                 .as_ref()
-                .map(|s| format!("-{}", s))
+                .map(|s| format!("-{s}"))
                 .unwrap_or_default()
         )
     }

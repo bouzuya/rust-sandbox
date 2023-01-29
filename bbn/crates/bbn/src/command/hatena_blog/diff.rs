@@ -17,7 +17,7 @@ pub async fn diff(date: Option<String>) -> anyhow::Result<()> {
     let bbn_repository = BbnRepository::new(data_dir.clone());
 
     let query_string = match date {
-        Some(ref s) => format!("date:{}", s),
+        Some(ref s) => format!("date:{s}"),
         None => "".to_string(),
     };
     let query = Query::try_from(query_string.as_str())?;
@@ -64,9 +64,9 @@ fn show_diff(left: &str, right: &str) {
         println!(
             "{}",
             match diff_result {
-                diff::Result::Left(l) => console::style(format!("-{}", l)).red(),
-                diff::Result::Both(l, _) => console::style(format!(" {}", l)),
-                diff::Result::Right(r) => console::style(format!("+{}", r)).green(),
+                diff::Result::Left(l) => console::style(format!("-{l}")).red(),
+                diff::Result::Both(l, _) => console::style(format!(" {l}")),
+                diff::Result::Right(r) => console::style(format!("+{r}")).green(),
             }
         );
     }

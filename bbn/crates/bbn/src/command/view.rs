@@ -69,7 +69,7 @@ fn print_json_content_meta(
 }
 
 fn print_text_content(_: EntryId, _: EntryMeta, entry_content: String) -> anyhow::Result<()> {
-    println!("{}", entry_content);
+    println!("{entry_content}");
     Ok(())
 }
 
@@ -83,7 +83,7 @@ fn print_text_content_meta(
         entry_id.date(),
         entry_id
             .id_title()
-            .map(|s| format!(" {}", s))
+            .map(|s| format!(" {s}"))
             .unwrap_or_default(),
         entry_meta.title,
         entry_url(&entry_id),
@@ -98,7 +98,7 @@ fn print_text_meta(entry_id: EntryId, entry_meta: EntryMeta, _: String) -> anyho
         entry_id.date(),
         entry_id
             .id_title()
-            .map(|s| format!(" {}", s))
+            .map(|s| format!(" {s}"))
             .unwrap_or_default(),
         entry_meta.title,
         entry_url(&entry_id)

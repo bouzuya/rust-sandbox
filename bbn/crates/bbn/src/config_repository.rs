@@ -138,8 +138,7 @@ mod tests {
         fs::write(
             credential_file.as_path(),
             format!(
-                r#"{{"hatena_api_key":"{}","hatena_blog_id":"{}","hatena_id":"{}"}}"#,
-                hatena_api_key, hatena_blog_id, hatena_id,
+                r#"{{"hatena_api_key":"{hatena_api_key}","hatena_blog_id":"{hatena_blog_id}","hatena_id":"{hatena_id}"}}"#
             ),
         )?;
         env::set_var(

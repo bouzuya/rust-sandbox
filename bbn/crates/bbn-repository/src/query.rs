@@ -53,13 +53,13 @@ impl<'a> std::fmt::Display for Date<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match (&self.0, &self.1, &self.2) {
             (None, None, None) => write!(f, ""),
-            (None, None, Some(dd)) => write!(f, "---{}", dd),
-            (None, Some(mm), None) => write!(f, "--{}", mm),
-            (None, Some(mm), Some(dd)) => write!(f, "--{}-{}", mm, dd),
-            (Some(yyyy), None, None) => write!(f, "{}", yyyy),
+            (None, None, Some(dd)) => write!(f, "---{dd}"),
+            (None, Some(mm), None) => write!(f, "--{mm}"),
+            (None, Some(mm), Some(dd)) => write!(f, "--{mm}-{dd}"),
+            (Some(yyyy), None, None) => write!(f, "{yyyy}"),
             (Some(_), None, Some(_)) => unreachable!(),
-            (Some(yyyy), Some(mm), None) => write!(f, "{}-{}", yyyy, mm),
-            (Some(yyyy), Some(mm), Some(dd)) => write!(f, "{}-{}-{}", yyyy, mm, dd),
+            (Some(yyyy), Some(mm), None) => write!(f, "{yyyy}-{mm}"),
+            (Some(yyyy), Some(mm), Some(dd)) => write!(f, "{yyyy}-{mm}-{dd}"),
         }
     }
 }
@@ -152,8 +152,8 @@ impl<'a> Query<'a> {
 impl<'a> std::fmt::Display for Query<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Query::Date(date) => write!(f, "date:{}", date),
-            Query::DateRange(date_range) => write!(f, "date:{}", date_range),
+            Query::Date(date) => write!(f, "date:{date}"),
+            Query::DateRange(date_range) => write!(f, "date:{date_range}"),
         }
     }
 }

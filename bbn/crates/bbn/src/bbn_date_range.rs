@@ -53,16 +53,16 @@ pub fn bbn_date_range(month: String, week_date: bool) -> Result<(), BbnDateRange
     let (_, (y, m)) = year_month(month.as_str()).map_err(|_| BbnDateRangeError::Parse)?;
     let (f, l) = week_range_try_from_month(m)
         .ok_or_else(|| BbnDateRangeError::InvalidMonth(m.to_string()))?;
-    let first_week_date_string = format!("{}-W{}-1", y, f);
+    let first_week_date_string = format!("{y}-W{f}-1");
     let first_week_date: WeekDate = first_week_date_string
         .parse()
         .map_err(|_| BbnDateRangeError::InvalidWeekDate(first_week_date_string))?;
-    let last_week_date_string = format!("{}-W{}-7", y, l);
+    let last_week_date_string = format!("{y}-W{l}-7");
     let last_week_date: WeekDate = last_week_date_string
         .parse()
         .map_err(|_| BbnDateRangeError::InvalidWeekDate(last_week_date_string))?;
     let message = if week_date {
-        format!("{}/{}", first_week_date, last_week_date)
+        format!("{first_week_date}/{last_week_date}")
     } else {
         format!(
             "{}/{}",
@@ -70,7 +70,7 @@ pub fn bbn_date_range(month: String, week_date: bool) -> Result<(), BbnDateRange
             Date::from(last_week_date)
         )
     };
-    println!("{}", message);
+    println!("{message}");
     Ok(())
 }
 
