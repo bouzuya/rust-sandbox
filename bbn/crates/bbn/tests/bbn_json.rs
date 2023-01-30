@@ -18,6 +18,13 @@ fn test_bbn_json() -> anyhow::Result<()> {
     )?;
     let content20210203 = entry_dir.join("2021-02-03-TITLE.md");
     fs::write(content20210203, r#"hello"#)?;
+    let meta20210203 = entry_dir.join("2021-02-04.json");
+    fs::write(
+        meta20210203,
+        r#"{"minutes":5,"pubdate":"2021-02-04T00:00:00+09:00","tags":["tag1"],"title":"TITLE2"}"#,
+    )?;
+    let content20210203 = entry_dir.join("2021-02-04.md");
+    fs::write(content20210203, r#"good bye"#)?;
 
     let hatena_blog_data_file = temp_dir.path().join("hatena-blog.db");
     Command::cargo_bin("bbn")?
@@ -42,11 +49,15 @@ fn test_bbn_json() -> anyhow::Result<()> {
 
     assert_eq!(
         fs::read_to_string(out_dir.join("posts.json"))?,
-        r#"[{"date":"2021-02-03","minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"}]"#
+        r#"[{"date":"2021-02-03","minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"},{"date":"2021-02-04","minutes":5,"pubdate":"2021-02-04T00:00:00+09:00","tags":["tag1"],"title":"TITLE2"}]"#
     );
 
     // TODO: daily json
     // TODO: linked.json
-    // TODO: tags.json
+    assert_eq!(
+        fs::read_to_string(out_dir.join("tags.json"))?,
+        r#"[{"name":"tag1","count":1}]"#
+    );
+
     Ok(())
 }
