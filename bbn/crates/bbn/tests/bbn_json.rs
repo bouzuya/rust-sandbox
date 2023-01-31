@@ -17,7 +17,14 @@ fn test_bbn_json() -> anyhow::Result<()> {
         r#"{"minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"}"#,
     )?;
     let content20210203 = entry_dir.join("2021-02-03-TITLE.md");
-    fs::write(content20210203, r#"hello"#)?;
+    fs::write(
+        content20210203,
+        concat!(
+            r#"hello [2021-02-04]"#,
+            "\n",
+            r#"[2021-02-04]: https://blog.bouzuya.net/2021/02/04/"#
+        ),
+    )?;
     let meta20210203 = entry_dir.join("2021-02-04.json");
     fs::write(
         meta20210203,
@@ -53,7 +60,10 @@ fn test_bbn_json() -> anyhow::Result<()> {
     );
 
     // TODO: daily json
-    // TODO: linked.json
+    assert_eq!(
+        fs::read_to_string(out_dir.join("linked.json"))?,
+        r#"{"2021-02-04":["2021-02-03"]}"#
+    );
     assert_eq!(
         fs::read_to_string(out_dir.join("tags.json"))?,
         r#"[{"name":"tag1","count":1}]"#
