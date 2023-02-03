@@ -59,7 +59,24 @@ fn test_bbn_json() -> anyhow::Result<()> {
         r#"[{"date":"2021-02-03","minutes":5,"pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"},{"date":"2021-02-04","minutes":5,"pubdate":"2021-02-04T00:00:00+09:00","tags":["tag1"],"title":"TITLE2"}]"#
     );
 
-    // TODO: daily json
+    let daily_json_content = r#"{"data":"hello [2021-02-04]\n[2021-02-04]: https://blog.bouzuya.net/2021/02/04/","date":"2021-02-03","minutes":5,"html":"<p>hello [2021-02-04]\n[2021-02-04]: https://blog.bouzuya.net/2021/02/04/</p>\n","pubdate":"2021-02-03T00:00:00+09:00","tags":[],"title":"TITLE1"}"#;
+    assert_eq!(
+        fs::read_to_string(out_dir.join("2021/02/03.json"))?,
+        daily_json_content
+    );
+    assert_eq!(
+        fs::read_to_string(out_dir.join("2021/02/03/index.json"))?,
+        daily_json_content
+    );
+    assert_eq!(
+        fs::read_to_string(out_dir.join("2021/02/03/TITLE.json"))?,
+        daily_json_content
+    );
+    assert_eq!(
+        fs::read_to_string(out_dir.join("2021/02/03/TITLE/index.json"))?,
+        daily_json_content
+    );
+
     assert_eq!(
         fs::read_to_string(out_dir.join("linked.json"))?,
         r#"{"2021-02-04":["2021-02-03"]}"#
