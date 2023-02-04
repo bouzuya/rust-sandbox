@@ -8,8 +8,8 @@ $ avrdude -F -patmega32u4 -cavr109 -P/dev/tty.usbmodem144101 -b57600 -D -Uflash:
 
 ## TODOs
 
+- ☑ [crates:rduino] の trait を利用する
 - data-layout が怪しい
 - target の json のファイル名が怪しい
 - `.cargo/config.toml` について調べる
-- [crates:rduino] の trait を利用する
 - embedded-hal との差を調べる

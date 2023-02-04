@@ -4,10 +4,11 @@ version = "0.0.0"
 edition = '2021'
 
 [dependencies]
-avr_delay = { git = "https://github.com/avr-rust/delay", rev = "b0c633c385af360d0d07742fcf3499f1a708ebcd" }
+avr_delay = { git = "https://github.com/avr-rust/delay", rev = "0.4.2" }
 avr-config = "2.0.1"
 avr-std-stub = "1.0"
 avrd = "1.0.0"
+ruduino = { git = "https://github.com/avr-rust/ruduino", tag = "0.4.0" }
 
 [profile.release]
 lto = true

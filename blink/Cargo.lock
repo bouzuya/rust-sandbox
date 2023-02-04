@@ -32,7 +32,15 @@ checksum = "839920177137ff472f3c35abf5b8166f331c6cf7f2dfa7ffd69f9aa7dc70b526"
 [[package]]
 name = "avr_delay"
 version = "0.4.2"
-source = "git+https://github.com/avr-rust/delay?rev=b0c633c385af360d0d07742fcf3499f1a708ebcd#b0c633c385af360d0d07742fcf3499f1a708ebcd"
+source = "git+https://github.com/avr-rust/delay?rev=0.4.2#849918a8dfb2f6211787bd8ff69c4083d685cf54"
+dependencies = [
+ "avr-config",
+]
+
+[[package]]
+name = "avr_delay"
+version = "0.4.2"
+source = "git+https://github.com/avr-rust/delay#b0c633c385af360d0d07742fcf3499f1a708ebcd"
 dependencies = [
  "avr-config",
 ]
@@ -52,8 +60,9 @@ version = "0.0.0"
 dependencies = [
  "avr-config",
  "avr-std-stub",
- "avr_delay",
+ "avr_delay 0.4.2 (git+https://github.com/avr-rust/delay?rev=0.4.2)",
  "avrd",
+ "ruduino",
 ]
 
 [[package]]
@@ -107,6 +116,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruduino"
+version = "0.4.0"
+source = "git+https://github.com/avr-rust/ruduino?tag=0.4.0#ba9e78840cd0f7a6a98e7fdab0d0c219ba2449f0"
+dependencies = [
+ "avr-config",
+ "avr-mcu",
+ "avr-std-stub",
+ "avr_delay 0.4.2 (git+https://github.com/avr-rust/delay)",
+ "const_env--value",
+ "target-cpu-macro",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.107"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -124,6 +146,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c620c949188981ea1071b1a280e1cfd7e4ca1394083a4a5b878714a351231031"
 dependencies = [
  "json",
+]
+
+[[package]]
+name = "target-cpu-macro"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d6a3fb73cc55bfda6bf277c6c84b03993c41f5068e0d53b74116a9aa9697760b"
+dependencies = [
+ "json",
+ "target-cpu-fetch",
 ]
 
 [[package]]

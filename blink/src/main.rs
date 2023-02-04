@@ -1,18 +1,21 @@
 #![no_std]
 #![no_main]
 
+pub mod atmega32u4;
+
 extern crate avr_std_stub;
-use avrd::current::*;
-use core::ptr::write_volatile;
 
 #[no_mangle]
 pub extern "C" fn main() {
-    unsafe { write_volatile(DDRC, 0b10000000) }
+    use atmega32u4::port::C7;
+    use ruduino::Pin;
+
+    C7::set_output();
 
     loop {
-        unsafe { write_volatile(PORTC, 0b10000000) }
+        C7::set_high();
         avr_delay::delay_ms(1000);
-        unsafe { write_volatile(PORTC, 0b00000000) }
+        C7::set_low();
         avr_delay::delay_ms(1000);
     }
 }
