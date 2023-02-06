@@ -3,6 +3,7 @@ mod date_range;
 pub mod hatena_blog;
 mod json;
 mod list;
+mod sitemap_xml;
 mod view;
 
 pub use self::config::config;
