@@ -40,6 +40,11 @@ enum Subcommand {
         #[structopt(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
     },
+    #[structopt(name = "hatena-blog", about = "hatena-blog")]
+    HatenaBlog {
+        #[structopt(subcommand)]
+        subcommand: HatenaBlogSubcommand,
+    },
     #[structopt(name = "json", about = "...")]
     Json { out_dir: PathBuf },
     #[structopt(name = "list", about = "Lists the blog posts")]
@@ -49,11 +54,8 @@ enum Subcommand {
         #[structopt(name = "query", help = "query")]
         query: String,
     },
-    #[structopt(name = "hatena-blog", about = "hatena-blog")]
-    HatenaBlog {
-        #[structopt(subcommand)]
-        subcommand: HatenaBlogSubcommand,
-    },
+    #[structopt(name = "sitemap-xml", about = "...")]
+    SitemapXml { out_dir: PathBuf },
     #[structopt(name = "view", about = "Views the blog post")]
     View {
         #[structopt(long = "content", help = "Prints the contents of the entry")]
@@ -124,8 +126,6 @@ async fn main() -> anyhow::Result<()> {
             hatena_blog_data_file,
         } => command::config(data_dir, hatena_blog_data_file),
         Subcommand::DateRange { month, week_date } => command::date_range(month, week_date),
-        Subcommand::Json { out_dir } => command::json(out_dir),
-        Subcommand::List { json, query } => command::list(json, query),
         Subcommand::HatenaBlog { subcommand } => match subcommand {
             HatenaBlogSubcommand::Diff { date } => command::hatena_blog::diff(date).await,
             HatenaBlogSubcommand::Download {
@@ -146,6 +146,9 @@ async fn main() -> anyhow::Result<()> {
                 web,
             } => command::hatena_blog::view(content, date, hatena_blog_id, meta, web).await,
         },
+        Subcommand::Json { out_dir } => command::json(out_dir),
+        Subcommand::List { json, query } => command::list(json, query),
+        Subcommand::SitemapXml { out_dir } => command::sitemap_xml(out_dir),
         Subcommand::View {
             content,
             date,

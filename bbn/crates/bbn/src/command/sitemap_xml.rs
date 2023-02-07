@@ -2,7 +2,7 @@ use std::{fs::File, io::BufWriter, path::PathBuf};
 
 use anyhow::Context;
 use bbn_repository::{BbnRepository, Query};
-use sitemap_xml::writer::SitemapWriter;
+use sitemap_xml::writer::{SitemapWriter, Url};
 
 use crate::config_repository::ConfigRepository;
 
@@ -27,7 +27,10 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
         let yyyy = date.year().to_string();
         let mm = date.month().to_string();
         let dd = date.day_of_month().to_string();
-        writer.write(format!("https://blog.bouzuya.net/{yyyy}/{mm}/{dd}/").as_str())?;
+        // TODO: lastmod
+        writer.write(Url::loc(
+            format!("https://blog.bouzuya.net/{yyyy}/{mm}/{dd}/").as_str(),
+        )?)?;
     }
 
     writer.end()?;
