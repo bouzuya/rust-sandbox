@@ -23,14 +23,18 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
     let mut writer = SitemapWriter::start(writer)?;
 
     for entry_id in entry_ids {
+        let meta = bbn_repository
+            .find_meta_by_id(&entry_id)?
+            .context("meta not found")?;
+
         let date = entry_id.date();
         let yyyy = date.year().to_string();
         let mm = date.month().to_string();
         let dd = date.day_of_month().to_string();
-        // TODO: lastmod
-        writer.write(Url::loc(
-            format!("https://blog.bouzuya.net/{yyyy}/{mm}/{dd}/").as_str(),
-        )?)?;
+        writer.write(
+            Url::loc(format!("https://blog.bouzuya.net/{yyyy}/{mm}/{dd}/").as_str())?
+                .lastmod(meta.pubdate.to_string().as_str())?,
+        )?;
     }
 
     writer.end()?;
