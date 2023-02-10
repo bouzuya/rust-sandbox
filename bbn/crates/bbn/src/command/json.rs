@@ -119,18 +119,14 @@ fn markdown_to_html(markdown: &str) -> String {
     html_output
 }
 
-fn parse_links(markdown: &str) -> BTreeSet<EntryKey> {
+fn parse_links(markdown: &str) -> anyhow::Result<BTreeSet<EntryKey>> {
     let mut links = BTreeSet::new();
-    let regex = Regex::new(r#"\[([0-9]{4}-[0-1][0-9]-[0-3][0-9])\]"#).unwrap();
+    let regex = Regex::new(r#"\[([0-9]{4}-[0-1][0-9]-[0-3][0-9])\]"#)?;
     for captures in regex.captures_iter(markdown) {
-        links.insert(
-            captures
-                .get(1)
-                .map(|m| date_range::date::Date::from_str(m.as_str()).unwrap())
-                .unwrap(),
-        );
+        let m = captures.get(1).context("no captures")?;
+        links.insert(date_range::date::Date::from_str(m.as_str())?);
     }
-    links
+    Ok(links)
 }
 
 pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
@@ -157,7 +153,7 @@ pub fn run(out_dir: PathBuf) -> anyhow::Result<()> {
         let content = bbn_repository
             .find_content_by_id(&entry_id)?
             .context("content not found")?;
-        let links = parse_links(&content);
+        let links = parse_links(&content)?;
 
         for name in meta.tags.clone() {
             *tag_count_map.entry(name).or_insert(0) += 1;
@@ -231,7 +227,7 @@ mod tests {
         assert_eq!(
             parse_links(
                 "[2021-02-03] [2021-02-04]\n\n[2021-02-03]: https://blog.bouzuya.net/2021/02/03/"
-            ),
+            )?,
             {
                 let mut set = BTreeSet::new();
                 set.insert(date_range::date::Date::from_str("2021-02-03")?);
