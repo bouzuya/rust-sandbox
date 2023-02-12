@@ -1,0 +1,14 @@
+[package]
+name = "kbd_input_pullup"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+avr_delay = { git = "https://github.com/avr-rust/delay", rev = "0.4.2" }
+avr-config = "2.0.1"
+avr-std-stub = "1.0"
+avrd = "1.0.0"
+ruduino = { git = "https://github.com/avr-rust/ruduino", tag = "0.4.0" }
+
+[profile.release]
+lto = true
