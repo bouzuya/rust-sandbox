@@ -17,3 +17,22 @@ pub async fn run(
     store.write_all(&queue).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    fn check(s: &str) -> bool {
+        if s.len() > 6 * 140 {
+            return false;
+        }
+        s.chars()
+            .map(|c| if c.is_ascii_alphanumeric() { 1 } else { 2 })
+            .sum::<usize>()
+            <= 280
+    }
+
+    #[test]
+    fn test() {
+        assert!(check("a".repeat(280).as_str()));
+        assert!(check("0".repeat(280).as_str()));
+    }
+}
