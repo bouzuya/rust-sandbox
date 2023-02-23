@@ -1,22 +1,14 @@
-use std::{env, time::Duration};
+use std::time::Duration;
 
-use nostr_sdk::{
-    prelude::{FromSkStr, Keys, Kind, SubscriptionFilter},
-    Client,
-};
+use nostr_sdk::prelude::{Kind, SubscriptionFilter};
+
+use crate::client::new_client;
 
 pub async fn handle() -> anyhow::Result<()> {
-    let my_keys = Keys::from_sk_str(env::var("SECRET_KEY")?.as_str())?;
-
-    let client = Client::new(&my_keys);
-    client
-        .add_relay("wss://nostr-pub.wellorder.net", None)
-        .await?;
-    client.connect().await;
-
+    let client = new_client().await?;
     let filter = SubscriptionFilter::new()
         .kind(Kind::TextNote)
-        .author(my_keys.public_key())
+        .author(client.keys().public_key())
         .limit(32);
     let timeout = Duration::from_secs(10);
     let events = client.get_events_of(vec![filter], Some(timeout)).await?;

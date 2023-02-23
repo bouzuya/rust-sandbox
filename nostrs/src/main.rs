@@ -1,3 +1,4 @@
+pub mod client;
 mod handler;
 
 #[derive(clap::Parser)]
