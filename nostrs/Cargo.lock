@@ -675,6 +675,7 @@ dependencies = [
  "anyhow",
  "clap",
  "nostr-sdk",
+ "serde_json",
  "tokio",
 ]
 
