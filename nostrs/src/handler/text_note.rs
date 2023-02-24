@@ -19,8 +19,11 @@ pub async fn list() -> anyhow::Result<()> {
         .limit(32);
     let timeout = Duration::from_secs(10);
     let events = client.get_events_of(vec![filter], Some(timeout)).await?;
+    let mut used = HashSet::new();
     for event in events {
-        println!("{}", serde_json::to_string_pretty(&event)?);
+        if used.insert(event.id) {
+            println!("{}", serde_json::to_string_pretty(&event)?);
+        }
     }
     Ok(())
 }
