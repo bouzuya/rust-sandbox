@@ -1,10 +1,17 @@
-use std::time::Duration;
+use std::{collections::HashSet, time::Duration};
 
 use nostr_sdk::prelude::{Kind, SubscriptionFilter};
 
 use crate::client::new_client;
 
-pub async fn handle() -> anyhow::Result<()> {
+pub async fn create(content: String) -> anyhow::Result<()> {
+    let client = new_client().await?;
+    let event_id = client.publish_text_note(content, &[]).await?;
+    println!("{event_id:?}");
+    Ok(())
+}
+
+pub async fn list() -> anyhow::Result<()> {
     let client = new_client().await?;
     let filter = SubscriptionFilter::new()
         .kind(Kind::TextNote)

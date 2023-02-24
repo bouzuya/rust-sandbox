@@ -1,4 +1,4 @@
-pub mod client;
+mod client;
 mod config;
 mod handler;
 
@@ -6,22 +6,34 @@ mod handler;
 #[command(version, about, long_about = None)]
 struct Command {
     #[command(subcommand)]
-    subcommand: Subcommand,
+    resource: Resource,
 }
 
 #[derive(clap::Subcommand)]
-enum Subcommand {
+enum Resource {
     Metadata,
-    TextNote,
+    TextNote {
+        #[command(subcommand)]
+        command: TextNoteCommand,
+    },
     Timeline,
+}
+
+#[derive(clap::Subcommand)]
+enum TextNoteCommand {
+    Create { content: String },
+    List,
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let command = <Command as clap::Parser>::parse();
-    match command.subcommand {
-        Subcommand::Metadata => handler::metadata::handle().await,
-        Subcommand::TextNote => handler::text_note::handle().await,
-        Subcommand::Timeline => handler::timeline::handle().await,
+    match command.resource {
+        Resource::Metadata => handler::metadata::handle().await,
+        Resource::TextNote { command } => match command {
+            TextNoteCommand::Create { content } => handler::text_note::create(content).await,
+            TextNoteCommand::List => handler::text_note::list().await,
+        },
+        Resource::Timeline => handler::timeline::handle().await,
     }
 }

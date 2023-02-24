@@ -2,7 +2,7 @@ use std::env;
 
 use nostr_sdk::{
     prelude::{FromSkStr, Keys},
-    Client, RelayOptions,
+    Client, Options, RelayOptions,
 };
 
 use crate::config;
@@ -10,7 +10,7 @@ use crate::config;
 pub async fn new_client() -> anyhow::Result<Client> {
     let my_keys = Keys::from_sk_str(env::var("SECRET_KEY")?.as_str())?;
 
-    let client = Client::new(&my_keys);
+    let client = Client::new_with_opts(&my_keys, Options::default().wait_for_send(true));
     let config = config::load()?;
     for (url, options) in config.relays.iter() {
         client
