@@ -1,0 +1,8 @@
+{
+  "relays": {
+    "wss://nostr-pub.wellorder.net": {
+      "read": true,
+      "write": true
+    }
+  }
+}
