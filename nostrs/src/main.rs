@@ -1,5 +1,6 @@
 mod client;
 mod config;
+mod contact;
 mod dirs;
 mod handler;
 mod keypair;

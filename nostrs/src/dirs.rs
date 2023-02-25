@@ -2,6 +2,14 @@ use std::{env, path::PathBuf};
 
 use xdg::BaseDirectories;
 
+pub fn cache_dir() -> anyhow::Result<PathBuf> {
+    let prefix = "net.bouzuya.rust-sandbox.nostrs";
+    Ok(match env::var_os("NOSTRS_CACHE_DIR") {
+        Some(cache_dir) => PathBuf::from(cache_dir),
+        None => BaseDirectories::with_prefix(prefix)?.get_cache_home(),
+    })
+}
+
 pub fn config_dir() -> anyhow::Result<PathBuf> {
     let prefix = "net.bouzuya.rust-sandbox.nostrs";
     Ok(match env::var_os("NOSTRS_CONFIG_DIR") {
