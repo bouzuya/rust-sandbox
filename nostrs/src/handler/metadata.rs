@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use anyhow::Context;
-use nostr_sdk::prelude::{Kind, SubscriptionFilter};
-use serde_json::Value;
+use nostr_sdk::prelude::{Kind, Metadata, SubscriptionFilter};
 
 use crate::client::new_client;
 
@@ -16,7 +15,7 @@ pub async fn handle() -> anyhow::Result<()> {
     let timeout = Duration::from_secs(10);
     let events = client.get_events_of(vec![filter], Some(timeout)).await?;
     let event = events.first().context("metadata not found")?;
-    let metadata: Value = serde_json::from_str(event.content.as_str())?;
+    let metadata: Metadata = serde_json::from_str(event.content.as_str())?;
     println!("{}", serde_json::to_string_pretty(&metadata)?);
     Ok(())
 }
