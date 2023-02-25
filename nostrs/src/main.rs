@@ -46,6 +46,7 @@ enum KeypairCommand {
 #[derive(clap::Subcommand)]
 enum TextNoteCommand {
     Create { content: String },
+    Delete { event_id: String },
     List,
 }
 
@@ -62,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
         Resource::Metadata => handler::metadata::handle().await,
         Resource::TextNote { command } => match command {
             TextNoteCommand::Create { content } => handler::text_note::create(content).await,
+            TextNoteCommand::Delete { event_id } => handler::text_note::delete(event_id).await,
             TextNoteCommand::List => handler::text_note::list().await,
         },
         Resource::Timeline => handler::timeline::handle().await,

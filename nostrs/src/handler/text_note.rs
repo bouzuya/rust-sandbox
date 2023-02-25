@@ -1,6 +1,6 @@
 use std::{collections::HashSet, time::Duration};
 
-use nostr_sdk::prelude::{Kind, SubscriptionFilter};
+use nostr_sdk::prelude::{EventId, Kind, SubscriptionFilter};
 
 use crate::client::new_client;
 
@@ -8,6 +8,13 @@ pub async fn create(content: String) -> anyhow::Result<()> {
     let client = new_client().await?;
     let event_id = client.publish_text_note(content, &[]).await?;
     println!("{event_id:?}");
+    Ok(())
+}
+
+pub async fn delete(event_id: String) -> anyhow::Result<()> {
+    let event_id = EventId::from_hex(event_id)?;
+    let client = new_client().await?;
+    client.delete_event::<String>(event_id, None).await?;
     Ok(())
 }
 
