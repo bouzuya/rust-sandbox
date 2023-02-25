@@ -14,29 +14,34 @@ struct Command {
 
 #[derive(clap::Subcommand)]
 enum Resource {
+    /// Manage contacts
     Contact {
         #[command(subcommand)]
         command: ContactCommand,
     },
+    /// Manage keypair
     Keypair {
         #[command(subcommand)]
         command: KeypairCommand,
     },
+    /// Manage metadata
     Metadata,
+    /// Manage text-notes
     TextNote {
         #[command(subcommand)]
         command: TextNoteCommand,
     },
-    Timeline,
 }
 
 #[derive(clap::Subcommand)]
 enum ContactCommand {
+    /// List contact
     List,
 }
 
 #[derive(clap::Subcommand)]
 enum KeypairCommand {
+    /// Create a keypair from a private key
     Create {
         #[arg(long, env)]
         private_key: String,
@@ -45,9 +50,13 @@ enum KeypairCommand {
 
 #[derive(clap::Subcommand)]
 enum TextNoteCommand {
+    /// Create a new note
     Create { content: String },
+    /// Delete the note
     Delete { event_id: String },
+    /// Like the note
     Like { event_id: String },
+    /// List notes
     List,
 }
 
@@ -68,6 +77,5 @@ async fn main() -> anyhow::Result<()> {
             TextNoteCommand::Like { event_id } => handler::text_note::like(event_id).await,
             TextNoteCommand::List => handler::text_note::list().await,
         },
-        Resource::Timeline => handler::timeline::handle().await,
     }
 }
