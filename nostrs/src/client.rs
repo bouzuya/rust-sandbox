@@ -1,14 +1,13 @@
-use std::env;
-
 use nostr_sdk::{
     prelude::{FromSkStr, Keys},
     Client, Options, RelayOptions,
 };
 
-use crate::config;
+use crate::{config, keypair};
 
 pub async fn new_client() -> anyhow::Result<Client> {
-    let my_keys = Keys::from_sk_str(env::var("SECRET_KEY")?.as_str())?;
+    let private_key = keypair::load()?;
+    let my_keys = Keys::from_sk_str(private_key.as_str())?;
 
     let client = Client::new_with_opts(&my_keys, Options::default().wait_for_send(true));
     let config = config::load()?;
