@@ -12,6 +12,10 @@ struct Command {
 
 #[derive(clap::Subcommand)]
 enum Resource {
+    Contact {
+        #[command(subcommand)]
+        command: ContactCommand,
+    },
     Keypair {
         #[command(subcommand)]
         command: KeypairCommand,
@@ -22,6 +26,11 @@ enum Resource {
         command: TextNoteCommand,
     },
     Timeline,
+}
+
+#[derive(clap::Subcommand)]
+enum ContactCommand {
+    List,
 }
 
 #[derive(clap::Subcommand)]
@@ -42,6 +51,9 @@ enum TextNoteCommand {
 async fn main() -> anyhow::Result<()> {
     let command = <Command as clap::Parser>::parse();
     match command.resource {
+        Resource::Contact { command } => match command {
+            ContactCommand::List => handler::contact::list().await,
+        },
         Resource::Keypair { command } => match command {
             KeypairCommand::Create { private_key } => handler::keypair::create(private_key).await,
         },
