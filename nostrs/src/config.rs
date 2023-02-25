@@ -1,6 +1,6 @@
-use std::{collections::HashMap, env, fs::File, io::BufReader, path::PathBuf};
+use std::{collections::HashMap, fs::File, io::BufReader};
 
-use xdg::BaseDirectories;
+use crate::dirs::config_dir;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 pub struct Config {
@@ -20,12 +20,4 @@ pub fn load() -> anyhow::Result<Config> {
     let reader = BufReader::new(file);
     let config = serde_json::from_reader(reader)?;
     Ok(config)
-}
-
-fn config_dir() -> anyhow::Result<PathBuf> {
-    let prefix = "net.bouzuya.rust-sandbox.nostrs";
-    Ok(match env::var_os("NOSTRS_CONFIG_DIR") {
-        Some(config_dir) => PathBuf::from(config_dir),
-        None => BaseDirectories::with_prefix(prefix)?.get_config_home(),
-    })
 }

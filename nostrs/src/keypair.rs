@@ -1,11 +1,9 @@
 use std::{
-    env,
     fs::{self, File},
     io::BufReader,
-    path::PathBuf,
 };
 
-use xdg::BaseDirectories;
+use crate::dirs::state_dir;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize)]
 struct Json {
@@ -28,12 +26,4 @@ pub fn store(private_key: String) -> anyhow::Result<()> {
     let content = serde_json::to_string(&Json { private_key })?;
     fs::write(path, content)?;
     Ok(())
-}
-
-fn state_dir() -> anyhow::Result<PathBuf> {
-    let prefix = "net.bouzuya.rust-sandbox.nostrs";
-    Ok(match env::var_os("NOSTRS_STATE_DIR") {
-        Some(state_dir) => PathBuf::from(state_dir),
-        None => BaseDirectories::with_prefix(prefix)?.get_state_home(),
-    })
 }
