@@ -61,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
         Resource::Keypair { command } => match command {
             KeypairCommand::Create { private_key } => handler::keypair::create(private_key).await,
         },
-        Resource::Metadata => handler::metadata::handle().await,
+        Resource::Metadata => handler::metadata::get().await,
         Resource::TextNote { command } => match command {
             TextNoteCommand::Create { content } => handler::text_note::create(content).await,
             TextNoteCommand::Delete { event_id } => handler::text_note::delete(event_id).await,

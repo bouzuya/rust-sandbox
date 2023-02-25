@@ -1,6 +1,3 @@
-use crate::keypair;
+mod create;
 
-pub async fn create(private_key: String) -> anyhow::Result<()> {
-    keypair::store(private_key)?;
-    Ok(())
-}
+pub use self::create::handle as create;
