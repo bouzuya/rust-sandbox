@@ -46,6 +46,27 @@ enum KeypairCommand {
         #[arg(long, env)]
         private_key: String,
     },
+    /// Get the keypair
+    Get {
+        #[arg(value_enum, default_value_t = PrivateKeyOrPublicKey::default())]
+        private_key_or_public_key: PrivateKeyOrPublicKey,
+    },
+}
+
+#[derive(Clone, Default, clap::ValueEnum)]
+enum PrivateKeyOrPublicKey {
+    PrivateKey,
+    #[default]
+    PublicKey,
+}
+
+impl PrivateKeyOrPublicKey {
+    fn is_private_key(&self) -> bool {
+        match self {
+            PrivateKeyOrPublicKey::PrivateKey => true,
+            PrivateKeyOrPublicKey::PublicKey => false,
+        }
+    }
 }
 
 #[derive(clap::Subcommand)]
@@ -69,6 +90,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Resource::Keypair { command } => match command {
             KeypairCommand::Create { private_key } => handler::keypair::create(private_key).await,
+            KeypairCommand::Get {
+                private_key_or_public_key,
+            } => handler::keypair::get(private_key_or_public_key.is_private_key()).await,
         },
         Resource::Metadata => handler::metadata::get().await,
         Resource::TextNote { command } => match command {
