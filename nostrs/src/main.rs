@@ -73,7 +73,13 @@ impl PrivateKeyOrPublicKey {
 #[derive(clap::Subcommand)]
 enum TextNoteCommand {
     /// Create a new note
-    Create { content: String },
+    Create {
+        /// The content of a note
+        content: String,
+        /// The event id to reply to
+        #[arg(long, name = "EVENT_ID")]
+        reply_to: Option<String>,
+    },
     /// Delete the note
     Delete { event_id: String },
     /// Dislike the note
@@ -99,7 +105,9 @@ async fn main() -> anyhow::Result<()> {
         },
         Resource::Metadata => handler::metadata::get().await,
         Resource::TextNote { command } => match command {
-            TextNoteCommand::Create { content } => handler::text_note::create(content).await,
+            TextNoteCommand::Create { content, reply_to } => {
+                handler::text_note::create(content, reply_to).await
+            }
             TextNoteCommand::Delete { event_id } => handler::text_note::delete(event_id).await,
             TextNoteCommand::Dislike { event_id } => handler::text_note::dislike(event_id).await,
             TextNoteCommand::Like { event_id } => handler::text_note::like(event_id).await,
