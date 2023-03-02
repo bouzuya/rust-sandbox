@@ -26,7 +26,10 @@ enum Resource {
         command: KeypairCommand,
     },
     /// Manage metadata
-    Metadata,
+    Metadata {
+        #[command(subcommand)]
+        command: MetadataCommand,
+    },
     /// Manage text-notes
     TextNote {
         #[command(subcommand)]
@@ -71,6 +74,12 @@ impl PrivateKeyOrPublicKey {
 }
 
 #[derive(clap::Subcommand)]
+enum MetadataCommand {
+    /// Get metadata
+    Get,
+}
+
+#[derive(clap::Subcommand)]
 enum TextNoteCommand {
     /// Create a new note
     Create {
@@ -103,7 +112,9 @@ async fn main() -> anyhow::Result<()> {
                 private_key_or_public_key,
             } => handler::keypair::get(private_key_or_public_key.is_private_key()).await,
         },
-        Resource::Metadata => handler::metadata::get().await,
+        Resource::Metadata { command } => match command {
+            MetadataCommand::Get => handler::metadata::get().await,
+        },
         Resource::TextNote { command } => match command {
             TextNoteCommand::Create { content, reply_to } => {
                 handler::text_note::create(content, reply_to).await
