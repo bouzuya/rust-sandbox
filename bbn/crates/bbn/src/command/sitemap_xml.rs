@@ -2,7 +2,7 @@ use std::{fs::File, io::BufWriter, path::PathBuf};
 
 use anyhow::Context;
 use bbn_repository::{BbnRepository, Query};
-use sitemap_xml::writer::{SitemapWriter, Url};
+use sitemap_xml_writer::{SitemapWriter, Url};
 
 use crate::config_repository::ConfigRepository;
 

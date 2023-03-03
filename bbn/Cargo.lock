@@ -124,7 +124,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
- "sitemap-xml",
+ "sitemap-xml-writer",
  "structopt",
  "tempfile",
  "thiserror",
@@ -1100,9 +1100,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.8.0"
+version = "1.17.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "692fcb63b64b1758029e0a96ee63e049ce8c5948587f2f7208df04625e5f6b56"
+checksum = "b7e5500299e16ebb147ae15a00a942af264cf3688f47923b8fc2cd5858f23ad3"
 
 [[package]]
 name = "opaque-debug"
@@ -1608,14 +1608,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "sitemap-xml"
-version = "0.2.0"
+name = "sitemap-xml-writer"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "158dd4cddf801ff7f5b4836e288487393a7b0755c0c7375d42029c1a988d8746"
 dependencies = [
- "lazy_static",
+ "once_cell",
  "regex",
  "strum",
  "thiserror",
- "url",
 ]
 
 [[package]]
