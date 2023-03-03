@@ -1,6 +1,6 @@
 use std::{io::Cursor, rc::Rc};
 
-use sitemap_xml::writer::SitemapWriter;
+use sitemap_xml_writer::SitemapWriter;
 use wasm_bindgen::UnwrapThrowExt;
 use web_sys::HtmlInputElement;
 use yew::prelude::*;
@@ -31,7 +31,7 @@ impl Reducible for State {
 fn build_preview(urls: &[url::Url]) -> anyhow::Result<String> {
     let mut writer = SitemapWriter::start_with_indent(Cursor::new(Vec::new()))?;
     for url in urls.iter() {
-        writer.write(sitemap_xml::writer::Url::loc(url.clone())?)?;
+        writer.write(sitemap_xml_writer::Url::loc(url.clone())?)?;
     }
     writer.end()?;
     Ok(String::from_utf8(writer.into_inner().into_inner())?)
