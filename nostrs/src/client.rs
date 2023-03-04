@@ -1,5 +1,7 @@
+use std::{collections::HashMap, time::Duration};
+
 use nostr_sdk::{
-    prelude::{FromSkStr, Keys},
+    prelude::{Event, FromSkStr, Keys, SubscriptionFilter},
     Client, Options, RelayOptions,
 };
 
@@ -23,4 +25,51 @@ pub async fn new_client() -> anyhow::Result<Client> {
     client.connect().await;
 
     Ok(client)
+}
+
+/// Returns only one event with the latest created_at.
+pub async fn get_event_of(
+    client: &Client,
+    filters: Vec<SubscriptionFilter>,
+    timeout: Option<Duration>,
+) -> anyhow::Result<Option<Event>> {
+    // the events is in ascending order by created_at.
+    let events = get_events_of(client, filters, timeout).await?;
+    Ok(events.last().cloned())
+}
+
+/// Returns events in ascending order by created_at, with duplicate id's removed.
+pub async fn get_events_of(
+    client: &Client,
+    filters: Vec<SubscriptionFilter>,
+    timeout: Option<Duration>,
+) -> anyhow::Result<Vec<Event>> {
+    let events = client.get_events_of(filters, timeout).await?;
+    let mut map = HashMap::new();
+    for event in events {
+        map.insert(event.id, event);
+    }
+    let mut events = map.into_values().collect::<Vec<Event>>();
+    events.sort_by_key(|event| event.created_at);
+    Ok(events)
+}
+
+#[cfg(test)]
+mod tests {
+    use nostr_sdk::prelude::Kind;
+
+    use super::*;
+
+    #[ignore]
+    #[tokio::test]
+    async fn test() -> anyhow::Result<()> {
+        let client = new_client().await?;
+        let filter = SubscriptionFilter::new()
+            .authors(vec![client.keys().public_key()])
+            .kind(Kind::ContactList);
+        let timeout = Duration::from_secs(10);
+        let events = get_events_of(&client, vec![filter], Some(timeout)).await?;
+        println!("{}", serde_json::to_string_pretty(&events)?);
+        Ok(())
+    }
 }
