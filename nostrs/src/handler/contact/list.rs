@@ -1,6 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use nostr_sdk::prelude::{Kind, Metadata, SubscriptionFilter, Timestamp};
+use nostr_sdk::prelude::{Metadata, Timestamp};
 
 use crate::{
     client::new_client,
@@ -18,13 +18,7 @@ pub async fn handle() -> anyhow::Result<()> {
             let mut map = HashMap::new();
             let contact_list = client.get_contact_list().await?;
             for contact in contact_list {
-                let filter = SubscriptionFilter::new()
-                    .authors(vec![contact.pk])
-                    .kind(Kind::Metadata)
-                    .limit(1);
-                let timeout = Duration::from_secs(10);
-                if let Some(event) = client.get_event_of(vec![filter], Some(timeout)).await? {
-                    let metadata: Metadata = serde_json::from_str(event.content.as_str())?;
+                if let Some(metadata) = client.get_metadata(contact.pk).await? {
                     map.insert(contact.pk, Some(metadata));
                 }
             }

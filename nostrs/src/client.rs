@@ -3,7 +3,8 @@ use std::{collections::HashMap, time::Duration};
 use anyhow::{bail, Context};
 use nostr_sdk::{
     prelude::{
-        Contact, Event, EventId, FromSkStr, Keys, Kind, SubscriptionFilter, Tag, XOnlyPublicKey,
+        Contact, Event, EventId, FromSkStr, Keys, Kind, Metadata, SubscriptionFilter, Tag,
+        XOnlyPublicKey,
     },
     Options, RelayOptions,
 };
@@ -48,17 +49,6 @@ impl Client {
         Ok(map.into_values().collect::<Vec<Contact>>())
     }
 
-    /// Returns only one event with the latest created_at.
-    pub async fn get_event_of(
-        &self,
-        filters: Vec<SubscriptionFilter>,
-        timeout: Option<Duration>,
-    ) -> anyhow::Result<Option<Event>> {
-        // the events is in ascending order by created_at.
-        let events = self.get_events_of(filters, timeout).await?;
-        Ok(events.last().cloned())
-    }
-
     /// Returns events in ascending order by created_at, with duplicate id's removed.
     pub async fn get_events_of(
         &self,
@@ -73,6 +63,24 @@ impl Client {
         let mut events = map.into_values().collect::<Vec<Event>>();
         events.sort_by_key(|event| event.created_at);
         Ok(events)
+    }
+
+    pub async fn get_metadata(
+        &self,
+        public_key: XOnlyPublicKey,
+    ) -> anyhow::Result<Option<Metadata>> {
+        let filter = SubscriptionFilter::new()
+            .authors(vec![public_key])
+            .kind(Kind::Metadata)
+            .limit(1);
+        let timeout = Duration::from_secs(10);
+        let event = self.get_event_of(vec![filter], Some(timeout)).await?;
+        Ok(if let Some(event) = event {
+            let metadata: Metadata = serde_json::from_str(event.content.as_str())?;
+            Some(metadata)
+        } else {
+            None
+        })
     }
 
     pub fn keys(&self) -> Keys {
@@ -90,6 +98,17 @@ impl Client {
         tags: &[Tag],
     ) -> anyhow::Result<EventId> {
         Ok(self.0.publish_text_note(content, tags).await?)
+    }
+
+    /// Returns only one event with the latest created_at.
+    async fn get_event_of(
+        &self,
+        filters: Vec<SubscriptionFilter>,
+        timeout: Option<Duration>,
+    ) -> anyhow::Result<Option<Event>> {
+        // the events is in ascending order by created_at.
+        let events = self.get_events_of(filters, timeout).await?;
+        Ok(events.last().cloned())
     }
 
     async fn get_text_note_public_key_by_event_id(
