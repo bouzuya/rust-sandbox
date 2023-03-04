@@ -1,4 +1,4 @@
-use std::{cmp::Reverse, collections::HashSet, time::Duration};
+use std::time::Duration;
 
 use nostr_sdk::prelude::{Kind, SubscriptionFilter, ToBech32};
 use time::format_description::well_known::Rfc3339;
@@ -13,16 +13,7 @@ pub async fn handle() -> anyhow::Result<()> {
         .limit(32);
     let timeout = Duration::from_secs(10);
     let events = client.get_events_of(vec![filter], Some(timeout)).await?;
-    let mut unique_events = vec![];
-    let mut used = HashSet::new();
-    for event in events {
-        if used.insert(event.id) {
-            unique_events.push(event);
-        }
-    }
-    unique_events.sort_by_key(|event| Reverse(event.created_at));
-
-    for event in unique_events {
+    for event in events.into_iter().rev() {
         println!("{}", event.id.to_bech32()?);
         println!("{} : ", event.pubkey);
         println!(

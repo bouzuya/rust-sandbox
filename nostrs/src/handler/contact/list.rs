@@ -1,7 +1,6 @@
 use std::{collections::HashMap, time::Duration};
 
-use anyhow::bail;
-use nostr_sdk::prelude::{Contact, Kind, Metadata, SubscriptionFilter, Tag, Timestamp};
+use nostr_sdk::prelude::{Kind, Metadata, SubscriptionFilter, Timestamp};
 
 use crate::{
     client::new_client,
@@ -17,47 +16,14 @@ pub async fn handle() -> anyhow::Result<()> {
         Some(t) if t >= now - Duration::from_secs(60 * 60) => contact_cache.contacts,
         Some(_) | None => {
             let mut map = HashMap::new();
-            let filter = SubscriptionFilter::new()
-                .authors(vec![client.keys().public_key()])
-                .kind(Kind::ContactList)
-                .limit(1);
-            let timeout = Duration::from_secs(10);
-            let events = client.get_events_of(vec![filter], Some(timeout)).await?;
-
-            let mut contact_list = HashMap::new();
-            let mut contact_list_timestamp = None;
-            for event in events {
-                let mut list = HashMap::new();
-                for tag in event.tags {
-                    let contact = match tag {
-                        Tag::ContactList {
-                            pk,
-                            relay_url,
-                            alias,
-                        } => Contact::new(pk, relay_url, alias),
-                        Tag::PubKey(pk, _) => Contact::new::<String>(pk, None, None),
-                        _ => bail!("invalid tag: {tag:?}"),
-                    };
-                    list.insert(contact.pk, contact);
-                }
-                if let Some(timestamp) = contact_list_timestamp {
-                    if timestamp < event.created_at {
-                        contact_list = list;
-                        contact_list_timestamp = Some(event.created_at);
-                    }
-                } else {
-                    contact_list = list;
-                    contact_list_timestamp = Some(event.created_at);
-                }
-            }
-            for contact in contact_list.values() {
+            let contact_list = client.get_contact_list().await?;
+            for contact in contact_list {
                 let filter = SubscriptionFilter::new()
                     .authors(vec![contact.pk])
                     .kind(Kind::Metadata)
                     .limit(1);
                 let timeout = Duration::from_secs(10);
-                let events = client.get_events_of(vec![filter], Some(timeout)).await?;
-                if let Some(event) = events.first() {
+                if let Some(event) = client.get_event_of(vec![filter], Some(timeout)).await? {
                     let metadata: Metadata = serde_json::from_str(event.content.as_str())?;
                     map.insert(contact.pk, Some(metadata));
                 }
