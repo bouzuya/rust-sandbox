@@ -96,7 +96,10 @@ enum TextNoteCommand {
     /// Like the note
     Like { event_id: String },
     /// List notes
-    List,
+    List {
+        #[arg(long, default_value_t = false)]
+        me: bool,
+    },
 }
 
 #[tokio::main]
@@ -122,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
             TextNoteCommand::Delete { event_id } => handler::text_note::delete(event_id).await,
             TextNoteCommand::Dislike { event_id } => handler::text_note::dislike(event_id).await,
             TextNoteCommand::Like { event_id } => handler::text_note::like(event_id).await,
-            TextNoteCommand::List => handler::text_note::list().await,
+            TextNoteCommand::List { me } => handler::text_note::list(me).await,
         },
     }
 }
