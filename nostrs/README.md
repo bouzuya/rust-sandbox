@@ -13,6 +13,4 @@ $ cat ~/.local/state/net.bouzuya.rust-sandbox.nostrs/private_key.json
 $ # create a new text-note
 $ nostrs text-note create 'Hello, nostr!'
 note1xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-$
 ```
