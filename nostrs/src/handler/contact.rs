@@ -1,3 +1,3 @@
 mod list;
 
-pub use self::list::handle as list;
+pub use self::list::list;

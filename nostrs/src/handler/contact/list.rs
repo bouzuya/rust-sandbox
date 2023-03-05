@@ -5,7 +5,7 @@ use crate::{
     metadata_cache::{self},
 };
 
-pub async fn handle() -> anyhow::Result<()> {
+pub async fn list() -> anyhow::Result<()> {
     let client = new_client().await?;
 
     let mut metadata_cache = metadata_cache::load()?;

@@ -5,7 +5,7 @@ use time::format_description::well_known::Rfc3339;
 
 use crate::{client::new_client, metadata_cache};
 
-pub async fn handle(me: bool) -> anyhow::Result<()> {
+pub async fn list(me: bool) -> anyhow::Result<()> {
     let client = new_client().await?;
 
     let public_keys = if me {

@@ -2,7 +2,7 @@ use nostr_sdk::prelude::{Marker, Tag, ToBech32};
 
 use crate::{client::new_client, event_id::event_id_from_hex_or_bech32};
 
-pub async fn handle(content: String, reply_to: Option<String>) -> anyhow::Result<()> {
+pub async fn create(content: String, reply_to: Option<String>) -> anyhow::Result<()> {
     let client = new_client().await?;
     let mut options = vec![];
     if let Some(event_id) = reply_to {
