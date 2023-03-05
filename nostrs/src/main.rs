@@ -1,6 +1,5 @@
 mod client;
 mod config;
-mod contact;
 mod dirs;
 mod event_id;
 mod handler;
