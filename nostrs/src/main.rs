@@ -93,6 +93,8 @@ enum TextNoteCommand {
     Delete { event_id: String },
     /// Dislike the note
     Dislike { event_id: String },
+    /// Get the note
+    Get { event_id: String },
     /// Like the note
     Like { event_id: String },
     /// List notes
@@ -124,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
             }
             TextNoteCommand::Delete { event_id } => handler::text_note::delete(event_id).await,
             TextNoteCommand::Dislike { event_id } => handler::text_note::dislike(event_id).await,
+            TextNoteCommand::Get { event_id } => handler::text_note::get(event_id).await,
             TextNoteCommand::Like { event_id } => handler::text_note::like(event_id).await,
             TextNoteCommand::List { me } => handler::text_note::list(me).await,
         },

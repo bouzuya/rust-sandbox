@@ -83,6 +83,15 @@ impl Client {
         })
     }
 
+    pub async fn get_text_note(&self, id: EventId) -> anyhow::Result<Option<Event>> {
+        let filter = SubscriptionFilter::new()
+            .kind(Kind::TextNote)
+            .id(id.to_hex())
+            .limit(1);
+        let timeout = Duration::from_secs(10);
+        self.get_event_of(vec![filter], Some(timeout)).await
+    }
+
     pub fn keys(&self) -> Keys {
         self.0.keys()
     }
@@ -115,13 +124,8 @@ impl Client {
         &self,
         event_id: EventId,
     ) -> anyhow::Result<XOnlyPublicKey> {
-        let filter = SubscriptionFilter::new()
-            .kind(Kind::TextNote)
-            .id(event_id.to_hex())
-            .limit(1);
-        let timeout = Duration::from_secs(10);
         let event = self
-            .get_event_of(vec![filter], Some(timeout))
+            .get_text_note(event_id)
             .await?
             .with_context(|| format!("event ({event_id:?}) not found"))?;
         Ok(event.pubkey)
