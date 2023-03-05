@@ -70,7 +70,7 @@ impl Client {
         public_key: XOnlyPublicKey,
     ) -> anyhow::Result<Option<Metadata>> {
         let filter = SubscriptionFilter::new()
-            .authors(vec![public_key])
+            .author(public_key)
             .kind(Kind::Metadata)
             .limit(1);
         let timeout = Duration::from_secs(10);

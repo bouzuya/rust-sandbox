@@ -1,48 +1,33 @@
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
-use nostr_sdk::prelude::{Kind, SubscriptionFilter, Timestamp, ToBech32};
+use nostr_sdk::prelude::{Kind, SubscriptionFilter, ToBech32};
 use time::format_description::well_known::Rfc3339;
 
-use crate::{
-    client::new_client,
-    contact::{self, Contacts},
-};
+use crate::{client::new_client, metadata_cache};
 
 pub async fn handle(me: bool) -> anyhow::Result<()> {
     let client = new_client().await?;
-    let (public_keys, metadata_map) = if me {
-        let public_keys = vec![client.keys().public_key()];
-        let mut metadata_map = HashMap::new();
-        let metadata = client.get_metadata(client.keys().public_key()).await?;
-        metadata_map.insert(client.keys().public_key(), metadata);
-        (public_keys, metadata_map)
+
+    let public_keys = if me {
+        vec![client.keys().public_key()]
     } else {
         let contact_list = client.get_contact_list().await?;
+        contact_list
+            .into_iter()
+            .map(|contact| contact.pk)
+            .collect::<Vec<_>>()
+    };
 
-        // get contacts
-        let contact_cache = contact::load()?;
-        let now = Timestamp::now();
-        let metadata_map = match contact_cache.updated_at {
-            Some(t) if t >= now - Duration::from_secs(60 * 60) => contact_cache.contacts,
-            Some(_) | None => {
-                let mut map = HashMap::new();
-                for contact in contact_list.iter() {
-                    map.insert(contact.pk, client.get_metadata(contact.pk).await?);
-                }
-                contact::store(&Contacts {
-                    contacts: map.clone(),
-                    updated_at: Some(now),
-                })?;
-
-                map
+    let mut metadata_cache = metadata_cache::load()?;
+    for public_key in public_keys.iter().copied() {
+        if metadata_cache.get(public_key).is_none() {
+            let metadata = client.get_metadata(public_key).await?;
+            if let Some(metadata) = metadata.clone() {
+                metadata_cache.set(public_key, metadata);
             }
         };
-
-        (
-            contact_list.into_iter().map(|contact| contact.pk).collect(),
-            metadata_map,
-        )
-    };
+    }
+    metadata_cache::store(&metadata_cache)?;
 
     let filter = SubscriptionFilter::new()
         .kind(Kind::TextNote)
@@ -53,10 +38,9 @@ pub async fn handle(me: bool) -> anyhow::Result<()> {
     for event in events.into_iter().rev() {
         println!(
             "@{} ({}) : ",
-            metadata_map
-                .get(&event.pubkey)
-                .cloned()
-                .and_then(|m| m.and_then(|metadata| metadata.name))
+            metadata_cache
+                .get(event.pubkey)
+                .and_then(|m| m.name)
                 .unwrap_or(event.pubkey.to_bech32()?),
             event.pubkey.to_bech32()?
         );

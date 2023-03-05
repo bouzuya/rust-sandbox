@@ -5,6 +5,7 @@ mod dirs;
 mod event_id;
 mod handler;
 mod keypair;
+mod metadata_cache;
 
 #[derive(clap::Parser)]
 #[command(version, about, long_about = None)]

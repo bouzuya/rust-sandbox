@@ -1,45 +1,37 @@
-use std::{collections::HashMap, time::Duration};
-
-use nostr_sdk::prelude::{Metadata, Timestamp};
+use nostr_sdk::prelude::{Metadata, ToBech32};
 
 use crate::{
     client::new_client,
-    contact::{self, Contacts},
+    metadata_cache::{self},
 };
 
 pub async fn handle() -> anyhow::Result<()> {
     let client = new_client().await?;
 
-    let contact_cache = contact::load()?;
-    let now = Timestamp::now();
-    let contact_list = match contact_cache.updated_at {
-        Some(t) if t >= now - Duration::from_secs(60 * 60) => contact_cache.contacts,
-        Some(_) | None => {
-            let mut map = HashMap::new();
-            let contact_list = client.get_contact_list().await?;
-            for contact in contact_list {
-                if let Some(metadata) = client.get_metadata(contact.pk).await? {
-                    map.insert(contact.pk, Some(metadata));
+    let mut metadata_cache = metadata_cache::load()?;
+    let contact_list = client.get_contact_list().await?;
+    for contact in contact_list {
+        let public_key = contact.pk;
+        let metadata = match metadata_cache.get(public_key) {
+            Some(metadata) => Some(metadata),
+            None => {
+                let metadata = client.get_metadata(public_key).await?;
+                if let Some(metadata) = metadata.clone() {
+                    metadata_cache.set(public_key, metadata);
                 }
+                metadata
             }
-            contact::store(&Contacts {
-                contacts: map.clone(),
-                updated_at: Some(now),
-            })?;
+        };
 
-            map
-        }
-    };
-
-    for (pk, metadata) in contact_list {
         match metadata {
             Some(Metadata {
                 name: Some(name), ..
             }) => print!("{name} "),
-            Some(_) | None => print!("{pk} "),
+            Some(_) | None => print!("(none) "),
         }
-        println!("{pk}");
+        println!("{}", public_key.to_bech32()?);
     }
+    metadata_cache::store(&metadata_cache)?;
 
     Ok(())
 }
