@@ -15,16 +15,7 @@ pub async fn get(event_id: String) -> anyhow::Result<()> {
     let metadata = {
         let public_key = event.pubkey;
         let mut metadata_cache = metadata_cache::load()?;
-        let metadata = match metadata_cache.get(public_key) {
-            Some(metadata) => Some(metadata),
-            None => {
-                let metadata = client.get_metadata(public_key).await?;
-                if let Some(metadata) = metadata.clone() {
-                    metadata_cache.set(public_key, metadata);
-                }
-                metadata
-            }
-        };
+        let metadata = metadata_cache.update(public_key, &client).await?;
         metadata_cache::store(&metadata_cache)?;
         metadata
     };

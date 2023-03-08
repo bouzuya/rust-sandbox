@@ -4,7 +4,7 @@ use anyhow::{bail, Context};
 use nostr_sdk::{
     prelude::{
         Contact, Event, EventId, FromSkStr, Keys, Kind, Metadata, SubscriptionFilter, Tag,
-        XOnlyPublicKey,
+        Timestamp, XOnlyPublicKey,
     },
     Options, RelayOptions,
 };
@@ -68,11 +68,16 @@ impl Client {
     pub async fn get_metadata(
         &self,
         public_key: XOnlyPublicKey,
+        since: Option<Timestamp>,
     ) -> anyhow::Result<Option<Metadata>> {
         let filter = SubscriptionFilter::new()
             .author(public_key)
             .kind(Kind::Metadata)
             .limit(1);
+        let filter = match since {
+            Some(since) => filter.since(since),
+            None => filter,
+        };
         let timeout = Duration::from_secs(10);
         let event = self.get_event_of(vec![filter], Some(timeout)).await?;
         Ok(if let Some(event) = event {

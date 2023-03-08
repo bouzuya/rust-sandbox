@@ -12,16 +12,7 @@ pub async fn list() -> anyhow::Result<()> {
     let contact_list = client.get_contact_list().await?;
     for contact in contact_list {
         let public_key = contact.pk;
-        let metadata = match metadata_cache.get(public_key) {
-            Some(metadata) => Some(metadata),
-            None => {
-                let metadata = client.get_metadata(public_key).await?;
-                if let Some(metadata) = metadata.clone() {
-                    metadata_cache.set(public_key, metadata);
-                }
-                metadata
-            }
-        };
+        let metadata = metadata_cache.update(public_key, &client).await?;
 
         match metadata {
             Some(Metadata {

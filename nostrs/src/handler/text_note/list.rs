@@ -20,12 +20,7 @@ pub async fn list(me: bool) -> anyhow::Result<()> {
 
     let mut metadata_cache = metadata_cache::load()?;
     for public_key in public_keys.iter().copied() {
-        if metadata_cache.get(public_key).is_none() {
-            let metadata = client.get_metadata(public_key).await?;
-            if let Some(metadata) = metadata.clone() {
-                metadata_cache.set(public_key, metadata);
-            }
-        };
+        metadata_cache.update(public_key, &client).await?;
     }
     metadata_cache::store(&metadata_cache)?;
 
@@ -40,7 +35,7 @@ pub async fn list(me: bool) -> anyhow::Result<()> {
             "@{} ({}) : ",
             metadata_cache
                 .get(event.pubkey)
-                .and_then(|m| m.name)
+                .and_then(|m| m.metadata.name)
                 .unwrap_or(event.pubkey.to_bech32()?),
             event.pubkey.to_bech32()?
         );

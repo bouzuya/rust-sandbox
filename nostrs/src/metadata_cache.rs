@@ -7,30 +7,63 @@ use std::{
 
 use nostr_sdk::prelude::{Metadata, Timestamp, XOnlyPublicKey};
 
-use crate::dirs;
+use crate::{client::Client, dirs};
 
 #[derive(Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct MetadataCache(HashMap<XOnlyPublicKey, MetadataCacheItem>);
 
 impl MetadataCache {
-    pub fn get(&self, key: XOnlyPublicKey) -> Option<Metadata> {
-        self.0.get(&key).cloned().and_then(|item| {
-            if item.updated_at < Timestamp::now() - Duration::from_secs(60 * 60) {
-                None
-            } else {
-                Some(item.metadata)
-            }
-        })
+    pub fn get(&self, key: XOnlyPublicKey) -> Option<MetadataCacheItem> {
+        self.0.get(&key).cloned()
     }
 
-    pub fn set(&mut self, key: XOnlyPublicKey, metadata: Metadata) {
-        self.0.insert(
-            key,
-            MetadataCacheItem {
+    pub fn set(&mut self, key: XOnlyPublicKey, item: MetadataCacheItem) {
+        self.0.insert(key, item);
+    }
+
+    pub async fn update(
+        &mut self,
+        key: XOnlyPublicKey,
+        client: &Client,
+    ) -> anyhow::Result<Option<Metadata>> {
+        Ok(match self.get(key) {
+            Some(MetadataCacheItem {
                 metadata,
-                updated_at: Timestamp::now(),
-            },
-        );
+                updated_at,
+            }) if updated_at < Timestamp::now() - Duration::from_secs(60 * 60) => Some(metadata),
+            Some(MetadataCacheItem {
+                metadata,
+                updated_at,
+            }) => {
+                let new_metadata = client
+                    .get_metadata(key, Some(updated_at))
+                    .await?
+                    .or(Some(metadata));
+                if let Some(metadata) = new_metadata.clone() {
+                    self.set(
+                        key,
+                        MetadataCacheItem {
+                            metadata,
+                            updated_at: Timestamp::now(),
+                        },
+                    );
+                }
+                new_metadata
+            }
+            None => {
+                let metadata = client.get_metadata(key, None).await?;
+                if let Some(metadata) = metadata.clone() {
+                    self.set(
+                        key,
+                        MetadataCacheItem {
+                            metadata,
+                            updated_at: Timestamp::now(),
+                        },
+                    );
+                }
+                metadata
+            }
+        })
     }
 }
 
