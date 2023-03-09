@@ -1,12 +1,9 @@
 use nostr_sdk::prelude::{Metadata, ToBech32};
 
-use crate::{
-    client::new_client,
-    metadata_cache::{self},
-};
+use crate::{client::Client, metadata_cache};
 
 pub async fn list() -> anyhow::Result<()> {
-    let client = new_client().await?;
+    let client = Client::new().await?;
 
     let mut metadata_cache = metadata_cache::load()?;
     let contact_list = client.get_contact_list().await?;

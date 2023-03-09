@@ -3,10 +3,10 @@ use std::time::Duration;
 use nostr_sdk::prelude::{Kind, SubscriptionFilter, ToBech32};
 use time::format_description::well_known::Rfc3339;
 
-use crate::{client::new_client, metadata_cache};
+use crate::{client::Client, metadata_cache};
 
 pub async fn list(me: bool) -> anyhow::Result<()> {
-    let client = new_client().await?;
+    let client = Client::new().await?;
 
     let public_keys = if me {
         vec![client.keys().public_key()]

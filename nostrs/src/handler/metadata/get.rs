@@ -1,9 +1,9 @@
 use anyhow::Context;
 
-use crate::client::new_client;
+use crate::client::Client;
 
 pub async fn get() -> anyhow::Result<()> {
-    let client = new_client().await?;
+    let client = Client::new().await?;
     let metadata = client
         .get_metadata(client.keys().public_key(), None)
         .await?
