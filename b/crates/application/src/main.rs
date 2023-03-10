@@ -2,46 +2,44 @@ mod command;
 mod config;
 
 use adapter_fs::FsBRepository;
+use clap_complete::{generate, Shell};
 use config::{Config, ConfigRepository};
 use entity::BId;
 use limited_date_time::TimeZoneOffset;
 use std::{io, path::PathBuf, str::FromStr};
-use structopt::{clap::Shell, StructOpt};
 use use_case::{HasBRepository, HasListUseCase, HasViewUseCase};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 struct Opt {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     subcommand: Subcommand,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Subcommand)]
 enum Subcommand {
-    #[structopt(name = "completion", about = "Prints the shell's completion script")]
+    /// Prints the shell's completion script
     Completion {
-        #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
+        #[arg(name = "SHELL", help = "the shell", value_enum)]
         shell: Shell,
     },
-    #[structopt(name = "list", about = "Lists b files")]
+    /// Lists b files
     List {
-        #[structopt(long = "json")]
+        #[arg(long)]
         json: bool,
         query: String,
     },
-    #[structopt(name = "new", about = "Creates a new file")]
+    /// Creates a new file
     New {
-        #[structopt(short = "d", long = "data-file", help = "The data file")]
+        /// The data file
+        #[arg(short, long)]
         data_file: PathBuf,
-        #[structopt(
-            short = "t",
-            long = "template",
-            help = "The template file or directory"
-        )]
+        /// The template file or directory
+        #[arg(short, long)]
         template: PathBuf,
     },
-    #[structopt(name = "view", about = "Views the b file")]
+    /// Views the b file
     View {
-        #[structopt(name = "BID")]
+        #[arg(name = "BID")]
         id: BId,
     },
 }
@@ -84,10 +82,11 @@ fn build_app(config: Config) -> anyhow::Result<App> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let opt = Opt::from_args();
+    let opt = <Opt as clap::Parser>::parse();
     match opt.subcommand {
         Subcommand::Completion { shell } => {
-            Opt::clap().gen_completions_to("b", shell, &mut io::stdout());
+            let mut command = <Opt as clap::CommandFactory>::command();
+            generate(shell, &mut command, "b", &mut io::stdout());
             Ok(())
         }
         Subcommand::List { json, query } => {
