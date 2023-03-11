@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.15.0" }
-thiserror = "1.0.30"
+thiserror = { workspace = true }
 
 [dev-dependencies]
-anyhow = "1.0.44"
+anyhow = { workspace = true }
