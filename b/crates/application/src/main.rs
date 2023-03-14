@@ -41,6 +41,12 @@ enum Subcommand {
     View {
         #[arg(name = "BID")]
         id: BId,
+        /// View content data
+        #[arg(long)]
+        content: bool,
+        /// View meta data
+        #[arg(long)]
+        meta: bool,
     },
 }
 
@@ -101,10 +107,10 @@ fn main() -> anyhow::Result<()> {
             // TODO: use App
             command::new(data_file, template)
         }
-        Subcommand::View { id } => {
+        Subcommand::View { content, id, meta } => {
             let config = ConfigRepository::new().load()?;
             let app = build_app(config)?;
-            command::view(&app, id, &mut io::stdout())
+            command::view(&app, content, id, meta, &mut io::stdout())
         }
     }
 }
@@ -183,7 +189,7 @@ mod tests {
         let app = App {
             brepository: repository,
         };
-        command::view(&app, bid, &mut output).unwrap();
+        command::view(&app, false, bid, false, &mut output).unwrap();
         assert_eq!(output, b"Hello, world!");
         Ok(())
     }
