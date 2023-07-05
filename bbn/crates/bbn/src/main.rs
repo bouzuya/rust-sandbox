@@ -3,6 +3,7 @@ mod command;
 mod config;
 mod config_repository;
 mod credentials;
+mod date_like;
 
 pub use bbn_date_range::bbn_date_range;
 use clap_complete::{generate, Shell};
