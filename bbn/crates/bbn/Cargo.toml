@@ -10,6 +10,8 @@ bbn-data = { workspace = true }
 bbn-hatena-blog = { workspace = true }
 bbn-repository = { workspace = true }
 chrono = { workspace = true }
+clap = { version = "4.3.10", features = ["derive", "env"] }
+clap_complete = "4.3.1"
 console = "0.14.1"
 date-range = { workspace = true }
 dialoguer = "0.8.0"
@@ -22,7 +24,6 @@ regex = "1.7.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 sitemap-xml-writer = "0.1.0"
-structopt = "0.3.21"
 thiserror = { workspace = true }
 tokio = { workspace = true }
 xdg = "2.2.0"

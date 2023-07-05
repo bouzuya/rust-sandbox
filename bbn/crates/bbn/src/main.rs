@@ -5,122 +5,121 @@ mod config_repository;
 mod credentials;
 
 pub use bbn_date_range::bbn_date_range;
+use clap_complete::{generate, Shell};
 use date_range::date::Date;
 use std::{io, path::PathBuf};
-use structopt::{clap::Shell, StructOpt};
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Parser)]
 struct Opt {
-    #[structopt(subcommand)]
+    #[command(subcommand)]
     subcommand: Subcommand,
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Subcommand)]
 enum Subcommand {
-    #[structopt(name = "completion", about = "Prints the shell's completion script")]
+    #[command(name = "completion", about = "Prints the shell's completion script")]
     Completion {
-        #[structopt(name = "SHELL", help = "the shell", possible_values = &Shell::variants())]
+        #[arg(name = "SHELL", help = "the shell", value_enum)]
         shell: Shell,
     },
-    #[structopt(name = "config", about = "Updates the configuration file")]
+    #[command(name = "config", about = "Updates the configuration file")]
     Config {
-        #[structopt(long = "data-dir", name = "DATA_DIR", help = "the data dir")]
+        #[arg(long = "data-dir", name = "DATA_DIR", help = "the data dir")]
         data_dir: PathBuf,
-        #[structopt(
+        #[arg(
             long = "hatena-blog-data-file",
             name = "HATENA_BLOG_DATA_FILE",
             help = "the hatena-blog data file"
         )]
         hatena_blog_data_file: PathBuf,
     },
-    #[structopt(name = "date-range", about = "Prints the date range")]
+    #[command(name = "date-range", about = "Prints the date range")]
     DateRange {
-        #[structopt(name = "input", help = "input")]
+        #[arg(name = "input", help = "input")]
         month: String,
-        #[structopt(long = "week-date", help = "Prints the date range as week date")]
+        #[arg(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
     },
-    #[structopt(name = "hatena-blog", about = "hatena-blog")]
+    #[command(name = "hatena-blog", about = "hatena-blog")]
     HatenaBlog {
-        #[structopt(subcommand)]
+        #[command(subcommand)]
         subcommand: HatenaBlogSubcommand,
     },
-    #[structopt(name = "json", about = "...")]
+    #[command(name = "json", about = "...")]
     Json { out_dir: PathBuf },
-    #[structopt(name = "list", about = "Lists the blog posts")]
+    #[command(name = "list", about = "Lists the blog posts")]
     List {
-        #[structopt(long = "json", help = "json")]
+        #[arg(long = "json", help = "json")]
         json: bool,
-        #[structopt(name = "query", help = "query")]
+        #[arg(name = "query", help = "query")]
         query: String,
     },
-    #[structopt(name = "sitemap-xml", about = "...")]
+    #[command(name = "sitemap-xml", about = "...")]
     SitemapXml { out_dir: PathBuf },
-    #[structopt(name = "view", about = "Views the blog post")]
+    #[command(name = "view", about = "Views the blog post")]
     View {
-        #[structopt(long = "content", help = "Prints the contents of the entry")]
+        #[arg(long = "content", help = "Prints the contents of the entry")]
         content: bool,
-        #[structopt(name = "date", help = "the date")]
+        #[arg(name = "date", help = "the date")]
         date: Date,
-        #[structopt(long = "json", help = "Prints in the JSON format")]
+        #[arg(long = "json", help = "Prints in the JSON format")]
         json: bool,
-        #[structopt(long = "meta", help = "Prints the meta data of the entry")]
+        #[arg(long = "meta", help = "Prints the meta data of the entry")]
         meta: bool,
-        #[structopt(long = "web", help = "Open the entry in the browser")]
+        #[arg(long = "web", help = "Open the entry in the browser")]
         web: bool,
     },
 }
 
-#[derive(Debug, StructOpt)]
+#[derive(Debug, clap::Subcommand)]
 pub enum HatenaBlogSubcommand {
-    #[structopt(name = "diff", about = "diff")]
+    #[command(name = "diff", about = "diff")]
     Diff {
-        #[structopt(name = "DATE", help = "the entry id")]
+        #[arg(name = "DATE", help = "the entry id")]
         date: Option<String>,
     },
-    #[structopt(name = "download", about = "Download to the hatena blog")]
+    #[command(name = "download", about = "Download to the hatena blog")]
     Download {
-        #[structopt(long = "data-file-only")]
+        #[arg(long = "data-file-only")]
         data_file_only: bool,
-        #[structopt(name = "DATE")]
+        #[arg(name = "DATE")]
         date: Option<Date>,
     },
-    #[structopt(name = "list")]
+    #[command(name = "list")]
     List,
-    #[structopt(name = "upload", about = "Upload to the hatena blog")]
+    #[command(name = "upload", about = "Upload to the hatena blog")]
     Upload {
-        #[structopt(name = "DATE", help = "date")]
+        #[arg(name = "DATE", help = "date")]
         date: Option<Date>,
-        #[structopt(long = "draft")]
+        #[arg(long = "draft")]
         draft: bool,
-        #[structopt(long = "interactive")]
+        #[arg(long = "interactive")]
         interactive: bool,
     },
-    #[structopt(name = "view", about = "view")]
+    #[command(name = "view", about = "view")]
     View {
-        #[structopt(long = "content")]
+        #[arg(long = "content")]
         content: bool,
-        #[structopt(name = "DATE", help = "the entry id")]
+        #[arg(name = "DATE", help = "the entry id")]
         date: Date,
-        #[structopt(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
+        #[arg(long = "hatena-blog-id", env = "HATENA_BLOG_ID")]
         hatena_blog_id: String,
-        #[structopt(long = "meta")]
+        #[arg(long = "meta")]
         meta: bool,
-        #[structopt(long = "web", help = "Open the entry in the browser")]
+        #[arg(long = "web", help = "Open the entry in the browser")]
         web: bool,
     },
-}
-
-fn completion(shell: Shell) -> anyhow::Result<()> {
-    Opt::clap().gen_completions_to("bbn", shell, &mut io::stdout());
-    Ok(())
 }
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let opt = Opt::from_args();
+    let opt = <Opt as clap::Parser>::parse();
     match opt.subcommand {
-        Subcommand::Completion { shell } => completion(shell),
+        Subcommand::Completion { shell } => {
+            let mut command = <Opt as clap::CommandFactory>::command();
+            generate(shell, &mut command, "bbn", &mut io::stdout());
+            Ok(())
+        }
         Subcommand::Config {
             data_dir,
             hatena_blog_data_file,
