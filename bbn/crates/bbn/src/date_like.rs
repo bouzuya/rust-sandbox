@@ -2,10 +2,13 @@ use std::str::FromStr;
 
 use time::{format_description, Date};
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum DateLike {
-    CalendarDate(date_range::date::Date),
-    WeekDate(date_range::date::Date),
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DateLike(date_range::date::Date);
+
+impl From<DateLike> for date_range::date::Date {
+    fn from(date_like: DateLike) -> Self {
+        date_like.0
+    }
 }
 
 impl FromStr for DateLike {
@@ -24,7 +27,7 @@ impl FromStr for DateLike {
                     .and_then(|s| {
                         date_range::date::Date::from_str(s.as_str()).map_err(|e| anyhow::anyhow!(e))
                     })
-                    .map(Self::WeekDate)
+                    .map(Self)
             })
             .or_else(|_| {
                 Date::parse(s, &calendar_date_format)
@@ -36,7 +39,7 @@ impl FromStr for DateLike {
                     .and_then(|s| {
                         date_range::date::Date::from_str(s.as_str()).map_err(|e| anyhow::anyhow!(e))
                     })
-                    .map(Self::CalendarDate)
+                    .map(Self)
             })
     }
 }
@@ -80,11 +83,11 @@ mod tests {
     fn test_from_str() -> anyhow::Result<()> {
         assert_eq!(
             DateLike::from_str("2023-07-05")?,
-            DateLike::CalendarDate(date_range::date::Date::from_str("2023-07-05")?)
+            DateLike(date_range::date::Date::from_str("2023-07-05")?)
         );
         assert_eq!(
             DateLike::from_str("2023-W27-3")?,
-            DateLike::WeekDate(date_range::date::Date::from_str("2023-07-05")?)
+            DateLike(date_range::date::Date::from_str("2023-07-05")?)
         );
         Ok(())
     }
