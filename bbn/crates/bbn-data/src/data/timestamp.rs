@@ -19,14 +19,19 @@ impl Timestamp {
     }
 
     pub fn to_rfc3339(&self) -> String {
-        Utc.from_utc_datetime(&NaiveDateTime::from_timestamp(self.0, 0))
+        Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(self.0, 0).unwrap())
             .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
     }
 }
 
-impl From<i64> for Timestamp {
-    fn from(timestamp: i64) -> Self {
-        Self(timestamp)
+impl TryFrom<i64> for Timestamp {
+    type Error = anyhow::Error;
+
+    fn try_from(value: i64) -> Result<Self, Self::Error> {
+        if !(0..=253_402_300_799).contains(&value) {
+            return Err(anyhow::anyhow!("timestamp out of range"));
+        }
+        Ok(Self(value))
     }
 }
 
@@ -36,13 +41,36 @@ impl From<Timestamp> for i64 {
     }
 }
 
+impl From<Timestamp> for u64 {
+    fn from(timestamp: Timestamp) -> Self {
+        u64::try_from(timestamp.0).expect("timestamp.0 range is `")
+    }
+}
+
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use super::*;
 
     #[test]
-    fn i64_convert_test() {
-        assert_eq!(i64::from(Timestamp::from(100_i64)), 100_i64);
+    fn i64_convert_test() -> anyhow::Result<()> {
+        assert!(Timestamp::try_from(0_i64 - 1).is_err());
+        assert_eq!(i64::from(Timestamp::try_from(0_i64)?), 0_i64);
+        assert_eq!(
+            Timestamp::try_from(0_i64)?.to_rfc3339(),
+            "1970-01-01T00:00:00Z"
+        );
+        assert_eq!(
+            i64::from(Timestamp::try_from(253_402_300_799_i64)?),
+            253_402_300_799_i64
+        );
+        assert_eq!(
+            Timestamp::try_from(253_402_300_799_i64)?.to_rfc3339(),
+            "9999-12-31T23:59:59Z"
+        );
+        assert!(Timestamp::try_from(253_402_300_799_i64 + 1).is_err());
+        Ok(())
     }
 
     #[test]

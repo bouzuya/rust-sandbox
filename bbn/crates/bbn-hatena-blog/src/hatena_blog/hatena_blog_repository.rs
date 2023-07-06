@@ -194,10 +194,9 @@ impl HatenaBlogRepository {
             sqlx::query_as(include_str!("../../sql/find_entries_updated_and_title.sql"))
                 .fetch_all(&self.pool)
                 .await?;
-        Ok(rows
-            .into_iter()
-            .map(|(updated, title)| (Timestamp::from(updated), title))
-            .collect::<Vec<(Timestamp, String)>>())
+        rows.into_iter()
+            .map(|(updated, title)| Ok((Timestamp::try_from(updated)?, title)))
+            .collect::<anyhow::Result<Vec<(Timestamp, String)>>>()
     }
 
     pub async fn find_entries_waiting_for_parsing(
@@ -234,7 +233,11 @@ impl HatenaBlogRepository {
         &self,
         hatena_blog_entry_id: HatenaBlogEntryId,
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
-        let f = |i: i64| FixedDateTime::from(DateTime::local_from_timestamp(Timestamp::from(i)));
+        let f = |i: i64| -> anyhow::Result<FixedDateTime> {
+            Ok(FixedDateTime::from(DateTime::local_from_timestamp(
+                Timestamp::try_from(i)?,
+            )))
+        };
         Ok(sqlx::query(include_str!("../../sql/find_entry_by_id.sql"))
             .bind(hatena_blog_entry_id.to_string())
             .map(|row: SqliteRow| {
@@ -244,11 +247,11 @@ impl HatenaBlogRepository {
                     content: row.get("content"),
                     draft: row.get::<'_, i64, _>("draft") == 1_i64,
                     edit_url: row.get("edit_url"),
-                    edited: f(row.get::<'_, i64, _>("edited")),
+                    edited: f(row.get::<'_, i64, _>("edited")).unwrap(),
                     id: EntryId::from_str(row.get("entry_id")).unwrap(),
-                    published: f(row.get::<'_, i64, _>("published")),
+                    published: f(row.get::<'_, i64, _>("published")).unwrap(),
                     title: row.get("title"),
-                    updated: f(row.get::<'_, i64, _>("updated")),
+                    updated: f(row.get::<'_, i64, _>("updated")).unwrap(),
                     url: row.get("url"),
                 })
             })
@@ -260,7 +263,11 @@ impl HatenaBlogRepository {
         &self,
         updated: Timestamp,
     ) -> anyhow::Result<Option<HatenaBlogEntry>> {
-        let f = |i: i64| FixedDateTime::from(DateTime::local_from_timestamp(Timestamp::from(i)));
+        let f = |i: i64| -> anyhow::Result<FixedDateTime> {
+            Ok(FixedDateTime::from(DateTime::local_from_timestamp(
+                Timestamp::try_from(i)?,
+            )))
+        };
         Ok(
             sqlx::query(include_str!("../../sql/find_entry_by_updated.sql"))
                 .bind(i64::from(updated))
@@ -271,11 +278,11 @@ impl HatenaBlogRepository {
                         content: row.get("content"),
                         draft: row.get::<'_, i64, _>("draft") == 1_i64,
                         edit_url: row.get("edit_url"),
-                        edited: f(row.get::<'_, i64, _>("edited")),
+                        edited: f(row.get::<'_, i64, _>("edited")).unwrap(),
                         id: EntryId::from_str(row.get("entry_id")).unwrap(),
-                        published: f(row.get::<'_, i64, _>("published")),
+                        published: f(row.get::<'_, i64, _>("published")).unwrap(),
                         title: row.get("title"),
-                        updated: f(row.get::<'_, i64, _>("updated")),
+                        updated: f(row.get::<'_, i64, _>("updated")).unwrap(),
                         url: row.get("url"),
                     })
                 })
@@ -294,7 +301,7 @@ impl HatenaBlogRepository {
             .map(|(id, at, entry_id)| -> anyhow::Result<MemberRequest> {
                 Ok(MemberRequest {
                     id: MemberRequestId::from(id),
-                    at: Timestamp::from(at),
+                    at: Timestamp::try_from(at)?,
                     hatena_blog_entry_id: HatenaBlogEntryId::from_str(entry_id.as_str())?,
                 })
             })
@@ -309,7 +316,7 @@ impl HatenaBlogRepository {
         ))
         .fetch_optional(&self.pool)
         .await?;
-        Ok(row.map(|(at,)| Timestamp::from(at)))
+        row.map(|(at,)| Timestamp::try_from(at)).transpose()
     }
 
     #[allow(dead_code)]
@@ -318,18 +325,19 @@ impl HatenaBlogRepository {
             .bind(i64::from(id))
             .fetch_optional(&self.pool)
             .await?;
-        Ok(row.map(|(id, at)| {
+        row.map(|(id, at)| {
             let id = IndexingId::from(id);
-            let at = Timestamp::from(at);
-            Indexing::new(id, at)
-        }))
+            let at = Timestamp::try_from(at)?;
+            Ok(Indexing::new(id, at))
+        })
+        .transpose()
     }
 
     pub async fn find_last_parsed_at(&self) -> anyhow::Result<Option<Timestamp>> {
         let row: Option<(i64,)> = sqlx::query_as(include_str!("../../sql/find_last_parsed_at.sql"))
             .fetch_optional(&self.pool)
             .await?;
-        Ok(row.map(|(at,)| Timestamp::from(at)))
+        Ok(row.map(|(at,)| Timestamp::try_from(at)).transpose()?)
     }
 }
 

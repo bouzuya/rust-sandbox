@@ -1,13 +1,12 @@
 use chrono::{FixedOffset, Local, NaiveDateTime, TimeZone, Timelike};
 use hatena_blog_api::FixedDateTime;
-use thiserror::Error;
 
 use crate::data::Timestamp;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct DateTime(chrono::DateTime<FixedOffset>);
 
-#[derive(Debug, Eq, Error, PartialEq)]
+#[derive(Debug, Eq, thiserror::Error, PartialEq)]
 #[error("parse date time error")]
 pub struct ParseDateTimeError;
 
@@ -57,7 +56,7 @@ impl From<DateTime> for FixedDateTime {
 
 impl From<DateTime> for Timestamp {
     fn from(dt: DateTime) -> Self {
-        Timestamp::from(dt.0.timestamp())
+        Timestamp::try_from(dt.0.timestamp()).unwrap()
     }
 }
 
@@ -88,7 +87,7 @@ mod tests {
         let g = Timestamp::from;
         let s1 = "2021-02-03T16:17:18+00:00";
         let s2 = "2021-02-04T01:17:18+09:00";
-        assert_eq!(g(f(s1)), Timestamp::from(1612369038));
+        assert_eq!(g(f(s1)), Timestamp::try_from(1612369038).unwrap());
         assert_eq!(g(f(s1)), g(f(s2)));
     }
 }
