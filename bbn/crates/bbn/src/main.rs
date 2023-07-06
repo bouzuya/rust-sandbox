@@ -7,6 +7,7 @@ mod date_like;
 
 pub use bbn_date_range::bbn_date_range;
 use clap_complete::{generate, Shell};
+use date_like::DateLike;
 use date_range::date::Date;
 use std::{io, path::PathBuf};
 
@@ -61,8 +62,8 @@ enum Subcommand {
     View {
         #[arg(long = "content", help = "Prints the contents of the entry")]
         content: bool,
-        #[arg(name = "date", help = "the date")]
-        date: Date,
+        #[arg(name = "DATE_LIKE", help = "the date. e.g. 2021-02-03 or 2021-W05-3")]
+        date_like: DateLike,
         #[arg(long = "json", help = "Prints in the JSON format")]
         json: bool,
         #[arg(long = "meta", help = "Prints the meta data of the entry")]
@@ -151,10 +152,10 @@ async fn main() -> anyhow::Result<()> {
         Subcommand::SitemapXml { out_dir } => command::sitemap_xml(out_dir),
         Subcommand::View {
             content,
-            date,
+            date_like,
             json,
             meta,
             web,
-        } => command::view(date, content, json, meta, web),
+        } => command::view(date_like, content, json, meta, web),
     }
 }

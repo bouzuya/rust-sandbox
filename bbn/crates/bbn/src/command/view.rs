@@ -1,4 +1,4 @@
-use crate::config_repository::ConfigRepository;
+use crate::{config_repository::ConfigRepository, date_like::DateLike};
 use anyhow::Context;
 use bbn_data::{EntryId, EntryMeta};
 use bbn_repository::BbnRepository;
@@ -113,7 +113,14 @@ fn entry_url(entry_id: &EntryId) -> String {
     )
 }
 
-pub fn view(date: Date, content: bool, json: bool, meta: bool, web: bool) -> anyhow::Result<()> {
+pub fn view(
+    date_like: DateLike,
+    content: bool,
+    json: bool,
+    meta: bool,
+    web: bool,
+) -> anyhow::Result<()> {
+    let date = Date::from(date_like);
     let config_repository = ConfigRepository::new()?;
     let config = config_repository
         .load()
