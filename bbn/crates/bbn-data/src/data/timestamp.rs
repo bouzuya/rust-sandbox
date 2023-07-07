@@ -41,16 +41,8 @@ impl From<Timestamp> for i64 {
     }
 }
 
-impl From<Timestamp> for u64 {
-    fn from(timestamp: Timestamp) -> Self {
-        u64::try_from(timestamp.0).expect("timestamp.0 range is `")
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use std::str::FromStr;
-
     use super::*;
 
     #[test]
