@@ -12,6 +12,7 @@ use thiserror::Error;
 
 #[derive(Debug, Eq, PartialEq)]
 pub enum Query<'a> {
+    All,
     Date(Date<'a>),
     DateRange(DateRange<'a>),
 }
@@ -122,6 +123,7 @@ pub enum ParseQueryError {
 impl<'a> Query<'a> {
     pub fn match_year(&self, year: &OsStr) -> bool {
         match self {
+            Query::All => true,
             Query::Date(date) => date.match_year(year),
             Query::DateRange(date_range) => date_range.match_year(year),
         }
@@ -129,6 +131,7 @@ impl<'a> Query<'a> {
 
     pub fn match_month(&self, month: &OsStr) -> bool {
         match self {
+            Query::All => true,
             Query::Date(date) => date.match_month(month),
             Query::DateRange(date_range) => date_range.match_month(month),
         }
@@ -136,6 +139,7 @@ impl<'a> Query<'a> {
 
     pub fn match_day(&self, day: &OsStr) -> bool {
         match self {
+            Query::All => true,
             Query::Date(date) => date.match_day(day),
             Query::DateRange(date_range) => date_range.match_day(day),
         }
@@ -143,6 +147,7 @@ impl<'a> Query<'a> {
 
     pub fn match_date(&self, date: &str) -> bool {
         match self {
+            Query::All => true,
             Query::Date(d) => d.match_date(date),
             Query::DateRange(dr) => dr.match_date(date),
         }
@@ -152,6 +157,7 @@ impl<'a> Query<'a> {
 impl<'a> std::fmt::Display for Query<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            Query::All => write!(f, ""),
             Query::Date(date) => write!(f, "date:{date}"),
             Query::DateRange(date_range) => write!(f, "date:{date_range}"),
         }
@@ -229,7 +235,7 @@ fn dd(s: &str) -> IResult<&str, Date> {
 
 fn parse(s: &str) -> IResult<&str, Query> {
     if s.is_empty() {
-        return Ok((s, Query::Date(Date(None, None, None))));
+        return Ok((s, Query::All));
     }
     let (s, _) = tag("date:")(s)?;
     let (s, date) = all_consuming(alt((
@@ -259,6 +265,7 @@ mod tests {
     #[test]
     fn str_convert() {
         let f = |s: &str| assert_eq!(Query::try_from(s).unwrap().to_string(), s.to_string());
+        f("");
         f("date:2021-02-03");
         f("date:2021-02");
         f("date:2021");
@@ -274,6 +281,7 @@ mod tests {
             let q = Query::try_from(s).unwrap();
             q.match_year(OsStr::new(t))
         };
+        assert!(f("", "2021"));
         assert!(f("date:2021-02-03", "2021"));
         assert!(!f("date:2021-02-03", "2020"));
         assert!(f("date:2021-02", "2021"));
@@ -292,6 +300,7 @@ mod tests {
             let q = Query::try_from(s).unwrap();
             q.match_month(OsStr::new(t))
         };
+        assert!(f("", "02"));
         assert!(f("date:2021-02-03", "02"));
         assert!(!f("date:2021-02-03", "01"));
         assert!(f("date:2021-02", "02"));
@@ -313,6 +322,7 @@ mod tests {
             let q = Query::try_from(s).unwrap();
             q.match_day(OsStr::new(t))
         };
+        assert!(f("", "03"));
         assert!(f("date:2021-02-03", "03"));
         assert!(!f("date:2021-02-03", "02"));
         assert!(f("date:---03", "03"));
@@ -334,6 +344,8 @@ mod tests {
             let q = Query::try_from(s).unwrap();
             q.match_date(t)
         };
+        assert!(f("", "2021-02-03"));
+        assert!(f("", "2021-02-02"));
         assert!(f("date:2021-02-03", "2021-02-03"));
         assert!(!f("date:2021-02-03", "2021-02-02"));
         assert!(f("date:2021-02", "2021-02-03"));

@@ -53,8 +53,11 @@ enum Subcommand {
     List {
         #[arg(long = "json", help = "json")]
         json: bool,
-        #[arg(name = "query", help = "query")]
-        query: String,
+        #[arg(
+            name = "query",
+            help = "query. e.g. date:2021 or date:2021-02 or date:2021-02-03 or date:--02-03 or date:---03"
+        )]
+        query: Option<String>,
     },
     #[command(name = "sitemap-xml", about = "...")]
     SitemapXml { out_dir: PathBuf },

@@ -5,7 +5,7 @@ use bbn_data::EntryId;
 use bbn_repository::{BbnRepository, Query};
 use std::convert::TryFrom;
 
-pub fn list(json: bool, query: String) -> anyhow::Result<()> {
+pub fn list(json: bool, query: Option<String>) -> anyhow::Result<()> {
     #[derive(serde::Serialize)]
     struct OutputJson {
         date: String,
@@ -20,6 +20,7 @@ pub fn list(json: bool, query: String) -> anyhow::Result<()> {
     let data_dir = config.data_dir().to_path_buf();
 
     let bbn_repository = BbnRepository::new(data_dir);
+    let query = query.unwrap_or_default();
     let query = Query::try_from(query.as_str()).unwrap();
     let mut entry_ids = bbn_repository.find_ids_by_query(query)?;
     entry_ids.sort();
