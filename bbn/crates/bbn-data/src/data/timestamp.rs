@@ -1,26 +1,20 @@
-use chrono::{DateTime, NaiveDateTime, TimeZone, Utc};
-use std::{convert::TryInto, time::SystemTime};
+use limited_date_time::{Instant, OffsetDateTime};
+use std::str::FromStr;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct Timestamp(i64);
+pub struct Timestamp(Instant);
 
 impl Timestamp {
     pub fn from_rfc3339(s: &str) -> anyhow::Result<Self> {
-        Ok(Self(DateTime::parse_from_rfc3339(s)?.timestamp()))
+        Ok(Self(OffsetDateTime::from_str(s)?.instant()))
     }
 
     pub fn now() -> anyhow::Result<Self> {
-        Ok(Self(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)?
-                .as_secs()
-                .try_into()?,
-        ))
+        Ok(Self(Instant::now()))
     }
 
     pub fn to_rfc3339(&self) -> String {
-        Utc.from_utc_datetime(&NaiveDateTime::from_timestamp_opt(self.0, 0).unwrap())
-            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        self.0.to_string()
     }
 }
 
@@ -28,16 +22,13 @@ impl TryFrom<i64> for Timestamp {
     type Error = anyhow::Error;
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
-        if !(0..=253_402_300_799).contains(&value) {
-            return Err(anyhow::anyhow!("timestamp out of range"));
-        }
-        Ok(Self(value))
+        Ok(Self(Instant::try_from(value)?))
     }
 }
 
 impl From<Timestamp> for i64 {
     fn from(timestamp: Timestamp) -> Self {
-        timestamp.0
+        i64::from(timestamp.0)
     }
 }
 

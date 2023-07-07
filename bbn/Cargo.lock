@@ -242,6 +242,7 @@ dependencies = [
  "chrono",
  "date-range",
  "hatena-blog-api",
+ "limited-date-time",
  "thiserror",
 ]
 
@@ -1182,6 +1183,14 @@ dependencies = [
  "cc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "limited-date-time"
+version = "0.17.0"
+source = "git+https://github.com/bouzuya/rust-limited-date-time?tag=0.17.0#44d94bbe31626779c3963f3e25655eae1bdc9d42"
+dependencies = [
+ "thiserror",
 ]
 
 [[package]]
