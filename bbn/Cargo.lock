@@ -204,7 +204,7 @@ checksum = "604178f6c5c21f02dc555784810edfb88d34ac2c73b2eae109655649ee73ce3d"
 
 [[package]]
 name = "bbn"
-version = "0.37.0"
+version = "0.38.0"
 dependencies = [
  "anyhow",
  "assert_cmd",
