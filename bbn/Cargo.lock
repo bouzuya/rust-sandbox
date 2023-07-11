@@ -240,7 +240,6 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
- "date-range",
  "hatena-blog-api",
  "limited-date-time",
  "thiserror",

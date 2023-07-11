@@ -37,7 +37,7 @@ impl Entry {
 mod tests {
     use std::str::FromStr;
 
-    use date_range::date::Date;
+    use limited_date_time::Date;
 
     use crate::data::DateTime;
 
