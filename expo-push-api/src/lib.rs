@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct SendPushNotificationsRequest(Vec<Message>);
+pub struct SendPushNotificationsRequest(Vec<ExpoPushMessage>);
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
-pub struct Message {
+#[serde(rename_all = "camelCase")]
+pub struct ExpoPushMessage {
     pub to: Vec<String>,
     pub data: Option<serde_json::Value>,
     pub title: Option<String>,
@@ -23,7 +24,7 @@ pub struct Message {
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
 pub enum SendPushNotificationsResponse {
-    Successful { data: Vec<PushTicket> },
+    Successful { data: Vec<ExpoPushTicket> },
     Error { errors: Vec<RequestError> },
 }
 
@@ -34,30 +35,31 @@ pub struct RequestError {
 }
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq, serde::Deserialize, serde::Serialize)]
-pub struct ReceiptId(pub String);
+pub struct ExpoPushReceiptId(pub String);
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all = "camelCase", tag = "status")]
-pub enum PushTicket {
-    Ok {
-        id: ReceiptId,
-    },
-    Error {
-        message: Option<String>,
-        details: Option<serde_json::Value>,
-    },
+pub enum ExpoPushTicket {
+    Ok { id: ExpoPushReceiptId },
+    Error(ExpoPushErrorReceipt),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
+pub struct ExpoPushErrorReceipt {
+    message: String,
+    details: Option<serde_json::Value>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct GetPushNotificationReceiptsRequest {
-    pub ids: Vec<ReceiptId>,
+    pub ids: Vec<ExpoPushReceiptId>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(untagged)]
 pub enum GetPushNotificationReceiptsResponse {
     Successful {
-        data: HashMap<ReceiptId, PushReceipt>,
+        data: HashMap<ExpoPushReceiptId, ExpoPushReceipt>,
     },
     Error {
         errors: Vec<RequestError>,
@@ -66,10 +68,7 @@ pub enum GetPushNotificationReceiptsResponse {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize)]
 #[serde(rename_all = "camelCase", tag = "status")]
-pub enum PushReceipt {
+pub enum ExpoPushReceipt {
     Ok,
-    Error {
-        message: Option<String>,
-        details: Option<serde_json::Value>,
-    },
+    Error(ExpoPushErrorReceipt),
 }
