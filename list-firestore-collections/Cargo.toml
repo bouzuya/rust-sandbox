@@ -1,0 +1,16 @@
+[package]
+name = "list-firestore-collections"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.79"
+async-recursion = "1.0.5"
+clap = { version = "4.5.0", features = ["derive", "env"] }
+firestore-path = "0.9.0"
+google-api-proto = { version = "1.504.0", features = ["google-firestore-v1"] }
+google-authz = { version = "1.0.0-alpha.5", default-features = false, features = ["webpki-roots", "tonic"] }
+tokio = { version = "1.36.0", features = ["full"] }
+tonic = { version = "0.10", features = ["tls-webpki-roots"] }
