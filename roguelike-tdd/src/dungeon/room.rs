@@ -4,10 +4,10 @@ use super::map_chips::MapChip;
 
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct Room {
-    x: usize,
-    y: usize,
-    width: usize,
-    height: usize,
+    pub x: usize,
+    pub y: usize,
+    pub width: usize,
+    pub height: usize,
 }
 
 impl Room {
