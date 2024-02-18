@@ -58,6 +58,34 @@ impl Room {
         }
     }
 
+    fn create_rooms(
+        map_width: usize,
+        map_height: usize,
+        min_room_size: usize,
+        padding: usize,
+    ) -> Vec<Self> {
+        // 9 区画に分割し、それぞれに部屋を作成する
+        let mut rooms = vec![];
+        for y in 0..3 {
+            for x in 0..3 {
+                let left = x * (map_width / 3);
+                let top = y * (map_height / 3);
+                let right = left + map_width / 3 - 1;
+                let bottom = top + map_height / 3 - 1;
+                let room = Self::create_in_bounds_with_min_room_size_and_padding(
+                    left,
+                    top,
+                    right,
+                    bottom,
+                    min_room_size,
+                    padding,
+                );
+                rooms.push(room);
+            }
+        }
+        rooms
+    }
+
     fn bottom(&self) -> usize {
         self.y + self.height - 1
     }
@@ -295,5 +323,39 @@ mod tests {
         };
         room.write_to_map(&mut map.map);
         assert_eq!(map.map, expected);
+    }
+
+    #[test]
+    fn create_rooms_部屋が9つ生成されること() {
+        for (map_width, map_height) in [(15, 12), (18, 15)] {
+            let min_room_size = 1;
+            let padding = 0;
+            let rooms = Room::create_rooms(map_width, map_height, min_room_size, padding);
+            assert_eq!(rooms.len(), 9);
+        }
+    }
+
+    #[test]
+    fn create_rooms_各部屋は9つの区画内に生成されること() {
+        for _ in 0..10 {
+            let (width, height, min_room_size, padding) = (15, 12, 2, 1);
+            let actual = Room::create_rooms(width, height, min_room_size, padding);
+            for (index, left, top, right, bottom) in [
+                (0, 1, 1, 3, 2),
+                (1, 6, 1, 9, 2),
+                (2, 11, 1, 13, 2),
+                (3, 1, 5, 3, 6),
+                (4, 6, 5, 9, 6),
+                (5, 11, 5, 13, 6),
+                (6, 1, 9, 3, 11),
+                (7, 6, 9, 9, 11),
+                (8, 11, 9, 13, 11),
+            ] {
+                assert!((left..=right).contains(&actual[index].x));
+                assert!((top..=bottom).contains(&actual[index].y));
+                assert!((left..=right).contains(&actual[index].right()));
+                assert!((top..=bottom).contains(&actual[index].bottom()));
+            }
+        }
     }
 }
