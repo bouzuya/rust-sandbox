@@ -1,11 +1,11 @@
 use super::map_chips::MapChip;
 
-struct MapGenerator {
-    map: Vec<Vec<MapChip>>,
+pub struct MapGenerator {
+    pub map: Vec<Vec<MapChip>>,
 }
 
 impl MapGenerator {
-    fn new(width: usize, height: usize) -> Self {
+    pub fn new(width: usize, height: usize) -> Self {
         Self {
             map: vec![vec![MapChip::Wall; width]; height],
         }

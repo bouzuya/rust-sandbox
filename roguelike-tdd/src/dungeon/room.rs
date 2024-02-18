@@ -1,5 +1,7 @@
 use crate::dungeon::room;
 
+use super::map_chips::MapChip;
+
 #[derive(Debug, Eq, Hash, PartialEq)]
 pub struct Room {
     x: usize,
@@ -63,11 +65,21 @@ impl Room {
     fn right(&self) -> usize {
         self.x + self.width - 1
     }
+
+    fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
+        for y in self.y..=self.bottom() {
+            for x in self.x..=self.right() {
+                map[y][x] = crate::dungeon::map_chips::MapChip::Room;
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+
+    use crate::dungeon::{map_chips::MapChip, map_generator::MapGenerator};
 
     use super::*;
 
@@ -264,5 +276,24 @@ mod tests {
             };
             assert_eq!(room.bottom(), bottom);
         }
+    }
+
+    #[test]
+    fn test_write_to_map_部屋の位置をマップ配列に書き込めること() {
+        let (map_width, map_height) = (4, 2);
+        let (room_x, room_y, room_width, room_height) = (1, 0, 2, 1);
+        let expected = vec![
+            vec![MapChip::Wall, MapChip::Room, MapChip::Room, MapChip::Wall],
+            vec![MapChip::Wall, MapChip::Wall, MapChip::Wall, MapChip::Wall],
+        ];
+        let mut map = MapGenerator::new(map_width, map_height);
+        let room = Room {
+            x: room_x,
+            y: room_y,
+            width: room_width,
+            height: room_height,
+        };
+        room.write_to_map(&mut map.map);
+        assert_eq!(map.map, expected);
     }
 }
