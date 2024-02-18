@@ -22,6 +22,21 @@ impl Passage {
         Passage { steps }
     }
 
+    // 外周順 (0, 1, 2, 5, 8, 7, 6, 3, 0) に並べる
+    pub fn get_outer_perimeter(rooms: &[Room]) -> Vec<Room> {
+        vec![
+            rooms[0].clone(),
+            rooms[1].clone(),
+            rooms[2].clone(),
+            rooms[5].clone(),
+            rooms[8].clone(),
+            rooms[7].clone(),
+            rooms[6].clone(),
+            rooms[3].clone(),
+            rooms[0].clone(),
+        ]
+    }
+
     pub fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
         for (x, y) in &self.steps {
             map[*y][*x] = MapChip::Passage;
@@ -93,6 +108,35 @@ WWWWWWWW
         let passage = Passage::new(from, to);
         passage.write_to_map(&mut map.map);
         assert_eq!(map.map, expected);
+    }
+
+    #[test]
+    fn test_get_outer_perimeter_外周の部屋を連結順に並べた配列が変えること() {
+        let rooms = vec![
+            (0, 0),
+            (2, 0),
+            (4, 0),
+            (0, 2),
+            (2, 2),
+            (4, 2),
+            (0, 4),
+            (2, 4),
+            (4, 4),
+        ]
+        .into_iter()
+        .map(|(x, y)| Room {
+            x,
+            y,
+            width: 2,
+            height: 2,
+        })
+        .collect::<Vec<Room>>();
+        let expeted = vec![0, 1, 2, 5, 8, 7, 6, 3, 0]
+            .into_iter()
+            .map(|i| rooms[i].clone())
+            .collect::<Vec<Room>>();
+        let actual = Passage::get_outer_perimeter(&rooms);
+        assert_eq!(actual, expeted);
     }
 
     fn map_util_parse(s: &str) -> Vec<Vec<MapChip>> {

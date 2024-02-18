@@ -2,7 +2,7 @@ use crate::dungeon::room;
 
 use super::map_chips::MapChip;
 
-#[derive(Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct Room {
     pub x: usize,
     pub y: usize,
