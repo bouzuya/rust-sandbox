@@ -52,6 +52,10 @@ impl Passage {
         ]
     }
 
+    pub fn is_point_on_passage(&self, x: usize, y: usize) -> bool {
+        self.steps.contains(&(x, y))
+    }
+
     pub fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
         for (x, y) in &self.steps {
             map[*y][*x] = MapChip::Passage;
@@ -147,6 +151,47 @@ WWWWWWWW
         let actual = Passage::get_random_central_passage(&rooms);
         assert_eq!(actual[0], center);
         assert!([center_top, center_left, center_right, center_bottom].contains(&actual[1]));
+    }
+
+    #[test]
+    fn test_is_point_on_passage_通路上の座標ならtrueを返す() {
+        let from = Room {
+            x: 0,
+            y: 0,
+            width: 3,
+            height: 3,
+        };
+        let to = Room {
+            x: 4,
+            y: 2,
+            width: 4,
+            height: 4,
+        };
+        let passage = Passage::new(from, to);
+        for (x, y) in [(1, 1), (2, 1), (6, 4)] {
+            let actual = passage.is_point_on_passage(x, y);
+            assert!(actual);
+        }
+    }
+
+    #[test]
+    fn test_is_point_on_passage_通路上の座標ならfalseを返す() {
+        let from = Room {
+            x: 0,
+            y: 0,
+            width: 3,
+            height: 3,
+        };
+        let to = Room {
+            x: 4,
+            y: 2,
+            width: 4,
+            height: 4,
+        };
+        let passage = Passage::new(from, to);
+        for (x, y) in [(0, 0), (0, 1), (0, 2)] {
+            assert!(!passage.is_point_on_passage(x, y));
+        }
     }
 
     fn build_rooms() -> Vec<Room> {
