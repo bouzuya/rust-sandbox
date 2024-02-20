@@ -1,4 +1,4 @@
-use super::{passage::Passage, room::Room};
+use super::{map_chips::MapChip, passage::Passage, room::Room};
 
 #[derive(Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct Door {
@@ -40,11 +40,17 @@ impl Door {
         }
         doors
     }
+
+    pub fn write_to_map(&self, map: &mut Vec<Vec<MapChip>>) {
+        map[self.y][self.x] = MapChip::Door;
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::dungeon::{passage::Passage, room::Room};
+    use crate::dungeon::{
+        map_chips::MapChip, map_generator::MapGenerator, passage::Passage, room::Room,
+    };
 
     use super::*;
 
@@ -143,5 +149,19 @@ mod tests {
         let expected = vec![];
         let actual = Door::create_doors(room1, passages);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn test_write_to_map_ドアをマップ配列に書き込めること() {
+        let door = Door { x: 1, y: 1 };
+        let mut map = MapGenerator::new(3, 2);
+        door.write_to_map(&mut map.map);
+        assert_eq!(
+            map.map,
+            vec![
+                vec![MapChip::Wall, MapChip::Wall, MapChip::Wall],
+                vec![MapChip::Wall, MapChip::Door, MapChip::Wall],
+            ]
+        );
     }
 }
