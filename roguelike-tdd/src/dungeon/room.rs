@@ -86,11 +86,11 @@ impl Room {
         rooms
     }
 
-    fn bottom(&self) -> usize {
+    pub fn bottom(&self) -> usize {
         self.y + self.height - 1
     }
 
-    fn right(&self) -> usize {
+    pub fn right(&self) -> usize {
         self.x + self.width - 1
     }
 
