@@ -24,6 +24,8 @@ impl Stairs {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use crate::dungeon::room::Room;
 
     use super::*;
@@ -55,5 +57,63 @@ mod tests {
             assert!((stairs.room.x..=stairs.room.right()).contains(&stairs.x));
             assert!((stairs.room.y..=stairs.room.bottom()).contains(&stairs.x));
         }
+    }
+
+    #[test]
+    fn test_stairs_選択肢の最小値が抽選されること() {
+        let room1 = Room {
+            x: 0,
+            y: 0,
+            width: 2,
+            height: 2,
+        };
+        let room2 = Room {
+            x: 10,
+            y: 10,
+            width: 2,
+            height: 2,
+        };
+        let room3 = Room {
+            x: 20,
+            y: 20,
+            width: 2,
+            height: 2,
+        };
+        let rooms = vec![room1.clone(), room2, room3];
+        let mut set = HashSet::new();
+        for _ in 0..100 {
+            let stairs = Stairs::new(rooms.clone());
+            set.insert(stairs.room);
+        }
+        assert!(set.contains(&room1));
+    }
+
+    #[test]
+    fn test_stairs_選択肢の最大値が抽選されること() {
+        let room1 = Room {
+            x: 0,
+            y: 0,
+            width: 2,
+            height: 2,
+        };
+        let room2 = Room {
+            x: 10,
+            y: 10,
+            width: 2,
+            height: 2,
+        };
+        let room3 = Room {
+            x: 20,
+            y: 20,
+            width: 2,
+            height: 2,
+        };
+        let rooms = vec![room1, room2, room3.clone()];
+        let mut set = HashSet::new();
+        for _ in 0..100 {
+            let stairs = Stairs::new(rooms.clone());
+            set.insert(stairs.room);
+        }
+        assert!(set.contains(&room3));
     }
 }
