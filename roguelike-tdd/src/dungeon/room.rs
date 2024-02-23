@@ -94,7 +94,7 @@ impl Room {
         self.x + self.width - 1
     }
 
-    fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
+    pub fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
         for y in self.y..=self.bottom() {
             for x in self.x..=self.right() {
                 map[y][x] = crate::dungeon::map_chips::MapChip::Room;

@@ -1,5 +1,6 @@
 use super::{map_chips::MapChip, room::Room};
 
+#[derive(Clone, Debug)]
 pub struct Passage {
     pub steps: Vec<(usize, usize)>,
 }
@@ -65,7 +66,9 @@ impl Passage {
 
 #[cfg(test)]
 mod tests {
-    use crate::dungeon::{map_chips::MapChip, map_generator::MapGenerator, room::Room};
+    use crate::dungeon::{
+        map_chips::MapChip, map_generator::MapGenerator, map_util::MapUtil, room::Room,
+    };
 
     use super::*;
 
@@ -113,7 +116,7 @@ mod tests {
             height: 4,
         };
         let mut map = MapGenerator::new(8, 6);
-        let expected = map_util_parse(
+        let expected = MapUtil::parse(
             r#"
 WWWWWWWW
 WPPPPPPW
@@ -214,19 +217,5 @@ WWWWWWWW
             height: 2,
         })
         .collect::<Vec<Room>>()
-    }
-
-    fn map_util_parse(s: &str) -> Vec<Vec<MapChip>> {
-        s.lines()
-            .map(|line| {
-                line.chars()
-                    .map(|c| match c {
-                        'P' => MapChip::Passage,
-                        'W' => MapChip::Wall,
-                        _ => unreachable!(),
-                    })
-                    .collect::<Vec<MapChip>>()
-            })
-            .collect::<Vec<Vec<MapChip>>>()
     }
 }

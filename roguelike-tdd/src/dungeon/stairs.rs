@@ -39,7 +39,9 @@ impl Stairs {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::dungeon::{map_chips::MapChip, map_generator::MapGenerator, room::Room};
+    use crate::dungeon::{
+        map_chips::MapChip, map_generator::MapGenerator, map_util::MapUtil, room::Room,
+    };
 
     use super::*;
 
@@ -166,7 +168,7 @@ mod tests {
         let stairs_type = MapChip::UpStairs;
         let stairs = Stairs::new(vec![room], stairs_type);
         let mut map = MapGenerator::new(2, 2);
-        let expected = map_util_parse(
+        let expected = MapUtil::parse(
             r#"
 WW
 WU
@@ -188,30 +190,14 @@ WU
         let stairs_type = MapChip::DownStairs;
         let stairs = Stairs::new(vec![room], stairs_type);
         let mut map = MapGenerator::new(2, 2);
-        let expected = map_util_parse(
+        let expected = MapUtil::parse(
             r#"
 WW
-WD
+WS
 "#
             .trim(),
         );
         stairs.write_to_map(&mut map.map);
         assert_eq!(map.map, expected);
-    }
-
-    fn map_util_parse(s: &str) -> Vec<Vec<MapChip>> {
-        s.lines()
-            .map(|line| {
-                line.chars()
-                    .map(|c| match c {
-                        'P' => MapChip::Passage,
-                        'W' => MapChip::Wall,
-                        'U' => MapChip::UpStairs,
-                        'D' => MapChip::DownStairs,
-                        _ => unreachable!("invalid map chip: {}", c),
-                    })
-                    .collect::<Vec<MapChip>>()
-            })
-            .collect::<Vec<Vec<MapChip>>>()
     }
 }
