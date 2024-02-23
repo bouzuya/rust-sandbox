@@ -1,15 +1,16 @@
 use rand::{seq::SliceRandom as _, Rng as _};
 
-use super::room::Room;
+use super::{map_chips::MapChip, room::Room};
 
 pub struct Stairs {
     pub room: Room,
     pub x: usize,
     pub y: usize,
+    pub stairs_type: MapChip,
 }
 
 impl Stairs {
-    pub fn new(rooms: Vec<Room>) -> Self {
+    pub fn new(rooms: Vec<Room>, stairs_type: MapChip) -> Self {
         let mut rng = rand::thread_rng();
         let room = rooms.choose(&mut rng).unwrap();
         let x = rng.gen_range(room.x..=room.right());
@@ -18,11 +19,19 @@ impl Stairs {
             room: room.clone(),
             x,
             y,
+            stairs_type,
         }
     }
 
-    pub fn new_with_ignore_room(rooms: Vec<Room>, ignore_room: Room) -> Self {
-        Self::new(rooms.into_iter().filter(|r| r != &ignore_room).collect())
+    pub fn new_with_ignore_room(rooms: Vec<Room>, ignore_room: Room, stairs_type: MapChip) -> Self {
+        Self::new(
+            rooms.into_iter().filter(|r| r != &ignore_room).collect(),
+            stairs_type,
+        )
+    }
+
+    pub fn write_to_map(&self, map: &mut [Vec<MapChip>]) {
+        map[self.y][self.x] = self.stairs_type;
     }
 }
 
@@ -30,7 +39,7 @@ impl Stairs {
 mod tests {
     use std::collections::HashSet;
 
-    use crate::dungeon::room::Room;
+    use crate::dungeon::{map_chips::MapChip, map_generator::MapGenerator, room::Room};
 
     use super::*;
 
@@ -56,7 +65,7 @@ mod tests {
                 height: 2,
             };
             let rooms = vec![room1, room2, room3];
-            let stairs = Stairs::new(rooms.clone());
+            let stairs = Stairs::new(rooms.clone(), MapChip::DownStairs);
             assert!(rooms.contains(&stairs.room));
             assert!((stairs.room.x..=stairs.room.right()).contains(&stairs.x));
             assert!((stairs.room.y..=stairs.room.bottom()).contains(&stairs.x));
@@ -86,7 +95,7 @@ mod tests {
         let rooms = vec![room1.clone(), room2, room3];
         let mut set = HashSet::new();
         for _ in 0..100 {
-            let stairs = Stairs::new(rooms.clone());
+            let stairs = Stairs::new(rooms.clone(), MapChip::DownStairs);
             set.insert(stairs.room);
         }
         assert!(set.contains(&room1));
@@ -115,7 +124,7 @@ mod tests {
         let rooms = vec![room1, room2, room3.clone()];
         let mut set = HashSet::new();
         for _ in 0..100 {
-            let stairs = Stairs::new(rooms.clone());
+            let stairs = Stairs::new(rooms.clone(), MapChip::DownStairs);
             set.insert(stairs.room);
         }
         assert!(set.contains(&room3));
@@ -142,7 +151,67 @@ mod tests {
             height: 2,
         };
         let rooms = vec![room1.clone(), room2.clone(), room3.clone()];
-        let stairs = Stairs::new_with_ignore_room(rooms, room2);
+        let stairs = Stairs::new_with_ignore_room(rooms, room2, MapChip::DownStairs);
         assert!([room1, room3].contains(&stairs.room));
+    }
+
+    #[test]
+    fn test_write_to_map_登り階段をマップに書き込めること() {
+        let room = Room {
+            x: 1,
+            y: 1,
+            width: 1,
+            height: 1,
+        };
+        let stairs_type = MapChip::UpStairs;
+        let stairs = Stairs::new(vec![room], stairs_type);
+        let mut map = MapGenerator::new(2, 2);
+        let expected = map_util_parse(
+            r#"
+WW
+WU
+"#
+            .trim(),
+        );
+        stairs.write_to_map(&mut map.map);
+        assert_eq!(map.map, expected);
+    }
+
+    #[test]
+    fn test_write_to_map_降り階段をマップに書き込めること() {
+        let room = Room {
+            x: 1,
+            y: 1,
+            width: 1,
+            height: 1,
+        };
+        let stairs_type = MapChip::DownStairs;
+        let stairs = Stairs::new(vec![room], stairs_type);
+        let mut map = MapGenerator::new(2, 2);
+        let expected = map_util_parse(
+            r#"
+WW
+WD
+"#
+            .trim(),
+        );
+        stairs.write_to_map(&mut map.map);
+        assert_eq!(map.map, expected);
+    }
+
+    fn map_util_parse(s: &str) -> Vec<Vec<MapChip>> {
+        s.lines()
+            .map(|line| {
+                line.chars()
+                    .map(|c| match c {
+                        'P' => MapChip::Passage,
+                        'W' => MapChip::Wall,
+                        'U' => MapChip::UpStairs,
+                        'D' => MapChip::DownStairs,
+                        _ => unreachable!("invalid map chip: {}", c),
+                    })
+                    .collect::<Vec<MapChip>>()
+            })
+            .collect::<Vec<Vec<MapChip>>>()
     }
 }
