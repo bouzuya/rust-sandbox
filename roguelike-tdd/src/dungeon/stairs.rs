@@ -20,6 +20,10 @@ impl Stairs {
             y,
         }
     }
+
+    pub fn new_with_ignore_room(rooms: Vec<Room>, ignore_room: Room) -> Self {
+        Self::new(rooms.into_iter().filter(|r| r != &ignore_room).collect())
+    }
 }
 
 #[cfg(test)]
@@ -115,5 +119,30 @@ mod tests {
             set.insert(stairs.room);
         }
         assert!(set.contains(&room3));
+    }
+
+    #[test]
+    fn test_stairs_抽選から除外する部屋を指定_除外指定した部屋は抽選されない() {
+        let room1 = Room {
+            x: 0,
+            y: 0,
+            width: 2,
+            height: 2,
+        };
+        let room2 = Room {
+            x: 10,
+            y: 10,
+            width: 2,
+            height: 2,
+        };
+        let room3 = Room {
+            x: 20,
+            y: 20,
+            width: 2,
+            height: 2,
+        };
+        let rooms = vec![room1.clone(), room2.clone(), room3.clone()];
+        let stairs = Stairs::new_with_ignore_room(rooms, room2);
+        assert!([room1, room3].contains(&stairs.room));
     }
 }
