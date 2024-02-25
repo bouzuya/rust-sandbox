@@ -31,6 +31,45 @@ impl MapGenerator {
             stair.write_to_map(&mut self.map);
         }
     }
+
+    pub fn generate_dungeon_map() -> Self {
+        let mut map = Self::new(80, 24);
+        let rooms = Room::create_rooms(map.map[0].len(), map.map.len(), 3, 2);
+        let passages = Self::create_all_passages(&rooms);
+        let doors = Self::create_all_doors(&rooms, &passages);
+        let up_stairs = Stairs::new(rooms.clone(), MapChip::UpStairs);
+        let down_stairs = Stairs::new_with_ignore_room(
+            rooms.clone(),
+            up_stairs.room.clone(),
+            MapChip::DownStairs,
+        );
+        map.write(&rooms, &passages, &doors, &[up_stairs, down_stairs]);
+        map
+    }
+
+    fn create_all_passages(rooms: &[Room]) -> Vec<Passage> {
+        let mut passages = vec![];
+        let perimeter = Passage::get_outer_perimeter(rooms);
+        for i in 0..perimeter.len() - 1 {
+            passages.push(Passage::new(perimeter[i].clone(), perimeter[i + 1].clone()));
+        }
+        let central_passage = Passage::get_random_central_passage(rooms);
+        for i in 0..central_passage.len() - 1 {
+            passages.push(Passage::new(
+                central_passage[i].clone(),
+                central_passage[i + 1].clone(),
+            ));
+        }
+        passages
+    }
+
+    fn create_all_doors(rooms: &[Room], passages: &[Passage]) -> Vec<Door> {
+        let mut doors = vec![];
+        for room in rooms {
+            doors.extend(Door::create_doors(room.clone(), passages.to_vec()));
+        }
+        doors
+    }
 }
 
 #[cfg(test)]

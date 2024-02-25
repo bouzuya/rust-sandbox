@@ -58,7 +58,7 @@ impl Room {
         }
     }
 
-    fn create_rooms(
+    pub fn create_rooms(
         map_width: usize,
         map_height: usize,
         min_room_size: usize,
