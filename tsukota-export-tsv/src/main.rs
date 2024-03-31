@@ -164,25 +164,34 @@ async fn list_event_documents(
         .collection("accounts")?
         .doc(account_id)?
         .collection("events")?;
-    let event_documents = client
-        .list_documents(ListDocumentsRequest {
-            parent: event_collection_name
-                .parent()
-                .map(|d| d.to_string())
-                .unwrap_or_else(|| event_collection_name.root_document_name().to_string()),
-            collection_id: event_collection_name.collection_id().to_string(),
-            ..Default::default()
-        })
-        .await?
-        .into_inner();
+    let mut page_token = String::new();
     let mut events = vec![];
-    for event_document in event_documents.documents {
-        let parsed = serde_firestore_value::from_value::<'_, EventDocumentData>(&Value {
-            value_type: Some(ValueType::MapValue(MapValue {
-                fields: event_document.fields,
-            })),
-        })?;
-        events.push(parsed);
+    loop {
+        let event_documents = client
+            .list_documents(ListDocumentsRequest {
+                parent: event_collection_name
+                    .parent()
+                    .map(|d| d.to_string())
+                    .unwrap_or_else(|| event_collection_name.root_document_name().to_string()),
+                collection_id: event_collection_name.collection_id().to_string(),
+                page_size: 100,
+                page_token: page_token.clone(),
+                ..Default::default()
+            })
+            .await?
+            .into_inner();
+        for event_document in event_documents.documents {
+            let parsed = serde_firestore_value::from_value::<'_, EventDocumentData>(&Value {
+                value_type: Some(ValueType::MapValue(MapValue {
+                    fields: event_document.fields,
+                })),
+            })?;
+            events.push(parsed);
+        }
+        page_token = event_documents.next_page_token;
+        if page_token.is_empty() {
+            break;
+        }
     }
     events.sort_by_key(|e| e.at());
     Ok(events)
