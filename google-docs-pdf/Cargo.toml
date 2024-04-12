@@ -6,3 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+anyhow = "1.0.82"
+async-trait = "0.1.80"
+clap = { version = "4.5.4", features = ["derive", "env"] }
+google-cloud-auth = { git = "https://github.com/bouzuya/google-cloud-rust", rev = "2d4bcb893e2acb9bca2775371243b37edc9bf94e" }
+reqwest = { version = "0.12.3", default-features = false, features = [
+  "rustls-tls",
+] }
+tokio = { version = "1.37.0", features = ["full"] }
