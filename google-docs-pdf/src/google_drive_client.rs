@@ -1,5 +1,35 @@
 use crate::token_source::TokenSource;
 
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    Hash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    serde::Deserialize,
+    serde::Serialize,
+)]
+#[serde(rename_all = "camelCase")]
+pub struct File {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub kind: Option<String>,
+    // ...
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mime_type: Option<String>,
+    // ...
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parents: Option<Vec<String>>,
+    // ...
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    // ...
+}
+
 // <https://developers.google.com/drive/api/reference/rest/v3>
 #[derive(Clone)]
 pub struct GoogleDriveClient {
@@ -17,6 +47,33 @@ impl GoogleDriveClient {
             service_endpoint: Self::SERVICE_ENDPOINT.to_string(),
             token_source: std::sync::Arc::new(token_source),
         }
+    }
+
+    // <https://developers.google.com/drive/api/reference/rest/v3/files/copy>
+    pub async fn v3_files_copy<S: AsRef<str>>(
+        &self,
+        file_id: S,
+        body: &File,
+    ) -> anyhow::Result<String> {
+        let token = self.token_source.token().await?;
+        let request = self
+            .client
+            .request(
+                reqwest::Method::POST,
+                format!(
+                    "{}/drive/v3/files/{}/copy",
+                    self.service_endpoint,
+                    file_id.as_ref()
+                ),
+            )
+            .header("Authorization", format!("Bearer {}", token))
+            .json(&body)
+            .build()?;
+        let response = self.client.execute(request).await?;
+        if !response.status().is_success() {
+            anyhow::bail!("{:?}", response.status());
+        }
+        Ok(response.text().await?)
     }
 
     // <https://developers.google.com/drive/api/reference/rest/v3/files/export>
