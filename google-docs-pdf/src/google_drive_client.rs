@@ -45,6 +45,28 @@ impl GoogleDriveClient {
         }
         Ok(response.bytes().await?.to_vec())
     }
+
+    // <https://developers.google.com/drive/api/reference/rest/v3/files/get>
+    pub async fn v3_files_get<S: AsRef<str>>(&self, file_id: S) -> anyhow::Result<String> {
+        let token = self.token_source.token().await?;
+        let request = self
+            .client
+            .request(
+                reqwest::Method::GET,
+                format!(
+                    "{}/drive/v3/files/{}",
+                    self.service_endpoint,
+                    file_id.as_ref()
+                ),
+            )
+            .header("Authorization", format!("Bearer {}", token))
+            .build()?;
+        let response = self.client.execute(request).await?;
+        if !response.status().is_success() {
+            anyhow::bail!("{:?}", response.status());
+        }
+        Ok(response.text().await?)
+    }
 }
 
 #[cfg(test)]
