@@ -15,7 +15,7 @@ pub struct ParagraphStyle {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alignment: Option<Alignment>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub line_spacing: Option<f64>,
+    pub line_spacing: Option<serde_json::Number>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub direction: Option<ContentDirection>,
     #[serde(skip_serializing_if = "Option::is_none")]
