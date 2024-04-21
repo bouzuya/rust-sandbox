@@ -103,53 +103,56 @@ async fn main() -> anyhow::Result<()> {
                     text_run,
                 )) => match text_run.content.as_ref() {
                     None => false,
-                    Some(s) => s.trim() == "place_holder",
+                    Some(s) => s.trim() == "placeholder",
                 },
                 _ => false,
             },
         );
     println!("{:?}", matched_paragraph_element);
-    let index = matched_paragraph_element
+    let start_index = matched_paragraph_element
         .context("matched_paragraph_element is None")?
         .start_index
         .unwrap_or(0);
-    println!("{:?}", index);
+    let end_index = matched_paragraph_element
+        .context("matched_paragraph_element is None")?
+        .end_index
+        .unwrap_or(0);
+    println!("{:?}, {:?}", start_index, end_index);
+
+    // insert text
+    // google_docs_client
+    //     .v1_documents_batch_update(
+    //         &copied_document_id,
+    //         &google_docs_client::BatchUpdateRequestBody {
+    //             requests: Some(vec![google_docs_client::v1::documents::request::Request {
+    //                 request: Some(google_docs_client::v1::documents::request::RequestRequest::InsertText(
+    //                         google_docs_client::v1::documents::request::InsertTextRequest {
+    //                             text: Some("Hello, World!".to_string()),
+    //                             insertion_location: Some(google_docs_client::v1::documents::request::InsertTextRequestInsertionLocation::Location(
+    //                                 google_docs_client::v1::documents::request::Location {
+    //                                     index: Some(index),
+    //                                     segment_id: None,
+    //                                 },
+    //                             )),
+    //                         },
+    //                     )),
+    //             }]),
+    //         },
+    //     )
+    //     .await?;
 
     google_docs_client
         .v1_documents_batch_update(
             &copied_document_id,
             &google_docs_client::BatchUpdateRequestBody {
                 requests: Some(vec![google_docs_client::v1::documents::request::Request {
-                    request: Some(google_docs_client::v1::documents::request::RequestRequest::InsertText(
-                            google_docs_client::v1::documents::request::InsertTextRequest {
-                                text: Some("Hello, World!".to_string()),
-                                insertion_location: Some(google_docs_client::v1::documents::request::InsertTextRequestInsertionLocation::Location(
-                                    google_docs_client::v1::documents::request::Location {
-                                        index: Some(index),
-                                        segment_id: None,
-                                    },
-                                )),
-                            },
-                        )),
-                }]),
-            },
-        )
-        .await?;
-
-    google_docs_client
-        .v1_documents_batch_update(
-            &copied_document_id,
-            &google_docs_client::BatchUpdateRequestBody {
-                requests: Some(vec![google_docs_client::v1::documents::request::Request {
-                    request: Some(google_docs_client::v1::documents::request::RequestRequest::InsertText(
-                            google_docs_client::v1::documents::request::InsertTextRequest {
-                                text: Some("Hello, World!".to_string()),
-                                insertion_location: Some(google_docs_client::v1::documents::request::InsertTextRequestInsertionLocation::Location(
-                                    google_docs_client::v1::documents::request::Location {
-                                        index: Some(index),
-                                        segment_id: None,
-                                    },
-                                )),
+                    request: Some(google_docs_client::v1::documents::request::RequestRequest::DeleteContentRange(
+                            google_docs_client::v1::documents::request::DeleteContentRangeRequest{
+                                range: Some(google_docs_client::v1::documents::Range {
+                                    segment_id: None,
+                                    start_index: Some(start_index),
+                                    end_index: Some(end_index - 1 /* 1 = '\n' */),
+                                }),
                             },
                         )),
                 }]),

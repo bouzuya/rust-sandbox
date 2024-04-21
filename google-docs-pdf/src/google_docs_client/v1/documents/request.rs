@@ -1,3 +1,5 @@
+use crate::google_docs_client::v1::documents::Range;
+
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Request {
@@ -8,8 +10,16 @@ pub struct Request {
 #[derive(Clone, Debug, PartialEq, serde::Deserialize, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum RequestRequest {
+    // TODO: ...
     InsertText(InsertTextRequest),
     // TODO:
+    DeleteContentRange(DeleteContentRangeRequest),
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DeleteContentRangeRequest {
+    pub range: Option<Range>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
