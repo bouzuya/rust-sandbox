@@ -146,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
     )?;
     // remove last "\n"
     delete_content(&mut request_body, index, index + 1)?;
-    // index += 2;
+    replace_all_text(&mut request_body, "placeholder2", "Good bye, World!")?;
 
     google_docs_client
         .v1_documents_batch_update(&copied_document_id, &request_body)
@@ -252,6 +252,33 @@ fn insert_text(
             })),
         });
     Ok(index + text.chars().count())
+}
+
+fn replace_all_text(
+    request_body: &mut google_docs_client::BatchUpdateRequestBody,
+    search: &str,
+    replace_text: &str,
+) -> anyhow::Result<()> {
+    use google_docs_client::v1::documents::request::{
+        ReplaceAllTextRequest, ReplaceAllTextRequestCriteria, Request, RequestRequest,
+        SubstringMatchCriteria,
+    };
+    request_body
+        .requests
+        .as_mut()
+        .context("requests is None")?
+        .push(Request {
+            request: Some(RequestRequest::ReplaceAllText(ReplaceAllTextRequest {
+                replace_text: Some(replace_text.to_string()),
+                criteria: Some(ReplaceAllTextRequestCriteria::ContainsText(
+                    SubstringMatchCriteria {
+                        text: Some(search.to_string()),
+                        match_case: None,
+                    },
+                )),
+            })),
+        });
+    Ok(())
 }
 
 async fn example_v3_files_copy(
