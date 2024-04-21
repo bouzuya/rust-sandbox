@@ -121,10 +121,20 @@ mod text_style;
 mod text_style_suggestion_state;
 mod r#type;
 mod unit;
+pub mod v1;
 mod weighted_font_family;
 mod width_type;
 
+use self::v1::documents::request::Request;
+
 use crate::token_source::TokenSource;
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Deserialize, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BatchUpdateRequestBody {
+    pub requests: Option<Vec<Request>>,
+    // TODO:
+}
 
 // <https://developers.google.com/docs/api/reference/rest>
 // - batchUpdate
@@ -148,6 +158,32 @@ impl GoogleDocsClient {
         }
     }
 
+    // <https://developers.google.com/docs/api/reference/rest/v1/documents/batchUpdate>
+    pub async fn v1_documents_batch_update<S: AsRef<str>>(
+        &self,
+        document_id: S,
+        body: &BatchUpdateRequestBody,
+    ) -> anyhow::Result<String> {
+        let token = self.token_source.token().await?;
+        let request = self
+            .client
+            .request(
+                reqwest::Method::POST,
+                format!(
+                    "{}/v1/documents/{}:batchUpdate",
+                    self.service_endpoint,
+                    document_id.as_ref()
+                ),
+            )
+            .header("Authorization", format!("Bearer {}", token))
+            .json(body)
+            .build()?;
+        let response = self.client.execute(request).await?;
+        if !response.status().is_success() {
+            anyhow::bail!("{:?}", response.status());
+        }
+        Ok(response.text().await?)
+    }
     // <https://developers.google.com/docs/api/reference/rest/v1/documents/get>
     pub async fn v1_documents_get<S: AsRef<str>>(&self, document_id: S) -> anyhow::Result<String> {
         let token = self.token_source.token().await?;
