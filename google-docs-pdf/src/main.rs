@@ -103,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
                     text_run,
                 )) => match text_run.content.as_ref() {
                     None => false,
-                    Some(s) => s.trim() == "placeholder",
+                    Some(s) => s == "placeholder\n",
                 },
                 _ => false,
             },
@@ -119,45 +119,21 @@ async fn main() -> anyhow::Result<()> {
         .unwrap_or(0);
     println!("{:?}, {:?}", start_index, end_index);
 
-    // insert text
-    // google_docs_client
-    //     .v1_documents_batch_update(
-    //         &copied_document_id,
-    //         &google_docs_client::BatchUpdateRequestBody {
-    //             requests: Some(vec![google_docs_client::v1::documents::request::Request {
-    //                 request: Some(google_docs_client::v1::documents::request::RequestRequest::InsertText(
-    //                         google_docs_client::v1::documents::request::InsertTextRequest {
-    //                             text: Some("Hello, World!".to_string()),
-    //                             insertion_location: Some(google_docs_client::v1::documents::request::InsertTextRequestInsertionLocation::Location(
-    //                                 google_docs_client::v1::documents::request::Location {
-    //                                     index: Some(index),
-    //                                     segment_id: None,
-    //                                 },
-    //                             )),
-    //                         },
-    //                     )),
-    //             }]),
-    //         },
-    //     )
-    //     .await?;
+    let mut request_body = google_docs_client::BatchUpdateRequestBody {
+        requests: Some(vec![]),
+    };
+
+    // delete placeholder without "\n"
+    delete_content(&mut request_body, start_index, end_index - 1)?;
+    let mut index = start_index;
+    index = insert_text(&mut request_body, index, "Hello, World!\n")?;
+    index = insert_text(&mut request_body, index, "あいうえお\n")?;
+    index = insert_text(&mut request_body, index, "Hi\n")?;
+    // remove last "\n"
+    delete_content(&mut request_body, index, index + 1)?;
 
     google_docs_client
-        .v1_documents_batch_update(
-            &copied_document_id,
-            &google_docs_client::BatchUpdateRequestBody {
-                requests: Some(vec![google_docs_client::v1::documents::request::Request {
-                    request: Some(google_docs_client::v1::documents::request::RequestRequest::DeleteContentRange(
-                            google_docs_client::v1::documents::request::DeleteContentRangeRequest{
-                                range: Some(google_docs_client::v1::documents::Range {
-                                    segment_id: None,
-                                    start_index: Some(start_index),
-                                    end_index: Some(end_index - 1 /* 1 = '\n' */),
-                                }),
-                            },
-                        )),
-                }]),
-            },
-        )
+        .v1_documents_batch_update(&copied_document_id, &request_body)
         .await?;
 
     let pdf = google_drive_client
@@ -165,6 +141,57 @@ async fn main() -> anyhow::Result<()> {
         .await?;
     std::io::Write::write_all(&mut std::fs::File::create(&args.output)?, &pdf)?;
     Ok(())
+}
+
+fn delete_content(
+    request_body: &mut google_docs_client::BatchUpdateRequestBody,
+    start_index: usize,
+    end_index: usize,
+) -> anyhow::Result<()> {
+    use google_docs_client::v1::documents::{
+        request::{DeleteContentRangeRequest, Request, RequestRequest},
+        Range,
+    };
+    request_body
+        .requests
+        .as_mut()
+        .context("requests is None")?
+        .push(Request {
+            request: Some(RequestRequest::DeleteContentRange(
+                DeleteContentRangeRequest {
+                    range: Some(Range {
+                        segment_id: None,
+                        start_index: Some(start_index),
+                        end_index: Some(end_index),
+                    }),
+                },
+            )),
+        });
+    Ok(())
+}
+
+fn insert_text(
+    request_body: &mut google_docs_client::BatchUpdateRequestBody,
+    index: usize,
+    text: &str,
+) -> anyhow::Result<usize> {
+    use google_docs_client::v1::documents::request::{
+        InsertTextRequest, InsertTextRequestInsertionLocation, Location, Request, RequestRequest,
+    };
+    request_body
+        .requests
+        .as_mut()
+        .context("requests is None")?
+        .push(Request {
+            request: Some(RequestRequest::InsertText(InsertTextRequest {
+                text: Some(text.to_string()),
+                insertion_location: Some(InsertTextRequestInsertionLocation::Location(Location {
+                    index: Some(index),
+                    segment_id: None,
+                })),
+            })),
+        });
+    Ok(index + text.chars().count())
 }
 
 async fn example_v3_files_copy(
