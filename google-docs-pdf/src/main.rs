@@ -3,7 +3,7 @@ mod google_drive_client;
 mod token_source;
 
 use crate::{
-    google_docs_client::GoogleDocsClient,
+    google_docs_client::{v1::documents::Document, GoogleDocsClient},
     google_drive_client::{File, GoogleDriveClient},
     token_source::GoogleCloudAuthTokenSource,
 };
