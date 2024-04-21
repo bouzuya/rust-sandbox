@@ -5,8 +5,8 @@ use crate::google_docs_client::v1::documents::Unit;
 #[serde(rename_all = "camelCase")]
 pub struct Dimension {
     #[serde(skip_serializing_if = "Option::is_none")]
-    magnitude: Option<serde_json::Number>,
-    unit: Unit,
+    pub magnitude: Option<serde_json::Number>,
+    pub unit: Unit,
 }
 
 #[cfg(test)]

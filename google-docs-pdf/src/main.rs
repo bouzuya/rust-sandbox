@@ -129,8 +129,24 @@ async fn main() -> anyhow::Result<()> {
     index = insert_text(&mut request_body, index, "Hello, World!\n")?;
     index = insert_text(&mut request_body, index, "あいうえお\n")?;
     index = insert_text(&mut request_body, index, "Hi\n")?;
+    index = insert_inline_image(
+        &mut request_body,
+        index,
+        "https://blog.bouzuya.net/images/favicon.png",
+        100,
+        100,
+    )?;
+    index = insert_text(&mut request_body, index, "\n")?;
+    index = insert_inline_image(
+        &mut request_body,
+        index,
+        "https://blog.bouzuya.net/images/favicon.png",
+        50,
+        100,
+    )?;
     // remove last "\n"
     delete_content(&mut request_body, index, index + 1)?;
+    // index += 2;
 
     google_docs_client
         .v1_documents_batch_update(&copied_document_id, &request_body)
@@ -168,6 +184,50 @@ fn delete_content(
             )),
         });
     Ok(())
+}
+
+fn insert_inline_image(
+    request_body: &mut google_docs_client::BatchUpdateRequestBody,
+    index: usize,
+    uri: &str,
+    height: usize,
+    width: usize,
+) -> anyhow::Result<usize> {
+    use google_docs_client::v1::documents::{
+        request::{
+            InsertInlineImageRequest, InsertInlineImageRequestInsertionLocation, Location, Request,
+            RequestRequest,
+        },
+        Dimension, Size, Unit,
+    };
+    request_body
+        .requests
+        .as_mut()
+        .context("requests is None")?
+        .push(Request {
+            request: Some(RequestRequest::InsertInlineImage(
+                InsertInlineImageRequest {
+                    uri: Some(uri.to_string()),
+                    object_size: Some(Size {
+                        height: Some(Dimension {
+                            magnitude: Some(serde_json::Number::from(height)),
+                            unit: Unit::Pt,
+                        }),
+                        width: Some(Dimension {
+                            magnitude: Some(serde_json::Number::from(width)),
+                            unit: Unit::Pt,
+                        }),
+                    }),
+                    insertion_location: Some(InsertInlineImageRequestInsertionLocation::Location(
+                        Location {
+                            index: Some(index),
+                            segment_id: None,
+                        },
+                    )),
+                },
+            )),
+        });
+    Ok(index + 1)
 }
 
 fn insert_text(
