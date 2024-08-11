@@ -1,5 +1,7 @@
 # b
 
+b is a CLI for taking notes.
+
 ## Installation
 
 ```console
