@@ -13,6 +13,9 @@ fn main() -> anyhow::Result<()> {
                 Ok(parsed) => stack.push(parsed),
                 Err(_) => match word {
                     "+" => add(&mut stack)?,
+                    "-" => sub(&mut stack)?,
+                    "*" => mul(&mut stack)?,
+                    "/" => div(&mut stack)?,
                     _ => anyhow::bail!("{:#?} could not be parsed", word),
                 },
             }
@@ -26,5 +29,26 @@ fn add(stack: &mut Vec<i32>) -> anyhow::Result<()> {
     let lhs = stack.pop().context("lhs is none")?;
     let rhs = stack.pop().context("rhs is none")?;
     stack.push(lhs + rhs);
+    Ok(())
+}
+
+fn sub(stack: &mut Vec<i32>) -> anyhow::Result<()> {
+    let lhs = stack.pop().context("lhs is none")?;
+    let rhs = stack.pop().context("rhs is none")?;
+    stack.push(lhs - rhs);
+    Ok(())
+}
+
+fn mul(stack: &mut Vec<i32>) -> anyhow::Result<()> {
+    let lhs = stack.pop().context("lhs is none")?;
+    let rhs = stack.pop().context("rhs is none")?;
+    stack.push(lhs * rhs);
+    Ok(())
+}
+
+fn div(stack: &mut Vec<i32>) -> anyhow::Result<()> {
+    let lhs = stack.pop().context("lhs is none")?;
+    let rhs = stack.pop().context("rhs is none")?;
+    stack.push(lhs / rhs);
     Ok(())
 }
