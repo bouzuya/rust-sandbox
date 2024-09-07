@@ -3,15 +3,21 @@ use anyhow::Context as _;
 fn main() -> anyhow::Result<()> {
     let mut stack = vec![];
 
-    stack.push(42);
-    stack.push(36);
+    for line in std::io::stdin().lines() {
+        let line = line?;
+        let words = line.split(' ').collect::<Vec<_>>();
+        println!("Line: {:#?}", words);
 
-    add(&mut stack)?;
-
-    stack.push(22);
-
-    add(&mut stack)?;
-
+        for word in words {
+            match word.parse::<i32>() {
+                Ok(parsed) => stack.push(parsed),
+                Err(_) => match word {
+                    "+" => add(&mut stack)?,
+                    _ => anyhow::bail!("{:#?} could not be parsed", word),
+                },
+            }
+        }
+    }
     println!("stack {:#?}", stack);
     Ok(())
 }
