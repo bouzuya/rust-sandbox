@@ -1,6 +1,6 @@
 use anyhow::Context as _;
 
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 enum Value<'src> {
     Num(i32),
     Op(&'src str),
@@ -8,6 +8,13 @@ enum Value<'src> {
 }
 
 impl<'src> Value<'src> {
+    fn as_block(&self) -> anyhow::Result<&Vec<Value<'src>>> {
+        match self {
+            Value::Block(val) => Ok(val),
+            _ => anyhow::bail!("Value is not a block"),
+        }
+    }
+
     fn as_num(&self) -> anyhow::Result<i32> {
         match self {
             Value::Num(num) => Ok(*num),
@@ -40,16 +47,11 @@ fn parse(line: &str) -> anyhow::Result<Vec<Value>> {
             (value, rest) = parse_block(rest)?;
             stack.push(value);
         } else {
-            match word.parse::<i32>() {
-                Ok(parsed) => stack.push(Value::Num(parsed)),
-                Err(_) => match word {
-                    "+" => add(&mut stack)?,
-                    "-" => sub(&mut stack)?,
-                    "*" => mul(&mut stack)?,
-                    "/" => div(&mut stack)?,
-                    _ => anyhow::bail!("{:#?} could not be parsed", word),
-                },
-            }
+            let value = match word.parse::<i32>() {
+                Ok(parsed) => Value::Num(parsed),
+                Err(_) => Value::Op(word),
+            };
+            eval(value, &mut stack)?;
         }
         words = rest;
     }
@@ -85,6 +87,19 @@ fn parse_block<'src, 'a>(input: &'a [&'src str]) -> anyhow::Result<(Value<'src>,
     Ok((Value::Block(tokens), words))
 }
 
+fn eval<'src>(code: Value<'src>, stack: &mut Vec<Value<'src>>) -> anyhow::Result<()> {
+    match code {
+        Value::Op("+") => add(stack)?,
+        Value::Op("-") => sub(stack)?,
+        Value::Op("*") => mul(stack)?,
+        Value::Op("/") => div(stack)?,
+        Value::Op("if") => op_if(stack)?,
+        Value::Op(op) => anyhow::bail!("{:?} cloud not be parsed", op),
+        _ => stack.push(code.clone()),
+    }
+    Ok(())
+}
+
 fn add(stack: &mut Vec<Value>) -> anyhow::Result<()> {
     let lhs = stack.pop().context("lhs is none")?.as_num()?;
     let rhs = stack.pop().context("rhs is none")?.as_num()?;
@@ -113,6 +128,35 @@ fn div(stack: &mut Vec<Value>) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn op_if(stack: &mut Vec<Value>) -> anyhow::Result<()> {
+    let false_branch = stack
+        .pop()
+        .context("false_branch is none")?
+        .as_block()?
+        .clone();
+    let true_branch = stack
+        .pop()
+        .context("true_branch is none")?
+        .as_block()?
+        .clone();
+    let cond = stack.pop().context("cond is none")?.as_block()?.clone();
+    for code in cond {
+        eval(code, stack)?;
+    }
+
+    let cond_result = stack.pop().context("cond_result is none")?.as_num()?;
+    if cond_result != 0 {
+        for code in true_branch {
+            eval(code, stack)?;
+        }
+    } else {
+        for code in false_branch {
+            eval(code, stack)?;
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,6 +168,20 @@ mod tests {
             parse("1 2 + { 3 4 }")?,
             vec![Num(3), Block(vec![Num(3), Num(4)])]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_if_false() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(parse("{ 1 -1 + } { 100 } { -100 } if")?, vec![Num(-100)]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_if_true() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(parse("{ 1 1 + } { 100 } { -100 } if")?, vec![Num(100)]);
         Ok(())
     }
 
