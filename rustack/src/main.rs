@@ -1,9 +1,12 @@
 use std::{
     collections::HashMap,
+    fmt::Debug,
     io::{BufRead, BufReader},
 };
 
 use anyhow::Context as _;
+
+type NativeOpFn = fn(&mut Vm) -> anyhow::Result<()>;
 
 #[derive(Debug)]
 struct Vm {
@@ -14,9 +17,24 @@ struct Vm {
 
 impl Vm {
     fn new() -> Self {
+        let fns: [(&str, NativeOpFn); 10] = [
+            ("+", add),
+            ("-", sub),
+            ("*", mul),
+            ("/", div),
+            ("<", lt),
+            ("def", op_def),
+            ("dup", dup),
+            ("exch", exch),
+            ("if", op_if),
+            ("puts", puts),
+        ];
         Self {
             stack: vec![],
-            vars: HashMap::new(),
+            vars: fns
+                .into_iter()
+                .map(|(k, v)| (k.to_owned(), Value::Native(NativeOp(v))))
+                .collect::<HashMap<String, Value>>(),
             blocks: vec![],
         }
     }
@@ -28,6 +46,7 @@ enum Value {
     Op(String),
     Sym(String),
     Block(Vec<Value>),
+    Native(NativeOp),
 }
 
 impl Value {
@@ -55,21 +74,41 @@ impl Value {
 
 impl std::fmt::Display for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Value::Num(num) => num.to_string(),
-            Value::Op(op) => op.clone(),
-            Value::Sym(sym) => sym.clone(),
-            Value::Block(block) => {
-                let mut s = String::from("{");
-                for val in block {
-                    s.push_str(&val.to_string());
-                    s.push(' ');
+        std::fmt::Display::fmt(
+            &match self {
+                Value::Num(num) => num.to_string(),
+                Value::Op(op) => op.clone(),
+                Value::Sym(sym) => sym.clone(),
+                Value::Block(block) => {
+                    let mut s = String::from("{");
+                    for val in block {
+                        s.push_str(&val.to_string());
+                        s.push(' ');
+                    }
+                    s.push('}');
+                    s
                 }
-                s.push('}');
-                s
-            }
-        }
-        .fmt(f)
+                Value::Native(_) => "<NativeOp>".to_owned(),
+            },
+            f,
+        )
+    }
+}
+
+#[derive(Clone)]
+struct NativeOp(NativeOpFn);
+
+impl PartialEq for NativeOp {
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+}
+
+impl Eq for NativeOp {}
+
+impl std::fmt::Debug for NativeOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<NativeOp>")
     }
 }
 
@@ -138,29 +177,21 @@ fn eval(code: Value, vm: &mut Vm) -> anyhow::Result<()> {
         return Ok(());
     }
     match code {
-        Value::Op(op) => match op.as_str() {
-            "+" => add(&mut vm.stack)?,
-            "-" => sub(&mut vm.stack)?,
-            "*" => mul(&mut vm.stack)?,
-            "/" => div(&mut vm.stack)?,
-            "<" => lt(vm)?,
-            "def" => op_def(vm)?,
-            "dup" => dup(vm)?,
-            "exch" => exch(vm)?,
-            "if" => op_if(vm)?,
-            "puts" => puts(vm)?,
-            op => {
-                let val = vm.vars.get(op).context("{:?} is not a defined operation")?;
-                match val {
-                    Value::Block(block) => {
-                        for code in block.clone() {
-                            eval(code.clone(), vm)?;
-                        }
+        Value::Op(op) => {
+            let val = vm
+                .vars
+                .get(op.as_str())
+                .context("{:?} is not a defined operation")?;
+            match val {
+                Value::Block(block) => {
+                    for code in block.clone() {
+                        eval(code.clone(), vm)?;
                     }
-                    _ => vm.stack.push(val.clone()),
                 }
+                Value::Native(native) => (native.0)(vm)?,
+                _ => vm.stack.push(val.clone()),
             }
-        },
+        }
         _ => vm.stack.push(code.clone()),
     }
     Ok(())
@@ -168,10 +199,10 @@ fn eval(code: Value, vm: &mut Vm) -> anyhow::Result<()> {
 
 macro_rules! impl_op {
     {$name:ident,$op:tt} => {
-        fn $name(stack: &mut Vec<Value>) -> anyhow::Result<()> {
-             let rhs = stack.pop().context("rhs is none")?.as_num()?;
-             let lhs = stack.pop().context("lhs is none")?.as_num()?;
-             stack.push(Value::Num(lhs $op rhs));
+        fn $name(vm: &mut Vm) -> anyhow::Result<()> {
+             let rhs = vm.stack.pop().context("rhs is none")?.as_num()?;
+             let lhs = vm.stack.pop().context("lhs is none")?.as_num()?;
+             vm.stack.push(Value::Num(lhs $op rhs));
              Ok(())
         }
     }
@@ -328,9 +359,31 @@ mod tests {
     }
 
     #[test]
+    fn test_square() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(
+            parse_batch(Cursor::new("/square { dup * } def 10 square"))?,
+            vec![Num(100)]
+        );
+        Ok(())
+    }
+
+    #[test]
     fn test_sub() -> anyhow::Result<()> {
         use Value::*;
         assert_eq!(parse_batch(Cursor::new("1 2 -"))?, vec![Num(-1)]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_vec2sqlen() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(
+            parse_batch(Cursor::new(
+                "/square { dup * } def /vec2sqlen { square exch square exch + } def 1 2 vec2sqlen"
+            ))?,
+            vec![Num(5)]
+        );
         Ok(())
     }
 }
