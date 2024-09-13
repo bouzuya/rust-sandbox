@@ -145,11 +145,20 @@ fn eval(code: Value, vm: &mut Vm) -> anyhow::Result<()> {
             "/" => div(&mut vm.stack)?,
             "<" => lt(vm)?,
             "def" => op_def(vm)?,
+            "dup" => dup(vm)?,
+            "exch" => exch(vm)?,
             "if" => op_if(vm)?,
             "puts" => puts(vm)?,
             op => {
                 let val = vm.vars.get(op).context("{:?} is not a defined operation")?;
-                vm.stack.push(val.clone());
+                match val {
+                    Value::Block(block) => {
+                        for code in block.clone() {
+                            eval(code.clone(), vm)?;
+                        }
+                    }
+                    _ => vm.stack.push(val.clone()),
+                }
             }
         },
         _ => vm.stack.push(code.clone()),
@@ -185,6 +194,20 @@ fn op_def(vm: &mut Vm) -> anyhow::Result<()> {
     let sym = vm.stack.pop().context("sym is none")?;
     let sym = sym.as_sym()?;
     vm.vars.insert(sym.to_owned(), val);
+    Ok(())
+}
+
+fn dup(vm: &mut Vm) -> anyhow::Result<()> {
+    let val = vm.stack.last().context("val is none")?.clone();
+    vm.stack.push(val);
+    Ok(())
+}
+
+fn exch(vm: &mut Vm) -> anyhow::Result<()> {
+    let val1 = vm.stack.pop().context("val1 is none")?;
+    let val2 = vm.stack.pop().context("val2 is none")?;
+    vm.stack.push(val1);
+    vm.stack.push(val2);
     Ok(())
 }
 
@@ -238,6 +261,30 @@ mod tests {
             parse_batch(Cursor::new("/x 10 def /y 20 def { x y < } { x } { y } if"))?,
             vec![Num(10)]
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_double() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(
+            parse_batch(Cursor::new("/double { 2 * } def 10 double"))?,
+            vec![Num(20)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_dup() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(parse_batch(Cursor::new("1 dup"))?, vec![Num(1), Num(1)]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_exch() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(parse_batch(Cursor::new("1 2 exch"))?, vec![Num(2), Num(1)]);
         Ok(())
     }
 
