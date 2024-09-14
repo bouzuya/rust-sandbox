@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     fmt::Debug,
     io::{BufRead, BufReader},
 };
@@ -11,7 +11,7 @@ type NativeOpFn = fn(&mut Vm) -> anyhow::Result<()>;
 #[derive(Debug)]
 struct Vm {
     stack: Vec<Value>,
-    vars: HashMap<String, Value>,
+    vars: BTreeMap<String, Value>,
     blocks: Vec<Vec<Value>>,
 }
 
@@ -34,7 +34,7 @@ impl Vm {
             vars: fns
                 .into_iter()
                 .map(|(k, v)| (k.to_owned(), Value::Native(NativeOp(v))))
-                .collect::<HashMap<String, Value>>(),
+                .collect::<BTreeMap<String, Value>>(),
             blocks: vec![],
         }
     }
@@ -153,7 +153,12 @@ fn parse_word(word: &str, vm: &mut Vm) -> anyhow::Result<()> {
         vm.blocks.push(vec![]);
     } else if word == "}" {
         let block = vm.blocks.pop().context("block is none")?;
-        vm.stack.push(Value::Block(block));
+        let value = Value::Block(block);
+        if let Some(block) = vm.blocks.last_mut() {
+            block.push(value);
+        } else {
+            vm.stack.push(value);
+        }
     } else {
         let value = match word.parse::<i32>() {
             Ok(parsed) => Value::Num(parsed),
@@ -316,6 +321,34 @@ mod tests {
     fn test_exch() -> anyhow::Result<()> {
         use Value::*;
         assert_eq!(parse_batch(Cursor::new("1 2 exch"))?, vec![Num(2), Num(1)]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_factorial() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(
+            parse_batch(Cursor::new(
+                r#"
+/factorial { 1 factorial_int } def
+
+/factorial_int {
+    /acc exch def
+    /n exch def
+    { n 2 < }
+    { acc }
+    {
+      n 1 -
+      acc n *
+      factorial_int
+    }
+    if
+} def
+
+10 factorial"#
+            ))?,
+            vec![Num(3628800)]
+        );
         Ok(())
     }
 
