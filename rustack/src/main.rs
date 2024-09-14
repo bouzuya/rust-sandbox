@@ -11,7 +11,7 @@ type NativeOpFn = fn(&mut Vm) -> anyhow::Result<()>;
 #[derive(Debug)]
 struct Vm {
     stack: Vec<Value>,
-    vars: BTreeMap<String, Value>,
+    vars: Vec<BTreeMap<String, Value>>,
     blocks: Vec<Vec<Value>>,
 }
 
@@ -31,12 +31,19 @@ impl Vm {
         ];
         Self {
             stack: vec![],
-            vars: fns
+            vars: vec![fns
                 .into_iter()
                 .map(|(k, v)| (k.to_owned(), Value::Native(NativeOp(v))))
-                .collect::<BTreeMap<String, Value>>(),
+                .collect::<BTreeMap<String, Value>>()],
             blocks: vec![],
         }
+    }
+
+    fn find_var(&self, name: &str) -> Option<Value> {
+        self.vars
+            .iter()
+            .rev()
+            .find_map(|vars| vars.get(name).cloned())
     }
 }
 
@@ -184,14 +191,15 @@ fn eval(code: Value, vm: &mut Vm) -> anyhow::Result<()> {
     match code {
         Value::Op(op) => {
             let val = vm
-                .vars
-                .get(op.as_str())
+                .find_var(op.as_str())
                 .context("{:?} is not a defined operation")?;
             match val {
                 Value::Block(block) => {
+                    vm.vars.push(BTreeMap::new());
                     for code in block.clone() {
                         eval(code.clone(), vm)?;
                     }
+                    vm.vars.pop();
                 }
                 Value::Native(native) => (native.0)(vm)?,
                 _ => vm.stack.push(val.clone()),
@@ -229,7 +237,10 @@ fn op_def(vm: &mut Vm) -> anyhow::Result<()> {
     let val = vm.stack.pop().context("val is none")?;
     let sym = vm.stack.pop().context("sym is none")?;
     let sym = sym.as_sym()?;
-    vm.vars.insert(sym.to_owned(), val);
+    vm.vars
+        .last_mut()
+        .expect("vars is not empty")
+        .insert(sym.to_owned(), val);
     Ok(())
 }
 
@@ -348,6 +359,39 @@ mod tests {
 10 factorial"#
             ))?,
             vec![Num(3628800)]
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_fib() -> anyhow::Result<()> {
+        use Value::*;
+        assert_eq!(
+            parse_batch(Cursor::new(
+                r#"
+/fib {
+    /n exch def
+    { n 1 < }
+    { 0 }
+    {
+        { n 2 < }
+        { 1 }
+        {
+            n 1 -
+            fib
+            n 2 -
+            fib
+            +
+        }
+        if
+    }
+    if
+} def
+
+10 fib
+"#
+            ))?,
+            vec![Num(55)]
         );
         Ok(())
     }
