@@ -7,17 +7,26 @@ fn main() {
 enum Token {
     Ident,
     Number,
+    LParen,
+    RParen,
+}
+
+trait CharsExt {
+    fn peek(&self) -> Option<char>;
+}
+
+impl<'a> CharsExt for std::str::Chars<'a> {
+    fn peek(&self) -> Option<char> {
+        self.clone().next()
+    }
 }
 
 fn ident(input: &str) -> (&str, Option<Token>) {
     let mut chars = input.chars();
     let mut token = None;
-    if let Some('a'..='z' | 'A'..='Z') = chars.clone().next() {
+    if let Some('a'..='z' | 'A'..='Z') = chars.peek() {
         chars.next();
-        while matches!(
-            chars.clone().next(),
-            Some('a'..='z' | 'A'..='Z' | '0'..='9')
-        ) {
+        while matches!(chars.peek(), Some('a'..='z' | 'A'..='Z' | '0'..='9')) {
             chars.next();
         }
         token = Some(Token::Ident);
@@ -25,15 +34,35 @@ fn ident(input: &str) -> (&str, Option<Token>) {
     (chars.as_str(), token)
 }
 
+fn lparen(input: &str) -> (&str, Option<Token>) {
+    let mut chars = input.chars();
+    let mut token = None;
+    if let Some('(') = chars.peek() {
+        chars.next();
+        token = Some(Token::LParen);
+    }
+    (chars.as_str(), token)
+}
+
 fn number(input: &str) -> (&str, Option<Token>) {
     let mut chars = input.chars();
     let mut token = None;
-    if let Some('-' | '+' | '.' | '0'..='9') = chars.clone().next() {
+    if let Some('-' | '+' | '.' | '0'..='9') = chars.peek() {
         chars.next();
         while matches!(chars.clone().next(), Some('.' | '0'..='9')) {
             chars.next();
         }
         token = Some(Token::Number);
+    }
+    (chars.as_str(), token)
+}
+
+fn rparen(input: &str) -> (&str, Option<Token>) {
+    let mut chars = input.chars();
+    let mut token = None;
+    if let Some(')') = chars.peek() {
+        chars.next();
+        token = Some(Token::RParen);
     }
     (chars.as_str(), token)
 }
@@ -52,11 +81,21 @@ fn source(mut input: &str) -> Vec<Token> {
 }
 
 fn token(input: &str) -> (&str, Option<Token>) {
-    if let (input, Some(token)) = ident(whitespace(input)) {
+    let input = whitespace(input);
+
+    if let (input, Some(token)) = ident(input) {
         return (input, Some(token));
     }
 
-    if let (input, Some(token)) = number(whitespace(input)) {
+    if let (input, Some(token)) = number(input) {
+        return (input, Some(token));
+    }
+
+    if let (input, Some(token)) = lparen(input) {
+        return (input, Some(token));
+    }
+
+    if let (input, Some(token)) = rparen(input) {
         return (input, Some(token));
     }
 
@@ -65,7 +104,7 @@ fn token(input: &str) -> (&str, Option<Token>) {
 
 fn whitespace(input: &str) -> &str {
     let mut chars = input.chars();
-    while matches!(chars.clone().next(), Some(' ')) {
+    while matches!(chars.peek(), Some(' ')) {
         chars.next();
     }
     chars.as_str()
@@ -101,6 +140,46 @@ mod tests {
         assert_eq!(source("123world"), vec![Token::Number, Token::Ident]);
         assert_eq!(source("Hello world"), vec![Token::Ident, Token::Ident]);
         assert_eq!(source("      world"), vec![Token::Ident]);
+        assert_eq!(
+            source("(123 456 world)"),
+            vec![
+                Token::LParen,
+                Token::Number,
+                Token::Number,
+                Token::Ident,
+                Token::RParen
+            ]
+        );
+        assert_eq!(
+            source("((car cdr) cdr)"),
+            vec![
+                Token::LParen,
+                Token::LParen,
+                Token::Ident,
+                Token::Ident,
+                Token::RParen,
+                Token::Ident,
+                Token::RParen
+            ]
+        );
+        assert_eq!(
+            source("()())))((()))"),
+            vec![
+                Token::LParen,
+                Token::RParen,
+                Token::LParen,
+                Token::RParen,
+                Token::RParen,
+                Token::RParen,
+                Token::RParen,
+                Token::LParen,
+                Token::LParen,
+                Token::LParen,
+                Token::RParen,
+                Token::RParen,
+                Token::RParen,
+            ]
+        );
     }
 
     #[test]
