@@ -3,6 +3,12 @@ fn main() {
     println!("source: {:?}, parsed: {:?}", input, source(input));
 }
 
+#[derive(Debug, PartialEq)]
+enum TokenTree {
+    Token(Token),
+    Tree(Vec<TokenTree>),
+}
+
 #[derive(Debug, Eq, PartialEq)]
 enum Token {
     Ident,
@@ -67,17 +73,27 @@ fn rparen(input: &str) -> (&str, Option<Token>) {
     (chars.as_str(), token)
 }
 
-fn source(mut input: &str) -> Vec<Token> {
+fn source(mut input: &str) -> (&str, TokenTree) {
     let mut tokens = vec![];
     while !input.is_empty() {
         input = if let (next_input, Some(token)) = token(input) {
-            tokens.push(token);
-            next_input
+            match token {
+                Token::LParen => {
+                    let (next_input, tt) = source(next_input);
+                    tokens.push(tt);
+                    next_input
+                }
+                Token::RParen => return (next_input, TokenTree::Tree(tokens)),
+                _ => {
+                    tokens.push(TokenTree::Token(token));
+                    next_input
+                }
+            }
         } else {
             break;
         }
     }
-    tokens
+    (input, TokenTree::Tree(tokens))
 }
 
 fn token(input: &str) -> (&str, Option<Token>) {
@@ -137,48 +153,75 @@ mod tests {
 
     #[test]
     fn test_source() {
-        assert_eq!(source("123world"), vec![Token::Number, Token::Ident]);
-        assert_eq!(source("Hello world"), vec![Token::Ident, Token::Ident]);
-        assert_eq!(source("      world"), vec![Token::Ident]);
+        assert_eq!(
+            source("123world"),
+            (
+                "",
+                TokenTree::Tree(
+                    vec![Token::Number, Token::Ident]
+                        .into_iter()
+                        .map(TokenTree::Token)
+                        .collect()
+                )
+            )
+        );
+        assert_eq!(
+            source("Hello world"),
+            (
+                "",
+                TokenTree::Tree(
+                    vec![Token::Ident, Token::Ident]
+                        .into_iter()
+                        .map(TokenTree::Token)
+                        .collect()
+                )
+            )
+        );
+        assert_eq!(
+            source("      world"),
+            (
+                "",
+                TokenTree::Tree(
+                    vec![Token::Ident]
+                        .into_iter()
+                        .map(TokenTree::Token)
+                        .collect()
+                )
+            )
+        );
         assert_eq!(
             source("(123 456 world)"),
-            vec![
-                Token::LParen,
-                Token::Number,
-                Token::Number,
-                Token::Ident,
-                Token::RParen
-            ]
+            (
+                "",
+                TokenTree::Tree(vec![TokenTree::Tree(
+                    vec![Token::Number, Token::Number, Token::Ident]
+                        .into_iter()
+                        .map(TokenTree::Token)
+                        .collect()
+                )])
+            )
         );
         assert_eq!(
             source("((car cdr) cdr)"),
-            vec![
-                Token::LParen,
-                Token::LParen,
-                Token::Ident,
-                Token::Ident,
-                Token::RParen,
-                Token::Ident,
-                Token::RParen
-            ]
+            (
+                "",
+                TokenTree::Tree(vec![TokenTree::Tree(vec![
+                    TokenTree::Tree(
+                        vec![Token::Ident, Token::Ident]
+                            .into_iter()
+                            .map(TokenTree::Token)
+                            .collect()
+                    ),
+                    TokenTree::Token(Token::Ident),
+                ])])
+            )
         );
         assert_eq!(
             source("()())))((()))"),
-            vec![
-                Token::LParen,
-                Token::RParen,
-                Token::LParen,
-                Token::RParen,
-                Token::RParen,
-                Token::RParen,
-                Token::RParen,
-                Token::LParen,
-                Token::LParen,
-                Token::LParen,
-                Token::RParen,
-                Token::RParen,
-                Token::RParen,
-            ]
+            (
+                "))((()))", // OK ???
+                TokenTree::Tree(vec![TokenTree::Tree(vec![]), TokenTree::Tree(vec![])])
+            )
         );
     }
 
