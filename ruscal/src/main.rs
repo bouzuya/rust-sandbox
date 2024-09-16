@@ -1,20 +1,13 @@
 fn main() {
     let input = "123world";
-    println!("source: {:?}, parsed: {:?}", input, source(input));
+    println!("source: {:?}, parsed: {:?}", input, expr(input));
 }
 
 #[derive(Debug, PartialEq)]
-enum TokenTree<'a> {
-    Token(Token<'a>),
-    Tree(Vec<TokenTree<'a>>),
-}
-
-#[derive(Debug, PartialEq)]
-enum Token<'a> {
+enum Expression<'a> {
     Ident(&'a str),
-    Number(f64),
-    LParen,
-    RParen,
+    NumLiteral(f64),
+    Add(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
 trait CharsExt {
@@ -27,7 +20,42 @@ impl<'a> CharsExt for std::str::Chars<'a> {
     }
 }
 
-fn ident(input: &str) -> Option<(&str, Token)> {
+fn add(input: &str) -> Option<(&str, Expression)> {
+    let (input, lhs) = {
+        let mut input = input;
+        let mut prev = None;
+        while let Some((next_input, lhs)) = add_term(input) {
+            input = next_input;
+            prev = Some(match prev {
+                None => lhs,
+                Some(p) => Expression::Add(Box::new(p), Box::new(lhs)),
+            });
+        }
+        prev.map(|lhs| (input, lhs))
+    }?;
+    let (input, rhs) = expr(input)?;
+    Some((input, Expression::Add(Box::new(lhs), Box::new(rhs))))
+}
+
+fn add_term(input: &str) -> Option<(&str, Expression)> {
+    let (input, lhs) = term(input)?;
+    let input = plus(whitespace(input))?;
+    Some((input, lhs))
+}
+
+fn expr(input: &str) -> Option<(&str, Expression)> {
+    if let Some(ret) = add(input) {
+        return Some(ret);
+    }
+
+    if let Some(ret) = term(input) {
+        return Some(ret);
+    }
+
+    None
+}
+
+fn ident(input: &str) -> Option<(&str, Expression)> {
     let mut chars = input.chars();
     if let Some('a'..='z' | 'A'..='Z') = chars.peek() {
         chars.next();
@@ -36,24 +64,24 @@ fn ident(input: &str) -> Option<(&str, Token)> {
         }
         Some((
             chars.as_str(),
-            Token::Ident(&input[..input.len() - chars.as_str().len()]),
+            Expression::Ident(&input[..input.len() - chars.as_str().len()]),
         ))
     } else {
         None
     }
 }
 
-fn lparen(input: &str) -> Option<(&str, Token)> {
+fn lparen(input: &str) -> Option<&str> {
     let mut chars = input.chars();
     if let Some('(') = chars.peek() {
         chars.next();
-        Some((chars.as_str(), Token::LParen))
+        Some(chars.as_str())
     } else {
         None
     }
 }
 
-fn number(input: &str) -> Option<(&str, Token)> {
+fn number(input: &str) -> Option<(&str, Expression)> {
     let mut chars = input.chars();
     if let Some('-' | '+' | '.' | '0'..='9') = chars.peek() {
         chars.next();
@@ -63,46 +91,52 @@ fn number(input: &str) -> Option<(&str, Token)> {
         let v = input[..input.len() - chars.as_str().len()]
             .parse::<f64>()
             .expect("FIXME");
-        Some((chars.as_str(), Token::Number(v)))
+        Some((chars.as_str(), Expression::NumLiteral(v)))
     } else {
         None
     }
 }
 
-fn rparen(input: &str) -> Option<(&str, Token)> {
+fn paren(input: &str) -> Option<(&str, Expression)> {
+    let input = lparen(whitespace(input))?;
+    let (input, expr) = expr(input)?;
+    let input = rparen(whitespace(input))?;
+    Some((input, expr))
+}
+
+fn plus(input: &str) -> Option<&str> {
+    let mut chars = input.chars();
+    if let Some('+') = chars.peek() {
+        chars.next();
+        Some(chars.as_str())
+    } else {
+        None
+    }
+}
+
+fn rparen(input: &str) -> Option<&str> {
     let mut chars = input.chars();
     if let Some(')') = chars.peek() {
         chars.next();
-        Some((chars.as_str(), Token::RParen))
+        Some(chars.as_str())
     } else {
         None
     }
 }
 
-fn source(mut input: &str) -> (&str, TokenTree) {
-    let mut tokens = vec![];
-    while !input.is_empty() {
-        input = if let Some((next_input, token)) = token(input) {
-            match token {
-                Token::LParen => {
-                    let (next_input, tt) = source(next_input);
-                    tokens.push(tt);
-                    next_input
-                }
-                Token::RParen => return (next_input, TokenTree::Tree(tokens)),
-                _ => {
-                    tokens.push(TokenTree::Token(token));
-                    next_input
-                }
-            }
-        } else {
-            break;
-        }
+fn term(input: &str) -> Option<(&str, Expression)> {
+    if let Some(ret) = paren(input) {
+        return Some(ret);
     }
-    (input, TokenTree::Tree(tokens))
+
+    if let Some(ret) = token(input) {
+        return Some(ret);
+    }
+
+    None
 }
 
-fn token(input: &str) -> Option<(&str, Token)> {
+fn token(input: &str) -> Option<(&str, Expression)> {
     let input = whitespace(input);
 
     if let Some((input, token)) = ident(input) {
@@ -110,14 +144,6 @@ fn token(input: &str) -> Option<(&str, Token)> {
     }
 
     if let Some((input, token)) = number(input) {
-        return Some((input, token));
-    }
-
-    if let Some((input, token)) = lparen(input) {
-        return Some((input, token));
-    }
-
-    if let Some((input, token)) = rparen(input) {
         return Some((input, token));
     }
 
@@ -137,101 +163,82 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_add() {
+        assert_eq!(
+            add("1+2"),
+            Some((
+                "",
+                Expression::Add(
+                    Box::new(Expression::NumLiteral(1.0)),
+                    Box::new(Expression::NumLiteral(2.0))
+                )
+            ))
+        );
+        assert_eq!(
+            add("1 + 2 + 3"),
+            Some((
+                "",
+                Expression::Add(
+                    Box::new(Expression::Add(
+                        Box::new(Expression::NumLiteral(1.0)),
+                        Box::new(Expression::NumLiteral(2.0))
+                    )),
+                    Box::new(Expression::NumLiteral(3.0))
+                )
+            ))
+        );
+        assert_eq!(add("1+"), None);
+    }
+
+    #[test]
+    fn test_expr() {
+        assert_eq!(
+            expr("123world"),
+            Some(("world", Expression::NumLiteral(123.0)))
+        );
+        assert_eq!(
+            expr("Hello world"),
+            Some((" world", Expression::Ident("Hello")))
+        );
+        assert_eq!(expr("      world"), Some(("", Expression::Ident("world"))));
+        assert_eq!(expr("(123)"), Some(("", Expression::NumLiteral(123.0))));
+        assert_eq!(expr("(world)"), Some(("", Expression::Ident("world"))));
+        assert_eq!(
+            expr("(123+456)"),
+            Some((
+                "",
+                Expression::Add(
+                    Box::new(Expression::NumLiteral(123.0)),
+                    Box::new(Expression::NumLiteral(456.0))
+                )
+            ))
+        );
+    }
+
+    #[test]
     fn test_ident() {
-        assert_eq!(ident("Adam"), Some(("", Token::Ident("Adam"))));
-        assert_eq!(ident("abc"), Some(("", Token::Ident("abc"))));
+        assert_eq!(ident("Adam"), Some(("", Expression::Ident("Adam"))));
+        assert_eq!(ident("abc"), Some(("", Expression::Ident("abc"))));
         assert_eq!(ident("123abc"), None);
-        assert_eq!(ident("abc123"), Some(("", Token::Ident("abc123"))));
-        assert_eq!(ident("abc123 "), Some((" ", Token::Ident("abc123"))));
+        assert_eq!(ident("abc123"), Some(("", Expression::Ident("abc123"))));
+        assert_eq!(ident("abc123 "), Some((" ", Expression::Ident("abc123"))));
     }
 
     #[test]
     fn test_number() {
-        assert_eq!(number("123.45 "), Some((" ", Token::Number(123.45))));
-        assert_eq!(number("123"), Some(("", Token::Number(123.0))));
-        assert_eq!(number("+123.4"), Some(("", Token::Number(123.4))));
-        assert_eq!(number("-456.7"), Some(("", Token::Number(-456.7))));
-        assert_eq!(number(".0"), Some(("", Token::Number(0.0))));
-        // assert_eq!(number("..0"), Some(("", Token::Number(_)))); // panic. OK ?????
-        // assert_eq!(number("123.456.789"), Some(("", Token::Number(_)))); // panic. OK ?????
-        assert_eq!(number("+123.4abc "), Some(("abc ", Token::Number(123.4))));
-    }
-
-    #[test]
-    fn test_source() {
         assert_eq!(
-            source("123world"),
-            (
-                "",
-                TokenTree::Tree(
-                    vec![Token::Number(123.0), Token::Ident("world")]
-                        .into_iter()
-                        .map(TokenTree::Token)
-                        .collect()
-                )
-            )
+            number("123.45 "),
+            Some((" ", Expression::NumLiteral(123.45)))
         );
+        assert_eq!(number("123"), Some(("", Expression::NumLiteral(123.0))));
+        assert_eq!(number("+123.4"), Some(("", Expression::NumLiteral(123.4))));
+        assert_eq!(number("-456.7"), Some(("", Expression::NumLiteral(-456.7))));
+        assert_eq!(number(".0"), Some(("", Expression::NumLiteral(0.0))));
+        // assert_eq!(number("..0"), Some(("", Expression::Number(_)))); // panic. OK ?????
+        // assert_eq!(number("123.456.789"), Some(("", Expression::Number(_)))); // panic. OK ?????
         assert_eq!(
-            source("Hello world"),
-            (
-                "",
-                TokenTree::Tree(
-                    vec![Token::Ident("Hello"), Token::Ident("world")]
-                        .into_iter()
-                        .map(TokenTree::Token)
-                        .collect()
-                )
-            )
-        );
-        assert_eq!(
-            source("      world"),
-            (
-                "",
-                TokenTree::Tree(
-                    vec![Token::Ident("world")]
-                        .into_iter()
-                        .map(TokenTree::Token)
-                        .collect()
-                )
-            )
-        );
-        assert_eq!(
-            source("(123 456 world)"),
-            (
-                "",
-                TokenTree::Tree(vec![TokenTree::Tree(
-                    vec![
-                        Token::Number(123.0),
-                        Token::Number(456.0),
-                        Token::Ident("world")
-                    ]
-                    .into_iter()
-                    .map(TokenTree::Token)
-                    .collect()
-                )])
-            )
-        );
-        assert_eq!(
-            source("((car cdr) cdr)"),
-            (
-                "",
-                TokenTree::Tree(vec![TokenTree::Tree(vec![
-                    TokenTree::Tree(
-                        vec![Token::Ident("car"), Token::Ident("cdr")]
-                            .into_iter()
-                            .map(TokenTree::Token)
-                            .collect()
-                    ),
-                    TokenTree::Token(Token::Ident("cdr")),
-                ])])
-            )
-        );
-        assert_eq!(
-            source("()())))((()))"),
-            (
-                "))((()))", // OK ???
-                TokenTree::Tree(vec![TokenTree::Tree(vec![]), TokenTree::Tree(vec![])])
-            )
+            number("+123.4abc "),
+            Some(("abc ", Expression::NumLiteral(123.4)))
         );
     }
 
