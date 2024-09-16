@@ -2,31 +2,43 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, alphanumeric1, multispace0};
 use nom::combinator::recognize;
-use nom::multi::many0;
+use nom::multi::{fold_many0, many0};
 use nom::number::complete::recognize_float;
 use nom::sequence::{delimited, pair};
 use nom::IResult;
 
 fn main() {
     let input = "123world";
-    println!("source: {:?}, parsed: {:?}", input, expr(input));
+    println!(
+        "source: {:?}, parsed: {:?}",
+        input,
+        expr(input).map(|(_, expr)| eval(expr))
+    );
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 enum Expression<'a> {
     Ident(&'a str),
     NumLiteral(f64),
     Add(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
-fn add(input: &str) -> IResult<&str, Expression> {
+fn expr(input: &str) -> IResult<&str, Expression> {
     let (rest, lhs) = term(input)?;
-    let (rest, (_, rhs)) = pair(delimited(multispace0, plus, multispace0), term)(rest)?;
-    Ok((rest, Expression::Add(Box::new(lhs), Box::new(rhs))))
+    fold_many0(
+        pair(delimited(multispace0, plus, multispace0), term),
+        move || lhs.clone(),
+        |lhs, (_, rhs)| Expression::Add(Box::new(lhs), Box::new(rhs)),
+    )(rest)
 }
 
-fn expr(input: &str) -> IResult<&str, Expression> {
-    alt((add, term))(input)
+fn eval(expr: Expression) -> f64 {
+    match expr {
+        Expression::Ident("pi") => std::f64::consts::PI,
+        Expression::Ident(id) => panic!("Unknown name {:?}", id),
+        Expression::NumLiteral(n) => n,
+        Expression::Add(lhs, rhs) => eval(*lhs) + eval(*rhs),
+    }
 }
 
 fn ident(input: &str) -> IResult<&str, Expression> {
@@ -96,6 +108,20 @@ mod tests {
         assert_eq!(
             expr("123world"),
             Ok(("world", Expression::NumLiteral(123.0)))
+        );
+    }
+
+    #[test]
+    fn test_eval() {
+        assert_eq!(expr("123").map(|(_, expr)| eval(expr)), Ok(123.0));
+        assert_eq!(expr("(123 + 456)").map(|(_, expr)| eval(expr)), Ok(579.0));
+        assert_eq!(
+            expr("10 + (100 + 1)").map(|(_, expr)| eval(expr)),
+            Ok(111.0)
+        );
+        assert_eq!(
+            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(expr)),
+            Ok(21.0)
         );
     }
 
