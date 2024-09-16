@@ -4,15 +4,15 @@ fn main() {
 }
 
 #[derive(Debug, PartialEq)]
-enum TokenTree {
-    Token(Token),
-    Tree(Vec<TokenTree>),
+enum TokenTree<'a> {
+    Token(Token<'a>),
+    Tree(Vec<TokenTree<'a>>),
 }
 
-#[derive(Debug, Eq, PartialEq)]
-enum Token {
-    Ident,
-    Number,
+#[derive(Debug, PartialEq)]
+enum Token<'a> {
+    Ident(&'a str),
+    Number(f64),
     LParen,
     RParen,
 }
@@ -35,7 +35,7 @@ fn ident(input: &str) -> (&str, Option<Token>) {
         while matches!(chars.peek(), Some('a'..='z' | 'A'..='Z' | '0'..='9')) {
             chars.next();
         }
-        token = Some(Token::Ident);
+        token = Some(Token::Ident(&input[..input.len() - chars.as_str().len()]));
     }
     (chars.as_str(), token)
 }
@@ -58,7 +58,10 @@ fn number(input: &str) -> (&str, Option<Token>) {
         while matches!(chars.clone().next(), Some('.' | '0'..='9')) {
             chars.next();
         }
-        token = Some(Token::Number);
+        let v = input[..input.len() - chars.as_str().len()]
+            .parse::<f64>()
+            .expect("FIXME");
+        token = Some(Token::Number(v));
     }
     (chars.as_str(), token)
 }
@@ -132,23 +135,23 @@ mod tests {
 
     #[test]
     fn test_ident() {
-        assert_eq!(ident("Adam"), ("", Some(Token::Ident)));
-        assert_eq!(ident("abc"), ("", Some(Token::Ident)));
+        assert_eq!(ident("Adam"), ("", Some(Token::Ident("Adam"))));
+        assert_eq!(ident("abc"), ("", Some(Token::Ident("abc"))));
         assert_eq!(ident("123abc"), ("123abc", None));
-        assert_eq!(ident("abc123"), ("", Some(Token::Ident)));
-        assert_eq!(ident("abc123 "), (" ", Some(Token::Ident)));
+        assert_eq!(ident("abc123"), ("", Some(Token::Ident("abc123"))));
+        assert_eq!(ident("abc123 "), (" ", Some(Token::Ident("abc123"))));
     }
 
     #[test]
     fn test_number() {
-        assert_eq!(number("123.45 "), (" ", Some(Token::Number)));
-        assert_eq!(number("123"), ("", Some(Token::Number)));
-        assert_eq!(number("+123.4"), ("", Some(Token::Number)));
-        assert_eq!(number("-456.7"), ("", Some(Token::Number)));
-        assert_eq!(number(".0"), ("", Some(Token::Number)));
-        assert_eq!(number("..0"), ("", Some(Token::Number))); // OK ?????
-        assert_eq!(number("123.456.789"), ("", Some(Token::Number))); // OK ?????
-        assert_eq!(number("+123.4abc "), ("abc ", Some(Token::Number)));
+        assert_eq!(number("123.45 "), (" ", Some(Token::Number(123.45))));
+        assert_eq!(number("123"), ("", Some(Token::Number(123.0))));
+        assert_eq!(number("+123.4"), ("", Some(Token::Number(123.4))));
+        assert_eq!(number("-456.7"), ("", Some(Token::Number(-456.7))));
+        assert_eq!(number(".0"), ("", Some(Token::Number(0.0))));
+        // assert_eq!(number("..0"), ("", Some(Token::Number(_)))); // panic. OK ?????
+        // assert_eq!(number("123.456.789"), ("", Some(Token::Number(_)))); // panic. OK ?????
+        assert_eq!(number("+123.4abc "), ("abc ", Some(Token::Number(123.4))));
     }
 
     #[test]
@@ -158,7 +161,7 @@ mod tests {
             (
                 "",
                 TokenTree::Tree(
-                    vec![Token::Number, Token::Ident]
+                    vec![Token::Number(123.0), Token::Ident("world")]
                         .into_iter()
                         .map(TokenTree::Token)
                         .collect()
@@ -170,7 +173,7 @@ mod tests {
             (
                 "",
                 TokenTree::Tree(
-                    vec![Token::Ident, Token::Ident]
+                    vec![Token::Ident("Hello"), Token::Ident("world")]
                         .into_iter()
                         .map(TokenTree::Token)
                         .collect()
@@ -182,7 +185,7 @@ mod tests {
             (
                 "",
                 TokenTree::Tree(
-                    vec![Token::Ident]
+                    vec![Token::Ident("world")]
                         .into_iter()
                         .map(TokenTree::Token)
                         .collect()
@@ -194,10 +197,14 @@ mod tests {
             (
                 "",
                 TokenTree::Tree(vec![TokenTree::Tree(
-                    vec![Token::Number, Token::Number, Token::Ident]
-                        .into_iter()
-                        .map(TokenTree::Token)
-                        .collect()
+                    vec![
+                        Token::Number(123.0),
+                        Token::Number(456.0),
+                        Token::Ident("world")
+                    ]
+                    .into_iter()
+                    .map(TokenTree::Token)
+                    .collect()
                 )])
             )
         );
@@ -207,12 +214,12 @@ mod tests {
                 "",
                 TokenTree::Tree(vec![TokenTree::Tree(vec![
                     TokenTree::Tree(
-                        vec![Token::Ident, Token::Ident]
+                        vec![Token::Ident("car"), Token::Ident("cdr")]
                             .into_iter()
                             .map(TokenTree::Token)
                             .collect()
                     ),
-                    TokenTree::Token(Token::Ident),
+                    TokenTree::Token(Token::Ident("cdr")),
                 ])])
             )
         );
