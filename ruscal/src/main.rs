@@ -27,32 +27,34 @@ impl<'a> CharsExt for std::str::Chars<'a> {
     }
 }
 
-fn ident(input: &str) -> (&str, Option<Token>) {
+fn ident(input: &str) -> Option<(&str, Token)> {
     let mut chars = input.chars();
-    let mut token = None;
     if let Some('a'..='z' | 'A'..='Z') = chars.peek() {
         chars.next();
         while matches!(chars.peek(), Some('a'..='z' | 'A'..='Z' | '0'..='9')) {
             chars.next();
         }
-        token = Some(Token::Ident(&input[..input.len() - chars.as_str().len()]));
+        Some((
+            chars.as_str(),
+            Token::Ident(&input[..input.len() - chars.as_str().len()]),
+        ))
+    } else {
+        None
     }
-    (chars.as_str(), token)
 }
 
-fn lparen(input: &str) -> (&str, Option<Token>) {
+fn lparen(input: &str) -> Option<(&str, Token)> {
     let mut chars = input.chars();
-    let mut token = None;
     if let Some('(') = chars.peek() {
         chars.next();
-        token = Some(Token::LParen);
+        Some((chars.as_str(), Token::LParen))
+    } else {
+        None
     }
-    (chars.as_str(), token)
 }
 
-fn number(input: &str) -> (&str, Option<Token>) {
+fn number(input: &str) -> Option<(&str, Token)> {
     let mut chars = input.chars();
-    let mut token = None;
     if let Some('-' | '+' | '.' | '0'..='9') = chars.peek() {
         chars.next();
         while matches!(chars.clone().next(), Some('.' | '0'..='9')) {
@@ -61,25 +63,26 @@ fn number(input: &str) -> (&str, Option<Token>) {
         let v = input[..input.len() - chars.as_str().len()]
             .parse::<f64>()
             .expect("FIXME");
-        token = Some(Token::Number(v));
+        Some((chars.as_str(), Token::Number(v)))
+    } else {
+        None
     }
-    (chars.as_str(), token)
 }
 
-fn rparen(input: &str) -> (&str, Option<Token>) {
+fn rparen(input: &str) -> Option<(&str, Token)> {
     let mut chars = input.chars();
-    let mut token = None;
     if let Some(')') = chars.peek() {
         chars.next();
-        token = Some(Token::RParen);
+        Some((chars.as_str(), Token::RParen))
+    } else {
+        None
     }
-    (chars.as_str(), token)
 }
 
 fn source(mut input: &str) -> (&str, TokenTree) {
     let mut tokens = vec![];
     while !input.is_empty() {
-        input = if let (next_input, Some(token)) = token(input) {
+        input = if let Some((next_input, token)) = token(input) {
             match token {
                 Token::LParen => {
                     let (next_input, tt) = source(next_input);
@@ -99,26 +102,26 @@ fn source(mut input: &str) -> (&str, TokenTree) {
     (input, TokenTree::Tree(tokens))
 }
 
-fn token(input: &str) -> (&str, Option<Token>) {
+fn token(input: &str) -> Option<(&str, Token)> {
     let input = whitespace(input);
 
-    if let (input, Some(token)) = ident(input) {
-        return (input, Some(token));
+    if let Some((input, token)) = ident(input) {
+        return Some((input, token));
     }
 
-    if let (input, Some(token)) = number(input) {
-        return (input, Some(token));
+    if let Some((input, token)) = number(input) {
+        return Some((input, token));
     }
 
-    if let (input, Some(token)) = lparen(input) {
-        return (input, Some(token));
+    if let Some((input, token)) = lparen(input) {
+        return Some((input, token));
     }
 
-    if let (input, Some(token)) = rparen(input) {
-        return (input, Some(token));
+    if let Some((input, token)) = rparen(input) {
+        return Some((input, token));
     }
 
-    (input, None)
+    None
 }
 
 fn whitespace(input: &str) -> &str {
@@ -135,23 +138,23 @@ mod tests {
 
     #[test]
     fn test_ident() {
-        assert_eq!(ident("Adam"), ("", Some(Token::Ident("Adam"))));
-        assert_eq!(ident("abc"), ("", Some(Token::Ident("abc"))));
-        assert_eq!(ident("123abc"), ("123abc", None));
-        assert_eq!(ident("abc123"), ("", Some(Token::Ident("abc123"))));
-        assert_eq!(ident("abc123 "), (" ", Some(Token::Ident("abc123"))));
+        assert_eq!(ident("Adam"), Some(("", Token::Ident("Adam"))));
+        assert_eq!(ident("abc"), Some(("", Token::Ident("abc"))));
+        assert_eq!(ident("123abc"), None);
+        assert_eq!(ident("abc123"), Some(("", Token::Ident("abc123"))));
+        assert_eq!(ident("abc123 "), Some((" ", Token::Ident("abc123"))));
     }
 
     #[test]
     fn test_number() {
-        assert_eq!(number("123.45 "), (" ", Some(Token::Number(123.45))));
-        assert_eq!(number("123"), ("", Some(Token::Number(123.0))));
-        assert_eq!(number("+123.4"), ("", Some(Token::Number(123.4))));
-        assert_eq!(number("-456.7"), ("", Some(Token::Number(-456.7))));
-        assert_eq!(number(".0"), ("", Some(Token::Number(0.0))));
-        // assert_eq!(number("..0"), ("", Some(Token::Number(_)))); // panic. OK ?????
-        // assert_eq!(number("123.456.789"), ("", Some(Token::Number(_)))); // panic. OK ?????
-        assert_eq!(number("+123.4abc "), ("abc ", Some(Token::Number(123.4))));
+        assert_eq!(number("123.45 "), Some((" ", Token::Number(123.45))));
+        assert_eq!(number("123"), Some(("", Token::Number(123.0))));
+        assert_eq!(number("+123.4"), Some(("", Token::Number(123.4))));
+        assert_eq!(number("-456.7"), Some(("", Token::Number(-456.7))));
+        assert_eq!(number(".0"), Some(("", Token::Number(0.0))));
+        // assert_eq!(number("..0"), Some(("", Token::Number(_)))); // panic. OK ?????
+        // assert_eq!(number("123.456.789"), Some(("", Token::Number(_)))); // panic. OK ?????
+        assert_eq!(number("+123.4abc "), Some(("abc ", Token::Number(123.4))));
     }
 
     #[test]
