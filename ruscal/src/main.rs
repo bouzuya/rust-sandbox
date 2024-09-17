@@ -2,10 +2,12 @@ use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, alphanumeric1, multispace0};
 use nom::combinator::recognize;
+use nom::error::ParseError;
 use nom::multi::{fold_many0, many0};
 use nom::number::complete::recognize_float;
 use nom::sequence::{delimited, pair};
 use nom::IResult;
+use nom::Parser;
 
 fn main() {
     let input = "123world";
@@ -26,7 +28,7 @@ enum Expression<'a> {
 fn expr(input: &str) -> IResult<&str, Expression> {
     let (rest, lhs) = term(input)?;
     fold_many0(
-        pair(delimited(multispace0, plus, multispace0), term),
+        pair(space_delimited(plus), term),
         move || lhs.clone(),
         |lhs, (_, rhs)| Expression::Add(Box::new(lhs), Box::new(rhs)),
     )(rest)
@@ -42,11 +44,7 @@ fn eval(expr: Expression) -> f64 {
 }
 
 fn ident(input: &str) -> IResult<&str, Expression> {
-    let (rest, value) = delimited(
-        multispace0,
-        recognize(pair(alpha1, many0(alphanumeric1))),
-        multispace0,
-    )(input)?;
+    let (rest, value) = space_delimited(recognize(pair(alpha1, many0(alphanumeric1))))(input)?;
     Ok((rest, Expression::Ident(value)))
 }
 
@@ -55,7 +53,7 @@ fn lparen(input: &str) -> IResult<&str, &str> {
 }
 
 fn number(input: &str) -> IResult<&str, Expression> {
-    let (rest, float_as_str) = delimited(multispace0, recognize_float, multispace0)(input)?;
+    let (rest, float_as_str) = space_delimited(recognize_float)(input)?;
     Ok((
         rest,
         Expression::NumLiteral(float_as_str.parse::<f64>().expect("FIXME")),
@@ -63,7 +61,7 @@ fn number(input: &str) -> IResult<&str, Expression> {
 }
 
 fn paren(input: &str) -> IResult<&str, Expression> {
-    delimited(multispace0, delimited(lparen, expr, rparen), multispace0)(input)
+    space_delimited(delimited(lparen, expr, rparen))(input)
 }
 
 fn plus(input: &str) -> IResult<&str, &str> {
@@ -72,6 +70,15 @@ fn plus(input: &str) -> IResult<&str, &str> {
 
 fn rparen(input: &str) -> IResult<&str, &str> {
     tag(")")(input)
+}
+
+fn space_delimited<'a, O, E>(
+    f: impl Parser<&'a str, O, E>,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+    E: ParseError<&'a str>,
+{
+    delimited(multispace0, f, multispace0)
 }
 
 fn term(input: &str) -> IResult<&str, Expression> {
