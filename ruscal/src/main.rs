@@ -1,6 +1,6 @@
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, alphanumeric1, multispace0};
+use nom::character::complete::{alpha1, alphanumeric1, char, multispace0};
 use nom::combinator::recognize;
 use nom::error::ParseError;
 use nom::multi::{fold_many0, many0};
@@ -23,14 +23,21 @@ enum Expression<'a> {
     Ident(&'a str),
     NumLiteral(f64),
     Add(Box<Expression<'a>>, Box<Expression<'a>>),
+    Sub(Box<Expression<'a>>, Box<Expression<'a>>),
+    Mul(Box<Expression<'a>>, Box<Expression<'a>>),
+    Div(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
 fn expr(input: &str) -> IResult<&str, Expression> {
     let (rest, lhs) = term(input)?;
     fold_many0(
-        pair(space_delimited(plus), term),
+        pair(space_delimited(alt((char('+'), char('-')))), term),
         move || lhs.clone(),
-        |lhs, (_, rhs)| Expression::Add(Box::new(lhs), Box::new(rhs)),
+        |lhs, (op, rhs)| match op {
+            '+' => Expression::Add(Box::new(lhs), Box::new(rhs)),
+            '-' => Expression::Sub(Box::new(lhs), Box::new(rhs)),
+            _ => panic!("'+' or '-'"),
+        },
     )(rest)
 }
 
@@ -40,7 +47,14 @@ fn eval(expr: Expression) -> f64 {
         Expression::Ident(id) => panic!("Unknown name {:?}", id),
         Expression::NumLiteral(n) => n,
         Expression::Add(lhs, rhs) => eval(*lhs) + eval(*rhs),
+        Expression::Sub(lhs, rhs) => eval(*lhs) - eval(*rhs),
+        Expression::Mul(lhs, rhs) => eval(*lhs) * eval(*rhs),
+        Expression::Div(lhs, rhs) => eval(*lhs) / eval(*rhs),
     }
+}
+
+fn factor(input: &str) -> IResult<&str, Expression> {
+    alt((number, ident, paren))(input)
 }
 
 fn ident(input: &str) -> IResult<&str, Expression> {
@@ -64,10 +78,6 @@ fn paren(input: &str) -> IResult<&str, Expression> {
     space_delimited(delimited(lparen, expr, rparen))(input)
 }
 
-fn plus(input: &str) -> IResult<&str, &str> {
-    tag("+")(input)
-}
-
 fn rparen(input: &str) -> IResult<&str, &str> {
     tag(")")(input)
 }
@@ -82,11 +92,16 @@ where
 }
 
 fn term(input: &str) -> IResult<&str, Expression> {
-    alt((paren, token))(input)
-}
-
-fn token(input: &str) -> IResult<&str, Expression> {
-    alt((ident, number))(input)
+    let (input, init) = factor(input)?;
+    fold_many0(
+        pair(space_delimited(alt((char('*'), char('/')))), factor),
+        move || init.clone(),
+        |lhs, (op, rhs): (char, Expression)| match op {
+            '*' => Expression::Mul(Box::new(lhs), Box::new(rhs)),
+            '/' => Expression::Div(Box::new(lhs), Box::new(rhs)),
+            _ => panic!("Multiplicative expression should have '*' or '/' operator"),
+        },
+    )(input)
 }
 
 #[cfg(test)]
@@ -129,6 +144,18 @@ mod tests {
         assert_eq!(
             expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(expr)),
             Ok(21.0)
+        );
+        assert_eq!(
+            expr("2 * pi").map(|(_, expr)| eval(expr)),
+            Ok(2.0 * std::f64::consts::PI)
+        );
+        assert_eq!(
+            expr("10 - (100 + 1)").map(|(_, expr)| eval(expr)),
+            Ok(-91.0)
+        );
+        assert_eq!(
+            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(expr)),
+            Ok(2.0)
         );
     }
 
