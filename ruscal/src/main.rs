@@ -1,22 +1,34 @@
+use std::io::Read;
+
 use nom::branch::alt;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, alphanumeric1, char, multispace0};
 use nom::combinator::{opt, recognize};
 use nom::error::ParseError;
-use nom::multi::{fold_many0, many0};
+use nom::multi::{fold_many0, many0, separated_list0};
 use nom::number::complete::recognize_float;
 use nom::sequence::{delimited, pair};
-use nom::IResult;
 use nom::Parser;
+use nom::{Finish, IResult};
 
 fn main() {
-    let input = "123world";
-    println!(
-        "source: {:?}, parsed: {:?}",
-        input,
-        expr(input).map(|(_, expr)| eval(expr))
-    );
+    let mut buf = String::new();
+    if std::io::stdin().read_to_string(&mut buf).is_ok() {
+        let parsed_statements = match statements(&buf) {
+            Ok(parsed_statements) => parsed_statements,
+            Err(e) => {
+                eprintln!("Parse error: {:?}", e);
+                return;
+            }
+        };
+
+        for statement in parsed_statements {
+            println!("eval: {:?}", eval(statement));
+        }
+    }
 }
+
+type Statements<'a> = Vec<Expression<'a>>;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Expression<'a> {
@@ -27,13 +39,6 @@ enum Expression<'a> {
     Sub(Box<Expression<'a>>, Box<Expression<'a>>),
     Mul(Box<Expression<'a>>, Box<Expression<'a>>),
     Div(Box<Expression<'a>>, Box<Expression<'a>>),
-}
-
-fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>) -> f64 {
-    move |args| {
-        let mut args = args.into_iter();
-        f(eval(args.next().expect("function missing argument")))
-    }
 }
 
 fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>) -> f64 {
@@ -137,6 +142,11 @@ where
     delimited(multispace0, f, multispace0)
 }
 
+fn statements(input: &str) -> Result<Statements, nom::error::Error<&str>> {
+    let (_, res) = separated_list0(tag(";"), expr)(input).finish()?;
+    Ok(res)
+}
+
 fn term(input: &str) -> IResult<&str, Expression> {
     let (input, init) = factor(input)?;
     fold_many0(
@@ -148,6 +158,13 @@ fn term(input: &str) -> IResult<&str, Expression> {
             _ => panic!("Multiplicative expression should have '*' or '/' operator"),
         },
     )(input)
+}
+
+fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>) -> f64 {
+    move |args| {
+        let mut args = args.into_iter();
+        f(eval(args.next().expect("function missing argument")))
+    }
 }
 
 #[cfg(test)]
