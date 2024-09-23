@@ -8,7 +8,7 @@ use nom::combinator::{opt, recognize};
 use nom::error::ParseError;
 use nom::multi::{fold_many0, many0, separated_list0};
 use nom::number::complete::recognize_float;
-use nom::sequence::{delimited, pair};
+use nom::sequence::{delimited, pair, preceded};
 use nom::Parser;
 use nom::{Finish, IResult};
 
@@ -65,6 +65,11 @@ enum Expression<'a> {
     Sub(Box<Expression<'a>>, Box<Expression<'a>>),
     Mul(Box<Expression<'a>>, Box<Expression<'a>>),
     Div(Box<Expression<'a>>, Box<Expression<'a>>),
+    If(
+        Box<Expression<'a>>,
+        Box<Expression<'a>>,
+        Option<Box<Expression<'a>>>,
+    ),
 }
 
 fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>) -> f64 {
@@ -83,16 +88,7 @@ fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str,
 }
 
 fn expr(input: &str) -> IResult<&str, Expression> {
-    let (rest, lhs) = term(input)?;
-    fold_many0(
-        pair(space_delimited(alt((char('+'), char('-')))), term),
-        move || lhs.clone(),
-        |lhs, (op, rhs)| match op {
-            '+' => Expression::Add(Box::new(lhs), Box::new(rhs)),
-            '-' => Expression::Sub(Box::new(lhs), Box::new(rhs)),
-            _ => panic!("'+' or '-'"),
-        },
-    )(rest)
+    alt((if_expr, num_expr))(input)
 }
 
 fn expr_statement(input: &str) -> IResult<&str, Statement> {
@@ -124,6 +120,15 @@ fn eval(expr: Expression, variables: &BTreeMap<&str, f64>) -> f64 {
             "log10" => unary_fn(f64::log10)(args, variables),
             fn_name => panic!("unknown func name {}", fn_name),
         },
+        Expression::If(cond, t_case, f_case) => {
+            if eval(*cond, variables) != 0.0 {
+                eval(*t_case, variables)
+            } else if let Some(f_case) = f_case {
+                eval(*f_case, variables)
+            } else {
+                0.0
+            }
+        }
     }
 }
 
@@ -150,8 +155,36 @@ fn ident(input: &str) -> IResult<&str, Expression> {
     Ok((rest, Expression::Ident(value)))
 }
 
+fn if_expr(input: &str) -> IResult<&str, Expression> {
+    let (input, _) = space_delimited(tag("if"))(input)?;
+    let (input, cond) = expr(input)?;
+    let (input, t_case) =
+        delimited(space_delimited(char('{')), expr, space_delimited(char('}')))(input)?;
+    let (input, f_case) = opt(preceded(
+        space_delimited(tag("else")),
+        delimited(space_delimited(char('{')), expr, space_delimited(char('}'))),
+    ))(input)?;
+    Ok((
+        input,
+        Expression::If(Box::new(cond), Box::new(t_case), f_case.map(Box::new)),
+    ))
+}
+
 fn lparen(input: &str) -> IResult<&str, &str> {
     tag("(")(input)
+}
+
+fn num_expr(input: &str) -> IResult<&str, Expression> {
+    let (rest, lhs) = term(input)?;
+    fold_many0(
+        pair(space_delimited(alt((char('+'), char('-')))), term),
+        move || lhs.clone(),
+        |lhs, (op, rhs)| match op {
+            '+' => Expression::Add(Box::new(lhs), Box::new(rhs)),
+            '-' => Expression::Sub(Box::new(lhs), Box::new(rhs)),
+            _ => panic!("'+' or '-'"),
+        },
+    )(rest)
 }
 
 fn number(input: &str) -> IResult<&str, Expression> {
