@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::io::Read;
 
 use nom::branch::alt;
@@ -12,6 +13,8 @@ use nom::Parser;
 use nom::{Finish, IResult};
 
 fn main() {
+    let mut variables = BTreeMap::new();
+
     let mut buf = String::new();
     if std::io::stdin().read_to_string(&mut buf).is_ok() {
         let parsed_statements = match statements(&buf) {
@@ -23,12 +26,26 @@ fn main() {
         };
 
         for statement in parsed_statements {
-            println!("eval: {:?}", eval(statement));
+            match statement {
+                Statement::Expression(expr) => {
+                    println!("eval: {:?}", eval(expr, &variables));
+                }
+                Statement::VarDef(name, expr) => {
+                    let value = eval(expr, &variables);
+                    variables.insert(name, value);
+                }
+            }
         }
     }
 }
 
-type Statements<'a> = Vec<Expression<'a>>;
+#[derive(Clone, Debug, PartialEq)]
+enum Statement<'a> {
+    Expression(Expression<'a>),
+    VarDef(&'a str, Expression<'a>),
+}
+
+type Statements<'a> = Vec<Statement<'a>>;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Expression<'a> {
@@ -41,11 +58,17 @@ enum Expression<'a> {
     Div(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
-fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>) -> f64 {
-    move |args| {
+fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>) -> f64 {
+    move |args, variables| {
         let mut args = args.into_iter();
-        let lhs = eval(args.next().expect("function missing the first argument"));
-        let rhs = eval(args.next().expect("function missing the second argument"));
+        let lhs = eval(
+            args.next().expect("function missing the first argument"),
+            variables,
+        );
+        let rhs = eval(
+            args.next().expect("function missing the second argument"),
+            variables,
+        );
         f(lhs, rhs)
     }
 }
@@ -63,28 +86,33 @@ fn expr(input: &str) -> IResult<&str, Expression> {
     )(rest)
 }
 
-fn eval(expr: Expression) -> f64 {
+fn expr_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, expr) = expr(input)?;
+    Ok((input, Statement::Expression(expr)))
+}
+
+fn eval(expr: Expression, variables: &BTreeMap<&str, f64>) -> f64 {
     match expr {
         Expression::Ident("pi") => std::f64::consts::PI,
-        Expression::Ident(id) => panic!("Unknown name {:?}", id),
+        Expression::Ident(id) => *variables.get(id).expect("Unknown variable"),
         Expression::NumLiteral(n) => n,
-        Expression::Add(lhs, rhs) => eval(*lhs) + eval(*rhs),
-        Expression::Sub(lhs, rhs) => eval(*lhs) - eval(*rhs),
-        Expression::Mul(lhs, rhs) => eval(*lhs) * eval(*rhs),
-        Expression::Div(lhs, rhs) => eval(*lhs) / eval(*rhs),
+        Expression::Add(lhs, rhs) => eval(*lhs, variables) + eval(*rhs, variables),
+        Expression::Sub(lhs, rhs) => eval(*lhs, variables) - eval(*rhs, variables),
+        Expression::Mul(lhs, rhs) => eval(*lhs, variables) * eval(*rhs, variables),
+        Expression::Div(lhs, rhs) => eval(*lhs, variables) / eval(*rhs, variables),
         Expression::FnInvoke(ident, args) => match ident {
-            "sqrt" => unary_fn(f64::sqrt)(args),
-            "sin" => unary_fn(f64::sin)(args),
-            "cos" => unary_fn(f64::cos)(args),
-            "tan" => unary_fn(f64::tan)(args),
-            "asin" => unary_fn(f64::asin)(args),
-            "acos" => unary_fn(f64::acos)(args),
-            "atan" => unary_fn(f64::atan)(args),
-            "atan2" => binary_fn(f64::atan2)(args),
-            "pow" => binary_fn(f64::powf)(args),
-            "exp" => unary_fn(f64::exp)(args),
-            "log" => binary_fn(f64::log)(args),
-            "log10" => unary_fn(f64::log10)(args),
+            "sqrt" => unary_fn(f64::sqrt)(args, variables),
+            "sin" => unary_fn(f64::sin)(args, variables),
+            "cos" => unary_fn(f64::cos)(args, variables),
+            "tan" => unary_fn(f64::tan)(args, variables),
+            "asin" => unary_fn(f64::asin)(args, variables),
+            "acos" => unary_fn(f64::acos)(args, variables),
+            "atan" => unary_fn(f64::atan)(args, variables),
+            "atan2" => binary_fn(f64::atan2)(args, variables),
+            "pow" => binary_fn(f64::powf)(args, variables),
+            "exp" => unary_fn(f64::exp)(args, variables),
+            "log" => binary_fn(f64::log)(args, variables),
+            "log10" => unary_fn(f64::log10)(args, variables),
             fn_name => panic!("unknown func name {}", fn_name),
         },
     }
@@ -142,8 +170,12 @@ where
     delimited(multispace0, f, multispace0)
 }
 
+fn statement(input: &str) -> IResult<&str, Statement> {
+    alt((var_def, expr_statement))(input)
+}
+
 fn statements(input: &str) -> Result<Statements, nom::error::Error<&str>> {
-    let (_, res) = separated_list0(tag(";"), expr)(input).finish()?;
+    let (_, res) = separated_list0(tag(";"), statement)(input).finish()?;
     Ok(res)
 }
 
@@ -160,11 +192,22 @@ fn term(input: &str) -> IResult<&str, Expression> {
     )(input)
 }
 
-fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>) -> f64 {
-    move |args| {
+fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>) -> f64 {
+    move |args, variables| {
         let mut args = args.into_iter();
-        f(eval(args.next().expect("function missing argument")))
+        f(eval(
+            args.next().expect("function missing argument"),
+            variables,
+        ))
     }
+}
+
+fn var_def(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("var"))(input)?;
+    let (input, name) = space_delimited(identifier)(input)?;
+    let (input, _) = space_delimited(char('='))(input)?;
+    let (input, expr) = space_delimited(expr)(input)?;
+    Ok((input, Statement::VarDef(name, expr)))
 }
 
 #[cfg(test)]
@@ -198,38 +241,45 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        assert_eq!(expr("123").map(|(_, expr)| eval(expr)), Ok(123.0));
-        assert_eq!(expr("(123 + 456)").map(|(_, expr)| eval(expr)), Ok(579.0));
+        let variables = BTreeMap::new();
         assert_eq!(
-            expr("10 + (100 + 1)").map(|(_, expr)| eval(expr)),
+            expr("123").map(|(_, expr)| eval(expr, &variables)),
+            Ok(123.0)
+        );
+        assert_eq!(
+            expr("(123 + 456)").map(|(_, expr)| eval(expr, &variables)),
+            Ok(579.0)
+        );
+        assert_eq!(
+            expr("10 + (100 + 1)").map(|(_, expr)| eval(expr, &variables)),
             Ok(111.0)
         );
         assert_eq!(
-            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(expr)),
+            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(expr, &variables)),
             Ok(21.0)
         );
         assert_eq!(
-            expr("2 * pi").map(|(_, expr)| eval(expr)),
+            expr("2 * pi").map(|(_, expr)| eval(expr, &variables)),
             Ok(2.0 * std::f64::consts::PI)
         );
         assert_eq!(
-            expr("10 - (100 + 1)").map(|(_, expr)| eval(expr)),
+            expr("10 - (100 + 1)").map(|(_, expr)| eval(expr, &variables)),
             Ok(-91.0)
         );
         assert_eq!(
-            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(expr)),
+            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(expr, &variables)),
             Ok(2.0)
         );
         assert_eq!(
-            expr("sqrt(2) / 2").map(|(_, expr)| eval(expr)),
+            expr("sqrt(2) / 2").map(|(_, expr)| eval(expr, &variables)),
             Ok(0.7071067811865476)
         );
         assert_eq!(
-            expr("sin(pi / 4)").map(|(_, expr)| eval(expr)),
+            expr("sin(pi / 4)").map(|(_, expr)| eval(expr, &variables)),
             Ok(0.7071067811865475)
         );
         assert_eq!(
-            expr("atan2(1, 1)").map(|(_, expr)| eval(expr)),
+            expr("atan2(1, 1)").map(|(_, expr)| eval(expr, &variables)),
             Ok(0.7853981633974483)
         );
     }
