@@ -6,52 +6,41 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, alphanumeric1, char, multispace0};
 use nom::combinator::{opt, recognize};
 use nom::error::ParseError;
-use nom::multi::{fold_many0, many0, separated_list0};
+use nom::multi::{fold_many0, many0};
 use nom::number::complete::recognize_float;
-use nom::sequence::{delimited, pair, preceded};
+use nom::sequence::{delimited, pair, preceded, terminated};
 use nom::Parser;
 use nom::{Finish, IResult};
 
 fn main() {
-    let mut variables = BTreeMap::new();
-
     let mut buf = String::new();
-    if std::io::stdin().read_to_string(&mut buf).is_ok() {
-        let parsed_statements = match statements(&buf) {
-            Ok(parsed_statements) => parsed_statements,
-            Err(e) => {
-                eprintln!("Parse error: {:?}", e);
-                return;
-            }
-        };
-
-        for statement in parsed_statements {
-            match statement {
-                Statement::Expression(expr) => {
-                    println!("eval: {:?}", eval(expr, &variables));
-                }
-                Statement::VarDef(name, expr) => {
-                    let value = eval(expr, &variables);
-                    variables.insert(name, value);
-                }
-                Statement::VarAssign(name, expr) => {
-                    if !variables.contains_key(name) {
-                        panic!("Variable is not defined");
-                    }
-
-                    let value = eval(expr, &variables);
-                    variables.insert(name, value);
-                }
-            }
-        }
+    if !std::io::stdin().read_to_string(&mut buf).is_ok() {
+        panic!("Failed to read from stdin");
     }
+    let parsed_statements = match statements_finish(&buf) {
+        Ok(parsed_statements) => parsed_statements,
+        Err(e) => {
+            eprintln!("Parse error: {:?}", e);
+            return;
+        }
+    };
+    let mut variables = BTreeMap::new();
+    eval_stmts(&parsed_statements, &mut variables);
 }
+
+type Variables = BTreeMap<String, f64>;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Statement<'a> {
     Expression(Expression<'a>),
     VarDef(&'a str, Expression<'a>),
     VarAssign(&'a str, Expression<'a>),
+    For {
+        loop_var: &'a str,
+        start: Expression<'a>,
+        end: Expression<'a>,
+        stmts: Statements<'a>,
+    },
 }
 
 type Statements<'a> = Vec<Statement<'a>>;
@@ -72,7 +61,7 @@ enum Expression<'a> {
     ),
 }
 
-fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>) -> f64 {
+fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(&[Expression], &Variables) -> f64 {
     move |args, variables| {
         let mut args = args.into_iter();
         let lhs = eval(
@@ -96,16 +85,16 @@ fn expr_statement(input: &str) -> IResult<&str, Statement> {
     Ok((input, Statement::Expression(expr)))
 }
 
-fn eval(expr: Expression, variables: &BTreeMap<&str, f64>) -> f64 {
+fn eval(expr: &Expression, variables: &Variables) -> f64 {
     match expr {
         Expression::Ident("pi") => std::f64::consts::PI,
-        Expression::Ident(id) => *variables.get(id).expect("Unknown variable"),
-        Expression::NumLiteral(n) => n,
-        Expression::Add(lhs, rhs) => eval(*lhs, variables) + eval(*rhs, variables),
-        Expression::Sub(lhs, rhs) => eval(*lhs, variables) - eval(*rhs, variables),
-        Expression::Mul(lhs, rhs) => eval(*lhs, variables) * eval(*rhs, variables),
-        Expression::Div(lhs, rhs) => eval(*lhs, variables) / eval(*rhs, variables),
-        Expression::FnInvoke(ident, args) => match ident {
+        Expression::Ident(id) => *variables.get(*id).expect("Unknown variable"),
+        Expression::NumLiteral(n) => *n,
+        Expression::Add(lhs, rhs) => eval(lhs, variables) + eval(rhs, variables),
+        Expression::Sub(lhs, rhs) => eval(lhs, variables) - eval(rhs, variables),
+        Expression::Mul(lhs, rhs) => eval(lhs, variables) * eval(rhs, variables),
+        Expression::Div(lhs, rhs) => eval(lhs, variables) / eval(rhs, variables),
+        Expression::FnInvoke(ident, args) => match *ident {
             "sqrt" => unary_fn(f64::sqrt)(args, variables),
             "sin" => unary_fn(f64::sin)(args, variables),
             "cos" => unary_fn(f64::cos)(args, variables),
@@ -121,10 +110,10 @@ fn eval(expr: Expression, variables: &BTreeMap<&str, f64>) -> f64 {
             fn_name => panic!("unknown func name {}", fn_name),
         },
         Expression::If(cond, t_case, f_case) => {
-            if eval(*cond, variables) != 0.0 {
-                eval(*t_case, variables)
+            if eval(cond, variables) != 0.0 {
+                eval(t_case, variables)
             } else if let Some(f_case) = f_case {
-                eval(*f_case, variables)
+                eval(f_case, variables)
             } else {
                 0.0
             }
@@ -132,8 +121,66 @@ fn eval(expr: Expression, variables: &BTreeMap<&str, f64>) -> f64 {
     }
 }
 
+fn eval_stmts(stmts: &[Statement], variables: &mut Variables) {
+    for statement in stmts {
+        match statement {
+            Statement::Expression(expr) => {
+                println!("eval: {:?}", eval(expr, &variables));
+            }
+            Statement::VarDef(name, expr) => {
+                let value = eval(expr, &variables);
+                variables.insert(name.to_string(), value);
+            }
+            Statement::VarAssign(name, expr) => {
+                if !variables.contains_key(*name) {
+                    panic!("Variable is not defined");
+                }
+
+                let value = eval(expr, &variables);
+                variables.insert(name.to_string(), value);
+            }
+            Statement::For {
+                loop_var,
+                start,
+                end,
+                stmts,
+            } => {
+                let start = eval(start, variables) as isize;
+                let end = eval(end, variables) as isize;
+                for i in start..end {
+                    variables.insert(loop_var.to_string(), i as f64);
+                    eval_stmts(stmts, variables);
+                }
+            }
+        }
+    }
+}
+
 fn factor(input: &str) -> IResult<&str, Expression> {
     alt((number, func_call, ident, paren))(input)
+}
+
+fn for_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("for"))(input)?;
+    let (input, loop_var) = space_delimited(identifier)(input)?;
+    let (input, _) = space_delimited(tag("in"))(input)?;
+    let (input, start) = space_delimited(expr)(input)?;
+    let (input, _) = space_delimited(tag("to"))(input)?;
+    let (input, end) = space_delimited(expr)(input)?;
+    let (input, stmts) = delimited(
+        space_delimited(tag("{")),
+        statements,
+        space_delimited(tag("}")),
+    )(input)?;
+    Ok((
+        input,
+        Statement::For {
+            loop_var,
+            start,
+            end,
+            stmts,
+        },
+    ))
 }
 
 fn func_call(input: &str) -> IResult<&str, Expression> {
@@ -213,11 +260,20 @@ where
 }
 
 fn statement(input: &str) -> IResult<&str, Statement> {
-    alt((var_def, var_assign, expr_statement))(input)
+    alt((
+        for_statement,
+        terminated(alt((var_def, var_assign, expr_statement)), char(';')),
+    ))(input)
 }
 
-fn statements(input: &str) -> Result<Statements, nom::error::Error<&str>> {
-    let (_, res) = separated_list0(tag(";"), statement)(input).finish()?;
+fn statements(input: &str) -> IResult<&str, Statements> {
+    let (input, stmts) = many0(statement)(input)?;
+    let (input, _) = opt(char(';'))(input)?;
+    Ok((input, stmts))
+}
+
+fn statements_finish(input: &str) -> Result<Statements, nom::error::Error<&str>> {
+    let (_, res) = statements(input).finish()?;
     Ok(res)
 }
 
@@ -234,7 +290,7 @@ fn term(input: &str) -> IResult<&str, Expression> {
     )(input)
 }
 
-fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>) -> f64 {
+fn unary_fn(f: fn(f64) -> f64) -> impl Fn(&[Expression], &Variables) -> f64 {
     move |args, variables| {
         let mut args = args.into_iter();
         f(eval(
@@ -292,43 +348,43 @@ mod tests {
     fn test_eval() {
         let variables = BTreeMap::new();
         assert_eq!(
-            expr("123").map(|(_, expr)| eval(expr, &variables)),
+            expr("123").map(|(_, expr)| eval(&expr, &variables)),
             Ok(123.0)
         );
         assert_eq!(
-            expr("(123 + 456)").map(|(_, expr)| eval(expr, &variables)),
+            expr("(123 + 456)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(579.0)
         );
         assert_eq!(
-            expr("10 + (100 + 1)").map(|(_, expr)| eval(expr, &variables)),
+            expr("10 + (100 + 1)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(111.0)
         );
         assert_eq!(
-            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(expr, &variables)),
+            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(&expr, &variables)),
             Ok(21.0)
         );
         assert_eq!(
-            expr("2 * pi").map(|(_, expr)| eval(expr, &variables)),
+            expr("2 * pi").map(|(_, expr)| eval(&expr, &variables)),
             Ok(2.0 * std::f64::consts::PI)
         );
         assert_eq!(
-            expr("10 - (100 + 1)").map(|(_, expr)| eval(expr, &variables)),
+            expr("10 - (100 + 1)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(-91.0)
         );
         assert_eq!(
-            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(expr, &variables)),
+            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(2.0)
         );
         assert_eq!(
-            expr("sqrt(2) / 2").map(|(_, expr)| eval(expr, &variables)),
+            expr("sqrt(2) / 2").map(|(_, expr)| eval(&expr, &variables)),
             Ok(0.7071067811865476)
         );
         assert_eq!(
-            expr("sin(pi / 4)").map(|(_, expr)| eval(expr, &variables)),
+            expr("sin(pi / 4)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(0.7071067811865475)
         );
         assert_eq!(
-            expr("atan2(1, 1)").map(|(_, expr)| eval(expr, &variables)),
+            expr("atan2(1, 1)").map(|(_, expr)| eval(&expr, &variables)),
             Ok(0.7853981633974483)
         );
     }
