@@ -34,6 +34,14 @@ fn main() {
                     let value = eval(expr, &variables);
                     variables.insert(name, value);
                 }
+                Statement::VarAssign(name, expr) => {
+                    if !variables.contains_key(name) {
+                        panic!("Variable is not defined");
+                    }
+
+                    let value = eval(expr, &variables);
+                    variables.insert(name, value);
+                }
             }
         }
     }
@@ -43,6 +51,7 @@ fn main() {
 enum Statement<'a> {
     Expression(Expression<'a>),
     VarDef(&'a str, Expression<'a>),
+    VarAssign(&'a str, Expression<'a>),
 }
 
 type Statements<'a> = Vec<Statement<'a>>;
@@ -171,7 +180,7 @@ where
 }
 
 fn statement(input: &str) -> IResult<&str, Statement> {
-    alt((var_def, expr_statement))(input)
+    alt((var_def, var_assign, expr_statement))(input)
 }
 
 fn statements(input: &str) -> Result<Statements, nom::error::Error<&str>> {
@@ -200,6 +209,13 @@ fn unary_fn(f: fn(f64) -> f64) -> impl Fn(Vec<Expression>, &BTreeMap<&str, f64>)
             variables,
         ))
     }
+}
+
+fn var_assign(input: &str) -> IResult<&str, Statement> {
+    let (input, name) = space_delimited(identifier)(input)?;
+    let (input, _) = space_delimited(char('='))(input)?;
+    let (input, expr) = space_delimited(expr)(input)?;
+    Ok((input, Statement::VarAssign(name, expr)))
 }
 
 fn var_def(input: &str) -> IResult<&str, Statement> {
