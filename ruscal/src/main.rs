@@ -6,7 +6,7 @@ use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, alphanumeric1, char, multispace0};
 use nom::combinator::{opt, recognize};
 use nom::error::ParseError;
-use nom::multi::{fold_many0, many0};
+use nom::multi::{fold_many0, many0, separated_list0};
 use nom::number::complete::recognize_float;
 use nom::sequence::{delimited, pair, preceded, terminated};
 use nom::Parser;
@@ -24,11 +24,13 @@ fn main() {
             return;
         }
     };
-    let mut variables = BTreeMap::new();
-    eval_stmts(&parsed_statements, &mut variables);
+    let mut frame = StackFrame::new();
+    eval_stmts(&parsed_statements, &mut frame);
 }
 
 type Variables = BTreeMap<String, f64>;
+
+type Functions<'a> = BTreeMap<String, FnDef<'a>>;
 
 #[derive(Clone, Debug, PartialEq)]
 enum Statement<'a> {
@@ -39,6 +41,11 @@ enum Statement<'a> {
         loop_var: &'a str,
         start: Expression<'a>,
         end: Expression<'a>,
+        stmts: Statements<'a>,
+    },
+    FnDef {
+        name: &'a str,
+        args: Vec<&'a str>,
         stmts: Statements<'a>,
     },
 }
@@ -61,19 +68,95 @@ enum Expression<'a> {
     ),
 }
 
-fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(&[Expression], &Variables) -> f64 {
-    move |args, variables| {
-        let mut args = args.into_iter();
-        let lhs = eval(
-            args.next().expect("function missing the first argument"),
-            variables,
-        );
-        let rhs = eval(
-            args.next().expect("function missing the second argument"),
-            variables,
-        );
-        f(lhs, rhs)
+enum FnDef<'a> {
+    User(UserFn<'a>),
+    Native(NativeFn),
+}
+
+impl<'a> FnDef<'a> {
+    fn call(&self, args: &[f64], frame: &StackFrame) -> f64 {
+        match self {
+            Self::User(code) => {
+                let mut new_frame = StackFrame::push_stack(frame);
+                new_frame.vars = args
+                    .iter()
+                    .zip(code.args.iter())
+                    .map(|(arg, name)| (name.to_string(), *arg))
+                    .collect();
+                eval_stmts(&code.stmts, &mut new_frame)
+            }
+            Self::Native(code) => (code.code)(args),
+        }
     }
+}
+
+struct UserFn<'a> {
+    args: Vec<&'a str>,
+    stmts: Statements<'a>,
+}
+
+struct NativeFn {
+    code: Box<dyn Fn(&[f64]) -> f64>,
+}
+
+struct StackFrame<'a> {
+    vars: Variables,
+    funcs: Functions<'a>,
+    uplevel: Option<&'a StackFrame<'a>>,
+}
+
+impl<'a> StackFrame<'a> {
+    fn new() -> Self {
+        let mut funcs = Functions::new();
+        funcs.insert("sqrt".to_owned(), unary_fn(f64::sqrt));
+        funcs.insert("sin".to_owned(), unary_fn(f64::sin));
+        funcs.insert("cos".to_owned(), unary_fn(f64::cos));
+        funcs.insert("tan".to_owned(), unary_fn(f64::tan));
+        funcs.insert("asin".to_owned(), unary_fn(f64::asin));
+        funcs.insert("acos".to_owned(), unary_fn(f64::acos));
+        funcs.insert("atan".to_owned(), unary_fn(f64::atan));
+        funcs.insert("atan2".to_owned(), binary_fn(f64::atan2));
+        funcs.insert("pow".to_owned(), binary_fn(f64::powf));
+        funcs.insert("exp".to_owned(), unary_fn(f64::exp));
+        funcs.insert("log".to_owned(), binary_fn(f64::log));
+        funcs.insert("log10".to_owned(), unary_fn(f64::log10));
+        funcs.insert("print".to_owned(), unary_fn(print));
+        Self {
+            vars: Variables::new(),
+            funcs,
+            uplevel: None,
+        }
+    }
+
+    fn get_fn(&self, name: &str) -> Option<&FnDef<'a>> {
+        let mut next_frame = Some(self);
+        while let Some(frame) = next_frame {
+            if let Some(func) = frame.funcs.get(name) {
+                return Some(func);
+            }
+            next_frame = frame.uplevel;
+        }
+        None
+    }
+
+    fn push_stack(uplevel: &'a Self) -> Self {
+        Self {
+            vars: BTreeMap::new(),
+            funcs: BTreeMap::new(),
+            uplevel: Some(uplevel),
+        }
+    }
+}
+
+fn binary_fn<'a>(f: fn(f64, f64) -> f64) -> FnDef<'a> {
+    FnDef::Native(NativeFn {
+        code: Box::new(move |args| {
+            let mut args = args.into_iter();
+            let lhs = args.next().expect("function missing the first argument");
+            let rhs = args.next().expect("function missing the second argument");
+            f(*lhs, *rhs)
+        }),
+    })
 }
 
 fn expr(input: &str) -> IResult<&str, Expression> {
@@ -85,35 +168,28 @@ fn expr_statement(input: &str) -> IResult<&str, Statement> {
     Ok((input, Statement::Expression(expr)))
 }
 
-fn eval(expr: &Expression, variables: &Variables) -> f64 {
+fn eval<'a>(expr: &Expression, frame: &StackFrame<'a>) -> f64 {
     match expr {
         Expression::Ident("pi") => std::f64::consts::PI,
-        Expression::Ident(id) => *variables.get(*id).expect("Unknown variable"),
+        Expression::Ident(id) => *frame.vars.get(*id).expect("Unknown variable"),
         Expression::NumLiteral(n) => *n,
-        Expression::Add(lhs, rhs) => eval(lhs, variables) + eval(rhs, variables),
-        Expression::Sub(lhs, rhs) => eval(lhs, variables) - eval(rhs, variables),
-        Expression::Mul(lhs, rhs) => eval(lhs, variables) * eval(rhs, variables),
-        Expression::Div(lhs, rhs) => eval(lhs, variables) / eval(rhs, variables),
-        Expression::FnInvoke(ident, args) => match *ident {
-            "sqrt" => unary_fn(f64::sqrt)(args, variables),
-            "sin" => unary_fn(f64::sin)(args, variables),
-            "cos" => unary_fn(f64::cos)(args, variables),
-            "tan" => unary_fn(f64::tan)(args, variables),
-            "asin" => unary_fn(f64::asin)(args, variables),
-            "acos" => unary_fn(f64::acos)(args, variables),
-            "atan" => unary_fn(f64::atan)(args, variables),
-            "atan2" => binary_fn(f64::atan2)(args, variables),
-            "pow" => binary_fn(f64::powf)(args, variables),
-            "exp" => unary_fn(f64::exp)(args, variables),
-            "log" => binary_fn(f64::log)(args, variables),
-            "log10" => unary_fn(f64::log10)(args, variables),
-            fn_name => panic!("unknown func name {}", fn_name),
-        },
+        Expression::Add(lhs, rhs) => eval(lhs, frame) + eval(rhs, frame),
+        Expression::Sub(lhs, rhs) => eval(lhs, frame) - eval(rhs, frame),
+        Expression::Mul(lhs, rhs) => eval(lhs, frame) * eval(rhs, frame),
+        Expression::Div(lhs, rhs) => eval(lhs, frame) / eval(rhs, frame),
+        Expression::FnInvoke(ident, args) => {
+            if let Some(func) = frame.get_fn(*ident) {
+                let args = args.iter().map(|arg| eval(arg, frame)).collect::<Vec<_>>();
+                func.call(&args, frame)
+            } else {
+                panic!("Unknown function {:?}", ident);
+            }
+        }
         Expression::If(cond, t_case, f_case) => {
-            if eval(cond, variables) != 0.0 {
-                eval(t_case, variables)
+            if eval(cond, frame) != 0.0 {
+                eval(t_case, frame)
             } else if let Some(f_case) = f_case {
-                eval(f_case, variables)
+                eval(f_case, frame)
             } else {
                 0.0
             }
@@ -121,23 +197,24 @@ fn eval(expr: &Expression, variables: &Variables) -> f64 {
     }
 }
 
-fn eval_stmts(stmts: &[Statement], variables: &mut Variables) {
+fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
+    let mut last_result = 0.0;
     for statement in stmts {
         match statement {
             Statement::Expression(expr) => {
-                println!("eval: {:?}", eval(expr, &variables));
+                last_result = eval(expr, frame);
             }
             Statement::VarDef(name, expr) => {
-                let value = eval(expr, &variables);
-                variables.insert(name.to_string(), value);
+                let value = eval(expr, frame);
+                frame.vars.insert(name.to_string(), value);
             }
             Statement::VarAssign(name, expr) => {
-                if !variables.contains_key(*name) {
+                if !frame.vars.contains_key(*name) {
                     panic!("Variable is not defined");
                 }
 
-                let value = eval(expr, &variables);
-                variables.insert(name.to_string(), value);
+                let value = eval(expr, frame);
+                frame.vars.insert(name.to_string(), value);
             }
             Statement::For {
                 loop_var,
@@ -145,19 +222,43 @@ fn eval_stmts(stmts: &[Statement], variables: &mut Variables) {
                 end,
                 stmts,
             } => {
-                let start = eval(start, variables) as isize;
-                let end = eval(end, variables) as isize;
+                let start = eval(start, frame) as isize;
+                let end = eval(end, frame) as isize;
                 for i in start..end {
-                    variables.insert(loop_var.to_string(), i as f64);
-                    eval_stmts(stmts, variables);
+                    frame.vars.insert(loop_var.to_string(), i as f64);
+                    eval_stmts(stmts, frame);
                 }
+            }
+            Statement::FnDef { name, args, stmts } => {
+                frame.funcs.insert(
+                    name.to_string(),
+                    FnDef::User(UserFn {
+                        args: args.clone(),
+                        stmts: stmts.clone(),
+                    }),
+                );
             }
         }
     }
+    last_result
 }
 
 fn factor(input: &str) -> IResult<&str, Expression> {
     alt((number, func_call, ident, paren))(input)
+}
+
+fn fn_def_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("fn"))(input)?;
+    let (input, name) = space_delimited(identifier)(input)?;
+    let (input, _) = space_delimited(tag("("))(input)?;
+    let (input, args) = separated_list0(char(','), space_delimited(identifier))(input)?;
+    let (input, _) = space_delimited(tag(")"))(input)?;
+    let (input, stmts) = delimited(
+        space_delimited(tag("{")),
+        statements,
+        space_delimited(tag("}")),
+    )(input)?;
+    Ok((input, Statement::FnDef { name, args, stmts }))
 }
 
 fn for_statement(input: &str) -> IResult<&str, Statement> {
@@ -246,6 +347,11 @@ fn paren(input: &str) -> IResult<&str, Expression> {
     space_delimited(delimited(lparen, expr, rparen))(input)
 }
 
+fn print(arg: f64) -> f64 {
+    println!("print: {}", arg);
+    0.0
+}
+
 fn rparen(input: &str) -> IResult<&str, &str> {
     tag(")")(input)
 }
@@ -262,6 +368,7 @@ where
 fn statement(input: &str) -> IResult<&str, Statement> {
     alt((
         for_statement,
+        fn_def_statement,
         terminated(alt((var_def, var_assign, expr_statement)), char(';')),
     ))(input)
 }
@@ -290,14 +397,13 @@ fn term(input: &str) -> IResult<&str, Expression> {
     )(input)
 }
 
-fn unary_fn(f: fn(f64) -> f64) -> impl Fn(&[Expression], &Variables) -> f64 {
-    move |args, variables| {
-        let mut args = args.into_iter();
-        f(eval(
-            args.next().expect("function missing argument"),
-            variables,
-        ))
-    }
+fn unary_fn<'a>(f: fn(f64) -> f64) -> FnDef<'a> {
+    FnDef::Native(NativeFn {
+        code: Box::new(move |args| {
+            let mut args = args.into_iter();
+            f(*args.next().expect("function missing argument"))
+        }),
+    })
 }
 
 fn var_assign(input: &str) -> IResult<&str, Statement> {
@@ -346,45 +452,42 @@ mod tests {
 
     #[test]
     fn test_eval() {
-        let variables = BTreeMap::new();
+        let frame = StackFrame::new();
+        assert_eq!(expr("123").map(|(_, expr)| eval(&expr, &frame)), Ok(123.0));
         assert_eq!(
-            expr("123").map(|(_, expr)| eval(&expr, &variables)),
-            Ok(123.0)
-        );
-        assert_eq!(
-            expr("(123 + 456)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("(123 + 456)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(579.0)
         );
         assert_eq!(
-            expr("10 + (100 + 1)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("10 + (100 + 1)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(111.0)
         );
         assert_eq!(
-            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(&expr, &variables)),
+            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(&expr, &frame)),
             Ok(21.0)
         );
         assert_eq!(
-            expr("2 * pi").map(|(_, expr)| eval(&expr, &variables)),
+            expr("2 * pi").map(|(_, expr)| eval(&expr, &frame)),
             Ok(2.0 * std::f64::consts::PI)
         );
         assert_eq!(
-            expr("10 - (100 + 1)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("10 - (100 + 1)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(-91.0)
         );
         assert_eq!(
-            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(2.0)
         );
         assert_eq!(
-            expr("sqrt(2) / 2").map(|(_, expr)| eval(&expr, &variables)),
+            expr("sqrt(2) / 2").map(|(_, expr)| eval(&expr, &frame)),
             Ok(0.7071067811865476)
         );
         assert_eq!(
-            expr("sin(pi / 4)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("sin(pi / 4)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(0.7071067811865475)
         );
         assert_eq!(
-            expr("atan2(1, 1)").map(|(_, expr)| eval(&expr, &variables)),
+            expr("atan2(1, 1)").map(|(_, expr)| eval(&expr, &frame)),
             Ok(0.7853981633974483)
         );
     }
