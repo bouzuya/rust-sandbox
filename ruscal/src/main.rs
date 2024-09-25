@@ -48,6 +48,7 @@ enum Statement<'a> {
         args: Vec<&'a str>,
         stmts: Statements<'a>,
     },
+    Return(Expression<'a>),
 }
 
 type Statements<'a> = Vec<Statement<'a>>;
@@ -238,6 +239,9 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
                     }),
                 );
             }
+            Statement::Return(expr) => {
+                todo!()
+            }
         }
     }
     last_result
@@ -352,6 +356,12 @@ fn print(arg: f64) -> f64 {
     0.0
 }
 
+fn return_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("return"))(input)?;
+    let (input, expr) = space_delimited(expr)(input)?;
+    Ok((input, Statement::Return(expr)))
+}
+
 fn rparen(input: &str) -> IResult<&str, &str> {
     tag(")")(input)
 }
@@ -369,7 +379,10 @@ fn statement(input: &str) -> IResult<&str, Statement> {
     alt((
         for_statement,
         fn_def_statement,
-        terminated(alt((var_def, var_assign, expr_statement)), char(';')),
+        terminated(
+            alt((var_def, var_assign, expr_statement, return_statement)),
+            char(';'),
+        ),
     ))(input)
 }
 
