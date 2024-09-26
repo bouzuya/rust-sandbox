@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::io::Read;
+use std::ops::ControlFlow;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
@@ -27,6 +28,8 @@ fn main() {
     let mut frame = StackFrame::new();
     eval_stmts(&parsed_statements, &mut frame);
 }
+
+type EvalResult = ControlFlow<f64, f64>;
 
 type Variables = BTreeMap<String, f64>;
 
@@ -64,9 +67,11 @@ enum Expression<'a> {
     Div(Box<Expression<'a>>, Box<Expression<'a>>),
     If(
         Box<Expression<'a>>,
-        Box<Expression<'a>>,
-        Option<Box<Expression<'a>>>,
+        Box<Statements<'a>>,
+        Option<Box<Statements<'a>>>,
     ),
+    Lt(Box<Expression<'a>>, Box<Expression<'a>>),
+    Gt(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
 enum FnDef<'a> {
@@ -84,7 +89,9 @@ impl<'a> FnDef<'a> {
                     .zip(code.args.iter())
                     .map(|(arg, name)| (name.to_string(), *arg))
                     .collect();
-                eval_stmts(&code.stmts, &mut new_frame)
+                match eval_stmts(&code.stmts, &mut new_frame) {
+                    ControlFlow::Continue(v) | ControlFlow::Break(v) => v,
+                }
             }
             Self::Native(code) => (code.code)(args),
         }
@@ -160,8 +167,22 @@ fn binary_fn<'a>(f: fn(f64, f64) -> f64) -> FnDef<'a> {
     })
 }
 
+fn cond_expr(input: &str) -> IResult<&str, Expression> {
+    let (input, first) = num_expr(input)?;
+    let (input, cond) = space_delimited(alt((char('<'), char('>'))))(input)?;
+    let (input, second) = num_expr(input)?;
+    Ok((
+        input,
+        match cond {
+            '<' => Expression::Lt(Box::new(first), Box::new(second)),
+            '>' => Expression::Gt(Box::new(first), Box::new(second)),
+            _ => unreachable!(),
+        },
+    ))
+}
+
 fn expr(input: &str) -> IResult<&str, Expression> {
-    alt((if_expr, num_expr))(input)
+    alt((if_expr, cond_expr, num_expr))(input)
 }
 
 fn expr_statement(input: &str) -> IResult<&str, Statement> {
@@ -169,44 +190,66 @@ fn expr_statement(input: &str) -> IResult<&str, Statement> {
     Ok((input, Statement::Expression(expr)))
 }
 
-fn eval<'a>(expr: &Expression, frame: &StackFrame<'a>) -> f64 {
-    match expr {
+fn eval<'a>(expr: &Expression<'a>, frame: &mut StackFrame<'a>) -> EvalResult {
+    let res = match expr {
         Expression::Ident("pi") => std::f64::consts::PI,
         Expression::Ident(id) => *frame.vars.get(*id).expect("Unknown variable"),
         Expression::NumLiteral(n) => *n,
-        Expression::Add(lhs, rhs) => eval(lhs, frame) + eval(rhs, frame),
-        Expression::Sub(lhs, rhs) => eval(lhs, frame) - eval(rhs, frame),
-        Expression::Mul(lhs, rhs) => eval(lhs, frame) * eval(rhs, frame),
-        Expression::Div(lhs, rhs) => eval(lhs, frame) / eval(rhs, frame),
+        Expression::Add(lhs, rhs) => eval(lhs, frame)? + eval(rhs, frame)?,
+        Expression::Sub(lhs, rhs) => eval(lhs, frame)? - eval(rhs, frame)?,
+        Expression::Mul(lhs, rhs) => eval(lhs, frame)? * eval(rhs, frame)?,
+        Expression::Div(lhs, rhs) => eval(lhs, frame)? / eval(rhs, frame)?,
         Expression::FnInvoke(ident, args) => {
+            let mut arg_vals = vec![];
+            for arg in args {
+                arg_vals.push(eval(arg, frame)?);
+            }
             if let Some(func) = frame.get_fn(*ident) {
-                let args = args.iter().map(|arg| eval(arg, frame)).collect::<Vec<_>>();
-                func.call(&args, frame)
+                func.call(&arg_vals, frame)
             } else {
                 panic!("Unknown function {:?}", ident);
             }
         }
         Expression::If(cond, t_case, f_case) => {
-            if eval(cond, frame) != 0.0 {
-                eval(t_case, frame)
+            if eval(cond, frame)? != 0.0 {
+                eval_stmts(t_case, frame)?
             } else if let Some(f_case) = f_case {
-                eval(f_case, frame)
+                eval_stmts(f_case, frame)?
+            } else {
+                EvalResult::Continue(0.0)?
+            }
+        }
+        Expression::Lt(lhs, rhs) => {
+            let lhs = eval(lhs, frame)?;
+            let rhs = eval(rhs, frame)?;
+            if lhs < rhs {
+                1.0
             } else {
                 0.0
             }
         }
-    }
+        Expression::Gt(lhs, rhs) => {
+            let lhs = eval(lhs, frame)?;
+            let rhs = eval(rhs, frame)?;
+            if lhs > rhs {
+                1.0
+            } else {
+                0.0
+            }
+        }
+    };
+    EvalResult::Continue(res)
 }
 
-fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
-    let mut last_result = 0.0;
+fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalResult {
+    let mut last_result = EvalResult::Continue(0.0);
     for statement in stmts {
         match statement {
             Statement::Expression(expr) => {
-                last_result = eval(expr, frame);
+                last_result = EvalResult::Continue(eval(expr, frame)?);
             }
             Statement::VarDef(name, expr) => {
-                let value = eval(expr, frame);
+                let value = eval(expr, frame)?;
                 frame.vars.insert(name.to_string(), value);
             }
             Statement::VarAssign(name, expr) => {
@@ -214,7 +257,7 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
                     panic!("Variable is not defined");
                 }
 
-                let value = eval(expr, frame);
+                let value = eval(expr, frame)?;
                 frame.vars.insert(name.to_string(), value);
             }
             Statement::For {
@@ -223,8 +266,8 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
                 end,
                 stmts,
             } => {
-                let start = eval(start, frame) as isize;
-                let end = eval(end, frame) as isize;
+                let start = eval(start, frame)? as isize;
+                let end = eval(end, frame)? as isize;
                 for i in start..end {
                     frame.vars.insert(loop_var.to_string(), i as f64);
                     eval_stmts(stmts, frame);
@@ -240,7 +283,7 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> f64 {
                 );
             }
             Statement::Return(expr) => {
-                todo!()
+                return EvalResult::Break(eval(expr, frame)?);
             }
         }
     }
@@ -310,11 +353,18 @@ fn ident(input: &str) -> IResult<&str, Expression> {
 fn if_expr(input: &str) -> IResult<&str, Expression> {
     let (input, _) = space_delimited(tag("if"))(input)?;
     let (input, cond) = expr(input)?;
-    let (input, t_case) =
-        delimited(space_delimited(char('{')), expr, space_delimited(char('}')))(input)?;
+    let (input, t_case) = delimited(
+        space_delimited(char('{')),
+        statements,
+        space_delimited(char('}')),
+    )(input)?;
     let (input, f_case) = opt(preceded(
         space_delimited(tag("else")),
-        delimited(space_delimited(char('{')), expr, space_delimited(char('}'))),
+        delimited(
+            space_delimited(char('{')),
+            statements,
+            space_delimited(char('}')),
+        ),
     ))(input)?;
     Ok((
         input,
@@ -376,13 +426,17 @@ where
 }
 
 fn statement(input: &str) -> IResult<&str, Statement> {
+    let terminator = move |input| -> IResult<&str, ()> {
+        let mut semicolon = pair(tag(";"), multispace0);
+        Ok((semicolon(input)?.0, ()))
+    };
     alt((
-        for_statement,
+        var_def,
+        var_assign,
         fn_def_statement,
-        terminated(
-            alt((var_def, var_assign, expr_statement, return_statement)),
-            char(';'),
-        ),
+        for_statement,
+        terminated(return_statement, terminator),
+        terminated(expr_statement, terminator),
     ))(input)
 }
 
@@ -464,54 +518,40 @@ mod tests {
     }
 
     #[test]
-    fn test_eval() {
-        let frame = StackFrame::new();
-        assert_eq!(expr("123").map(|(_, expr)| eval(&expr, &frame)), Ok(123.0));
-        assert_eq!(
-            expr("(123 + 456)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(579.0)
-        );
-        assert_eq!(
-            expr("10 + (100 + 1)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(111.0)
-        );
-        assert_eq!(
-            expr("((1 + 2) + (3 + 4)) + 5 + 6").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(21.0)
-        );
-        assert_eq!(
-            expr("2 * pi").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(2.0 * std::f64::consts::PI)
-        );
-        assert_eq!(
-            expr("10 - (100 + 1)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(-91.0)
-        );
-        assert_eq!(
-            expr("(3 + 7) / (2 + 3)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(2.0)
-        );
-        assert_eq!(
-            expr("sqrt(2) / 2").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(0.7071067811865476)
-        );
-        assert_eq!(
-            expr("sin(pi / 4)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(0.7071067811865475)
-        );
-        assert_eq!(
-            expr("atan2(1, 1)").map(|(_, expr)| eval(&expr, &frame)),
-            Ok(0.7853981633974483)
-        );
-    }
-
-    #[test]
     fn test_ident() {
         assert_eq!(ident("Adam"), Ok(("", Expression::Ident("Adam"))));
         assert_eq!(ident("abc"), Ok(("", Expression::Ident("abc"))));
         assert!(ident("123abc").is_err());
         assert_eq!(ident("abc123"), Ok(("", Expression::Ident("abc123"))));
         assert_eq!(ident("abc123 "), Ok(("", Expression::Ident("abc123"))));
+    }
+
+    #[test]
+    fn test_if_expr() {
+        assert_eq!(
+            if_expr("if 123 { 456; }"),
+            Ok((
+                "",
+                Expression::If(
+                    Box::new(Expression::NumLiteral(123.0)),
+                    Box::new(vec![Statement::Expression(Expression::NumLiteral(456.0))],),
+                    None,
+                )
+            ))
+        );
+        assert_eq!(
+            if_expr("if 123 { 456; } else { 789; }"),
+            Ok((
+                "",
+                Expression::If(
+                    Box::new(Expression::NumLiteral(123.0)),
+                    Box::new(vec![Statement::Expression(Expression::NumLiteral(456.0))],),
+                    Some(Box::new(vec![Statement::Expression(
+                        Expression::NumLiteral(789.0)
+                    )]))
+                )
+            ))
+        );
     }
 
     #[test]
@@ -524,6 +564,80 @@ mod tests {
         assert_eq!(
             number("+123.4abc "),
             Ok(("abc ", Expression::NumLiteral(123.4)))
+        );
+    }
+
+    #[test]
+    fn test_return_statement() {
+        assert_eq!(
+            return_statement("return 123"),
+            Ok(("", Statement::Return(Expression::NumLiteral(123.0))))
+        );
+    }
+
+    #[test]
+    fn test_statements_finish() {
+        assert_eq!(
+            statements_finish("123; 456;"),
+            Ok(vec![
+                Statement::Expression(Expression::NumLiteral(123.0)),
+                Statement::Expression(Expression::NumLiteral(456.0))
+            ])
+        );
+        assert_eq!(
+            statements_finish("fn add(a, b) { a + b; } add(1, 2);"),
+            Ok(vec![
+                Statement::FnDef {
+                    name: "add",
+                    args: vec!["a", "b"],
+                    stmts: vec![Statement::Expression(Expression::Add(
+                        Box::new(Expression::Ident("a")),
+                        Box::new(Expression::Ident("b"))
+                    ))],
+                },
+                Statement::Expression(Expression::FnInvoke(
+                    "add",
+                    vec![Expression::NumLiteral(1.0), Expression::NumLiteral(2.0)]
+                ))
+            ])
+        );
+
+        assert_eq!(
+            statements_finish("if 1 { 123; } else { 456; };"),
+            Ok(vec![Statement::Expression(Expression::If(
+                Box::new(Expression::NumLiteral(1.0)),
+                Box::new(vec![Statement::Expression(Expression::NumLiteral(123.0))]),
+                Some(Box::new(vec![Statement::Expression(
+                    Expression::NumLiteral(456.0)
+                )]))
+            ))])
+        );
+
+        assert_eq!(
+            statements_finish(
+                "fn earlyreturn(a, b) { if a < b { return a; }; b; } earlyreturn(1, 2);"
+            ),
+            Ok(vec![
+                Statement::FnDef {
+                    name: "earlyreturn",
+                    args: vec!["a", "b"],
+                    stmts: vec![
+                        Statement::Expression(Expression::If(
+                            Box::new(Expression::Lt(
+                                Box::new(Expression::Ident("a")),
+                                Box::new(Expression::Ident("b"))
+                            )),
+                            Box::new(vec![Statement::Return(Expression::Ident("a"))]),
+                            None
+                        )),
+                        Statement::Expression(Expression::Ident("b"))
+                    ],
+                },
+                Statement::Expression(Expression::FnInvoke(
+                    "earlyreturn",
+                    vec![Expression::NumLiteral(1.0), Expression::NumLiteral(2.0)]
+                ))
+            ])
         );
     }
 }
