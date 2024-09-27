@@ -29,7 +29,13 @@ fn main() {
     eval_stmts(&parsed_statements, &mut frame);
 }
 
-type EvalResult = ControlFlow<f64, f64>;
+enum BreakResult {
+    Return(f64),
+    Break,
+    Continue,
+}
+
+type EvalResult = ControlFlow<BreakResult, f64>;
 
 type Variables = BTreeMap<String, f64>;
 
@@ -52,6 +58,8 @@ enum Statement<'a> {
         stmts: Statements<'a>,
     },
     Return(Expression<'a>),
+    Break,
+    Continue,
 }
 
 type Statements<'a> = Vec<Statement<'a>>;
@@ -90,7 +98,13 @@ impl<'a> FnDef<'a> {
                     .map(|(arg, name)| (name.to_string(), *arg))
                     .collect();
                 match eval_stmts(&code.stmts, &mut new_frame) {
-                    ControlFlow::Continue(v) | ControlFlow::Break(v) => v,
+                    ControlFlow::Continue(v) | ControlFlow::Break(BreakResult::Return(v)) => v,
+                    ControlFlow::Break(BreakResult::Break) => {
+                        panic!("Breaking outside loop is prohibited");
+                    }
+                    ControlFlow::Break(BreakResult::Continue) => {
+                        panic!("Continuing outside loop is prohibited");
+                    }
                 }
             }
             Self::Native(code) => (code.code)(args),
@@ -167,6 +181,11 @@ fn binary_fn<'a>(f: fn(f64, f64) -> f64) -> FnDef<'a> {
     })
 }
 
+fn break_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("break"))(input)?;
+    Ok((input, Statement::Break))
+}
+
 fn cond_expr(input: &str) -> IResult<&str, Expression> {
     let (input, first) = num_expr(input)?;
     let (input, cond) = space_delimited(alt((char('<'), char('>'))))(input)?;
@@ -179,6 +198,11 @@ fn cond_expr(input: &str) -> IResult<&str, Expression> {
             _ => unreachable!(),
         },
     ))
+}
+
+fn continue_statement(input: &str) -> IResult<&str, Statement> {
+    let (input, _) = space_delimited(tag("continue"))(input)?;
+    Ok((input, Statement::Continue))
 }
 
 fn expr(input: &str) -> IResult<&str, Expression> {
@@ -270,7 +294,14 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalRe
                 let end = eval(end, frame)? as isize;
                 for i in start..end {
                     frame.vars.insert(loop_var.to_string(), i as f64);
-                    eval_stmts(stmts, frame);
+                    match eval_stmts(stmts, frame) {
+                        EvalResult::Continue(val) => last_result = EvalResult::Continue(val),
+                        EvalResult::Break(BreakResult::Return(val)) => {
+                            return EvalResult::Break(BreakResult::Return(val))
+                        }
+                        EvalResult::Break(BreakResult::Break) => break,
+                        EvalResult::Break(BreakResult::Continue) => continue,
+                    }
                 }
             }
             Statement::FnDef { name, args, stmts } => {
@@ -283,7 +314,13 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalRe
                 );
             }
             Statement::Return(expr) => {
-                return EvalResult::Break(eval(expr, frame)?);
+                return EvalResult::Break(BreakResult::Return(eval(expr, frame)?));
+            }
+            Statement::Break => {
+                return EvalResult::Break(BreakResult::Break);
+            }
+            Statement::Continue => {
+                return EvalResult::Break(BreakResult::Continue);
             }
         }
     }
@@ -435,6 +472,8 @@ fn statement(input: &str) -> IResult<&str, Statement> {
         var_assign,
         fn_def_statement,
         for_statement,
+        terminated(break_statement, terminator),
+        terminated(continue_statement, terminator),
         terminated(return_statement, terminator),
         terminated(expr_statement, terminator),
     ))(input)
@@ -491,6 +530,19 @@ fn var_def(input: &str) -> IResult<&str, Statement> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_break_statement() {
+        assert_eq!(break_statement("break"), Ok(("", Statement::Break)));
+    }
+
+    #[test]
+    fn test_continue_statement() {
+        assert_eq!(
+            continue_statement("continue"),
+            Ok(("", Statement::Continue))
+        );
+    }
 
     #[test]
     fn test_expr() {
@@ -638,6 +690,42 @@ mod tests {
                     vec![Expression::NumLiteral(1.0), Expression::NumLiteral(2.0)]
                 ))
             ])
+        );
+
+        assert_eq!(
+            statements_finish(
+                "for i in 0 to 3 { for j in 0 to 3 { if j > 1 { break; }; print(i * 10 + j); } }"
+            ),
+            Ok(vec![Statement::For {
+                loop_var: "i",
+                start: Expression::NumLiteral(0.0),
+                end: Expression::NumLiteral(3.0),
+                stmts: vec![Statement::For {
+                    loop_var: "j",
+                    start: Expression::NumLiteral(0.0),
+                    end: Expression::NumLiteral(3.0),
+                    stmts: vec![
+                        Statement::Expression(Expression::If(
+                            Box::new(Expression::Gt(
+                                Box::new(Expression::Ident("j")),
+                                Box::new(Expression::NumLiteral(1.0))
+                            )),
+                            Box::new(vec![Statement::Break]),
+                            None
+                        )),
+                        Statement::Expression(Expression::FnInvoke(
+                            "print",
+                            vec![Expression::Add(
+                                Box::new(Expression::Mul(
+                                    Box::new(Expression::Ident("i")),
+                                    Box::new(Expression::NumLiteral(10.0))
+                                )),
+                                Box::new(Expression::Ident("j"))
+                            )]
+                        ))
+                    ]
+                }],
+            }])
         );
     }
 }
