@@ -4,7 +4,7 @@ use std::ops::ControlFlow;
 
 use nom::branch::alt;
 use nom::bytes::complete::tag;
-use nom::character::complete::{alpha1, alphanumeric1, char, multispace0};
+use nom::character::complete::{alpha1, alphanumeric1, char, multispace0, none_of};
 use nom::combinator::{opt, recognize};
 use nom::error::ParseError;
 use nom::multi::{fold_many0, many0, separated_list0};
@@ -29,15 +29,114 @@ fn main() {
     eval_stmts(&parsed_statements, &mut frame);
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum Value {
+    F64(f64),
+    I64(i64),
+    Str(String),
+}
+
+impl Value {
+    fn as_i64(&self) -> Option<i64> {
+        match self {
+            Self::F64(val) => Some(*val as i64),
+            Self::I64(val) => Some(*val),
+            Self::Str(val) => val.parse().ok(),
+        }
+    }
+}
+
+impl std::fmt::Display for Value {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::F64(v) => write!(f, "{}", v),
+            Self::I64(v) => write!(f, "{}", v),
+            Self::Str(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl std::cmp::PartialOrd for Value {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match (self, other) {
+            (Self::F64(lhs), Self::F64(rhs)) => lhs.partial_cmp(rhs),
+            (Self::F64(lhs), Self::I64(rhs)) => lhs.partial_cmp(&(*rhs as f64)),
+            (Self::F64(_), Self::Str(_)) => None,
+            (Self::I64(lhs), Self::F64(rhs)) => (*lhs as f64).partial_cmp(rhs),
+            (Self::I64(lhs), Self::I64(rhs)) => lhs.partial_cmp(rhs),
+            (Self::I64(_), Self::Str(_)) => None,
+            (Self::Str(_), Self::F64(_)) => None,
+            (Self::Str(_), Self::I64(_)) => None,
+            (Self::Str(lhs), Self::Str(rhs)) => lhs.partial_cmp(rhs),
+        }
+    }
+}
+
+impl std::ops::Add for Value {
+    type Output = Value;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        binary_op_str(
+            &self,
+            &rhs,
+            |lhs, rhs| lhs + rhs,
+            |lhs, rhs| lhs + rhs,
+            |lhs, rhs| lhs.to_owned() + rhs,
+        )
+    }
+}
+
+impl std::ops::Sub for Value {
+    type Output = Value;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        binary_op_str(
+            &self,
+            &rhs,
+            |lhs, rhs| lhs - rhs,
+            |lhs, rhs| lhs - rhs,
+            |_, _| panic!("Strings cannot be subtracted"),
+        )
+    }
+}
+
+impl std::ops::Mul for Value {
+    type Output = Value;
+
+    fn mul(self, rhs: Self) -> Self::Output {
+        binary_op_str(
+            &self,
+            &rhs,
+            |lhs, rhs| lhs * rhs,
+            |lhs, rhs| lhs * rhs,
+            |_, _| panic!("Strings cannot be multiplied"),
+        )
+    }
+}
+
+impl std::ops::Div for Value {
+    type Output = Value;
+
+    fn div(self, rhs: Self) -> Self::Output {
+        binary_op_str(
+            &self,
+            &rhs,
+            |lhs, rhs| lhs / rhs,
+            |lhs, rhs| lhs / rhs,
+            |_, _| panic!("Strings cannot be divided"),
+        )
+    }
+}
+
 enum BreakResult {
-    Return(f64),
+    Return(Value),
     Break,
     Continue,
 }
 
-type EvalResult = ControlFlow<BreakResult, f64>;
+type EvalResult = ControlFlow<BreakResult, Value>;
 
-type Variables = BTreeMap<String, f64>;
+type Variables = BTreeMap<String, Value>;
 
 type Functions<'a> = BTreeMap<String, FnDef<'a>>;
 
@@ -68,6 +167,7 @@ type Statements<'a> = Vec<Statement<'a>>;
 enum Expression<'a> {
     Ident(&'a str),
     NumLiteral(f64),
+    StrLiteral(String),
     FnInvoke(&'a str, Vec<Expression<'a>>),
     Add(Box<Expression<'a>>, Box<Expression<'a>>),
     Sub(Box<Expression<'a>>, Box<Expression<'a>>),
@@ -88,14 +188,14 @@ enum FnDef<'a> {
 }
 
 impl<'a> FnDef<'a> {
-    fn call(&self, args: &[f64], frame: &StackFrame) -> f64 {
+    fn call(&self, args: &[Value], frame: &StackFrame) -> Value {
         match self {
             Self::User(code) => {
                 let mut new_frame = StackFrame::push_stack(frame);
                 new_frame.vars = args
                     .iter()
                     .zip(code.args.iter())
-                    .map(|(arg, name)| (name.to_string(), *arg))
+                    .map(|(arg, name)| (name.to_string(), arg.clone()))
                     .collect();
                 match eval_stmts(&code.stmts, &mut new_frame) {
                     ControlFlow::Continue(v) | ControlFlow::Break(BreakResult::Return(v)) => v,
@@ -118,7 +218,7 @@ struct UserFn<'a> {
 }
 
 struct NativeFn {
-    code: Box<dyn Fn(&[f64]) -> f64>,
+    code: Box<dyn Fn(&[Value]) -> Value>,
 }
 
 struct StackFrame<'a> {
@@ -142,7 +242,50 @@ impl<'a> StackFrame<'a> {
         funcs.insert("exp".to_owned(), unary_fn(f64::exp));
         funcs.insert("log".to_owned(), binary_fn(f64::log));
         funcs.insert("log10".to_owned(), unary_fn(f64::log10));
-        funcs.insert("print".to_owned(), unary_fn(print));
+        funcs.insert(
+            "print".to_owned(),
+            FnDef::Native(NativeFn {
+                code: Box::new(move |args| {
+                    let mut args = args.into_iter();
+                    let arg = args.next().expect("function missing argument");
+                    print(arg)
+                }),
+            }),
+        );
+        funcs.insert(
+            "dbg".to_owned(),
+            FnDef::Native(NativeFn {
+                code: Box::new(move |args| {
+                    let mut args = args.into_iter();
+                    let arg = args.next().expect("function missing argument");
+                    print_debug(arg)
+                }),
+            }),
+        );
+        funcs.insert(
+            "f64".to_owned(),
+            FnDef::Native(NativeFn {
+                code: Box::new(move |args| {
+                    Value::F64(coerce_f64(args.first().expect("function missing argument")))
+                }),
+            }),
+        );
+        funcs.insert(
+            "i64".to_owned(),
+            FnDef::Native(NativeFn {
+                code: Box::new(move |args| {
+                    Value::I64(coerce_i64(args.first().expect("function missing argument")))
+                }),
+            }),
+        );
+        funcs.insert(
+            "str".to_owned(),
+            FnDef::Native(NativeFn {
+                code: Box::new(move |args| {
+                    Value::Str(coerce_str(args.first().expect("function missing argument")))
+                }),
+            }),
+        );
         Self {
             vars: Variables::new(),
             funcs,
@@ -176,14 +319,57 @@ fn binary_fn<'a>(f: fn(f64, f64) -> f64) -> FnDef<'a> {
             let mut args = args.into_iter();
             let lhs = args.next().expect("function missing the first argument");
             let rhs = args.next().expect("function missing the second argument");
-            f(*lhs, *rhs)
+            Value::F64(f(coerce_f64(lhs), coerce_f64(rhs)))
         }),
     })
+}
+
+fn binary_op_str(
+    lhs: &Value,
+    rhs: &Value,
+    d: impl Fn(f64, f64) -> f64,
+    i: impl Fn(i64, i64) -> i64,
+    s: impl Fn(&str, &str) -> String,
+) -> Value {
+    use Value::*;
+    match (lhs, rhs) {
+        (F64(lhs), rhs) => F64(d(*lhs, coerce_f64(&rhs))),
+        (lhs, F64(rhs)) => F64(d(coerce_f64(&lhs), *rhs)),
+        (I64(lhs), I64(rhs)) => I64(i(*lhs, *rhs)),
+        (Str(lhs), Str(rhs)) => Str(s(lhs, rhs)),
+        _ => {
+            panic!("Unsupported operator between {:?} and {:?}", lhs, rhs)
+        }
+    }
 }
 
 fn break_statement(input: &str) -> IResult<&str, Statement> {
     let (input, _) = space_delimited(tag("break"))(input)?;
     Ok((input, Statement::Break))
+}
+
+fn coerce_f64(a: &Value) -> f64 {
+    match a {
+        Value::F64(v) => *v as f64,
+        Value::I64(v) => *v as f64,
+        _ => panic!("The string cloud not be parsed as f64"),
+    }
+}
+
+fn coerce_i64(a: &Value) -> i64 {
+    match a {
+        Value::F64(v) => *v as i64,
+        Value::I64(v) => *v as i64,
+        _ => panic!("The string cloud not be parsed as i64"),
+    }
+}
+
+fn coerce_str(a: &Value) -> String {
+    match a {
+        Value::F64(v) => v.to_string(),
+        Value::I64(v) => v.to_string(),
+        Value::Str(v) => v.to_owned(),
+    }
 }
 
 fn cond_expr(input: &str) -> IResult<&str, Expression> {
@@ -216,9 +402,10 @@ fn expr_statement(input: &str) -> IResult<&str, Statement> {
 
 fn eval<'a>(expr: &Expression<'a>, frame: &mut StackFrame<'a>) -> EvalResult {
     let res = match expr {
-        Expression::Ident("pi") => std::f64::consts::PI,
-        Expression::Ident(id) => *frame.vars.get(*id).expect("Unknown variable"),
-        Expression::NumLiteral(n) => *n,
+        Expression::Ident("pi") => Value::F64(std::f64::consts::PI),
+        Expression::Ident(id) => frame.vars.get(*id).cloned().expect("Unknown variable"),
+        Expression::NumLiteral(n) => Value::F64(*n),
+        Expression::StrLiteral(s) => Value::Str(s.to_owned()),
         Expression::Add(lhs, rhs) => eval(lhs, frame)? + eval(rhs, frame)?,
         Expression::Sub(lhs, rhs) => eval(lhs, frame)? - eval(rhs, frame)?,
         Expression::Mul(lhs, rhs) => eval(lhs, frame)? * eval(rhs, frame)?,
@@ -235,30 +422,30 @@ fn eval<'a>(expr: &Expression<'a>, frame: &mut StackFrame<'a>) -> EvalResult {
             }
         }
         Expression::If(cond, t_case, f_case) => {
-            if eval(cond, frame)? != 0.0 {
+            if coerce_i64(&eval(cond, frame)?) != 0 {
                 eval_stmts(t_case, frame)?
             } else if let Some(f_case) = f_case {
                 eval_stmts(f_case, frame)?
             } else {
-                EvalResult::Continue(0.0)?
+                Value::I64(0)
             }
         }
         Expression::Lt(lhs, rhs) => {
             let lhs = eval(lhs, frame)?;
             let rhs = eval(rhs, frame)?;
             if lhs < rhs {
-                1.0
+                Value::I64(1)
             } else {
-                0.0
+                Value::I64(0)
             }
         }
         Expression::Gt(lhs, rhs) => {
             let lhs = eval(lhs, frame)?;
             let rhs = eval(rhs, frame)?;
             if lhs > rhs {
-                1.0
+                Value::I64(1)
             } else {
-                0.0
+                Value::I64(0)
             }
         }
     };
@@ -266,7 +453,7 @@ fn eval<'a>(expr: &Expression<'a>, frame: &mut StackFrame<'a>) -> EvalResult {
 }
 
 fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalResult {
-    let mut last_result = EvalResult::Continue(0.0);
+    let mut last_result = EvalResult::Continue(Value::I64(0));
     for statement in stmts {
         match statement {
             Statement::Expression(expr) => {
@@ -290,10 +477,14 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalRe
                 end,
                 stmts,
             } => {
-                let start = eval(start, frame)? as isize;
-                let end = eval(end, frame)? as isize;
+                let start = eval(start, frame)?
+                    .as_i64()
+                    .expect("Start needs to be an integer");
+                let end = eval(end, frame)?
+                    .as_i64()
+                    .expect("End needs to be an integer");
                 for i in start..end {
-                    frame.vars.insert(loop_var.to_string(), i as f64);
+                    frame.vars.insert(loop_var.to_string(), Value::I64(i));
                     match eval_stmts(stmts, frame) {
                         EvalResult::Continue(val) => last_result = EvalResult::Continue(val),
                         EvalResult::Break(BreakResult::Return(val)) => {
@@ -328,7 +519,7 @@ fn eval_stmts<'a>(stmts: &[Statement<'a>], frame: &mut StackFrame<'a>) -> EvalRe
 }
 
 fn factor(input: &str) -> IResult<&str, Expression> {
-    alt((number, func_call, ident, paren))(input)
+    alt((str_literal, number, func_call, ident, paren))(input)
 }
 
 fn fn_def_statement(input: &str) -> IResult<&str, Statement> {
@@ -438,9 +629,14 @@ fn paren(input: &str) -> IResult<&str, Expression> {
     space_delimited(delimited(lparen, expr, rparen))(input)
 }
 
-fn print(arg: f64) -> f64 {
+fn print(arg: &Value) -> Value {
     println!("print: {}", arg);
-    0.0
+    Value::I64(0)
+}
+
+fn print_debug(arg: &Value) -> Value {
+    println!("dbg: {:?}", arg);
+    Value::I64(0)
 }
 
 fn return_statement(input: &str) -> IResult<&str, Statement> {
@@ -462,32 +658,65 @@ where
     delimited(multispace0, f, multispace0)
 }
 
-fn statement(input: &str) -> IResult<&str, Statement> {
+fn general_statement<'a>(last: bool) -> impl Fn(&'a str) -> IResult<&'a str, Statement> {
     let terminator = move |input| -> IResult<&str, ()> {
         let mut semicolon = pair(tag(";"), multispace0);
-        Ok((semicolon(input)?.0, ()))
+        if last {
+            Ok((opt(semicolon)(input)?.0, ()))
+        } else {
+            Ok((semicolon(input)?.0, ()))
+        }
     };
-    alt((
-        var_def,
-        var_assign,
-        fn_def_statement,
-        for_statement,
-        terminated(break_statement, terminator),
-        terminated(continue_statement, terminator),
-        terminated(return_statement, terminator),
-        terminated(expr_statement, terminator),
-    ))(input)
+    move |input| {
+        alt((
+            terminated(var_def, terminator),
+            terminated(var_assign, terminator),
+            fn_def_statement,
+            for_statement,
+            terminated(break_statement, terminator),
+            terminated(continue_statement, terminator),
+            terminated(return_statement, terminator),
+            terminated(expr_statement, terminator),
+        ))(input)
+    }
+}
+
+fn statement(input: &str) -> IResult<&str, Statement> {
+    general_statement(true)(input)
+}
+
+fn last_statement(input: &str) -> IResult<&str, Statement> {
+    general_statement(true)(input)
 }
 
 fn statements(input: &str) -> IResult<&str, Statements> {
-    let (input, stmts) = many0(statement)(input)?;
-    let (input, _) = opt(char(';'))(input)?;
+    let (input, mut stmts) = many0(statement)(input)?;
+    let (input, last) = opt(last_statement)(input)?;
+    let (input, _) = opt(multispace0)(input)?;
+    if let Some(last) = last {
+        stmts.push(last);
+    }
     Ok((input, stmts))
 }
 
 fn statements_finish(input: &str) -> Result<Statements, nom::error::Error<&str>> {
     let (_, res) = statements(input).finish()?;
     Ok(res)
+}
+
+fn str_literal(input: &str) -> IResult<&str, Expression> {
+    let (input, _) = preceded(multispace0, char('"'))(input)?;
+    let (input, val) = many0(none_of("\""))(input)?;
+    let (input, _) = terminated(char('"'), multispace0)(input)?;
+    Ok((
+        input,
+        Expression::StrLiteral(
+            val.iter()
+                .collect::<String>()
+                .replace("\\\\", "\\")
+                .replace("\\n", "\n"),
+        ),
+    ))
 }
 
 fn term(input: &str) -> IResult<&str, Expression> {
@@ -507,7 +736,8 @@ fn unary_fn<'a>(f: fn(f64) -> f64) -> FnDef<'a> {
     FnDef::Native(NativeFn {
         code: Box::new(move |args| {
             let mut args = args.into_iter();
-            f(*args.next().expect("function missing argument"))
+            let arg = args.next().expect("function missing argument");
+            Value::F64(f(coerce_f64(arg)))
         }),
     })
 }
@@ -628,6 +858,14 @@ mod tests {
     }
 
     #[test]
+    fn test_str_literal() {
+        assert_eq!(
+            str_literal("\"abc\n\\\""),
+            Ok(("", Expression::StrLiteral("abc\n\\".to_owned())))
+        );
+    }
+
+    #[test]
     fn test_statements_finish() {
         assert_eq!(
             statements_finish("123; 456;"),
@@ -726,6 +964,30 @@ mod tests {
                     ]
                 }],
             }])
+        );
+
+        assert_eq!(
+            statements_finish(
+                r#"
+var i = i64(123);
+var f = f64(123.456);
+var s = "Hello, world!";
+
+print(i);
+dbg(i);
+print(f);
+dbg(f);
+print(s);
+dbg(s);
+
+print(i + f);
+print(i / f);
+print(s + s);
+                "#
+            )
+            .unwrap()
+            .len(),
+            12
         );
     }
 }
