@@ -30,6 +30,14 @@ fn main() {
 }
 
 #[derive(Clone, Debug, PartialEq)]
+enum TypeDecl {
+    Any,
+    F64,
+    I64,
+    Str,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 enum Value {
     F64(f64),
     I64(i64),
