@@ -29,6 +29,23 @@ fn main() {
     eval_stmts(&parsed_statements, &mut frame);
 }
 
+#[derive(Debug)]
+pub struct TypeCheckError {
+    msg: String,
+}
+
+impl<'src> std::fmt::Display for TypeCheckError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.msg,)
+    }
+}
+
+impl TypeCheckError {
+    fn new(msg: String) -> Self {
+        Self { msg }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 enum TypeDecl {
     Any,
@@ -725,6 +742,24 @@ fn str_literal(input: &str) -> IResult<&str, Expression> {
                 .replace("\\n", "\n"),
         ),
     ))
+}
+
+fn tc_coerce_type<'a>(value: &TypeDecl, target: &TypeDecl) -> Result<TypeDecl, TypeCheckError> {
+    use TypeDecl::*;
+    Ok(match (value, target) {
+        (_, Any) => value.clone(),
+        (Any, _) => target.clone(),
+        (F64, F64) => F64,
+        (I64, F64) => F64,
+        (F64, I64) => F64,
+        (Str, Str) => Str,
+        _ => {
+            return Err(TypeCheckError::new(format!(
+                "Type check error {:?} cannot be assigned to {:?}",
+                value, target
+            )))
+        }
+    })
 }
 
 fn term(input: &str) -> IResult<&str, Expression> {
