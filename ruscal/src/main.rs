@@ -25,6 +25,14 @@ fn main() {
             return;
         }
     };
+
+    let mut tc_ctx = TypeCheckContext::new();
+    if let Err(err) = type_check(&parsed_statements, &mut tc_ctx) {
+        println!("Type check error: {}", err);
+        return;
+    }
+    println!("Type check OK");
+
     let mut frame = StackFrame::new();
     eval_stmts(&parsed_statements, &mut frame);
 }
@@ -59,6 +67,14 @@ impl<'a> TypeCheckContext<'a> {
             super_ctx.get_fn(name)
         } else {
             None
+        }
+    }
+
+    fn push_stack(super_ctx: &'a Self) -> Self {
+        Self {
+            vars: BTreeMap::new(),
+            funcs: BTreeMap::new(),
+            super_context: Some(super_ctx),
         }
     }
 }
@@ -248,6 +264,13 @@ enum FnDef<'a> {
 }
 
 impl<'a> FnDef<'a> {
+    fn args(&self) -> Vec<(&'a str, TypeDecl)> {
+        match self {
+            Self::User(f) => f.args.clone(),
+            Self::Native(f) => f.args.clone(),
+        }
+    }
+
     fn call(&self, args: &[Value], frame: &StackFrame) -> Value {
         match self {
             Self::User(code) => {
@@ -268,6 +291,13 @@ impl<'a> FnDef<'a> {
                 }
             }
             Self::Native(code) => (code.code)(args),
+        }
+    }
+
+    fn ret_type(&self) -> TypeDecl {
+        match self {
+            Self::User(f) => f.ret_type,
+            Self::Native(f) => f.ret_type,
         }
     }
 }
@@ -423,6 +453,18 @@ fn binary_op_str(
             panic!("Unsupported operator between {:?} and {:?}", lhs, rhs)
         }
     }
+}
+
+fn binary_op_type(lhs: &TypeDecl, rhs: &TypeDecl) -> Result<TypeDecl, ()> {
+    use TypeDecl::*;
+    Ok(match (lhs, rhs) {
+        (Any, _) => Any,
+        (_, Any) => Any,
+        (I64, I64) => I64,
+        (F64 | I64, F64 | I64) => F64,
+        (Str, Str) => Str,
+        _ => return Err(()),
+    })
 }
 
 fn break_statement(input: &str) -> IResult<&str, Statement> {
@@ -767,10 +809,10 @@ fn general_statement<'a>(last: bool) -> impl Fn(&'a str) -> IResult<&'a str, Sta
     };
     move |input| {
         alt((
-            terminated(var_def, terminator),
-            terminated(var_assign, terminator),
             fn_def_statement,
             for_statement,
+            terminated(var_def, terminator),
+            terminated(var_assign, terminator),
             terminated(break_statement, terminator),
             terminated(continue_statement, terminator),
             terminated(return_statement, terminator),
@@ -817,6 +859,46 @@ fn str_literal(input: &str) -> IResult<&str, Expression> {
     ))
 }
 
+fn tc_binary_cmp<'a>(
+    lhs: &Expression<'a>,
+    rhs: &Expression<'a>,
+    ctx: &mut TypeCheckContext<'a>,
+    op: &str,
+) -> Result<TypeDecl, TypeCheckError> {
+    use TypeDecl::*;
+    let lhs = tc_expr(lhs, ctx)?;
+    let rhs = tc_expr(rhs, ctx)?;
+    Ok(match (&lhs, &rhs) {
+        (Any, _) => I64,
+        (_, Any) => I64,
+        (F64, F64) => I64,
+        (I64, F64) => I64,
+        (Str, Str) => I64,
+        _ => {
+            return Err(TypeCheckError::new(format!(
+                "Operation {} between incompatible type: {:?} and {:?}",
+                op, lhs, rhs
+            )))
+        }
+    })
+}
+
+fn tc_binary_op<'a>(
+    lhs: &Expression<'a>,
+    rhs: &Expression<'a>,
+    ctx: &mut TypeCheckContext<'a>,
+    op: &str,
+) -> Result<TypeDecl, TypeCheckError> {
+    let lhs = tc_expr(lhs, ctx)?;
+    let rhs = tc_expr(rhs, ctx)?;
+    binary_op_type(&lhs, &rhs).map_err(|_| {
+        TypeCheckError::new(format!(
+            "Operation {} between incompatible type: {:?} and {:?}",
+            op, lhs, rhs
+        ))
+    })
+}
+
 fn tc_coerce_type<'a>(value: &TypeDecl, target: &TypeDecl) -> Result<TypeDecl, TypeCheckError> {
     use TypeDecl::*;
     Ok(match (value, target) {
@@ -825,12 +907,62 @@ fn tc_coerce_type<'a>(value: &TypeDecl, target: &TypeDecl) -> Result<TypeDecl, T
         (F64, F64) => F64,
         (I64, F64) => F64,
         (F64, I64) => F64,
+        (I64, I64) => I64,
         (Str, Str) => Str,
         _ => {
             return Err(TypeCheckError::new(format!(
                 "Type check error {:?} cannot be assigned to {:?}",
                 value, target
             )))
+        }
+    })
+}
+
+fn tc_expr<'a>(
+    e: &Expression<'a>,
+    ctx: &mut TypeCheckContext<'a>,
+) -> Result<TypeDecl, TypeCheckError> {
+    use Expression::*;
+    Ok(match &e {
+        NumLiteral(_) => TypeDecl::F64,
+        StrLiteral(_) => TypeDecl::Str,
+        Ident(str) => ctx
+            .get_var(str)
+            .ok_or_else(|| TypeCheckError::new(format!("Variable {:?} not found in scope", str)))?,
+        FnInvoke(name, args) => {
+            let args_ty = args
+                .iter()
+                .map(|v| tc_expr(v, ctx))
+                .collect::<Result<Vec<_>, _>>()?;
+            let func = ctx
+                .get_fn(*name)
+                .ok_or_else(|| TypeCheckError::new(format!("function {} is not defined", name)))?;
+            let args_decl = func.args();
+            for (arg_ty, decl) in args_ty.iter().zip(args_decl.iter()) {
+                tc_coerce_type(&arg_ty, &decl.1)?;
+            }
+            func.ret_type()
+        }
+        Add(lhs, rhs) => tc_binary_op(lhs, rhs, ctx, "Add")?,
+        Sub(lhs, rhs) => tc_binary_op(lhs, rhs, ctx, "Sub")?,
+        Mul(lhs, rhs) => tc_binary_op(lhs, rhs, ctx, "Mult")?,
+        Div(lhs, rhs) => tc_binary_op(lhs, rhs, ctx, "Div")?,
+        Lt(lhs, rhs) => tc_binary_cmp(lhs, rhs, ctx, "LT")?,
+        Gt(lhs, rhs) => tc_binary_cmp(lhs, rhs, ctx, "GT")?,
+        If(cond, true_branch, false_branch) => {
+            tc_coerce_type(&tc_expr(cond, ctx)?, &TypeDecl::I64)?;
+            let true_type = type_check(true_branch, ctx)?;
+            if let Some(false_type) = false_branch {
+                let false_type = type_check(false_type, ctx)?;
+                binary_op_type(&true_type, &false_type).map_err(|_| {
+                    TypeCheckError::new(
+                        format!("Conditional expression doesn't have the compatible types in true and false branch: {:?} and {:?}",
+                        true_type, false_type)
+                    )
+                })?
+            } else {
+                true_type
+            }
         }
     })
 }
@@ -846,6 +978,68 @@ fn term(input: &str) -> IResult<&str, Expression> {
             _ => panic!("Multiplicative expression should have '*' or '/' operator"),
         },
     )(input)
+}
+
+fn type_check<'a>(
+    stmts: &Vec<Statement<'a>>,
+    ctx: &mut TypeCheckContext<'a>,
+) -> Result<TypeDecl, TypeCheckError> {
+    let mut res = TypeDecl::Any;
+    for stmt in stmts {
+        match stmt {
+            Statement::VarDef(var, ty, init_expr) => {
+                let init_type = tc_expr(init_expr, ctx)?;
+                let init_type = tc_coerce_type(&init_type, ty)?;
+                ctx.vars.insert(*var, init_type);
+            }
+            Statement::VarAssign(var, expr) => {
+                let ty = tc_expr(expr, ctx)?;
+                let var = ctx.vars.get(*var).expect("Variable not found");
+                tc_coerce_type(&ty, var)?;
+            }
+            Statement::FnDef {
+                name,
+                args,
+                ret_type,
+                stmts,
+            } => {
+                ctx.funcs.insert(
+                    name.to_string(),
+                    FnDef::User(UserFn {
+                        args: args.clone(),
+                        ret_type: *ret_type,
+                        stmts: stmts.clone(),
+                    }),
+                );
+                let mut subctx = TypeCheckContext::push_stack(ctx);
+                for (arg, ty) in args.iter() {
+                    subctx.vars.insert(arg, *ty);
+                }
+                let last_stmt = type_check(stmts, &mut subctx)?;
+                tc_coerce_type(&last_stmt, &ret_type)?;
+            }
+            Statement::Expression(e) => {
+                res = tc_expr(&e, ctx)?;
+            }
+            Statement::For {
+                loop_var,
+                start,
+                end,
+                stmts,
+            } => {
+                tc_coerce_type(&tc_expr(start, ctx)?, &TypeDecl::I64)?;
+                tc_coerce_type(&tc_expr(end, ctx)?, &TypeDecl::I64)?;
+                ctx.vars.insert(loop_var, TypeDecl::I64);
+                res = type_check(stmts, ctx)?;
+            }
+            Statement::Return(e) => {
+                return tc_expr(e, ctx);
+            }
+            Statement::Break => (),
+            Statement::Continue => (),
+        }
+    }
+    Ok(res)
 }
 
 fn type_decl(input: &str) -> IResult<&str, TypeDecl> {
