@@ -47,7 +47,7 @@ impl<'a> TypeCheckContext<'a> {
     fn new() -> Self {
         Self {
             vars: BTreeMap::new(),
-            funcs: BTreeMap::new(),
+            funcs: standard_functions(),
             super_context: None,
         }
     }
@@ -322,76 +322,9 @@ struct StackFrame<'a> {
 
 impl<'a> StackFrame<'a> {
     fn new() -> Self {
-        let mut funcs = Functions::new();
-        funcs.insert("sqrt".to_owned(), unary_fn(f64::sqrt));
-        funcs.insert("sin".to_owned(), unary_fn(f64::sin));
-        funcs.insert("cos".to_owned(), unary_fn(f64::cos));
-        funcs.insert("tan".to_owned(), unary_fn(f64::tan));
-        funcs.insert("asin".to_owned(), unary_fn(f64::asin));
-        funcs.insert("acos".to_owned(), unary_fn(f64::acos));
-        funcs.insert("atan".to_owned(), unary_fn(f64::atan));
-        funcs.insert("atan2".to_owned(), binary_fn(f64::atan2));
-        funcs.insert("pow".to_owned(), binary_fn(f64::powf));
-        funcs.insert("exp".to_owned(), unary_fn(f64::exp));
-        funcs.insert("log".to_owned(), binary_fn(f64::log));
-        funcs.insert("log10".to_owned(), unary_fn(f64::log10));
-        funcs.insert(
-            "print".to_owned(),
-            FnDef::Native(NativeFn {
-                args: vec![("arg", TypeDecl::Any)],
-                ret_type: TypeDecl::Any,
-                code: Box::new(move |args| {
-                    let mut args = args.into_iter();
-                    let arg = args.next().expect("function missing argument");
-                    print(arg)
-                }),
-            }),
-        );
-        funcs.insert(
-            "dbg".to_owned(),
-            FnDef::Native(NativeFn {
-                args: vec![("arg", TypeDecl::Any)],
-                ret_type: TypeDecl::Any,
-                code: Box::new(move |args| {
-                    let mut args = args.into_iter();
-                    let arg = args.next().expect("function missing argument");
-                    print_debug(arg)
-                }),
-            }),
-        );
-        funcs.insert(
-            "f64".to_owned(),
-            FnDef::Native(NativeFn {
-                args: vec![("arg", TypeDecl::Any)],
-                ret_type: TypeDecl::F64,
-                code: Box::new(move |args| {
-                    Value::F64(coerce_f64(args.first().expect("function missing argument")))
-                }),
-            }),
-        );
-        funcs.insert(
-            "i64".to_owned(),
-            FnDef::Native(NativeFn {
-                args: vec![("arg", TypeDecl::Any)],
-                ret_type: TypeDecl::I64,
-                code: Box::new(move |args| {
-                    Value::I64(coerce_i64(args.first().expect("function missing argument")))
-                }),
-            }),
-        );
-        funcs.insert(
-            "str".to_owned(),
-            FnDef::Native(NativeFn {
-                args: vec![("arg", TypeDecl::Any)],
-                ret_type: TypeDecl::Str,
-                code: Box::new(move |args| {
-                    Value::Str(coerce_str(args.first().expect("function missing argument")))
-                }),
-            }),
-        );
         Self {
             vars: Variables::new(),
-            funcs,
+            funcs: standard_functions(),
             uplevel: None,
         }
     }
@@ -709,6 +642,29 @@ fn func_call(input: &str) -> IResult<&str, Expression> {
     Ok((input, Expression::FnInvoke(ident, args)))
 }
 
+fn general_statement<'a>(last: bool) -> impl Fn(&'a str) -> IResult<&'a str, Statement> {
+    let terminator = move |input| -> IResult<&str, ()> {
+        let mut semicolon = pair(tag(";"), multispace0);
+        if last {
+            Ok((opt(semicolon)(input)?.0, ()))
+        } else {
+            Ok((semicolon(input)?.0, ()))
+        }
+    };
+    move |input| {
+        alt((
+            fn_def_statement,
+            for_statement,
+            terminated(var_def, terminator),
+            terminated(var_assign, terminator),
+            terminated(break_statement, terminator),
+            terminated(continue_statement, terminator),
+            terminated(return_statement, terminator),
+            terminated(expr_statement, terminator),
+        ))(input)
+    }
+}
+
 fn identifier(input: &str) -> IResult<&str, &str> {
     recognize(pair(alpha1, many0(alphanumeric1)))(input)
 }
@@ -738,6 +694,10 @@ fn if_expr(input: &str) -> IResult<&str, Expression> {
         input,
         Expression::If(Box::new(cond), Box::new(t_case), f_case.map(Box::new)),
     ))
+}
+
+fn last_statement(input: &str) -> IResult<&str, Statement> {
+    general_statement(true)(input)
 }
 
 fn lparen(input: &str) -> IResult<&str, &str> {
@@ -798,34 +758,78 @@ where
     delimited(multispace0, f, multispace0)
 }
 
-fn general_statement<'a>(last: bool) -> impl Fn(&'a str) -> IResult<&'a str, Statement> {
-    let terminator = move |input| -> IResult<&str, ()> {
-        let mut semicolon = pair(tag(";"), multispace0);
-        if last {
-            Ok((opt(semicolon)(input)?.0, ()))
-        } else {
-            Ok((semicolon(input)?.0, ()))
-        }
-    };
-    move |input| {
-        alt((
-            fn_def_statement,
-            for_statement,
-            terminated(var_def, terminator),
-            terminated(var_assign, terminator),
-            terminated(break_statement, terminator),
-            terminated(continue_statement, terminator),
-            terminated(return_statement, terminator),
-            terminated(expr_statement, terminator),
-        ))(input)
-    }
+fn standard_functions<'a>() -> Functions<'a> {
+    let mut funcs = Functions::new();
+    funcs.insert("sqrt".to_owned(), unary_fn(f64::sqrt));
+    funcs.insert("sin".to_owned(), unary_fn(f64::sin));
+    funcs.insert("cos".to_owned(), unary_fn(f64::cos));
+    funcs.insert("tan".to_owned(), unary_fn(f64::tan));
+    funcs.insert("asin".to_owned(), unary_fn(f64::asin));
+    funcs.insert("acos".to_owned(), unary_fn(f64::acos));
+    funcs.insert("atan".to_owned(), unary_fn(f64::atan));
+    funcs.insert("atan2".to_owned(), binary_fn(f64::atan2));
+    funcs.insert("pow".to_owned(), binary_fn(f64::powf));
+    funcs.insert("exp".to_owned(), unary_fn(f64::exp));
+    funcs.insert("log".to_owned(), binary_fn(f64::log));
+    funcs.insert("log10".to_owned(), unary_fn(f64::log10));
+    funcs.insert(
+        "print".to_owned(),
+        FnDef::Native(NativeFn {
+            args: vec![("arg", TypeDecl::Any)],
+            ret_type: TypeDecl::Any,
+            code: Box::new(move |args| {
+                let mut args = args.into_iter();
+                let arg = args.next().expect("function missing argument");
+                print(arg)
+            }),
+        }),
+    );
+    funcs.insert(
+        "dbg".to_owned(),
+        FnDef::Native(NativeFn {
+            args: vec![("arg", TypeDecl::Any)],
+            ret_type: TypeDecl::Any,
+            code: Box::new(move |args| {
+                let mut args = args.into_iter();
+                let arg = args.next().expect("function missing argument");
+                print_debug(arg)
+            }),
+        }),
+    );
+    funcs.insert(
+        "f64".to_owned(),
+        FnDef::Native(NativeFn {
+            args: vec![("arg", TypeDecl::Any)],
+            ret_type: TypeDecl::F64,
+            code: Box::new(move |args| {
+                Value::F64(coerce_f64(args.first().expect("function missing argument")))
+            }),
+        }),
+    );
+    funcs.insert(
+        "i64".to_owned(),
+        FnDef::Native(NativeFn {
+            args: vec![("arg", TypeDecl::Any)],
+            ret_type: TypeDecl::I64,
+            code: Box::new(move |args| {
+                Value::I64(coerce_i64(args.first().expect("function missing argument")))
+            }),
+        }),
+    );
+    funcs.insert(
+        "str".to_owned(),
+        FnDef::Native(NativeFn {
+            args: vec![("arg", TypeDecl::Any)],
+            ret_type: TypeDecl::Str,
+            code: Box::new(move |args| {
+                Value::Str(coerce_str(args.first().expect("function missing argument")))
+            }),
+        }),
+    );
+    funcs
 }
 
 fn statement(input: &str) -> IResult<&str, Statement> {
-    general_statement(true)(input)
-}
-
-fn last_statement(input: &str) -> IResult<&str, Statement> {
     general_statement(true)(input)
 }
 
