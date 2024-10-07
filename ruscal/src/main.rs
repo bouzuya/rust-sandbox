@@ -491,14 +491,21 @@ fn coerce_str(a: &Value) -> String {
 }
 
 fn cond_expr(i: Span) -> IResult<Span, Expression> {
+    let start = i;
     let (i, first) = num_expr(i)?;
     let (i, cond) = space_delimited(alt((char('<'), char('>'))))(i)?;
     let (i, second) = num_expr(i)?;
     Ok((
         i,
         match cond {
-            '<' => Expression::new(ExprEnum::Lt(Box::new(first), Box::new(second)), i),
-            '>' => Expression::new(ExprEnum::Gt(Box::new(first), Box::new(second)), i),
+            '<' => Expression::new(
+                ExprEnum::Lt(Box::new(first), Box::new(second)),
+                calc_offset(start, i),
+            ),
+            '>' => Expression::new(
+                ExprEnum::Gt(Box::new(first), Box::new(second)),
+                calc_offset(start, i),
+            ),
             _ => unreachable!(),
         },
     ))
@@ -1221,22 +1228,96 @@ fn var_def_statement(i: Span) -> IResult<Span, Statement> {
 mod tests {
     use super::*;
 
-    //     #[test]
-    //     fn test_break_statement() {
-    //         assert_eq!(break_statement("break"), Ok(("", Statement::Break)));
-    //     }
+    #[test]
+    fn test_argument() {
+        use nom::Slice;
+        let span = Span::new("a: i64");
+        assert_eq!(
+            argument(span),
+            Ok((span.slice(span.len()..), (span.slice(0..1), TypeDecl::I64)))
+        );
+    }
 
-    //     #[test]
-    //     fn test_continue_statement() {
-    //         assert_eq!(
-    //             continue_statement("continue"),
-    //             Ok(("", Statement::Continue))
-    //         );
-    //     }
+    #[test]
+    fn test_break_statement() {
+        use nom::Slice;
+        let span = Span::new("break");
+        assert_eq!(
+            break_statement(span),
+            Ok((span.slice(span.len()..), Statement::Break))
+        );
+    }
+
+    #[test]
+    fn test_coerce_f64() {
+        assert_eq!(coerce_f64(&Value::F64(123.456)), 123.456);
+        assert_eq!(coerce_f64(&Value::I64(123)), 123.0);
+        // Value::Str => panic
+    }
+
+    #[test]
+    fn test_coerce_i64() {
+        assert_eq!(coerce_i64(&Value::F64(123.456)), 123);
+        assert_eq!(coerce_i64(&Value::I64(123)), 123);
+        // Value::Str => panic
+    }
+
+    #[test]
+    fn test_coerce_str() {
+        assert_eq!(coerce_str(&Value::F64(123.456)), "123.456");
+        assert_eq!(coerce_str(&Value::I64(123)), "123");
+        assert_eq!(coerce_str(&Value::Str("abc".to_owned())), "abc");
+    }
+
+    #[test]
+    fn test_cond_expr() {
+        use nom::Slice;
+        let span = Span::new("1 < 2");
+        assert_eq!(
+            cond_expr(span),
+            Ok((
+                span.slice(span.len()..),
+                Expression::new(
+                    ExprEnum::Lt(
+                        Box::new(Expression::new(ExprEnum::NumLiteral(1.0), span.slice(0..1))),
+                        Box::new(Expression::new(ExprEnum::NumLiteral(2.0), span.slice(4..5)))
+                    ),
+                    span.slice(0..5)
+                )
+            ))
+        );
+
+        let span = Span::new("1 > 2");
+        assert_eq!(
+            cond_expr(span),
+            Ok((
+                span.slice(span.len()..),
+                Expression::new(
+                    ExprEnum::Gt(
+                        Box::new(Expression::new(ExprEnum::NumLiteral(1.0), span.slice(0..1))),
+                        Box::new(Expression::new(ExprEnum::NumLiteral(2.0), span.slice(4..5)))
+                    ),
+                    span.slice(0..5)
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_continue_statement() {
+        use nom::Slice;
+        let span = Span::new("continue");
+        assert_eq!(
+            continue_statement(span),
+            Ok((span.slice(span.len()..), Statement::Continue))
+        );
+    }
 
     #[test]
     fn test_expr() {
         use nom::Slice;
+        // TODO: if_expr
+        // TODO: cond_expr
         let span = Span::new("hello");
         assert_eq!(
             expr(span),
@@ -1298,23 +1379,39 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn test_fn_def_statement() {
-    //         assert_eq!(
-    //             fn_def_statement("fn f(a: i64, b: f64) -> str { \"abc\"; }"),
-    //             Ok((
-    //                 "",
-    //                 Statement::FnDef {
-    //                     name: "f",
-    //                     args: vec![("a", TypeDecl::I64), ("b", TypeDecl::F64)],
-    //                     ret_type: TypeDecl::Str,
-    //                     stmts: vec![Statement::Expression(Expression::StrLiteral(
-    //                         "abc".to_owned()
-    //                     ))]
-    //                 }
-    //             ))
-    //         );
-    //     }
+    // TODO: expr_statement
+    // TODO: eval
+    // TODO: eval_stmts
+    // TODO: factor
+
+    #[test]
+    fn test_fn_def_statement() {
+        use nom::Slice;
+        let span = Span::new("fn f(a: i64, b: f64) -> str { \"abc\"; }");
+        assert_eq!(
+            fn_def_statement(span),
+            Ok((
+                span.slice(span.len()..),
+                Statement::FnDef {
+                    name: span.slice(3..4),
+                    args: vec![
+                        (span.slice(5..6), TypeDecl::I64),
+                        (span.slice(13..14), TypeDecl::F64)
+                    ],
+                    ret_type: TypeDecl::Str,
+                    stmts: vec![Statement::Expression(Expression::new(
+                        ExprEnum::StrLiteral("abc".to_owned(),),
+                        span.slice(30..35)
+                    ))]
+                }
+            ))
+        );
+    }
+
+    // TODO: for_statement
+    // TODO: func_call
+    // TODO: general_statement
+    // TODO: identifier
 
     #[test]
     fn test_ident() {
@@ -1350,33 +1447,56 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn test_if_expr() {
-    //         assert_eq!(
-    //             if_expr("if 123 { 456; }"),
-    //             Ok((
-    //                 "",
-    //                 Expression::If(
-    //                     Box::new(Expression::NumLiteral(123.0)),
-    //                     Box::new(vec![Statement::Expression(Expression::NumLiteral(456.0))],),
-    //                     None,
-    //                 )
-    //             ))
-    //         );
-    //         assert_eq!(
-    //             if_expr("if 123 { 456; } else { 789; }"),
-    //             Ok((
-    //                 "",
-    //                 Expression::If(
-    //                     Box::new(Expression::NumLiteral(123.0)),
-    //                     Box::new(vec![Statement::Expression(Expression::NumLiteral(456.0))],),
-    //                     Some(Box::new(vec![Statement::Expression(
-    //                         Expression::NumLiteral(789.0)
-    //                     )]))
-    //                 )
-    //             ))
-    //         );
-    //     }
+    #[test]
+    fn test_if_expr() {
+        use nom::Slice;
+        let span = Span::new("if 123 { 456; }");
+        assert_eq!(
+            if_expr(span),
+            Ok((
+                span.slice(span.len()..),
+                Expression::new(
+                    ExprEnum::If(
+                        Box::new(Expression::new(
+                            ExprEnum::NumLiteral(123.0),
+                            span.slice(3..6)
+                        )),
+                        Box::new(vec![Statement::Expression(Expression::new(
+                            ExprEnum::NumLiteral(456.0),
+                            span.slice(9..12)
+                        ))]),
+                        None,
+                    ),
+                    span
+                )
+            ))
+        );
+
+        let span = Span::new("if 123 { 456; } else { 789; }");
+        assert_eq!(
+            if_expr(span),
+            Ok((
+                span.slice(span.len()..),
+                Expression::new(
+                    ExprEnum::If(
+                        Box::new(Expression::new(
+                            ExprEnum::NumLiteral(123.0),
+                            span.slice(3..6)
+                        )),
+                        Box::new(vec![Statement::Expression(Expression::new(
+                            ExprEnum::NumLiteral(456.0),
+                            span.slice(9..12)
+                        ))]),
+                        Some(Box::new(vec![Statement::Expression(Expression::new(
+                            ExprEnum::NumLiteral(789.0),
+                            span.slice(23..26)
+                        ))]))
+                    ),
+                    span
+                )
+            ))
+        );
+    }
 
     #[test]
     fn test_num() {
@@ -1436,13 +1556,21 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn test_return_statement() {
-    //         assert_eq!(
-    //             return_statement("return 123"),
-    //             Ok(("", Statement::Return(Expression::NumLiteral(123.0))))
-    //         );
-    //     }
+    #[test]
+    fn test_return_statement() {
+        use nom::Slice;
+        let span = Span::new("return 123");
+        assert_eq!(
+            return_statement(span),
+            Ok((
+                span.slice(span.len()..),
+                Statement::Return(Expression::new(
+                    ExprEnum::NumLiteral(123.0),
+                    span.slice(7..10)
+                ))
+            ))
+        );
+    }
 
     #[test]
     fn test_str_literal() {
