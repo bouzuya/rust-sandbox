@@ -1084,12 +1084,14 @@ fn tc_expr<'a>(
 }
 
 fn term(i: Span) -> IResult<Span, Expression> {
+    use nom::Slice;
+    let start = i;
     let (i, init) = factor(i)?;
     let res = fold_many0(
         pair(space_delimited(alt((char('*'), char('/')))), factor),
         move || init.clone(),
         |lhs, (op, rhs): (char, Expression)| {
-            let span = calc_offset(i, lhs.span);
+            let span = calc_offset(start, rhs.span.slice(rhs.span.len()..));
             match op {
                 '*' => Expression::new(ExprEnum::Mul(Box::new(lhs), Box::new(rhs)), span),
                 '/' => Expression::new(ExprEnum::Div(Box::new(lhs), Box::new(rhs)), span),
@@ -1298,6 +1300,22 @@ mod tests {
                         Box::new(Expression::new(ExprEnum::NumLiteral(2.0), span.slice(4..5)))
                     ),
                     span.slice(0..5)
+                )
+            ))
+        );
+
+        let span = Span::new(" 1 < 2 ");
+        assert_eq!(
+            cond_expr(span),
+            Ok((
+                span.slice(span.len()..),
+                Expression::new(
+                    ExprEnum::Lt(
+                        Box::new(Expression::new(ExprEnum::NumLiteral(1.0), span.slice(1..2))),
+                        Box::new(Expression::new(ExprEnum::NumLiteral(2.0), span.slice(5..6)))
+                    ),
+                    // TODO: span.slice(1..6)
+                    span.slice(0..7)
                 )
             ))
         );
@@ -1595,145 +1613,232 @@ mod tests {
         );
     }
 
-    //     #[test]
-    //     fn test_statements_finish() {
-    //         assert_eq!(
-    //             statements_finish("123; 456;"),
-    //             Ok(vec![
-    //                 Statement::Expression(Expression::NumLiteral(123.0)),
-    //                 Statement::Expression(Expression::NumLiteral(456.0))
-    //             ])
-    //         );
-    //         assert_eq!(
-    //             statements_finish("fn add(a: i64, b: i64) -> i64 { a + b; } add(1, 2);"),
-    //             Ok(vec![
-    //                 Statement::FnDef {
-    //                     name: "add",
-    //                     args: vec![("a", TypeDecl::I64), ("b", TypeDecl::I64)],
-    //                     ret_type: TypeDecl::I64,
-    //                     stmts: vec![Statement::Expression(Expression::Add(
-    //                         Box::new(Expression::Ident("a")),
-    //                         Box::new(Expression::Ident("b"))
-    //                     ))],
-    //                 },
-    //                 Statement::Expression(Expression::FnInvoke(
-    //                     "add",
-    //                     vec![Expression::NumLiteral(1.0), Expression::NumLiteral(2.0)]
-    //                 ))
-    //             ])
-    //         );
+    #[test]
+    fn test_statements_finish() {
+        use nom::Slice;
+        let span = Span::new("123; 456;");
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![
+                Statement::Expression(Expression::new(
+                    ExprEnum::NumLiteral(123.0),
+                    span.slice(0..3)
+                )),
+                Statement::Expression(Expression::new(
+                    ExprEnum::NumLiteral(456.0),
+                    span.slice(5..8)
+                ))
+            ])
+        );
 
-    //         assert_eq!(
-    //             statements_finish("if 1 { 123; } else { 456; };"),
-    //             Ok(vec![Statement::Expression(Expression::If(
-    //                 Box::new(Expression::NumLiteral(1.0)),
-    //                 Box::new(vec![Statement::Expression(Expression::NumLiteral(123.0))]),
-    //                 Some(Box::new(vec![Statement::Expression(
-    //                     Expression::NumLiteral(456.0)
-    //                 )]))
-    //             ))])
-    //         );
+        let span = Span::new("fn add(a: i64, b: i64) -> i64 { a + b; } add(1, 2);");
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![
+                Statement::FnDef {
+                    name: span.slice(3..6),
+                    args: vec![
+                        (span.slice(7..8), TypeDecl::I64),
+                        (span.slice(15..16), TypeDecl::I64)
+                    ],
+                    ret_type: TypeDecl::I64,
+                    stmts: vec![Statement::Expression(Expression::new(
+                        ExprEnum::Add(
+                            Box::new(Expression::new(
+                                ExprEnum::Ident(span.slice(32..33)),
+                                span.slice(32..33)
+                            )),
+                            Box::new(Expression::new(
+                                ExprEnum::Ident(span.slice(36..37)),
+                                span.slice(36..37)
+                            ))
+                        ),
+                        span.slice(32..37)
+                    ))],
+                },
+                Statement::Expression(Expression::new(
+                    ExprEnum::FnInvoke(
+                        span.slice(41..44),
+                        vec![
+                            Expression::new(ExprEnum::NumLiteral(1.0), span.slice(45..46)),
+                            Expression::new(ExprEnum::NumLiteral(2.0), span.slice(48..49))
+                        ]
+                    ),
+                    // TODO: 41..51 add(1, 2); => 41..50 add(1, 2)
+                    span.slice(41..51)
+                ))
+            ])
+        );
 
-    //         assert_eq!(
-    //             statements_finish(
-    //                 "fn earlyreturn(a: i64, b: i64) -> i64 { if a < b { return a; }; b; } earlyreturn(1, 2);"
-    //             ),
-    //             Ok(vec![
-    //                 Statement::FnDef {
-    //                     name: "earlyreturn",
-    //                     args: vec![("a", TypeDecl::I64), ("b", TypeDecl::I64)],
-    //                     ret_type: TypeDecl::I64,
-    //                     stmts: vec![
-    //                         Statement::Expression(Expression::If(
-    //                             Box::new(Expression::Lt(
-    //                                 Box::new(Expression::Ident("a")),
-    //                                 Box::new(Expression::Ident("b"))
-    //                             )),
-    //                             Box::new(vec![Statement::Return(Expression::Ident("a"))]),
-    //                             None
-    //                         )),
-    //                         Statement::Expression(Expression::Ident("b"))
-    //                     ],
-    //                 },
-    //                 Statement::Expression(Expression::FnInvoke(
-    //                     "earlyreturn",
-    //                     vec![Expression::NumLiteral(1.0), Expression::NumLiteral(2.0)]
-    //                 ))
-    //             ])
-    //         );
+        let span = Span::new("if 1 { 123; } else { 456; };");
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![Statement::Expression(Expression::new(
+                ExprEnum::If(
+                    Box::new(Expression::new(ExprEnum::NumLiteral(1.0), span.slice(3..4))),
+                    Box::new(vec![Statement::Expression(Expression::new(
+                        ExprEnum::NumLiteral(123.0),
+                        span.slice(7..10)
+                    ))]),
+                    Some(Box::new(vec![Statement::Expression(Expression::new(
+                        ExprEnum::NumLiteral(456.0),
+                        span.slice(21..24)
+                    ))]))
+                ),
+                span.slice(0..27)
+            ))])
+        );
 
-    //         assert_eq!(
-    //             statements_finish(
-    //                 "for i in 0 to 3 { for j in 0 to 3 { if j > 1 { break; }; print(i * 10 + j); } }"
-    //             ),
-    //             Ok(vec![Statement::For {
-    //                 loop_var: "i",
-    //                 start: Expression::NumLiteral(0.0),
-    //                 end: Expression::NumLiteral(3.0),
-    //                 stmts: vec![Statement::For {
-    //                     loop_var: "j",
-    //                     start: Expression::NumLiteral(0.0),
-    //                     end: Expression::NumLiteral(3.0),
-    //                     stmts: vec![
-    //                         Statement::Expression(Expression::If(
-    //                             Box::new(Expression::Gt(
-    //                                 Box::new(Expression::Ident("j")),
-    //                                 Box::new(Expression::NumLiteral(1.0))
-    //                             )),
-    //                             Box::new(vec![Statement::Break]),
-    //                             None
-    //                         )),
-    //                         Statement::Expression(Expression::FnInvoke(
-    //                             "print",
-    //                             vec![Expression::Add(
-    //                                 Box::new(Expression::Mul(
-    //                                     Box::new(Expression::Ident("i")),
-    //                                     Box::new(Expression::NumLiteral(10.0))
-    //                                 )),
-    //                                 Box::new(Expression::Ident("j"))
-    //                             )]
-    //                         ))
-    //                     ]
-    //                 }],
-    //             }])
-    //         );
+        let span = Span::new( "fn earlyreturn(a: i64, b: i64) -> i64 { if a < b { return a; }; b; } earlyreturn(1, 2);" );
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![
+                Statement::FnDef {
+                    name: span.slice(3..14),
+                    args: vec![
+                        (span.slice(15..16), TypeDecl::I64),
+                        (span.slice(23..24), TypeDecl::I64)
+                    ],
+                    ret_type: TypeDecl::I64,
+                    stmts: vec![
+                        Statement::Expression(Expression::new(
+                            ExprEnum::If(
+                                Box::new(Expression::new(
+                                    ExprEnum::Lt(
+                                        Box::new(Expression::new(
+                                            ExprEnum::Ident(span.slice(43..44)),
+                                            span.slice(43..44)
+                                        )),
+                                        Box::new(Expression::new(
+                                            ExprEnum::Ident(span.slice(47..48)),
+                                            span.slice(47..48)
+                                        ))
+                                    ),
+                                    // TODO: 43..48
+                                    span.slice(43..49)
+                                )),
+                                Box::new(vec![Statement::Return(Expression::new(
+                                    ExprEnum::Ident(span.slice(58..59)),
+                                    span.slice(58..59)
+                                ))]),
+                                None
+                            ),
+                            span.slice(40..62)
+                        )),
+                        Statement::Expression(Expression::new(
+                            ExprEnum::Ident(span.slice(64..65)),
+                            span.slice(64..65)
+                        ))
+                    ],
+                },
+                Statement::Expression(Expression::new(
+                    ExprEnum::FnInvoke(
+                        span.slice(69..80),
+                        vec![
+                            Expression::new(ExprEnum::NumLiteral(1.0), span.slice(81..82)),
+                            Expression::new(ExprEnum::NumLiteral(2.0), span.slice(84..85))
+                        ]
+                    ),
+                    // TODO: 69..86 `;`
+                    span.slice(69..87)
+                ))
+            ])
+        );
 
-    //         assert_eq!(
-    //             statements_finish(
-    //                 r#"
-    // var i = i64(123);
-    // var f = f64(123.456);
-    // var s = "Hello, world!";
+        let span = Span::new("1 * 2");
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![Statement::Expression(Expression::new(
+                ExprEnum::Mul(
+                    Box::new(Expression::new(ExprEnum::NumLiteral(1.0), span.slice(0..1))),
+                    Box::new(Expression::new(ExprEnum::NumLiteral(2.0), span.slice(4..5)))
+                ),
+                span.slice(0..5)
+            ))])
+        );
 
-    // print(i);
-    // dbg(i);
-    // print(f);
-    // dbg(f);
-    // print(s);
-    // dbg(s);
+        let span = Span::new(
+            "for i in 0 to 3 { for j in 0 to 3 { if j > 1 { break; }; print(i * 10 + j); } }",
+        );
+        assert_eq!(
+            statements_finish(span),
+            Ok(vec![Statement::For {
+                span: span.slice(0..79),
+                loop_var: span.slice(4..5),
+                start: Expression::new(ExprEnum::NumLiteral(0.0), span.slice(9..10)),
+                end: Expression::new(ExprEnum::NumLiteral(3.0), span.slice(14..15)),
+                stmts: vec![Statement::For {
+                    span: span.slice(18..78),
+                    loop_var: span.slice(22..23),
+                    start: Expression::new(ExprEnum::NumLiteral(0.0), span.slice(27..28)),
+                    end: Expression::new(ExprEnum::NumLiteral(3.0), span.slice(32..33)),
+                    stmts: vec![
+                        Statement::Expression(Expression::new(
+                            ExprEnum::If(
+                                Box::new(Expression::new(
+                                    ExprEnum::Gt(
+                                        Box::new(Expression::new(
+                                            ExprEnum::Ident(span.slice(39..40)),
+                                            span.slice(39..40)
+                                        )),
+                                        Box::new(Expression::new(
+                                            ExprEnum::NumLiteral(1.0),
+                                            span.slice(43..44)
+                                        ))
+                                    ),
+                                    // TODO: 39..44
+                                    span.slice(39..45)
+                                )),
+                                Box::new(vec![Statement::Break]),
+                                None
+                            ),
+                            span.slice(36..55)
+                        )),
+                        Statement::Expression(Expression::new(
+                            ExprEnum::FnInvoke(
+                                span.slice(57..62),
+                                vec![Expression::new(
+                                    ExprEnum::Add(
+                                        Box::new(Expression::new(
+                                            ExprEnum::Mul(
+                                                Box::new(Expression::new(
+                                                    ExprEnum::Ident(span.slice(63..64)),
+                                                    span.slice(63..64)
+                                                )),
+                                                Box::new(Expression::new(
+                                                    ExprEnum::NumLiteral(10.0),
+                                                    span.slice(67..69)
+                                                ))
+                                            ),
+                                            span.slice(63..69)
+                                        )),
+                                        Box::new(Expression::new(
+                                            ExprEnum::Ident(span.slice(72..73)),
+                                            span.slice(72..73)
+                                        ))
+                                    ),
+                                    span.slice(63..73)
+                                )]
+                            ),
+                            span.slice(57..79)
+                        ))
+                    ]
+                }],
+            }])
+        );
+    }
 
-    // print(i + f);
-    // print(i / f);
-    // print(s + s);
-    //                 "#
-    //             )
-    //             .unwrap()
-    //             .len(),
-    //             12
-    //         );
-    //     }
-
-    //     #[test]
-    //     fn test_type_check() {
-    //         fn f<'a>(s: &'a str) -> Result<TypeDecl, TypeCheckError<'a>> {
-    //             type_check(
-    //                 &statements_finish(s).expect("valid input"),
-    //                 &mut TypeCheckContext::new(),
-    //             )
-    //         }
-    //         assert!(f("fn add(a: i64, b: i64) -> i64 { return a + b; }").is_ok());
-    //         assert!(f("fn add(a: i64, b: str) -> i64 { return a + b; }").is_err());
-    //     }
+    #[test]
+    fn test_type_check() {
+        fn f<'a>(s: &'a str) -> Result<TypeDecl, TypeCheckError<'a>> {
+            type_check(
+                &statements_finish(Span::new(s)).expect("valid input"),
+                &mut TypeCheckContext::new(),
+            )
+        }
+        assert!(f("fn add(a: i64, b: i64) -> i64 { return a + b; }").is_ok());
+        assert!(f("fn add(a: i64, b: str) -> i64 { return a + b; }").is_err());
+    }
 
     #[test]
     fn test_var_def_statement() {
