@@ -14,6 +14,39 @@ use nom::Parser;
 use nom::{Finish, IResult};
 
 fn main() {
+    let instructions = [
+        Instruction::LoadLiteral(42),
+        Instruction::LoadLiteral(36),
+        Instruction::Add,
+    ];
+
+    let result = interpret(&instructions);
+    println!("result: {:?}", result);
+}
+
+enum Instruction {
+    LoadLiteral(i64),
+    Add,
+}
+
+fn interpret(instructions: &[Instruction]) -> Option<i64> {
+    let mut stack = vec![];
+    for instruction in instructions {
+        match instruction {
+            Instruction::LoadLiteral(value) => stack.push(*value),
+            Instruction::Add => {
+                let rhs = stack.pop().expect("Stack underflow");
+                let lhs = stack.pop().expect("Stack underflow");
+                stack.push(lhs + rhs);
+            }
+        }
+    }
+    stack.pop()
+}
+
+// ---
+
+pub fn main1() {
     let mut buf = String::new();
     if !std::io::stdin().read_to_string(&mut buf).is_ok() {
         panic!("Failed to read from stdin");
