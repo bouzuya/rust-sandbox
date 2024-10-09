@@ -4,13 +4,10 @@ version = "0.2.0"
 authors = ["bouzuya <m@bouzuya.net>"]
 edition = "2018"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
-reqwest = { version = "0.10.10", features = ["blocking", "json"] }
-anyhow = "1.0.36"
-serde = { version = "1.0.118", features = ["derive"] }
-chrono = { version = "0.4.19", features = ["serde"] }
-argopt = "0.1.1"
-thiserror = "1.0.30"
-structopt = "0.3.25"
+reqwest = { version = "0.11", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+chrono = { version = "0.4", features = ["serde"] }
+argopt = "0.3.0"
+thiserror = "1"
