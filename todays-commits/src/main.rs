@@ -57,13 +57,38 @@ fn format(repo_and_commits: Vec<RepoAndCommits>) -> String {
     formatted
 }
 
+#[derive(Debug, Eq, PartialEq)]
+pub enum Format {
+    Json,
+    Text,
+}
+
+impl std::str::FromStr for Format {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
+        match s {
+            "json" => Ok(Self::Json),
+            "text" => Ok(Self::Text),
+            _ => Err(anyhow::anyhow!("unknown format")),
+        }
+    }
+}
+
 #[cmd]
-fn main(#[opt(long = "sort", default_value = "pushed")] sort: GetReposSort) -> Result<()> {
+fn main(
+    #[opt(long = "sort", default_value = "pushed")] sort: GetReposSort,
+    #[opt(long = "format", default_value = "text")] output_format: Format,
+) -> Result<()> {
     let today = Local::today().format("%Y-%m-%d").to_string();
     let range = build_range(&today)?;
     let repo_and_commits = fetch("bouzuya", sort, range)?;
     let formatted = format(repo_and_commits);
-    println!("{}", formatted);
+    let output = match output_format {
+        Format::Json => serde_json::to_string(&formatted)?,
+        Format::Text => formatted,
+    };
+    println!("{}", output);
     Ok(())
 }
 
