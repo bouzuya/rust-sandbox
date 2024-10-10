@@ -17,15 +17,114 @@ fn main() {
     let mut args = std::env::args();
     args.next();
     match args.next().as_ref().map(|s| s as &str) {
-        Some("w") => write_program("bytecode.bin"),
+        Some("w") => write_program("bytecode.bin").unwrap(),
         Some("r") => {
-            if let Some(instructions) = read_program("bytecode.bin") {
-                let result = interpret(&instructions);
-                println!("result {:?}", result);
-            }
+            let byte_code = read_program("bytecode.bin").unwrap();
+            let result = byte_code.interpret();
+            println!("result {:?}", result);
         }
         _ => println!("Please specify w or r as an argument"),
     }
+}
+
+struct ByteCode {
+    literals: Vec<i64>,
+    instructions: Vec<Instruction>,
+}
+
+impl ByteCode {
+    fn new() -> Self {
+        Self {
+            literals: vec![],
+            instructions: vec![],
+        }
+    }
+
+    fn interpret(&self) -> Option<i64> {
+        let mut stack = vec![];
+        for instruction in &self.instructions {
+            match instruction.op {
+                OpCode::LoadLiteral => stack.push(self.literals[instruction.arg0 as usize]),
+                OpCode::Add => {
+                    let rhs = stack.pop().expect("Stack underflow");
+                    let lhs = stack.pop().expect("Stack underflow");
+                    stack.push(lhs + rhs);
+                }
+            }
+        }
+        stack.pop()
+    }
+
+    fn read_literals(&mut self, reader: &mut impl std::io::Read) -> std::io::Result<()> {
+        let num_literals = deserialize_size(reader)?;
+        for _ in 0..num_literals {
+            let mut buf = [0u8; std::mem::size_of::<i64>()];
+            reader.read_exact(&mut buf)?;
+            self.literals.push(i64::from_le_bytes(buf));
+        }
+        Ok(())
+    }
+
+    fn read_instructions(&mut self, reader: &mut impl std::io::Read) -> std::io::Result<()> {
+        let num_instructions = deserialize_size(reader)?;
+        for _ in 0..num_instructions {
+            let instruction = Instruction::deserialize(reader)?;
+            self.instructions.push(instruction);
+        }
+        Ok(())
+    }
+}
+
+fn deserialize_size(reader: &mut impl std::io::Read) -> std::io::Result<usize> {
+    let mut buf = [0u8; std::mem::size_of::<u32>()];
+    reader.read_exact(&mut buf)?;
+    Ok(u32::from_le_bytes(buf) as usize)
+}
+
+struct Compiler {
+    literals: Vec<i64>,
+    instructions: Vec<Instruction>,
+}
+
+impl Compiler {
+    fn new() -> Self {
+        Self {
+            literals: vec![],
+            instructions: vec![],
+        }
+    }
+
+    fn add_instruction(&mut self, op: OpCode, arg0: u8) -> u8 {
+        let addr = self.instructions.len();
+        self.instructions.push(Instruction { op, arg0 });
+        addr as u8
+    }
+
+    fn add_literal(&mut self, value: i64) -> u8 {
+        let addr = self.literals.len();
+        self.literals.push(value);
+        addr as u8
+    }
+
+    fn write_instructions(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        serialize_size(self.instructions.len(), writer)?;
+        for instruction in &self.instructions {
+            instruction.serialize(writer)?;
+        }
+        Ok(())
+    }
+
+    fn write_literals(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        serialize_size(self.literals.len(), writer)?;
+        for literal in &self.literals {
+            writer.write_all(&literal.to_le_bytes())?;
+        }
+        Ok(())
+    }
+}
+
+fn serialize_size(size: usize, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+    writer.write_all(&(size as u32).to_le_bytes())
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -70,49 +169,31 @@ impl Instruction {
     }
 }
 
-fn read_program(file: &str) -> Option<Vec<Instruction>> {
-    if let Ok(reader) = std::fs::File::open(file) {
-        let mut reader = std::io::BufReader::new(reader);
-        let mut instructions = vec![];
-        while let Ok(instruction) = Instruction::deserialize(&mut reader) {
-            instructions.push(instruction);
-        }
-        Some(instructions)
-    } else {
-        None
-    }
+fn read_program(file: &str) -> std::io::Result<ByteCode> {
+    let reader = std::fs::File::open(file)?;
+    let mut reader = std::io::BufReader::new(reader);
+    let mut byte_code = ByteCode::new();
+    byte_code.read_literals(&mut reader)?;
+    byte_code.read_instructions(&mut reader)?;
+    Ok(byte_code)
 }
 
-fn write_program(file: &str) {
-    let instructions = [
-        Instruction::new(OpCode::LoadLiteral, 42),
-        Instruction::new(OpCode::LoadLiteral, 36),
-        Instruction::new(OpCode::Add, 0),
-    ];
+fn write_program(file: &str) -> std::io::Result<()> {
+    let mut compiler = Compiler::new();
+    let arg = compiler.add_literal(512);
+    compiler.add_instruction(OpCode::LoadLiteral, arg);
+    let arg = compiler.add_literal(1024);
+    compiler.add_instruction(OpCode::LoadLiteral, arg);
+    compiler.add_instruction(OpCode::Add, 0);
 
-    if let Ok(writer) = std::fs::File::create(file) {
-        let mut writer = std::io::BufWriter::new(writer);
-        for instruction in &instructions {
-            instruction.serialize(&mut writer).unwrap();
-        }
+    let writer = std::fs::File::create(file)?;
 
-        println!("Written {} instructions", instructions.len());
-    }
-}
+    let mut writer = std::io::BufWriter::new(writer);
+    compiler.write_literals(&mut writer)?;
+    compiler.write_instructions(&mut writer)?;
 
-fn interpret(instructions: &[Instruction]) -> Option<i64> {
-    let mut stack = vec![];
-    for instruction in instructions {
-        match instruction.op {
-            OpCode::LoadLiteral => stack.push(instruction.arg0 as i64),
-            OpCode::Add => {
-                let rhs = stack.pop().expect("Stack underflow");
-                let lhs = stack.pop().expect("Stack underflow");
-                stack.push(lhs + rhs);
-            }
-        }
-    }
-    stack.pop()
+    println!("Written {} instructions", compiler.instructions.len());
+    Ok(())
 }
 
 // ---
