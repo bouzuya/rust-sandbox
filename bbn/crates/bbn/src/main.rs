@@ -37,7 +37,7 @@ enum Subcommand {
     },
     #[command(name = "date-range", about = "Prints the date range")]
     DateRange {
-        #[arg(name = "input", help = "input")]
+        #[arg(name = "month", help = "YYYY-MM")]
         month: String,
         #[arg(long = "week-date", help = "Prints the date range as week date")]
         week_date: bool,
