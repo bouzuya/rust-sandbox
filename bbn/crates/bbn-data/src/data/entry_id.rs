@@ -1,4 +1,4 @@
-use limited_date_time::Date;
+use date_range::date::Date;
 
 pub type EntryKey = Date;
 
