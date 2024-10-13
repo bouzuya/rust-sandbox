@@ -30,7 +30,7 @@ fn main() {
         "w" => {
             let writer = std::fs::File::create("bytecode.bin").unwrap();
             let mut writer = std::io::BufWriter::new(writer);
-            write_program(args[2].as_str(), &mut writer).unwrap()
+            write_program(args[2].as_str(), &mut writer, true).unwrap()
         }
         "r" => {
             let reader = std::fs::File::open("bytecode.bin").unwrap();
@@ -170,6 +170,36 @@ impl Compiler {
         }
     }
 
+    fn disasm(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        use OpCode::*;
+
+        writeln!(writer, "Literals [{}]", self.literals.len())?;
+        for (i, literal) in self.literals.iter().enumerate() {
+            writeln!(writer, " [{}] {}", i, *literal)?;
+        }
+
+        writeln!(writer, "Instructions [{}]", self.instructions.len())?;
+        for (index, it) in self.instructions.iter().enumerate() {
+            match it.op {
+                LoadLiteral => {
+                    writeln!(
+                        writer,
+                        " [{}] {:?} {} ({})",
+                        index, it.op, it.arg0, self.literals[it.arg0 as usize]
+                    )?;
+                }
+                Copy => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
+                Add => {
+                    writeln!(writer, " [{}] {:?}", index, it.op)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     fn write_instructions(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         serialize_size(self.instructions.len(), writer)?;
         for instruction in &self.instructions {
@@ -247,7 +277,7 @@ fn read_program(reader: &mut impl std::io::Read) -> std::io::Result<ByteCode> {
 fn write_program(
     source: &str,
     writer: &mut impl std::io::Write,
-    // disasm: bool
+    disasm: bool,
 ) -> std::io::Result<()> {
     let mut compiler = Compiler::new();
     let (_, ex) =
@@ -255,9 +285,9 @@ fn write_program(
 
     compiler.compile_expr(&ex);
 
-    // if disasm {
-    //     compiler.disasm(&mut std::io::stdout())?;
-    // }
+    if disasm {
+        compiler.disasm(&mut std::io::stdout())?;
+    }
 
     compiler.write_literals(writer)?;
     compiler.write_instructions(writer)?;
