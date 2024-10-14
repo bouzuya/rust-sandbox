@@ -17,7 +17,7 @@ use nom::{
     branch::alt,
     bytes::complete::tag,
     character::complete::{alpha1, alphanumeric1, char, multispace0},
-    combinator::recognize,
+    combinator::{opt, recognize},
     multi::{fold_many0, many0},
     number::complete::recognize_float,
     sequence::{delimited, pair},
@@ -43,9 +43,97 @@ fn main() {
     }
 }
 
+#[repr(u8)]
+enum ValueKind {
+    F64,
+    Str,
+}
+
+#[derive(Clone, Debug)]
+enum Value {
+    F64(f64),
+    Str(String),
+}
+
+impl Value {
+    fn coerce_f64(&self) -> f64 {
+        match self {
+            Self::F64(v) => *v,
+            _ => panic!("Coercion failed: {:?} cannot be coerced to f64", self),
+        }
+    }
+
+    fn coerce_str(&self) -> String {
+        match self {
+            Self::Str(v) => v.clone(),
+            _ => panic!("Coercion failed: {:?} cannot be coerced to str", self),
+        }
+    }
+
+    fn deserialize(reader: &mut impl std::io::Read) -> std::io::Result<Self> {
+        const F64: u8 = ValueKind::F64 as u8;
+        const STR: u8 = ValueKind::Str as u8;
+
+        let mut kind_buf = [0u8; 1];
+        reader.read_exact(&mut kind_buf)?;
+        match kind_buf[0] {
+            F64 => {
+                let mut buf = [0u8; std::mem::size_of::<f64>()];
+                reader.read_exact(&mut buf)?;
+                Ok(Value::F64(f64::from_le_bytes(buf)))
+            }
+            STR => Ok(Value::Str(Self::deserialize_str(reader)?)),
+            _ => Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!(
+                    "ValueKind {} does not match to any known value",
+                    kind_buf[0]
+                ),
+            )),
+        }
+    }
+
+    fn kind(&self) -> ValueKind {
+        match self {
+            Value::F64(_) => ValueKind::F64,
+            Value::Str(_) => ValueKind::Str,
+        }
+    }
+
+    fn serialize(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        let kind = self.kind() as u8;
+        writer.write_all(&[kind])?;
+        match self {
+            Value::F64(v) => {
+                writer.write_all(&v.to_le_bytes())?;
+            }
+            Value::Str(v) => {
+                Self::serialize_str(v, writer)?;
+            }
+        }
+        Ok(())
+    }
+
+    // private
+
+    fn deserialize_str(reader: &mut impl std::io::Read) -> std::io::Result<String> {
+        let size = deserialize_size(reader)?;
+        let mut buf = vec![0u8; size];
+        reader.read_exact(&mut buf)?;
+        let s = String::from_utf8(buf).unwrap();
+        Ok(s)
+    }
+
+    fn serialize_str(s: &str, writer: &mut impl std::io::Write) -> std::io::Result<()> {
+        serialize_size(s.len(), writer)?;
+        writer.write_all(s.as_bytes())?;
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 struct ByteCode {
-    literals: Vec<f64>,
+    literals: Vec<Value>,
     instructions: Vec<Instruction>,
 }
 
@@ -57,19 +145,56 @@ impl ByteCode {
         }
     }
 
-    fn interpret(&self) -> Option<f64> {
+    fn interpret(&self) -> Option<Value> {
         let mut stack = vec![];
         for instruction in &self.instructions {
             match instruction.op {
-                OpCode::LoadLiteral => stack.push(self.literals[instruction.arg0 as usize]),
+                OpCode::LoadLiteral => stack.push(self.literals[instruction.arg0 as usize].clone()),
                 OpCode::Copy => {
                     let idx = stack.len() - 1 - instruction.arg0 as usize;
-                    stack.push(stack[idx]);
+                    stack.push(stack[idx].clone());
                 }
                 OpCode::Add => {
-                    let rhs = stack.pop().expect("Stack underflow");
-                    let lhs = stack.pop().expect("Stack underflow");
-                    stack.push(lhs + rhs);
+                    let rhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    let lhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    stack.push(Value::F64(lhs + rhs));
+                }
+                OpCode::Sub => {
+                    let rhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    let lhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    stack.push(Value::F64(lhs - rhs));
+                }
+                OpCode::Mul => {
+                    let rhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    let lhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    stack.push(Value::F64(lhs * rhs));
+                }
+                OpCode::Div => {
+                    let rhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    let lhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    stack.push(Value::F64(lhs / rhs));
+                }
+                OpCode::Call => {
+                    let args = &stack[stack.len() - instruction.arg0 as usize..];
+                    let name = &stack[stack.len() - instruction.arg0 as usize - 1];
+                    let name = name.coerce_str();
+                    let res = match name.as_str() {
+                        "sqrt" => unary_fn(f64::sqrt)(args),
+                        "sin" => unary_fn(f64::sin)(args),
+                        "cos" => unary_fn(f64::cos)(args),
+                        "tan" => unary_fn(f64::tan)(args),
+                        "asin" => unary_fn(f64::asin)(args),
+                        "acos" => unary_fn(f64::acos)(args),
+                        "atan" => unary_fn(f64::atan)(args),
+                        "atan2" => binary_fn(f64::atan2)(args),
+                        "pow" => binary_fn(f64::powf)(args),
+                        "exp" => unary_fn(f64::exp)(args),
+                        "log" => binary_fn(f64::log)(args),
+                        "log10" => unary_fn(f64::log10)(args),
+                        _ => panic!("Unknown function name {:?}", name),
+                    };
+                    stack.resize(stack.len() - instruction.arg0 as usize - 1, Value::F64(0.0));
+                    stack.push(res);
                 }
             }
         }
@@ -79,9 +204,7 @@ impl ByteCode {
     fn read_literals(&mut self, reader: &mut impl std::io::Read) -> std::io::Result<()> {
         let num_literals = deserialize_size(reader)?;
         for _ in 0..num_literals {
-            let mut buf = [0u8; std::mem::size_of::<i64>()];
-            reader.read_exact(&mut buf)?;
-            self.literals.push(f64::from_le_bytes(buf));
+            self.literals.push(Value::deserialize(reader)?);
         }
         Ok(())
     }
@@ -96,6 +219,31 @@ impl ByteCode {
     }
 }
 
+fn unary_fn(f: fn(f64) -> f64) -> impl Fn(&[Value]) -> Value {
+    move |args| {
+        let arg = args
+            .first()
+            .expect("function missing argument")
+            .coerce_f64();
+        Value::F64(f(arg))
+    }
+}
+
+fn binary_fn(f: fn(f64, f64) -> f64) -> impl Fn(&[Value]) -> Value {
+    move |args| {
+        let mut args = args.into_iter();
+        let lhs = args
+            .next()
+            .expect("function missing the first argument")
+            .coerce_f64();
+        let rhs = args
+            .next()
+            .expect("function missing the second argument")
+            .coerce_f64();
+        Value::F64(f(lhs, rhs))
+    }
+}
+
 fn deserialize_size(reader: &mut impl std::io::Read) -> std::io::Result<usize> {
     let mut buf = [0u8; std::mem::size_of::<u32>()];
     reader.read_exact(&mut buf)?;
@@ -103,7 +251,7 @@ fn deserialize_size(reader: &mut impl std::io::Read) -> std::io::Result<usize> {
 }
 
 struct Compiler {
-    literals: Vec<f64>,
+    literals: Vec<Value>,
     instructions: Vec<Instruction>,
     target_stack: Vec<usize>,
 }
@@ -132,7 +280,7 @@ impl Compiler {
         addr
     }
 
-    fn add_literal(&mut self, value: f64) -> u8 {
+    fn add_literal(&mut self, value: Value) -> u8 {
         let addr = self.literals.len();
         if addr > u8::MAX as usize {
             panic!("Too many literals");
@@ -141,16 +289,28 @@ impl Compiler {
         addr as u8
     }
 
+    fn bin_op(&mut self, op: OpCode, lhs: &Expression, rhs: &Expression) -> usize {
+        let lhs = self.compile_expr(lhs);
+        let rhs = self.compile_expr(rhs);
+        self.add_copy_inst(lhs);
+        self.add_copy_inst(rhs);
+        self.add_instruction(op, 0);
+        self.target_stack.pop();
+        self.target_stack.pop();
+        self.target_stack.push(usize::MAX);
+        self.target_stack.len() - 1
+    }
+
     fn compile_expr(&mut self, ex: &Expression) -> usize {
         match ex {
             Expression::NumLiteral(n) => {
-                let id = self.add_literal(*n);
+                let id = self.add_literal(Value::F64(*n));
                 self.add_instruction(OpCode::LoadLiteral, id);
                 self.target_stack.push(id as usize);
                 self.target_stack.len() - 1
             }
             Expression::Ident("pi") => {
-                let id = self.add_literal(std::f64::consts::PI);
+                let id = self.add_literal(Value::F64(std::f64::consts::PI));
                 self.add_instruction(OpCode::LoadLiteral, id);
                 self.target_stack.push(id as usize);
                 self.target_stack.len() - 1
@@ -158,15 +318,27 @@ impl Compiler {
             Expression::Ident(id) => {
                 panic!("Unknown identifier {:?}", id);
             }
-            Expression::Add(lhs, rhs) => {
-                let lhs = self.compile_expr(lhs);
-                let rhs = self.compile_expr(rhs);
-                self.add_copy_inst(lhs);
-                self.add_copy_inst(rhs);
-                self.target_stack.pop();
-                self.add_instruction(OpCode::Add, 0);
+            Expression::FnInvoke(name, args) => {
+                let name = self.add_literal(Value::Str(name.to_string()));
+                let args = args
+                    .iter()
+                    .map(|arg| self.compile_expr(arg))
+                    .collect::<Vec<_>>();
+                self.add_instruction(OpCode::LoadLiteral, name);
+                self.target_stack.push(0);
+                for arg in &args {
+                    self.add_copy_inst(*arg);
+                }
+
+                self.add_instruction(OpCode::Call, args.len() as u8);
+                self.target_stack
+                    .resize(self.target_stack.len() - args.len(), 0);
                 self.target_stack.len() - 1
             }
+            Expression::Add(lhs, rhs) => self.bin_op(OpCode::Add, lhs, rhs),
+            Expression::Sub(lhs, rhs) => self.bin_op(OpCode::Sub, lhs, rhs),
+            Expression::Mul(lhs, rhs) => self.bin_op(OpCode::Mul, lhs, rhs),
+            Expression::Div(lhs, rhs) => self.bin_op(OpCode::Div, lhs, rhs),
         }
     }
 
@@ -175,7 +347,7 @@ impl Compiler {
 
         writeln!(writer, "Literals [{}]", self.literals.len())?;
         for (i, literal) in self.literals.iter().enumerate() {
-            writeln!(writer, " [{}] {}", i, *literal)?;
+            writeln!(writer, " [{}] {:?}", i, literal)?;
         }
 
         writeln!(writer, "Instructions [{}]", self.instructions.len())?;
@@ -184,7 +356,7 @@ impl Compiler {
                 LoadLiteral => {
                     writeln!(
                         writer,
-                        " [{}] {:?} {} ({})",
+                        " [{}] {:?} {} ({:?})",
                         index, it.op, it.arg0, self.literals[it.arg0 as usize]
                     )?;
                 }
@@ -193,6 +365,18 @@ impl Compiler {
                 }
                 Add => {
                     writeln!(writer, " [{}] {:?}", index, it.op)?;
+                }
+                Sub => {
+                    writeln!(writer, " [{}] {:?}", index, it.op)?;
+                }
+                Mul => {
+                    writeln!(writer, " [{}] {:?}", index, it.op)?;
+                }
+                Div => {
+                    writeln!(writer, " [{}] {:?}", index, it.op)?;
+                }
+                Call => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
                 }
             }
         }
@@ -210,8 +394,8 @@ impl Compiler {
 
     fn write_literals(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
         serialize_size(self.literals.len(), writer)?;
-        for literal in &self.literals {
-            writer.write_all(&literal.to_le_bytes())?;
+        for value in &self.literals {
+            value.serialize(writer)?;
         }
         Ok(())
     }
@@ -227,6 +411,10 @@ enum OpCode {
     LoadLiteral,
     Copy,
     Add,
+    Sub,
+    Mul,
+    Div,
+    Call,
 }
 
 impl From<u8> for OpCode {
@@ -234,10 +422,18 @@ impl From<u8> for OpCode {
         const LOAD_LITERAL: u8 = OpCode::LoadLiteral as u8;
         const COPY: u8 = OpCode::Copy as u8;
         const ADD: u8 = OpCode::Add as u8;
+        const SUB: u8 = OpCode::Sub as u8;
+        const MUL: u8 = OpCode::Mul as u8;
+        const DIV: u8 = OpCode::Div as u8;
+        const CALL: u8 = OpCode::Call as u8;
         match o {
             LOAD_LITERAL => OpCode::LoadLiteral,
             COPY => OpCode::Copy,
             ADD => OpCode::Add,
+            SUB => OpCode::Sub,
+            MUL => OpCode::Mul,
+            DIV => OpCode::Mul,
+            CALL => OpCode::Call,
             _ => panic!("OpCode \"{:02X}\" unrecognized!", o),
         }
     }
@@ -304,11 +500,42 @@ fn write_program(
 enum Expression<'a> {
     Ident(&'a str),
     NumLiteral(f64),
+    FnInvoke(&'a str, Vec<Expression<'a>>),
     Add(Box<Expression<'a>>, Box<Expression<'a>>),
+    Sub(Box<Expression<'a>>, Box<Expression<'a>>),
+    Mul(Box<Expression<'a>>, Box<Expression<'a>>),
+    Div(Box<Expression<'a>>, Box<Expression<'a>>),
 }
 
-fn term(i: &str) -> IResult<&str, Expression> {
-    alt((number, ident, parens))(i)
+fn expr(i: &str) -> IResult<&str, Expression> {
+    let (i, init) = term(i)?;
+
+    fold_many0(
+        pair(
+            delimited(multispace0, alt((char('+'), char('-'))), multispace0),
+            term,
+        ),
+        move || init.clone(),
+        |acc, (op, val): (char, Expression)| match op {
+            '+' => Expression::Add(Box::new(acc), Box::new(val)),
+            '-' => Expression::Sub(Box::new(acc), Box::new(val)),
+            _ => panic!("Additive expression should have '+' or '-' operator"),
+        },
+    )(i)
+}
+
+fn factor(i: &str) -> IResult<&str, Expression> {
+    alt((number, func_call, ident, parens))(i)
+}
+
+fn func_call(i: &str) -> IResult<&str, Expression> {
+    let (i, ident) = identifier(i)?;
+    let (i, args) = delimited(
+        tag("("),
+        many0(delimited(multispace0, expr, opt(tag(",")))),
+        tag(")"),
+    )(i)?;
+    Ok((i, Expression::FnInvoke(ident, args)))
 }
 
 fn ident(input: &str) -> IResult<&str, Expression> {
@@ -344,13 +571,20 @@ fn parens(i: &str) -> IResult<&str, Expression> {
     )(i)
 }
 
-fn expr(i: &str) -> IResult<&str, Expression> {
-    let (i, init) = term(i)?;
+fn term(i: &str) -> IResult<&str, Expression> {
+    let (i, init) = factor(i)?;
 
     fold_many0(
-        pair(delimited(multispace0, char('+'), multispace0), term),
+        pair(
+            delimited(multispace0, alt((char('*'), char('/'))), multispace0),
+            factor,
+        ),
         move || init.clone(),
-        |acc, (_op, val): (char, Expression)| Expression::Add(Box::new(acc), Box::new(val)),
+        |acc, (op, val): (char, Expression)| match op {
+            '*' => Expression::Mul(Box::new(acc), Box::new(val)),
+            '/' => Expression::Div(Box::new(acc), Box::new(val)),
+            _ => panic!("Multiplicative expression should have '*' or '/' operator"),
+        },
     )(i)
 }
 
@@ -367,6 +601,35 @@ mod tests {
                 Expression::Add(
                     Box::new(Expression::NumLiteral(1.0)),
                     Box::new(Expression::NumLiteral(2.0))
+                )
+            ))
+        );
+        assert_eq!(
+            expr("1 - 2"),
+            Ok((
+                "",
+                Expression::Sub(
+                    Box::new(Expression::NumLiteral(1.0)),
+                    Box::new(Expression::NumLiteral(2.0))
+                )
+            ))
+        );
+        assert_eq!(
+            expr("1 * 2 + 3 / 4 - 5"),
+            Ok((
+                "",
+                Expression::Sub(
+                    Box::new(Expression::Add(
+                        Box::new(Expression::Mul(
+                            Box::new(Expression::NumLiteral(1.0)),
+                            Box::new(Expression::NumLiteral(2.0))
+                        )),
+                        Box::new(Expression::Div(
+                            Box::new(Expression::NumLiteral(3.0)),
+                            Box::new(Expression::NumLiteral(4.0)),
+                        ))
+                    )),
+                    Box::new(Expression::NumLiteral(5.0))
                 )
             ))
         );
