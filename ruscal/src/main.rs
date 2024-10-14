@@ -20,7 +20,7 @@ use nom::{
     combinator::{opt, recognize},
     multi::{fold_many0, many0},
     number::complete::recognize_float,
-    sequence::{delimited, pair},
+    sequence::{delimited, pair, preceded},
     IResult,
 };
 
@@ -42,6 +42,12 @@ fn main() {
         _ => println!("Please specify w or r as an argument"),
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct StkIdx(usize);
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct InstPtr(usize);
 
 #[repr(u8)]
 enum ValueKind {
@@ -147,9 +153,16 @@ impl ByteCode {
 
     fn interpret(&self) -> Option<Value> {
         let mut stack = vec![];
-        for instruction in &self.instructions {
+        let mut ip = 0;
+
+        while ip < self.instructions.len() {
+            let instruction = &self.instructions[ip];
             match instruction.op {
                 OpCode::LoadLiteral => stack.push(self.literals[instruction.arg0 as usize].clone()),
+                OpCode::Store => {
+                    let idx = stack.len() - instruction.arg0 as usize - 1;
+                    stack[idx] = stack.pop().expect("Store needs an argument");
+                }
                 OpCode::Copy => {
                     let idx = stack.len() - 1 - instruction.arg0 as usize;
                     stack.push(stack[idx].clone());
@@ -196,7 +209,28 @@ impl ByteCode {
                     stack.resize(stack.len() - instruction.arg0 as usize - 1, Value::F64(0.0));
                     stack.push(res);
                 }
+                OpCode::Jmp => {
+                    ip = instruction.arg0 as usize;
+                    continue;
+                }
+                OpCode::Jf => {
+                    let cond = stack.pop().expect("Jf needs an argument");
+                    if cond.coerce_f64() == 0.0 {
+                        ip = instruction.arg0 as usize;
+                        continue;
+                    }
+                }
+                OpCode::Lt => {
+                    let rhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    let lhs = stack.pop().expect("Stack underflow").coerce_f64();
+                    stack.push(Value::F64((lhs < rhs) as i32 as f64));
+                }
+                OpCode::Pop => {
+                    stack.resize(stack.len() - instruction.arg0 as usize, Value::F64(0.0))
+                }
             }
+
+            ip += 1;
         }
         stack.pop()
     }
@@ -265,19 +299,37 @@ impl Compiler {
         }
     }
 
-    fn add_copy_inst(&mut self, stack_idx: usize) -> usize {
-        let inst = self.add_instruction(
-            OpCode::Copy,
-            (self.target_stack.len() - stack_idx - 1) as u8,
-        );
+    fn add_copy_inst(&mut self, StkIdx(stk_idx): StkIdx) -> InstPtr {
+        let inst = self.add_inst(OpCode::Copy, (self.target_stack.len() - stk_idx - 1) as u8);
         self.target_stack.push(0);
         inst
     }
 
-    fn add_instruction(&mut self, op: OpCode, arg0: u8) -> usize {
+    fn add_inst(&mut self, op: OpCode, arg0: u8) -> InstPtr {
         let addr = self.instructions.len();
         self.instructions.push(Instruction { op, arg0 });
-        addr
+        InstPtr(addr)
+    }
+
+    fn add_jf_inst(&mut self) -> InstPtr {
+        let inst = self.add_inst(OpCode::Jf, 0);
+        self.target_stack.pop();
+        inst
+    }
+
+    fn add_pop_until_inst(&mut self, StkIdx(stk_idx): StkIdx) -> Option<InstPtr> {
+        if self.target_stack.len() <= stk_idx {
+            return None;
+        }
+        let inst = self.add_inst(OpCode::Pop, (self.target_stack.len() - stk_idx - 1) as u8);
+        self.target_stack.resize(stk_idx + 1, 0);
+        Some(inst)
+    }
+
+    fn add_store_inst(&mut self, StkIdx(stk_idx): StkIdx) -> InstPtr {
+        let inst = self.add_inst(OpCode::Store, (self.target_stack.len() - stk_idx - 1) as u8);
+        self.target_stack.pop();
+        inst
     }
 
     fn add_literal(&mut self, value: Value) -> u8 {
@@ -289,31 +341,42 @@ impl Compiler {
         addr as u8
     }
 
-    fn bin_op(&mut self, op: OpCode, lhs: &Expression, rhs: &Expression) -> usize {
+    fn bin_op(&mut self, op: OpCode, lhs: &Expression, rhs: &Expression) -> StkIdx {
         let lhs = self.compile_expr(lhs);
         let rhs = self.compile_expr(rhs);
         self.add_copy_inst(lhs);
         self.add_copy_inst(rhs);
-        self.add_instruction(op, 0);
+        self.add_inst(op, 0);
         self.target_stack.pop();
         self.target_stack.pop();
         self.target_stack.push(usize::MAX);
-        self.target_stack.len() - 1
+        self.stack_top()
     }
 
-    fn compile_expr(&mut self, ex: &Expression) -> usize {
+    fn coerce_stack(&mut self, target: StkIdx) {
+        if target.0 < self.target_stack.len() - 1 {
+            self.add_store_inst(target);
+            self.add_pop_until_inst(target);
+        } else if self.target_stack.len() - 1 < target.0 {
+            for _ in self.target_stack.len() - 1..target.0 {
+                self.add_copy_inst(self.stack_top());
+            }
+        }
+    }
+
+    fn compile_expr(&mut self, ex: &Expression) -> StkIdx {
         match ex {
             Expression::NumLiteral(n) => {
                 let id = self.add_literal(Value::F64(*n));
-                self.add_instruction(OpCode::LoadLiteral, id);
+                self.add_inst(OpCode::LoadLiteral, id);
                 self.target_stack.push(id as usize);
-                self.target_stack.len() - 1
+                self.stack_top()
             }
             Expression::Ident("pi") => {
                 let id = self.add_literal(Value::F64(std::f64::consts::PI));
-                self.add_instruction(OpCode::LoadLiteral, id);
+                self.add_inst(OpCode::LoadLiteral, id);
                 self.target_stack.push(id as usize);
-                self.target_stack.len() - 1
+                self.stack_top()
             }
             Expression::Ident(id) => {
                 panic!("Unknown identifier {:?}", id);
@@ -324,21 +387,40 @@ impl Compiler {
                     .iter()
                     .map(|arg| self.compile_expr(arg))
                     .collect::<Vec<_>>();
-                self.add_instruction(OpCode::LoadLiteral, name);
+                self.add_inst(OpCode::LoadLiteral, name);
                 self.target_stack.push(0);
                 for arg in &args {
                     self.add_copy_inst(*arg);
                 }
 
-                self.add_instruction(OpCode::Call, args.len() as u8);
+                self.add_inst(OpCode::Call, args.len() as u8);
                 self.target_stack
                     .resize(self.target_stack.len() - args.len(), 0);
-                self.target_stack.len() - 1
+                self.stack_top()
             }
             Expression::Add(lhs, rhs) => self.bin_op(OpCode::Add, lhs, rhs),
             Expression::Sub(lhs, rhs) => self.bin_op(OpCode::Sub, lhs, rhs),
             Expression::Mul(lhs, rhs) => self.bin_op(OpCode::Mul, lhs, rhs),
             Expression::Div(lhs, rhs) => self.bin_op(OpCode::Div, lhs, rhs),
+            Expression::Gt(lhs, rhs) => self.bin_op(OpCode::Lt, rhs, lhs),
+            Expression::Lt(lhs, rhs) => self.bin_op(OpCode::Lt, lhs, rhs),
+            Expression::If(cond, true_branch, false_branch) => {
+                let cond = self.compile_expr(cond);
+                self.add_copy_inst(cond);
+                let jf_inst = self.add_jf_inst();
+                let stack_size_before = self.target_stack.len();
+                self.compile_expr(true_branch);
+                self.coerce_stack(StkIdx(stack_size_before + 1));
+                let jmp_inst = self.add_inst(OpCode::Jmp, 0);
+                self.fixup_jmp(jf_inst);
+                self.target_stack.resize(stack_size_before, 0);
+                if let Some(false_branch) = false_branch.as_ref() {
+                    self.compile_expr(&false_branch);
+                }
+                self.coerce_stack(StkIdx(stack_size_before + 1));
+                self.fixup_jmp(jmp_inst);
+                self.stack_top()
+            }
         }
     }
 
@@ -360,6 +442,9 @@ impl Compiler {
                         index, it.op, it.arg0, self.literals[it.arg0 as usize]
                     )?;
                 }
+                Store => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
                 Copy => {
                     writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
                 }
@@ -378,10 +463,30 @@ impl Compiler {
                 Call => {
                     writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
                 }
+                Jmp => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
+                Jf => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
+                Lt => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
+                Pop => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
             }
         }
 
         Ok(())
+    }
+
+    fn fixup_jmp(&mut self, InstPtr(ip): InstPtr) {
+        self.instructions[ip].arg0 = self.instructions.len() as u8;
+    }
+
+    fn stack_top(&self) -> StkIdx {
+        StkIdx(self.target_stack.len() - 1)
     }
 
     fn write_instructions(&self, writer: &mut impl std::io::Write) -> std::io::Result<()> {
@@ -409,12 +514,17 @@ fn serialize_size(size: usize, writer: &mut impl std::io::Write) -> std::io::Res
 #[repr(u8)]
 enum OpCode {
     LoadLiteral,
+    Store,
     Copy,
     Add,
     Sub,
     Mul,
     Div,
     Call,
+    Jmp,
+    Jf,
+    Lt,
+    Pop,
 }
 
 impl From<u8> for OpCode {
@@ -426,6 +536,10 @@ impl From<u8> for OpCode {
         const MUL: u8 = OpCode::Mul as u8;
         const DIV: u8 = OpCode::Div as u8;
         const CALL: u8 = OpCode::Call as u8;
+        const JMP: u8 = OpCode::Jmp as u8;
+        const JF: u8 = OpCode::Jf as u8;
+        const LT: u8 = OpCode::Lt as u8;
+        const POP: u8 = OpCode::Pop as u8;
         match o {
             LOAD_LITERAL => OpCode::LoadLiteral,
             COPY => OpCode::Copy,
@@ -434,6 +548,10 @@ impl From<u8> for OpCode {
             MUL => OpCode::Mul,
             DIV => OpCode::Mul,
             CALL => OpCode::Call,
+            JMP => OpCode::Jmp,
+            JF => OpCode::Jf,
+            LT => OpCode::Lt,
+            POP => OpCode::Pop,
             _ => panic!("OpCode \"{:02X}\" unrecognized!", o),
         }
     }
@@ -505,23 +623,31 @@ enum Expression<'a> {
     Sub(Box<Expression<'a>>, Box<Expression<'a>>),
     Mul(Box<Expression<'a>>, Box<Expression<'a>>),
     Div(Box<Expression<'a>>, Box<Expression<'a>>),
+    Gt(Box<Expression<'a>>, Box<Expression<'a>>),
+    Lt(Box<Expression<'a>>, Box<Expression<'a>>),
+    If(
+        Box<Expression<'a>>,
+        Box<Expression<'a>>,
+        Option<Box<Expression<'a>>>,
+    ),
+}
+
+fn cond_expr(i: &str) -> IResult<&str, Expression> {
+    let (i, first) = num_expr(i)?;
+    let (i, cond) = delimited(multispace0, alt((char('<'), char('>'))), multispace0)(i)?;
+    let (i, second) = num_expr(i)?;
+    Ok((
+        i,
+        match cond {
+            '<' => Expression::Lt(Box::new(first), Box::new(second)),
+            '>' => Expression::Gt(Box::new(first), Box::new(second)),
+            _ => unreachable!(),
+        },
+    ))
 }
 
 fn expr(i: &str) -> IResult<&str, Expression> {
-    let (i, init) = term(i)?;
-
-    fold_many0(
-        pair(
-            delimited(multispace0, alt((char('+'), char('-'))), multispace0),
-            term,
-        ),
-        move || init.clone(),
-        |acc, (op, val): (char, Expression)| match op {
-            '+' => Expression::Add(Box::new(acc), Box::new(val)),
-            '-' => Expression::Sub(Box::new(acc), Box::new(val)),
-            _ => panic!("Additive expression should have '+' or '-' operator"),
-        },
-    )(i)
+    alt((if_expr, cond_expr, num_expr))(i)
 }
 
 fn factor(i: &str) -> IResult<&str, Expression> {
@@ -548,6 +674,48 @@ fn identifier(input: &str) -> IResult<&str, &str> {
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),
     ))(input)
+}
+
+fn if_expr(i: &str) -> IResult<&str, Expression> {
+    let (i, _) = delimited(multispace0, tag("if"), multispace0)(i)?;
+    let (i, cond) = expr(i)?;
+    let (i, t_case) = delimited(
+        delimited(multispace0, char('{'), multispace0),
+        expr,
+        delimited(multispace0, char('}'), multispace0),
+    )(i)?;
+    let (i, f_case) = opt(preceded(
+        delimited(multispace0, tag("else"), multispace0),
+        alt((
+            delimited(
+                delimited(multispace0, char('{'), multispace0),
+                expr,
+                delimited(multispace0, char('}'), multispace0),
+            ),
+            if_expr,
+        )),
+    ))(i)?;
+    Ok((
+        i,
+        Expression::If(Box::new(cond), Box::new(t_case), f_case.map(Box::new)),
+    ))
+}
+
+fn num_expr(i: &str) -> IResult<&str, Expression> {
+    let (i, init) = term(i)?;
+
+    fold_many0(
+        pair(
+            delimited(multispace0, alt((char('+'), char('-'))), multispace0),
+            term,
+        ),
+        move || init.clone(),
+        |acc, (op, val): (char, Expression)| match op {
+            '+' => Expression::Add(Box::new(acc), Box::new(val)),
+            '-' => Expression::Sub(Box::new(acc), Box::new(val)),
+            _ => panic!("Additive expression should have '+' or '-' operator"),
+        },
+    )(i)
 }
 
 fn number(input: &str) -> IResult<&str, Expression> {
@@ -630,6 +798,53 @@ mod tests {
                         ))
                     )),
                     Box::new(Expression::NumLiteral(5.0))
+                )
+            ))
+        );
+
+        assert_eq!(
+            expr("if 1 { 2 }"),
+            Ok((
+                "",
+                Expression::If(
+                    Box::new(Expression::NumLiteral(1.0)),
+                    Box::new(Expression::NumLiteral(2.0)),
+                    None
+                )
+            ))
+        );
+        assert_eq!(
+            expr("if 1 < 2 { 3 } else { 4 }"),
+            Ok((
+                "",
+                Expression::If(
+                    Box::new(Expression::Lt(
+                        Box::new(Expression::NumLiteral(1.0)),
+                        Box::new(Expression::NumLiteral(2.0)),
+                    )),
+                    Box::new(Expression::NumLiteral(3.0)),
+                    Some(Box::new(Expression::NumLiteral(4.0))),
+                )
+            ))
+        );
+        assert_eq!(
+            expr("if 1 < 2 { 3 } else if 4 < 5 { 6 }"),
+            Ok((
+                "",
+                Expression::If(
+                    Box::new(Expression::Lt(
+                        Box::new(Expression::NumLiteral(1.0)),
+                        Box::new(Expression::NumLiteral(2.0)),
+                    )),
+                    Box::new(Expression::NumLiteral(3.0)),
+                    Some(Box::new(Expression::If(
+                        Box::new(Expression::Lt(
+                            Box::new(Expression::NumLiteral(4.0)),
+                            Box::new(Expression::NumLiteral(5.0)),
+                        )),
+                        Box::new(Expression::NumLiteral(6.0)),
+                        None
+                    )))
                 )
             ))
         );
