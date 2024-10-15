@@ -8,7 +8,7 @@ publish = false
 [dependencies]
 anyhow = { workspace = true }
 entity = { path = "../entity" }
-limited-date-time = { git = "https://github.com/bouzuya/rust-limited-date-time", tag = "0.15.0" }
+limited-date-time = { workspace = true }
 serde = { version = "1.0.130", features = ["derive"] }
 serde_json = "1.0.68"
 use_case = { path = "../use_case" }
