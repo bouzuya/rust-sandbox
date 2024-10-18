@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
 use nom::{
     branch::alt,
@@ -30,7 +30,7 @@ fn main() {
             let reader = std::fs::File::open("bytecode.bin").unwrap();
             let mut reader = std::io::BufReader::new(reader);
             let byte_code = read_program(&mut reader).unwrap();
-            let mut vm = Vm::new(&byte_code);
+            let mut vm = Vm::new(Rc::new(byte_code));
             if let Err(e) = vm.init_fn("main", &[]) {
                 eprintln!("init_fn error: {:?}", e);
                 return;
@@ -52,15 +52,15 @@ fn main() {
     }
 }
 
-struct StackFrame<'f> {
-    fn_def: &'f FnByteCode,
+struct StackFrame {
+    fn_def: Rc<FnByteCode>,
     args: usize,
     stack: Vec<Value>,
     ip: usize,
 }
 
-impl<'f> StackFrame<'f> {
-    fn new(fn_def: &'f FnByteCode, args: Vec<Value>) -> Self {
+impl StackFrame {
+    fn new(fn_def: Rc<FnByteCode>, args: Vec<Value>) -> Self {
         Self {
             fn_def,
             args: args.len(),
@@ -75,13 +75,13 @@ impl<'f> StackFrame<'f> {
     }
 }
 
-struct Vm<'a> {
-    bytecode: &'a ByteCode,
-    stack_frames: Vec<StackFrame<'a>>,
+struct Vm {
+    bytecode: Rc<ByteCode>,
+    stack_frames: Vec<StackFrame>,
 }
 
-impl<'a> Vm<'a> {
-    fn new(bytecode: &'a ByteCode) -> Self {
+impl Vm {
+    fn new(bytecode: Rc<ByteCode>) -> Self {
         Self {
             bytecode,
             stack_frames: vec![],
@@ -95,7 +95,7 @@ impl<'a> Vm<'a> {
             .get(name)
             .ok_or_else(|| format!("Function {:?} was not found", name))?;
         let fn_def = match fn_def {
-            FnDef::User(user) => user,
+            FnDef::User(user) => user.clone(),
             FnDef::Native(_) => {
                 return Err(
                     "Native function cannot be called as a coroutine. Use `run_fn` instead.".into(),
@@ -175,8 +175,21 @@ impl<'a> Vm<'a> {
                         })?;
                     match fn_def {
                         FnDef::User(f) => {
-                            self.stack_frames.push(StackFrame::new(f, args.to_vec()));
-                            continue;
+                            if f.cofn {
+                                let mut vm = Vm::new(self.bytecode.clone());
+                                vm.stack_frames
+                                    .push(StackFrame::new(f.clone(), args.to_vec()));
+                                let stack = &mut self.top_mut()?.stack;
+                                stack.resize(
+                                    stack.len() - instruction.arg0 as usize - 1,
+                                    Value::F64(0.0),
+                                );
+                                stack.push(Value::Coro(Rc::new(RefCell::new(vm))));
+                            } else {
+                                self.stack_frames
+                                    .push(StackFrame::new(f.clone(), args.to_vec()));
+                                continue;
+                            }
                         }
                         FnDef::Native(n) => {
                             let res = (n.code)(args);
@@ -226,6 +239,25 @@ impl<'a> Vm<'a> {
                     top_frame.ip += 1;
                     return Ok(YieldResult::Suspend(res));
                 }
+                OpCode::Await => {
+                    let vms = self
+                        .top_mut()?
+                        .stack
+                        .pop()
+                        .ok_or_else(|| "Stack underflow".to_owned())?;
+                    let Value::Coro(vm) = vms else {
+                        return Err("Await keyword applied to a non-coroutine".into());
+                    };
+                    match vm.borrow_mut().interpret() {
+                        Ok(YieldResult::Finished(_)) => (),
+                        Ok(YieldResult::Suspend(value)) => {
+                            self.top_mut()?.stack.push(value);
+                        }
+                        Err(e) => {
+                            eprintln!("Runtime error: {:?}", e);
+                        }
+                    };
+                }
             }
             self.top_mut()?.ip += 1;
         }
@@ -264,7 +296,7 @@ impl<'a> Vm<'a> {
             .get(name)
             .ok_or_else(|| format!("Function {:?} was not found", name))?;
         let fn_def = match fn_def {
-            FnDef::User(user) => user,
+            FnDef::User(user) => user.clone(),
             FnDef::Native(n) => return Ok((*n.code)(args)),
         };
         self.stack_frames
@@ -282,10 +314,16 @@ impl<'a> Vm<'a> {
             .ok_or_else(|| "Stack frame underflow".to_owned())
     }
 
-    fn top_mut(&mut self) -> Result<&mut StackFrame<'a>, String> {
+    fn top_mut(&mut self) -> Result<&mut StackFrame, String> {
         self.stack_frames
             .last_mut()
             .ok_or_else(|| "Stack frame underflow".to_owned())
+    }
+}
+
+impl std::fmt::Debug for Vm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "<Vm>")
     }
 }
 
@@ -299,6 +337,7 @@ struct FnByteCode {
     args: Vec<String>,
     literals: Vec<Value>,
     instructions: Vec<Instruction>,
+    cofn: bool,
 }
 
 impl FnByteCode {
@@ -306,10 +345,13 @@ impl FnByteCode {
         let args = Self::read_args(reader)?;
         let literals = Self::read_literals(reader)?;
         let instructions = Self::read_instructions(reader)?;
+        let mut cofn = [0u8];
+        reader.read_exact(&mut cofn)?;
         Ok(Self {
             args,
             literals,
             instructions,
+            cofn: cofn[0] != 0,
         })
     }
 
@@ -348,6 +390,7 @@ impl FnByteCode {
         Self::write_args(&self.args, writer)?;
         Self::write_literals(&self.literals, writer)?;
         Self::write_insts(&self.instructions, writer)?;
+        writer.write_all(&[self.cofn as u8])?;
         Ok(())
     }
 
@@ -425,6 +468,7 @@ enum ValueKind {
     I64,
     F64,
     Str,
+    Coro,
 }
 
 #[derive(Clone, Debug)]
@@ -432,6 +476,7 @@ enum Value {
     I64(i64),
     F64(f64),
     Str(String),
+    Coro(Rc<RefCell<Vm>>),
 }
 
 impl Value {
@@ -484,6 +529,7 @@ impl Value {
             Value::I64(_) => ValueKind::I64,
             Value::F64(_) => ValueKind::F64,
             Value::Str(_) => ValueKind::Str,
+            Value::Coro(_) => ValueKind::Coro,
         }
     }
 
@@ -500,6 +546,12 @@ impl Value {
             Value::Str(v) => {
                 serialize_str(v, writer)?;
             }
+            Value::Coro(_) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    "Coroutine can't be serialized",
+                ))
+            }
         }
         Ok(())
     }
@@ -511,6 +563,7 @@ impl std::fmt::Display for Value {
             Value::I64(v) => write!(f, "{}", v),
             Value::F64(v) => write!(f, "{}", v),
             Value::Str(v) => write!(f, "{}", v),
+            Value::Coro(_) => write!(f, "<Coroutine>"),
         }
     }
 }
@@ -553,10 +606,8 @@ impl ByteCode {
             })
             .collect::<BTreeMap<_, _>>();
         for _ in 0..num_funcs {
-            let mut buf = vec![0u8; deserialize_size(reader)?];
-            reader.read_exact(&mut buf)?;
-            let name = String::from_utf8(buf).unwrap();
-            funcs.insert(name, FnDef::User(FnByteCode::deserialize(reader)?));
+            let name = deserialize_str(reader)?;
+            funcs.insert(name, FnDef::User(Rc::new(FnByteCode::deserialize(reader)?)));
         }
         self.funcs = funcs;
         Ok(())
@@ -647,13 +698,14 @@ impl Compiler {
         inst
     }
 
-    fn add_fn(&mut self, name: String, args: &[(Span, TypeDecl)]) {
+    fn add_fn(&mut self, name: String, args: &[(Span, TypeDecl)], cofn: bool) {
         self.funcs.insert(
             name,
             FnByteCode {
                 args: args.iter().map(|(arg, _)| arg.to_string()).collect(),
                 literals: std::mem::take(&mut self.literals),
                 instructions: std::mem::take(&mut self.instructions),
+                cofn,
             },
         );
     }
@@ -729,9 +781,8 @@ impl Compiler {
     }
 
     fn compile(&mut self, stmts: &Statements) -> Result<(), Box<dyn std::error::Error>> {
-        let name = "main";
         self.compile_stmts(stmts)?;
-        self.add_fn(name.to_string(), &[]);
+        self.add_fn("main".to_owned(), &[], false);
         Ok(())
     }
 
@@ -797,6 +848,12 @@ impl Compiler {
                 }
                 self.coerce_stack(StkIdx(stack_size_before + 1));
                 self.fixup_jmp(jmp_inst);
+                Ok(self.stack_top())
+            }
+            ExprEnum::Await(expr) => {
+                let res = self.compile_expr(expr)?;
+                self.add_copy_inst(res);
+                self.add_inst(OpCode::Await, 0);
                 Ok(self.stack_top())
             }
         }
@@ -901,7 +958,11 @@ impl Compiler {
                     self.add_inst(OpCode::Jmp, 0);
                 }
                 Statement::FnDef {
-                    name, args, stmts, ..
+                    name,
+                    args,
+                    stmts,
+                    cofn,
+                    ..
                 } => {
                     let literals = std::mem::take(&mut self.literals);
                     let instructions = std::mem::take(&mut self.instructions);
@@ -914,7 +975,7 @@ impl Compiler {
 
                     self.compile_stmts(stmts)?;
 
-                    self.add_fn(name.to_string(), args);
+                    self.add_fn(name.to_string(), args, *cofn);
                     self.literals = literals;
                     self.instructions = instructions;
                     self.target_stack = target_stack;
@@ -993,6 +1054,9 @@ impl Compiler {
                 Yield => {
                     writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
                 }
+                Await => {
+                    writeln!(writer, " [{}] {:?} {}", index, it.op, it.arg0)?;
+                }
             }
         }
 
@@ -1058,6 +1122,7 @@ enum OpCode {
     Pop,
     Ret,
     Yield,
+    Await,
 }
 
 impl From<u8> for OpCode {
@@ -1077,6 +1142,7 @@ impl From<u8> for OpCode {
         const POP: u8 = OpCode::Pop as u8;
         const RET: u8 = OpCode::Ret as u8;
         const YIELD: u8 = OpCode::Yield as u8;
+        const AWAIT: u8 = OpCode::Await as u8;
         match o {
             LOAD_LITERAL => OpCode::LoadLiteral,
             STORE => OpCode::Store,
@@ -1093,6 +1159,7 @@ impl From<u8> for OpCode {
             POP => OpCode::Pop,
             RET => OpCode::Ret,
             YIELD => OpCode::Yield,
+            AWAIT => OpCode::Await,
             _ => panic!("OpCode \"{:02X}\" unrecognized!", o),
         }
     }
@@ -1171,7 +1238,7 @@ fn write_program(
 }
 
 enum FnDef {
-    User(FnByteCode),
+    User(Rc<FnByteCode>),
     Native(NativeFn<'static>),
 }
 
@@ -1268,6 +1335,7 @@ pub enum TypeDecl {
     F64,
     I64,
     Str,
+    Coro,
 }
 
 fn tc_coerce_type<'a>(
@@ -1283,6 +1351,7 @@ fn tc_coerce_type<'a>(
         (F64, I64) => F64,
         (I64, I64) => I64,
         (Str, Str) => Str,
+        (Coro, Coro) => Coro,
         _ => {
             return Err(TypeCheckError::new(
                 format!("{:?} cannot be assigned to {:?}", value, target),
@@ -1472,6 +1541,10 @@ fn tc_expr<'a>(
                 true_type
             }
         }
+        Await(expr) => {
+            let _res = tc_expr(expr, ctx)?;
+            TypeDecl::Any
+        }
     })
 }
 
@@ -1497,6 +1570,7 @@ fn type_check<'a>(
                 args,
                 ret_type,
                 stmts,
+                cofn,
             } => {
                 // Function declaration needs to be added first to allow recursive calls
                 ctx.funcs.insert(
@@ -1504,6 +1578,7 @@ fn type_check<'a>(
                     FnDecl::User(UserFn {
                         args: args.clone(),
                         ret_type: *ret_type,
+                        cofn: *cofn,
                     }),
                 );
                 let mut subctx = TypeCheckContext::push_stack(ctx);
@@ -1563,7 +1638,13 @@ impl<'a> FnDecl<'a> {
 
     fn ret_type(&self) -> TypeDecl {
         match self {
-            Self::User(user) => user.ret_type,
+            Self::User(user) => {
+                if user.cofn {
+                    TypeDecl::Coro
+                } else {
+                    user.ret_type
+                }
+            }
             Self::Native(native) => native.ret_type,
         }
     }
@@ -1572,6 +1653,7 @@ impl<'a> FnDecl<'a> {
 struct UserFn<'a> {
     args: Vec<(Span<'a>, TypeDecl)>,
     ret_type: TypeDecl,
+    cofn: bool,
 }
 
 struct NativeFn<'a> {
@@ -1597,6 +1679,7 @@ enum ExprEnum<'a> {
         Box<Statements<'a>>,
         Option<Box<Statements<'a>>>,
     ),
+    Await(Box<Expression<'a>>),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -1639,6 +1722,7 @@ enum Statement<'a> {
         args: Vec<(Span<'a>, TypeDecl)>,
         ret_type: TypeDecl,
         stmts: Statements<'a>,
+        cofn: bool,
     },
     Return(Expression<'a>),
     Yield(Expression<'a>),
@@ -1852,8 +1936,18 @@ fn if_expr(i0: Span) -> IResult<Span, Expression> {
     ))
 }
 
+fn await_expr(i: Span) -> IResult<Span, Expression> {
+    let i0 = i;
+    let (i, _) = space_delimited(tag("await"))(i)?;
+    let (i, expr) = cut(space_delimited(expr))(i)?;
+    Ok((
+        i,
+        Expression::new(ExprEnum::Await(Box::new(expr)), calc_offset(i0, i)),
+    ))
+}
+
 fn expr(i: Span) -> IResult<Span, Expression> {
-    alt((if_expr, cond_expr, num_expr))(i)
+    alt((await_expr, if_expr, cond_expr, num_expr))(i)
 }
 
 fn var_def(i: Span) -> IResult<Span, Statement> {
@@ -1932,6 +2026,7 @@ fn type_decl(i: Span) -> IResult<Span, TypeDecl> {
             "i64" => TypeDecl::I64,
             "f64" => TypeDecl::F64,
             "str" => TypeDecl::Str,
+            "cofn" => TypeDecl::Coro,
             _ => {
                 return Err(nom::Err::Failure(nom::error::Error::new(
                     td,
@@ -1951,7 +2046,7 @@ fn argument(i: Span) -> IResult<Span, (Span, TypeDecl)> {
 }
 
 fn fn_def_statement(i: Span) -> IResult<Span, Statement> {
-    let (i, _) = space_delimited(tag("fn"))(i)?;
+    let (i, fn_kw) = space_delimited(alt((tag("fn"), tag("cofn"))))(i)?;
     let (i, (name, args, ret_type, stmts)) = cut(|i| {
         let (i, name) = space_delimited(identifier)(i)?;
         let (i, _) = space_delimited(tag("("))(i)?;
@@ -1969,6 +2064,7 @@ fn fn_def_statement(i: Span) -> IResult<Span, Statement> {
             args,
             ret_type,
             stmts,
+            cofn: *fn_kw == "cofn",
         },
     ))
 }
