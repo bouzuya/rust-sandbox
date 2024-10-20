@@ -1,3 +1,4 @@
+mod client;
 mod command;
 
 #[derive(clap::Parser)]
