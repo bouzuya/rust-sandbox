@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-clap = { version = "4.5.20", features = ["derive"] }
+clap = { version = "4.5.20", features = ["derive", "env"] }
 google-cloud-auth = { version = "0.17.1", default-features = false, features = ["rustls-tls"] }
 google-cloud-token = "0.1.2"
 reqwest = { version = "0.12.8", default-features = false, features = ["rustls-tls"] }

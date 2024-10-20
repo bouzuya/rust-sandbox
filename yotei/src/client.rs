@@ -19,9 +19,11 @@ pub struct CalendarEvent {
     pub summary: Option<String>,
 }
 
+pub type InsertEventResponse = CalendarEvent;
+
 #[derive(Debug, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ListEventResponse {
+pub struct ListEventsResponse {
     pub items: Vec<CalendarEvent>,
 }
 
@@ -62,7 +64,13 @@ impl Client {
         })
     }
 
-    pub async fn list_events(&self, calendar_id: &str) -> anyhow::Result<ListEventResponse> {
+    pub async fn insert_event(
+        &self,
+        calendar_id: &str,
+        summary: &str,
+        start_date_time: &str,
+        end_date_time: &str,
+    ) -> anyhow::Result<InsertEventResponse> {
         let token = self
             .token_source
             .token()
@@ -71,11 +79,28 @@ impl Client {
 
         let response = self
             .client
-            .get(format!(
-                "https://www.googleapis.com/calendar/v3/calendars/{}/events",
+            .post(format!(
+                "https://www.googleapis.com/calendar/v3/calendars/{}/events?conferenceDataVersion=1",
                 calendar_id
             ))
-            .header(reqwest::header::AUTHORIZATION, token.clone())
+            .header(reqwest::header::AUTHORIZATION, token)
+            .json(&serde_json::json!({
+                // required properties
+                "end": {
+                    "dateTime": end_date_time
+                },
+                "start": {
+                    "dateTime": start_date_time
+                },
+
+                // optional properties
+                // "attendees": [
+                //     {
+                //         "email": "m@bouzuya.net"
+                //     }
+                // ]
+                "summary": summary
+            }))
             .send()
             .await?;
 
@@ -88,7 +113,35 @@ impl Client {
             println!("{}", response_body);
         }
 
-        let response_body = serde_json::from_str(&response_body)?;
-        Ok(response_body)
+        Ok(serde_json::from_str(&response_body)?)
+    }
+
+    pub async fn list_events(&self, calendar_id: &str) -> anyhow::Result<ListEventsResponse> {
+        let token = self
+            .token_source
+            .token()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        let response = self
+            .client
+            .get(format!(
+                "https://www.googleapis.com/calendar/v3/calendars/{}/events",
+                calendar_id
+            ))
+            .header(reqwest::header::AUTHORIZATION, token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("status code is not success");
+        }
+
+        let response_body = response.text().await?;
+        if self.debug {
+            println!("{}", response_body);
+        }
+
+        Ok(serde_json::from_str(&response_body)?)
     }
 }
