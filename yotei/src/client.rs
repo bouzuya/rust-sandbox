@@ -19,6 +19,8 @@ pub struct CalendarEvent {
     pub summary: Option<String>,
 }
 
+pub type GetEventResponse = CalendarEvent;
+
 pub type InsertEventResponse = CalendarEvent;
 
 #[derive(Debug, serde::Deserialize)]
@@ -62,6 +64,39 @@ impl Client {
             debug,
             token_source,
         })
+    }
+
+    pub async fn get_event(
+        &self,
+        calendar_id: &str,
+        event_id: &str,
+    ) -> anyhow::Result<GetEventResponse> {
+        let token = self
+            .token_source
+            .token()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        let response = self
+            .client
+            .get(format!(
+                "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
+                calendar_id, event_id
+            ))
+            .header(reqwest::header::AUTHORIZATION, token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!("status code is not success");
+        }
+
+        let response_body = response.text().await?;
+        if self.debug {
+            println!("{}", response_body);
+        }
+
+        Ok(serde_json::from_str(&response_body)?)
     }
 
     pub async fn insert_event(
