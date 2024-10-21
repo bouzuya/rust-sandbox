@@ -1,5 +1,6 @@
 mod client;
 mod command;
+mod config;
 
 #[derive(clap::Parser)]
 struct Cli {

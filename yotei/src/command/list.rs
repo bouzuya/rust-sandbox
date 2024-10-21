@@ -1,27 +1,17 @@
 use anyhow::Context as _;
 
-use crate::client::{CalendarEventTime, Client};
+use crate::{
+    client::{CalendarEventTime, Client},
+    config::Config,
+};
 
 #[derive(clap::Args)]
-pub struct Args {
-    #[arg(env)]
-    calendar_id: String,
-    #[arg(env, long)]
-    debug: bool,
-    // env GOOGLE_APPLICATION_CREDENTIALS
-    #[arg(env = "EMAIL")]
-    impersonate_user_email: Option<String>,
-}
+pub struct Args;
 
-pub async fn execute(
-    Args {
-        calendar_id,
-        debug,
-        impersonate_user_email,
-    }: Args,
-) -> anyhow::Result<()> {
-    let client = Client::new(debug, impersonate_user_email).await?;
-    let list_events_response = client.list_events(&calendar_id).await?;
+pub async fn execute(_: Args) -> anyhow::Result<()> {
+    let config = Config::load()?;
+    let client = Client::new(config.debug, config.impersonate_user_email).await?;
+    let list_events_response = client.list_events(&config.calendar_id).await?;
 
     fn time_to_string(event_time: &CalendarEventTime) -> String {
         match &event_time.date {
