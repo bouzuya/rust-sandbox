@@ -4,27 +4,29 @@ use crate::client::{CalendarEventTime, Client};
 
 #[derive(clap::Args)]
 pub struct Args {
-    #[arg(env, long)]
-    calendar_id: String,
-    #[arg(env, long)]
-    debug: bool,
-    #[arg()]
     event_id: String,
-    // env GOOGLE_APPLICATION_CREDENTIALS
-    #[arg(env = "EMAIL", long)]
-    impersonate_user_email: Option<String>,
 }
 
-pub async fn execute(
-    Args {
-        calendar_id,
-        event_id,
-        debug,
-        impersonate_user_email,
-    }: Args,
-) -> anyhow::Result<()> {
-    let client = Client::new(debug, impersonate_user_email).await?;
-    let get_event_response = client.get_event(&calendar_id, &event_id).await?;
+#[derive(serde::Deserialize)]
+struct Config {
+    pub calendar_id: String,
+    pub debug: bool,
+    // env GOOGLE_APPLICATION_CREDENTIALS
+    pub impersonate_user_email: Option<String>,
+}
+
+pub async fn execute(Args { event_id }: Args) -> anyhow::Result<()> {
+    let xdg_dirs = xdg::BaseDirectories::with_prefix("net.bouzuya.rust-sandbox.yotei")?;
+    let config_file_path = xdg_dirs
+        .place_config_file("config.json")
+        .context("The parent directory of the config file could not be created")?;
+    let config_file_content = std::fs::read_to_string(&config_file_path)
+        .with_context(|| format!("The config file could not be read ({:?})", config_file_path))?;
+    let config = serde_json::from_str::<Config>(&config_file_content)
+        .context("The config file could not be parsed")?;
+
+    let client = Client::new(config.debug, config.impersonate_user_email).await?;
+    let get_event_response = client.get_event(&config.calendar_id, &event_id).await?;
 
     fn time_to_string(event_time: &CalendarEventTime) -> String {
         match &event_time.date {
