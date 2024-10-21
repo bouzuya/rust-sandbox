@@ -88,7 +88,11 @@ impl Client {
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!("status code is not success");
+            anyhow::bail!(
+                "status code is not success ({} {})",
+                response.status(),
+                response.text().await?
+            );
         }
 
         let response_body = response.text().await?;
@@ -140,7 +144,11 @@ impl Client {
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!("status code is not success");
+            anyhow::bail!(
+                "status code is not success ({} {})",
+                response.status(),
+                response.text().await?
+            );
         }
 
         let response_body = response.text().await?;
@@ -169,7 +177,11 @@ impl Client {
             .await?;
 
         if !response.status().is_success() {
-            anyhow::bail!("status code is not success");
+            anyhow::bail!(
+                "status code is not success ({} {})",
+                response.status(),
+                response.text().await?
+            );
         }
 
         let response_body = response.text().await?;
