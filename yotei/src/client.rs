@@ -67,30 +67,16 @@ impl Client {
     }
 
     pub async fn delete_event(&self, calendar_id: &str, event_id: &str) -> anyhow::Result<()> {
-        let token = self
-            .token_source
-            .token()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-
-        let response = self
-            .client
-            .delete(format!(
-                "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
-                calendar_id, event_id
-            ))
-            .header(reqwest::header::AUTHORIZATION, token)
-            .send()
+        let _ = self
+            .request(
+                reqwest::Method::DELETE,
+                format!(
+                    "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
+                    calendar_id, event_id
+                ),
+                None::<&()>,
+            )
             .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!(
-                "status code is not success ({} {})",
-                response.status(),
-                response.text().await?
-            );
-        }
-
         Ok(())
     }
 
@@ -99,30 +85,16 @@ impl Client {
         calendar_id: &str,
         event_id: &str,
     ) -> anyhow::Result<GetEventResponse> {
-        let token = self
-            .token_source
-            .token()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-
         let response = self
-            .client
-            .get(format!(
-                "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
-                calendar_id, event_id
-            ))
-            .header(reqwest::header::AUTHORIZATION, token)
-            .send()
+            .request(
+                reqwest::Method::GET,
+                format!(
+                    "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
+                    calendar_id, event_id
+                ),
+                None::<&()>,
+            )
             .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!(
-                "status code is not success ({} {})",
-                response.status(),
-                response.text().await?
-            );
-        }
-
         let response_body = response.text().await?;
         if self.debug {
             println!("{}", response_body);
@@ -138,47 +110,32 @@ impl Client {
         start_date_time: &str,
         end_date_time: &str,
     ) -> anyhow::Result<InsertEventResponse> {
-        let token = self
-            .token_source
-            .token()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-
         let response = self
-            .client
-            .post(format!(
-                "https://www.googleapis.com/calendar/v3/calendars/{}/events?conferenceDataVersion=1",
-                calendar_id
-            ))
-            .header(reqwest::header::AUTHORIZATION, token)
-            .json(&serde_json::json!({
-                // required properties
-                "end": {
-                    "dateTime": end_date_time
-                },
-                "start": {
-                    "dateTime": start_date_time
-                },
+            .request(
+                reqwest::Method::POST,
+                format!(
+                    "https://www.googleapis.com/calendar/v3/calendars/{}/events?conferenceDataVersion=1",
+                    calendar_id
+                ) ,
+                Some(&serde_json::json!({
+                    // required properties
+                    "end": {
+                        "dateTime": end_date_time
+                    },
+                    "start": {
+                        "dateTime": start_date_time
+                    },
 
-                // optional properties
-                // "attendees": [
-                //     {
-                //         "email": "m@bouzuya.net"
-                //     }
-                // ]
-                "summary": summary
-            }))
-            .send()
+                    // optional properties
+                    // "attendees": [
+                    //     {
+                    //         "email": "m@bouzuya.net"
+                    //     }
+                    // ]
+                    "summary": summary
+                }))
+            )
             .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!(
-                "status code is not success ({} {})",
-                response.status(),
-                response.text().await?
-            );
-        }
-
         let response_body = response.text().await?;
         if self.debug {
             println!("{}", response_body);
@@ -188,21 +145,44 @@ impl Client {
     }
 
     pub async fn list_events(&self, calendar_id: &str) -> anyhow::Result<ListEventsResponse> {
-        let token = self
-            .token_source
-            .token()
-            .await
-            .map_err(|e| anyhow::anyhow!(e))?;
-
         let response = self
-            .client
-            .get(format!(
-                "https://www.googleapis.com/calendar/v3/calendars/{}/events",
-                calendar_id
-            ))
-            .header(reqwest::header::AUTHORIZATION, token)
-            .send()
+            .request(
+                reqwest::Method::GET,
+                format!(
+                    "https://www.googleapis.com/calendar/v3/calendars/{}/events",
+                    calendar_id
+                ),
+                None::<&()>,
+            )
             .await?;
+        let response_body = response.text().await?;
+        if self.debug {
+            println!("{}", response_body);
+        }
+
+        Ok(serde_json::from_str(&response_body)?)
+    }
+
+    async fn request<T>(
+        &self,
+        method: reqwest::Method,
+        url: String,
+        body: Option<&T>,
+    ) -> anyhow::Result<reqwest::Response>
+    where
+        T: serde::Serialize,
+    {
+        let token = self.token().await?;
+        let request = self
+            .client
+            .request(method, url)
+            .header(reqwest::header::AUTHORIZATION, token);
+        let response = match body {
+            Some(body) => request.json(body),
+            None => request,
+        }
+        .send()
+        .await?;
 
         if !response.status().is_success() {
             anyhow::bail!(
@@ -212,11 +192,13 @@ impl Client {
             );
         }
 
-        let response_body = response.text().await?;
-        if self.debug {
-            println!("{}", response_body);
-        }
+        Ok(response)
+    }
 
-        Ok(serde_json::from_str(&response_body)?)
+    async fn token(&self) -> anyhow::Result<String> {
+        self.token_source
+            .token()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))
     }
 }
