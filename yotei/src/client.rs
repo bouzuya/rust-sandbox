@@ -66,6 +66,34 @@ impl Client {
         })
     }
 
+    pub async fn delete_event(&self, calendar_id: &str, event_id: &str) -> anyhow::Result<()> {
+        let token = self
+            .token_source
+            .token()
+            .await
+            .map_err(|e| anyhow::anyhow!(e))?;
+
+        let response = self
+            .client
+            .delete(format!(
+                "https://www.googleapis.com/calendar/v3/calendars/{}/events/{}",
+                calendar_id, event_id
+            ))
+            .header(reqwest::header::AUTHORIZATION, token)
+            .send()
+            .await?;
+
+        if !response.status().is_success() {
+            anyhow::bail!(
+                "status code is not success ({} {})",
+                response.status(),
+                response.text().await?
+            );
+        }
+
+        Ok(())
+    }
+
     pub async fn get_event(
         &self,
         calendar_id: &str,
