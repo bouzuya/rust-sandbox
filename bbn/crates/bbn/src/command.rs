@@ -2,6 +2,7 @@ mod config;
 mod date_range;
 pub mod hatena_blog;
 mod json;
+pub mod link_completion;
 mod list;
 mod sitemap_xml;
 mod view;

@@ -49,6 +49,8 @@ enum Subcommand {
     },
     #[command(name = "json", about = "...")]
     Json { out_dir: PathBuf },
+    #[command(name = "link-completion", about = "Completes links")]
+    LinkCompletion,
     #[command(name = "list", about = "Lists the blog posts")]
     List {
         #[arg(long = "json", help = "json")]
@@ -151,6 +153,7 @@ async fn main() -> anyhow::Result<()> {
             } => command::hatena_blog::view(content, date, hatena_blog_id, meta, web).await,
         },
         Subcommand::Json { out_dir } => command::json(out_dir),
+        Subcommand::LinkCompletion => command::link_completion::run(),
         Subcommand::List { json, query } => command::list(json, query),
         Subcommand::SitemapXml { out_dir } => command::sitemap_xml(out_dir),
         Subcommand::View {
