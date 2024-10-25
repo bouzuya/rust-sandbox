@@ -1,10 +1,8 @@
 [package]
 name = "bbn-data"
-version = "0.0.0"
 authors = ["bouzuya <m@bouzuya.net>"]
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+publish = false
 
 [dependencies]
 anyhow = { workspace = true }
