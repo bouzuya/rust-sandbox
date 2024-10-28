@@ -1,9 +1,11 @@
 mod rule;
 
+use std::path::Path;
+
 use crate::rule::Rule;
 use anyhow::anyhow;
 use pulldown_cmark::{BrokenLink, Options, Parser};
-use std::{collections::BTreeSet, convert::TryFrom, fs, path::PathBuf};
+use std::{collections::BTreeSet, convert::TryFrom, fs};
 
 fn broken_links(content: &str) -> Vec<String> {
     let mut res = vec![];
@@ -35,7 +37,10 @@ pub fn run(rules: &[Rule], content: &str) {
     }
 }
 
-pub fn build_rules(path: &PathBuf) -> anyhow::Result<Vec<Rule>> {
+pub fn build_rules<P>(path: P) -> anyhow::Result<Vec<Rule>>
+where
+    P: AsRef<Path>,
+{
     let content = fs::read_to_string(path)?;
     let json: Vec<(String, String)> = serde_json::from_str(content.as_str())?;
     json.into_iter()
