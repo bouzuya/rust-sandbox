@@ -13,11 +13,16 @@ use crate::{config::Config, credentials::Credentials};
 struct ConfigJson {
     data_dir: PathBuf,
     hatena_blog_data_file: PathBuf,
+    link_completion_rules_file: Option<PathBuf>,
 }
 
 impl From<ConfigJson> for Config {
     fn from(config_json: ConfigJson) -> Self {
-        Self::new(config_json.data_dir, config_json.hatena_blog_data_file)
+        Self::new(
+            config_json.data_dir,
+            config_json.hatena_blog_data_file,
+            config_json.link_completion_rules_file,
+        )
     }
 }
 
@@ -26,6 +31,9 @@ impl From<Config> for ConfigJson {
         Self {
             data_dir: config.data_dir().to_path_buf(),
             hatena_blog_data_file: config.hatena_blog_data_file().to_path_buf(),
+            link_completion_rules_file: config
+                .link_completion_rules_file()
+                .map(|it| it.to_path_buf()),
         }
     }
 }
@@ -168,6 +176,7 @@ mod tests {
         let data_dir = temp_dir.path().join("data");
         fs::create_dir_all(data_dir.as_path())?;
         let hatena_blog_data_file = temp_dir.path().join("hatena_blog.db");
+        let link_completion_rules_file = temp_dir.path().join("link_completion_rules.json");
         // config_repository
         let config_dir = temp_dir.path().join("config");
         fs::create_dir_all(config_dir.as_path())?;
@@ -177,7 +186,11 @@ mod tests {
             config_dir.to_str().context("config dir is not UTF-8")?,
         );
 
-        let config = Config::new(data_dir.clone(), hatena_blog_data_file.clone());
+        let config = Config::new(
+            data_dir.clone(),
+            hatena_blog_data_file.clone(),
+            Some(link_completion_rules_file.clone()),
+        );
         let repository = ConfigRepository::new()?;
         repository.save(config.clone())?;
         let loaded = repository.load()?;
@@ -187,11 +200,14 @@ mod tests {
         assert_eq!(
             saved,
             format!(
-                r#"{{"data_dir":"{}","hatena_blog_data_file":"{}"}}"#,
+                r#"{{"data_dir":"{}","hatena_blog_data_file":"{}","link_completion_rules_file":"{}"}}"#,
                 data_dir.to_str().context("data_dir.to_str()")?,
                 hatena_blog_data_file
                     .to_str()
-                    .context("hatena_blog_data_file.to_str()")?
+                    .context("hatena_blog_data_file.to_str()")?,
+                link_completion_rules_file
+                    .to_str()
+                    .context("link_completion_rules_file.to_str()")?
             )
         );
 
