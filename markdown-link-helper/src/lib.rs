@@ -19,9 +19,10 @@ fn broken_links(content: &str) -> Vec<String> {
     res
 }
 
-pub fn run(rules: &[Rule], content: &str) {
+pub fn run(rules: &[Rule], content: &str) -> Vec<(String, Option<String>)> {
     let links = broken_links(content);
     let links = links.into_iter().collect::<BTreeSet<String>>();
+    let mut results = vec![];
     for link in links {
         let mut m = None;
         for rule in rules.iter() {
@@ -30,11 +31,9 @@ pub fn run(rules: &[Rule], content: &str) {
                 break;
             }
         }
-        match m {
-            None => eprintln!("'{}' is a broken link", link),
-            Some(replaced) => println!("{}", replaced),
-        }
+        results.push((link, m));
     }
+    results
 }
 
 pub fn build_rules<P>(path: P) -> anyhow::Result<Vec<Rule>>

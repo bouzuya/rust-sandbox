@@ -14,6 +14,12 @@ fn main() -> anyhow::Result<()> {
     let opt = <Opt as clap::Parser>::parse();
     let content = fs::read_to_string(&opt.file)?;
     let rules = build_rules(&opt.rule_file)?;
-    run(&rules, &content);
+    let results = run(&rules, &content);
+    for (link, replaced) in results {
+        match replaced {
+            None => eprintln!("'{}' is a broken link", link),
+            Some(replaced) => println!("{}", replaced),
+        }
+    }
     Ok(())
 }
