@@ -219,10 +219,11 @@ dependencies = [
  "dialoguer",
  "diff",
  "hatena-blog-api",
+ "markdown-link-helper",
  "nom 6.1.2",
  "open",
  "predicates",
- "pulldown-cmark",
+ "pulldown-cmark 0.9.6",
  "regex",
  "serde",
  "serde_json",
@@ -1170,6 +1171,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
+name = "markdown-link-helper"
+version = "0.3.2"
+dependencies = [
+ "anyhow",
+ "clap 4.5.20",
+ "pulldown-cmark 0.12.2",
+ "regex",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "memchr"
 version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1476,6 +1489,25 @@ dependencies = [
  "memchr",
  "unicase",
 ]
+
+[[package]]
+name = "pulldown-cmark"
+version = "0.12.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f86ba2052aebccc42cbbb3ed234b8b13ce76f75c3551a303cb2bcffcff12bb14"
+dependencies = [
+ "bitflags 2.6.0",
+ "getopts",
+ "memchr",
+ "pulldown-cmark-escape",
+ "unicase",
+]
+
+[[package]]
+name = "pulldown-cmark-escape"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "007d8adb5ddab6f8e3f491ac63566a7d5002cc7ed73901f72057943fa71ae1ae"
 
 [[package]]
 name = "quick-xml"

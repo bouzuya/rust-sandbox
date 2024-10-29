@@ -50,7 +50,10 @@ enum Subcommand {
     #[command(name = "json", about = "...")]
     Json { out_dir: PathBuf },
     #[command(name = "link-completion", about = "Completes links")]
-    LinkCompletion,
+    LinkCompletion {
+        #[arg(name = "DATE_LIKE", help = "the date. e.g. 2021-02-03 or 2021-W05-3")]
+        date_like: DateLike,
+    },
     #[command(name = "list", about = "Lists the blog posts")]
     List {
         #[arg(long = "json", help = "json")]
@@ -153,7 +156,9 @@ async fn main() -> anyhow::Result<()> {
             } => command::hatena_blog::view(content, date, hatena_blog_id, meta, web).await,
         },
         Subcommand::Json { out_dir } => command::json(out_dir),
-        Subcommand::LinkCompletion => command::link_completion::run(),
+        Subcommand::LinkCompletion { date_like } => {
+            command::link_completion::run(command::link_completion::Params { date_like })
+        }
         Subcommand::List { json, query } => command::list(json, query),
         Subcommand::SitemapXml { out_dir } => command::sitemap_xml(out_dir),
         Subcommand::View {

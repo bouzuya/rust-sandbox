@@ -10,6 +10,7 @@ bbn-repository = { path = "./crates/bbn-repository" }
 chrono = "0.4.19"
 date-range = { path = "../date-range" }
 hatena-blog-api = { git = "https://github.com/bouzuya/rust-hatena-blog-api", tag = "0.2.0", features = ["rustls-tls"] }
+markdown-link-helper = { path = "../markdown-link-helper" }
 nom = "6.1.2"
 serde = { version = "1.0.126", features = ["derive"] }
 serde_json = "1.0.64"
