@@ -11,27 +11,27 @@ bbn-data = { workspace = true }
 bbn-hatena-blog = { workspace = true }
 bbn-repository = { workspace = true }
 chrono = { workspace = true }
-clap = { version = "4.3.10", features = ["derive", "env"] }
-clap_complete = "4.3.1"
-console = "0.14.1"
+clap = { version = "4.5.20", features = ["derive", "env"] }
+clap_complete = "4.5.36"
+console = "0.15.8"
 date-range = { workspace = true }
-dialoguer = "0.8.0"
-diff = "0.1.12"
+dialoguer = "0.11.0"
+diff = "0.1.13"
 hatena-blog-api = { workspace = true }
 markdown-link-helper = { workspace = true }
 nom = { workspace = true }
-open = "1.7.0"
-pulldown-cmark = "0.9.2"
-regex = "1.7.1"
+open = "5.3.0"
+pulldown-cmark = "0.12.2"
+regex = "1.11.1"
 serde = { workspace = true }
 serde_json = { workspace = true }
 sitemap-xml-writer = "0.1.0"
 thiserror = { workspace = true }
 time = { version = "0.3.36", features = ["formatting", "parsing"] }
 tokio = { workspace = true }
-xdg = "2.2.0"
+xdg = "2.5.2"
 
 [dev-dependencies]
-assert_cmd = "1.0.4"
-predicates = "2.0.2"
+assert_cmd = "2.0.16"
+predicates = "3.1.2"
 tempfile = { workspace = true }
