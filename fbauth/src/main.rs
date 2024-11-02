@@ -8,3 +8,16 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, router).await?;
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test() -> anyhow::Result<()> {
+        let url = url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth")?;
+        assert_eq!(
+            url.to_string(),
+            "https://accounts.google.com/o/oauth2/v2/auth"
+        );
+        Ok(())
+    }
+}
