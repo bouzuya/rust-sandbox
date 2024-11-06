@@ -1,10 +1,15 @@
 mod discovery_document;
 
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use axum::{
     extract::{Query, State},
     response::Html,
-    routing::get,
-    Router,
+    routing::{get, post},
+    Json, Router,
 };
 use discovery_document::DiscoveryDocument;
 use tower_http::services::ServeDir;
@@ -59,6 +64,22 @@ async fn callback(
     }
 }
 
+#[derive(serde::Serialize)]
+struct CreateUserResponse {
+    user_id: String,
+    user_secret: String,
+}
+
+async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserResponse> {
+    let mut users = app_state.users.lock().unwrap();
+    let user = User::new();
+    users.insert(user.id, user.clone());
+    Json(CreateUserResponse {
+        user_id: user.id.to_string(),
+        user_secret: user.secret.to_string(),
+    })
+}
+
 async fn root(State(app_state): State<AppState>) -> Html<String> {
     let client_id = &app_state.client_id;
     let nonce = "FIXME";
@@ -89,12 +110,46 @@ async fn root(State(app_state): State<AppState>) -> Html<String> {
     ))
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct UserId(uuid::Uuid);
+
+impl std::fmt::Display for UserId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct UserSecret(uuid::Uuid);
+
+impl std::fmt::Display for UserSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct User {
+    id: UserId,
+    secret: UserSecret,
+}
+
+impl User {
+    fn new() -> Self {
+        Self {
+            id: UserId(uuid::Uuid::new_v4()),
+            secret: UserSecret(uuid::Uuid::new_v4()),
+        }
+    }
+}
+
 #[derive(Clone)]
 struct AppState {
     authorization_endpoint: String,
     client_id: String,
     client_secret: String,
     token_endpoint: String,
+    users: Arc<Mutex<HashMap<UserId, User>>>,
 }
 
 #[tokio::main]
@@ -113,13 +168,15 @@ async fn main() -> anyhow::Result<()> {
 
     let router = Router::new()
         .route("/", get(root))
-        .route("/callback", get(callback))
         .nest_service("/assets", ServeDir::new("assets"))
+        .route("/callback", get(callback))
+        .route("/users", post(create_user))
         .with_state(AppState {
             authorization_endpoint,
             client_id,
             client_secret,
             token_endpoint,
+            users: Arc::new(Mutex::new(Default::default())),
         });
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, router).await?;
