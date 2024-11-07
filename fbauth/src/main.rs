@@ -2,6 +2,7 @@ mod discovery_document;
 
 use std::{
     collections::HashMap,
+    str::FromStr as _,
     sync::{Arc, Mutex},
 };
 
@@ -64,6 +65,60 @@ async fn callback(
     }
 }
 
+#[derive(serde::Deserialize)]
+struct CreateSessionRequestBody {
+    user_id: String,
+    user_secret: String,
+}
+
+#[derive(serde::Serialize)]
+struct CreateSessionResponse {
+    session_token: String,
+}
+
+async fn create_session(
+    State(app_state): State<AppState>,
+    Json(CreateSessionRequestBody {
+        user_id,
+        user_secret,
+    }): Json<CreateSessionRequestBody>,
+) -> Result<Json<CreateSessionResponse>, reqwest::StatusCode> {
+    let users = app_state
+        .users
+        .lock()
+        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let user_id = UserId::from_str(&user_id).map_err(|_| reqwest::StatusCode::BAD_REQUEST)?;
+    let user_secret =
+        UserSecret::from_str(&user_secret).map_err(|_| reqwest::StatusCode::BAD_REQUEST)?;
+    let user = users
+        .get(&user_id)
+        .ok_or_else(|| reqwest::StatusCode::BAD_REQUEST)?;
+    if user.secret != user_secret {
+        return Err(reqwest::StatusCode::BAD_REQUEST);
+    }
+
+    #[derive(Debug, serde::Serialize, serde::Deserialize)]
+    struct Claims {
+        sub: String,
+        // ...
+    }
+    let token = jsonwebtoken::encode(
+        &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
+        &Claims {
+            sub: user_id.to_string(),
+        },
+        &jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../key.pem"))
+            .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?,
+    )
+    .map_err(|e| {
+        println!("{:?}", e);
+        reqwest::StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    Ok(Json(CreateSessionResponse {
+        session_token: token.to_string(),
+    }))
+}
+
 #[derive(serde::Serialize)]
 struct CreateUserResponse {
     user_id: String,
@@ -119,12 +174,28 @@ impl std::fmt::Display for UserId {
     }
 }
 
+impl std::str::FromStr for UserId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(uuid::Uuid::from_str(s)?))
+    }
+}
+
 #[derive(Clone, Eq, PartialEq)]
 struct UserSecret(uuid::Uuid);
 
 impl std::fmt::Display for UserSecret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
+    }
+}
+
+impl std::str::FromStr for UserSecret {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(uuid::Uuid::from_str(s)?))
     }
 }
 
@@ -170,6 +241,7 @@ async fn main() -> anyhow::Result<()> {
         .route("/", get(root))
         .nest_service("/assets", ServeDir::new("assets"))
         .route("/callback", get(callback))
+        .route("/sessions", post(create_session))
         .route("/users", post(create_user))
         .with_state(AppState {
             authorization_endpoint,
