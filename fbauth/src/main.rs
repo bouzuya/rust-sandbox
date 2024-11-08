@@ -110,10 +110,7 @@ async fn create_session(
         &jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../key.pem"))
             .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?,
     )
-    .map_err(|e| {
-        println!("{:?}", e);
-        reqwest::StatusCode::INTERNAL_SERVER_ERROR
-    })?;
+    .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(Json(CreateSessionResponse {
         session_token: token.to_string(),
     }))
@@ -159,6 +156,7 @@ async fn root(State(app_state): State<AppState>) -> Html<String> {
   </head>
   <body>
     <p><a href="{}">Login</a></p>
+    <script src="/assets/scripts/index.js"></script>
   </body
 </html>"#,
         authorization_url
