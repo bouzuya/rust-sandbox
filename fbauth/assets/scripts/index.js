@@ -1,3 +1,20 @@
+async function createAuthorizationUrl({ sessionToken }) {
+  const response = await fetch("/authorization_urls", {
+    headers: {
+      "Authorization": `Bearer ${sessionToken}`,
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+  if (((response.status / 100) | 0) !== 2) {
+    throw new Error(`response status code is not success (code = ${response.status})`);
+  }
+  const responseBody = await response.json();
+  const { authorization_url: authorizationUrl } = responseBody;
+  console.log("create authorization url parsed response body", { authorizationUrl });
+  return { authorizationUrl };
+}
+
 async function createUser() {
   const response = await fetch("/users", {
     headers: {
@@ -5,7 +22,9 @@ async function createUser() {
     },
     method: "POST"
   });
-  console.log("create user response status", { status: response.status });
+  if (((response.status / 100) | 0) !== 2) {
+    throw new Error(`response status code is not success (code = ${response.status})`);
+  }
   const responseBody = await response.json();
   const { user_id: userId, user_secret: userSecret } = responseBody;
   console.log("create user parsed response body", { userId, userSecret });
@@ -23,7 +42,9 @@ async function createSession({ userId, userSecret }) {
     },
     method: "POST",
   });
-  console.log("create session response status", { status: response.status });
+  if (((response.status / 100) | 0) !== 2) {
+    throw new Error(`response status code is not success (code = ${response.status})`);
+  }
   const responseBody = await response.json();
   const { session_token: sessionToken } = responseBody;
   console.log("create session parsed response body", { sessionToken });
@@ -32,8 +53,11 @@ async function createSession({ userId, userSecret }) {
 
 async function main() {
   const user = await createUser();
+  console.log(user);
   const session = await createSession(user);
   console.log(session);
+  const { authorizationUrl } = await createAuthorizationUrl(session);
+  console.log(authorizationUrl);
 }
 
 main();

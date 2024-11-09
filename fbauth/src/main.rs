@@ -8,12 +8,13 @@ use std::{
 
 use axum::{
     extract::{Query, State},
+    http::HeaderMap,
     response::Html,
     routing::{get, post},
     Json, Router,
 };
 use discovery_document::DiscoveryDocument;
-use tower_http::services::ServeDir;
+use tower_http::services::{ServeDir, ServeFile};
 
 #[derive(serde::Deserialize)]
 struct CallbackQueryParams {
@@ -63,6 +64,46 @@ async fn callback(
         // let body = serde_json::from_str(&response_body).unwrap();
         Html(response_body)
     }
+}
+
+#[derive(serde::Serialize)]
+struct CreateAuthorizationUrlResponseBody {
+    authorization_url: String,
+}
+
+async fn create_authorization_url(
+    header_map: HeaderMap,
+    State(app_state): State<AppState>,
+) -> Json<CreateAuthorizationUrlResponseBody> {
+    let jwt = header_map
+        .get("authorization")
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .strip_prefix("Bearer ")
+        .unwrap();
+    // FIXME:
+    // - decode jwt
+    // - get session_id
+    // - generate state
+    // - set state to session
+    println!("jwt = {}", jwt);
+
+    let client_id = &app_state.client_id;
+    let nonce = "FIXME";
+    let redirect_uri = "http://localhost:3000/callback";
+    let state = "FIXME";
+    let mut url = url::Url::parse(&app_state.authorization_endpoint).unwrap();
+    url.query_pairs_mut()
+        .clear()
+        .append_pair("response_type", "code")
+        .append_pair("client_id", client_id)
+        .append_pair("scope", "openid email")
+        .append_pair("redirect_uri", redirect_uri)
+        .append_pair("state", state)
+        .append_pair("nonce", nonce);
+    let authorization_url = url.to_string();
+    Json(CreateAuthorizationUrlResponseBody { authorization_url })
 }
 
 #[derive(serde::Deserialize)]
@@ -130,37 +171,6 @@ async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserRespon
         user_id: user.id.to_string(),
         user_secret: user.secret.to_string(),
     })
-}
-
-async fn root(State(app_state): State<AppState>) -> Html<String> {
-    let client_id = &app_state.client_id;
-    let nonce = "FIXME";
-    let redirect_uri = "http://localhost:3000/callback";
-    let state = "FIXME";
-
-    let mut url = url::Url::parse(&app_state.authorization_endpoint).unwrap();
-    url.query_pairs_mut()
-        .clear()
-        .append_pair("response_type", "code")
-        .append_pair("client_id", client_id)
-        .append_pair("scope", "openid email")
-        .append_pair("redirect_uri", redirect_uri)
-        .append_pair("state", state)
-        .append_pair("nonce", nonce);
-    let authorization_url = url.to_string();
-
-    Html(format!(
-        r#"<html>
-  <head>
-    <title>Title</title>
-  </head>
-  <body>
-    <p><a href="{}">Login</a></p>
-    <script src="/assets/scripts/index.js"></script>
-  </body
-</html>"#,
-        authorization_url
-    ))
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -236,8 +246,9 @@ async fn main() -> anyhow::Result<()> {
     println!("token_endpoint={}", token_endpoint);
 
     let router = Router::new()
-        .route("/", get(root))
+        .route_service("/", ServeFile::new("assets/index.html"))
         .nest_service("/assets", ServeDir::new("assets"))
+        .route("/authorization_urls", post(create_authorization_url))
         .route("/callback", get(callback))
         .route("/sessions", post(create_session))
         .route("/users", post(create_user))
