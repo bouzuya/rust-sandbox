@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <title>mmdv</title>
+  </head>
+<body>
+  <p><a href="/index.mmd">Source File</a></p>
+  <pre class="mermaid"></pre>
+  <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      async function main() {
+        mermaid.initialize({ startOnLoad: false });
+        
+        const previewElement = document.querySelector("pre");
+        if (previewElement === null) throw new Error("pre not found");
+
+        const rerender = async () => {
+          const response = await fetch("/index.mmd");
+          console.log(response);
+          const responseBody = await response.text();
+          console.log(responseBody);
+          const { svg } = await mermaid.render('preview', responseBody);
+          previewElement.innerHTML = svg;
+        };
+
+        rerender();
+
+        const socket = new WebSocket(`${window.location.protocol}//${window.location.host}/ws`);
+        socket.addEventListener("open", (_event) => {
+          console.log("socket open");
+          // socket.send("OK");
+        });
+        socket.addEventListener("message", (_event) => {
+          console.log("file updated");
+          rerender();
+        });
+      }
+
+      main();
+
+  </script>
+</body>
+</html>
