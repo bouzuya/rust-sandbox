@@ -60,7 +60,10 @@ async fn main() -> anyhow::Result<()> {
     let router = axum::Router::new()
         .route_service(
             "/",
-            tower_http::services::ServeFile::new("./public/index.html"),
+            // tower_http::services::ServeFile::new("./public/index.html"),
+            axum::routing::get(|| async {
+                axum::response::Html(include_str!("../public/index.html"))
+            }),
         )
         .route_service(
             "/index.mmd",
