@@ -16,6 +16,14 @@ use axum::{
 use discovery_document::DiscoveryDocument;
 use tower_http::services::{ServeDir, ServeFile};
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+struct Claims {
+    /// session_id
+    sid: String,
+    sub: String,
+    // ...
+}
+
 #[derive(serde::Deserialize)]
 struct CallbackQueryParams {
     // authuser: String,
@@ -82,11 +90,36 @@ async fn create_authorization_url(
         .unwrap()
         .strip_prefix("Bearer ")
         .unwrap();
-    // FIXME:
-    // - decode jwt
-    // - get session_id
-    // - generate state
-    // - set state to session
+
+    // decode jwt
+    let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../key.pem"))
+        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
+        .unwrap();
+    let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
+        jwt,
+        &decoding_key,
+        &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
+    )
+    .unwrap();
+
+    // get session_id
+    let mut sessions = app_state
+        .sessions
+        .lock()
+        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
+        .unwrap();
+    let session_id = SessionId::from_str(&claims.sid)
+        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
+        .unwrap();
+
+    // generate state
+    let state = "FIXME";
+
+    // set state to session
+    sessions.entry(session_id).and_modify(|session| {
+        session.state = Some(state.to_owned());
+    });
+
     println!("jwt = {}", jwt);
 
     let client_id = &app_state.client_id;
@@ -138,14 +171,24 @@ async fn create_session(
         return Err(reqwest::StatusCode::BAD_REQUEST);
     }
 
-    #[derive(Debug, serde::Serialize, serde::Deserialize)]
-    struct Claims {
-        sub: String,
-        // ...
-    }
+    let mut sessions = app_state
+        .sessions
+        .lock()
+        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let session_id = SessionId(uuid::Uuid::new_v4());
+    sessions.insert(
+        session_id,
+        Session {
+            id: session_id,
+            user_id,
+            state: None,
+        },
+    );
+
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
         &Claims {
+            sid: session_id.to_string(),
             sub: user_id.to_string(),
         },
         &jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../key.pem"))
@@ -171,6 +214,30 @@ async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserRespon
         user_id: user.id.to_string(),
         user_secret: user.secret.to_string(),
     })
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct SessionId(uuid::Uuid);
+
+impl std::fmt::Display for SessionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl std::str::FromStr for SessionId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Self(uuid::Uuid::from_str(s)?))
+    }
+}
+
+#[derive(Clone, Eq, PartialEq)]
+struct Session {
+    id: SessionId,
+    user_id: UserId,
+    state: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -227,6 +294,7 @@ struct AppState {
     authorization_endpoint: String,
     client_id: String,
     client_secret: String,
+    sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     token_endpoint: String,
     users: Arc<Mutex<HashMap<UserId, User>>>,
 }
@@ -256,6 +324,7 @@ async fn main() -> anyhow::Result<()> {
             authorization_endpoint,
             client_id,
             client_secret,
+            sessions: Arc::new(Mutex::new(Default::default())),
             token_endpoint,
             users: Arc::new(Mutex::new(Default::default())),
         });
