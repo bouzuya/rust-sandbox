@@ -1,4 +1,5 @@
 mod discovery_document;
+mod user_id;
 
 use std::{
     collections::HashMap,
@@ -15,6 +16,7 @@ use axum::{
 };
 use discovery_document::DiscoveryDocument;
 use tower_http::services::{ServeDir, ServeFile};
+use user_id::UserId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct Claims {
@@ -240,23 +242,6 @@ struct Session {
     state: Option<String>,
 }
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct UserId(uuid::Uuid);
-
-impl std::fmt::Display for UserId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl std::str::FromStr for UserId {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(uuid::Uuid::from_str(s)?))
-    }
-}
-
 #[derive(Clone, Eq, PartialEq)]
 struct UserSecret(uuid::Uuid);
 
@@ -283,7 +268,7 @@ struct User {
 impl User {
     fn new() -> Self {
         Self {
-            id: UserId(uuid::Uuid::new_v4()),
+            id: UserId::generate(),
             secret: UserSecret(uuid::Uuid::new_v4()),
         }
     }
