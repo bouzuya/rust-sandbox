@@ -3,7 +3,7 @@ pub struct UserId(uuid::Uuid);
 
 impl UserId {
     pub fn generate() -> Self {
-        UserId(uuid::Uuid::new_v4())
+        Self(uuid::Uuid::new_v4())
     }
 }
 

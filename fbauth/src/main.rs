@@ -1,4 +1,5 @@
 mod discovery_document;
+mod session_id;
 mod user;
 mod user_id;
 mod user_secret;
@@ -17,6 +18,7 @@ use axum::{
     Json, Router,
 };
 use discovery_document::DiscoveryDocument;
+use session_id::SessionId;
 use tower_http::services::{ServeDir, ServeFile};
 use user::User;
 use user_id::UserId;
@@ -181,7 +183,7 @@ async fn create_session(
         .sessions
         .lock()
         .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
-    let session_id = SessionId(uuid::Uuid::new_v4());
+    let session_id = SessionId::generate();
     sessions.insert(
         session_id,
         Session {
@@ -220,23 +222,6 @@ async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserRespon
         user_id: user.id.to_string(),
         user_secret: user.secret.to_string(),
     })
-}
-
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
-struct SessionId(uuid::Uuid);
-
-impl std::fmt::Display for SessionId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-impl std::str::FromStr for SessionId {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(uuid::Uuid::from_str(s)?))
-    }
 }
 
 #[derive(Clone, Eq, PartialEq)]
