@@ -1,4 +1,5 @@
 mod discovery_document;
+mod user;
 mod user_id;
 mod user_secret;
 
@@ -17,6 +18,7 @@ use axum::{
 };
 use discovery_document::DiscoveryDocument;
 use tower_http::services::{ServeDir, ServeFile};
+use user::User;
 use user_id::UserId;
 use user_secret::UserSecret;
 
@@ -242,21 +244,6 @@ struct Session {
     id: SessionId,
     user_id: UserId,
     state: Option<String>,
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct User {
-    id: UserId,
-    secret: UserSecret,
-}
-
-impl User {
-    fn new() -> Self {
-        Self {
-            id: UserId::generate(),
-            secret: UserSecret::generate(),
-        }
-    }
 }
 
 #[derive(Clone)]
