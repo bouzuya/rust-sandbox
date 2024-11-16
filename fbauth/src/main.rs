@@ -149,6 +149,29 @@ async fn create_authorization_url(
     Json(CreateAuthorizationUrlResponseBody { authorization_url })
 }
 
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("client")]
+    Client,
+    #[error("server")]
+    Server,
+}
+
+impl axum::response::IntoResponse for Error {
+    fn into_response(self) -> axum::response::Response {
+        axum::response::IntoResponse::into_response(match self {
+            Error::Client => reqwest::StatusCode::BAD_REQUEST,
+            Error::Server => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+        })
+    }
+}
+
+impl<T> From<std::sync::PoisonError<T>> for Error {
+    fn from(_: std::sync::PoisonError<T>) -> Self {
+        Error::Server
+    }
+}
+
 #[derive(serde::Deserialize)]
 struct CreateSessionRequestBody {
     user_id: String,
@@ -166,25 +189,16 @@ async fn create_session(
         user_id,
         user_secret,
     }): Json<CreateSessionRequestBody>,
-) -> Result<Json<CreateSessionResponse>, reqwest::StatusCode> {
-    let users = app_state
-        .users
-        .lock()
-        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
-    let user_id = UserId::from_str(&user_id).map_err(|_| reqwest::StatusCode::BAD_REQUEST)?;
-    let user_secret =
-        UserSecret::from_str(&user_secret).map_err(|_| reqwest::StatusCode::BAD_REQUEST)?;
-    let user = users
-        .get(&user_id)
-        .ok_or_else(|| reqwest::StatusCode::BAD_REQUEST)?;
+) -> Result<Json<CreateSessionResponse>, Error> {
+    let users = app_state.users.lock()?;
+    let user_id = UserId::from_str(&user_id).map_err(|_| Error::Client)?;
+    let user_secret = UserSecret::from_str(&user_secret).map_err(|_| Error::Client)?;
+    let user = users.get(&user_id).ok_or_else(|| Error::Client)?;
     if user.secret != user_secret {
-        return Err(reqwest::StatusCode::BAD_REQUEST);
+        return Err(Error::Client);
     }
 
-    let mut sessions = app_state
-        .sessions
-        .lock()
-        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
+    let mut sessions = app_state.sessions.lock().map_err(|_| Error::Server)?;
     let session_id = SessionId::generate();
     sessions.insert(
         session_id,
@@ -202,9 +216,9 @@ async fn create_session(
             sub: user_id.to_string(),
         },
         &jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../key.pem"))
-            .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?,
+            .map_err(|_| Error::Server)?,
     )
-    .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)?;
+    .map_err(|_| Error::Server)?;
     Ok(Json(CreateSessionResponse {
         session_token: token.to_string(),
     }))
