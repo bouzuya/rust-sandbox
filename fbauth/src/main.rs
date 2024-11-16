@@ -1,4 +1,5 @@
 mod discovery_document;
+mod session;
 mod session_id;
 mod user;
 mod user_id;
@@ -18,6 +19,7 @@ use axum::{
     Json, Router,
 };
 use discovery_document::DiscoveryDocument;
+use session::Session;
 use session_id::SessionId;
 use tower_http::services::{ServeDir, ServeFile};
 use user::User;
@@ -222,13 +224,6 @@ async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserRespon
         user_id: user.id.to_string(),
         user_secret: user.secret.to_string(),
     })
-}
-
-#[derive(Clone, Eq, PartialEq)]
-struct Session {
-    id: SessionId,
-    user_id: UserId,
-    state: Option<String>,
 }
 
 #[derive(Clone)]
