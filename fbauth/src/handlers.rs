@@ -1,13 +1,12 @@
 mod create_authorization_urls;
 mod create_session;
+mod create_user;
 
-use crate::user::User;
 use crate::AppState;
 use axum::{
     extract::{Query, State},
     response::Html,
-    routing::{get, post},
-    Json,
+    routing::get,
 };
 use tower_http::services::{ServeDir, ServeFile};
 
@@ -92,28 +91,12 @@ impl<T> From<std::sync::PoisonError<T>> for Error {
     }
 }
 
-#[derive(serde::Serialize)]
-struct CreateUserResponse {
-    user_id: String,
-    user_secret: String,
-}
-
-async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserResponse> {
-    let mut users = app_state.users.lock().unwrap();
-    let user = User::new();
-    users.insert(user.id, user.clone());
-    Json(CreateUserResponse {
-        user_id: user.id.to_string(),
-        user_secret: user.secret.to_string(),
-    })
-}
-
 pub fn route() -> axum::Router<AppState> {
     axum::Router::new()
         .merge(create_authorization_urls::route())
         .merge(create_session::route())
+        .merge(create_user::route())
         .route_service("/", ServeFile::new("assets/index.html"))
         .nest_service("/assets", ServeDir::new("assets"))
         .route("/callback", get(callback))
-        .route("/users", post(create_user))
 }
