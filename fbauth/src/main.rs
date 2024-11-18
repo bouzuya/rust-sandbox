@@ -6,7 +6,26 @@ mod user;
 mod user_id;
 mod user_secret;
 
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
+
 use discovery_document::DiscoveryDocument;
+use session::Session;
+use session_id::SessionId;
+use user::User;
+use user_id::UserId;
+
+#[derive(Clone)]
+pub(crate) struct AppState {
+    authorization_endpoint: String,
+    client_id: String,
+    client_secret: String,
+    sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
+    token_endpoint: String,
+    users: Arc<Mutex<HashMap<UserId, User>>>,
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -22,12 +41,15 @@ async fn main() -> anyhow::Result<()> {
     println!("client_secret={}", client_secret);
     println!("token_endpoint={}", token_endpoint);
 
-    let router = handlers::route(
+    let state = AppState {
         authorization_endpoint,
-        token_endpoint,
         client_id,
         client_secret,
-    );
+        sessions: Arc::new(Mutex::new(Default::default())),
+        token_endpoint,
+        users: Arc::new(Mutex::new(Default::default())),
+    };
+    let router = handlers::route().with_state(state);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())

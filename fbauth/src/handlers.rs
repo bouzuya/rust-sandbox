@@ -1,16 +1,12 @@
 mod create_authorization_urls;
 
-use std::{
-    collections::HashMap,
-    str::FromStr as _,
-    sync::{Arc, Mutex},
-};
+use std::str::FromStr as _;
 
-use crate::session::Session;
 use crate::session_id::SessionId;
 use crate::user::User;
 use crate::user_id::UserId;
 use crate::user_secret::UserSecret;
+use crate::{session::Session, AppState};
 use axum::{
     extract::{Query, State},
     response::Html,
@@ -168,36 +164,12 @@ async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserRespon
     })
 }
 
-#[derive(Clone)]
-pub(crate) struct AppState {
-    authorization_endpoint: String,
-    client_id: String,
-    client_secret: String,
-    sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
-    token_endpoint: String,
-    users: Arc<Mutex<HashMap<UserId, User>>>,
-}
-
-pub fn route(
-    authorization_endpoint: String,
-    token_endpoint: String,
-    client_id: String,
-    client_secret: String,
-) -> axum::Router {
-    let router = axum::Router::new()
+pub fn route() -> axum::Router<AppState> {
+    axum::Router::new()
         .merge(create_authorization_urls::route())
         .route_service("/", ServeFile::new("assets/index.html"))
         .nest_service("/assets", ServeDir::new("assets"))
         .route("/callback", get(callback))
         .route("/sessions", post(create_session))
         .route("/users", post(create_user))
-        .with_state(AppState {
-            authorization_endpoint,
-            client_id,
-            client_secret,
-            sessions: Arc::new(Mutex::new(Default::default())),
-            token_endpoint,
-            users: Arc::new(Mutex::new(Default::default())),
-        });
-    router
 }
