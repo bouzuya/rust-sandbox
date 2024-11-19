@@ -1,11 +1,11 @@
+mod assets;
 mod callback;
 mod create_authorization_urls;
 mod create_session;
 mod create_user;
+mod root;
 
 use crate::AppState;
-
-use tower_http::services::{ServeDir, ServeFile};
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Claims {
@@ -40,10 +40,10 @@ impl<T> From<std::sync::PoisonError<T>> for Error {
 
 pub fn route() -> axum::Router<AppState> {
     axum::Router::new()
+        .merge(assets::route())
         .merge(callback::route())
         .merge(create_authorization_urls::route())
         .merge(create_session::route())
         .merge(create_user::route())
-        .route_service("/", ServeFile::new("assets/index.html"))
-        .nest_service("/assets", ServeDir::new("assets"))
+        .merge(root::route())
 }
