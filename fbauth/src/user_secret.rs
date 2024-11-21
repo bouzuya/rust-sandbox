@@ -1,10 +1,34 @@
-// FIXME: use safe secret
+use argon2::{
+    password_hash::{
+        rand_core::{OsRng, RngCore},
+        PasswordHasher, SaltString,
+    },
+    Argon2, PasswordHash, PasswordVerifier,
+};
+
 #[derive(Clone, Eq, PartialEq)]
-pub struct UserSecret(uuid::Uuid);
+pub struct UserSecret(String);
 
 impl UserSecret {
-    pub fn generate() -> Self {
-        Self(uuid::Uuid::new_v4())
+    pub fn generate() -> anyhow::Result<(Self, String)> {
+        let mut bytes = [0u8; 48];
+        OsRng.fill_bytes(&mut bytes);
+        let password = hex::encode(bytes);
+
+        let salt = SaltString::generate(&mut OsRng);
+
+        let argon2 = Argon2::default();
+        let password_hash = argon2
+            .hash_password(password.as_bytes(), &salt)?
+            .to_string();
+
+        Ok((Self(password_hash), password))
+    }
+
+    pub fn verify(&self, password: &str) -> anyhow::Result<()> {
+        let password_hash = PasswordHash::new(&self.0).expect("password_hash to be valid");
+        let argon2 = Argon2::default();
+        Ok(argon2.verify_password(password.as_bytes(), &password_hash)?)
     }
 }
 
@@ -18,6 +42,7 @@ impl std::str::FromStr for UserSecret {
     type Err = anyhow::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(uuid::Uuid::from_str(s)?))
+        let password_hash = PasswordHash::new(s)?;
+        Ok(Self(password_hash.to_string()))
     }
 }

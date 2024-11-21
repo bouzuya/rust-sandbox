@@ -5,7 +5,9 @@ publish = false
 
 [dependencies]
 anyhow = "1.0.92"
+argon2 = { version = "0.5.3", features = ["std"] }
 axum = "0.7.7"
+hex = "0.4.3"
 jsonwebtoken = "9.3.0"
 reqwest = { version = "0.12.9", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.214", features = ["derive"] }

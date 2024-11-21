@@ -10,11 +10,11 @@ struct CreateUserResponse {
 
 async fn create_user(State(app_state): State<AppState>) -> Json<CreateUserResponse> {
     let mut users = app_state.users.lock().unwrap();
-    let user = User::new();
+    let (user, raw) = User::new().expect("FIXME");
     users.insert(user.id, user.clone());
     Json(CreateUserResponse {
         user_id: user.id.to_string(),
-        user_secret: user.secret.to_string(),
+        user_secret: raw,
     })
 }
 

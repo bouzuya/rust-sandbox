@@ -2,7 +2,6 @@ use std::str::FromStr as _;
 
 use crate::session_id::SessionId;
 use crate::user_id::UserId;
-use crate::user_secret::UserSecret;
 use crate::{session::Session, AppState};
 use axum::{extract::State, routing::post, Json};
 
@@ -28,11 +27,10 @@ async fn create_session(
 ) -> Result<Json<CreateSessionResponse>, Error> {
     let users = app_state.users.lock()?;
     let user_id = UserId::from_str(&user_id).map_err(|_| Error::Client)?;
-    let user_secret = UserSecret::from_str(&user_secret).map_err(|_| Error::Client)?;
     let user = users.get(&user_id).ok_or_else(|| Error::Client)?;
-    if user.secret != user_secret {
-        return Err(Error::Client);
-    }
+    user.secret
+        .verify(&user_secret)
+        .map_err(|_| Error::Client)?;
 
     let mut sessions = app_state.sessions.lock().map_err(|_| Error::Server)?;
     let session_id = SessionId::generate();
