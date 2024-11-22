@@ -5,6 +5,8 @@ use axum::{
     routing::get,
 };
 
+use super::Error;
+
 #[derive(serde::Deserialize)]
 struct CallbackQueryParams {
     // authuser: String,
@@ -27,7 +29,7 @@ struct TokenRequestBody {
 async fn callback(
     State(app_state): State<AppState>,
     Query(query): Query<CallbackQueryParams>,
-) -> Html<String> {
+) -> Result<Html<String>, Error> {
     // FIXME: check state
     println!("query.state = {}", query.state);
     let redirect_uri = "http://localhost:3000/callback".to_owned();
@@ -43,15 +45,17 @@ async fn callback(
         })
         .send()
         .await
-        .unwrap();
+        .map_err(|_| Error::Server)?;
     if !response.status().is_success() {
         println!("status code = {}", response.status());
-        println!("response body = {}", response.text().await.unwrap());
-        Html("ERROR".to_owned())
+        println!(
+            "response body = {}",
+            response.text().await.map_err(|_| Error::Server)?
+        );
+        Ok(Html("ERROR".to_owned()))
     } else {
-        let response_body = response.text().await.unwrap();
-        // let body = serde_json::from_str(&response_body).unwrap();
-        Html(response_body)
+        let response_body = response.text().await.map_err(|_| Error::Server)?;
+        Ok(Html(response_body))
     }
 }
 
