@@ -1,4 +1,4 @@
-use super::AppState;
+use super::{AppState, Error};
 
 use std::str::FromStr as _;
 
@@ -14,35 +14,28 @@ struct CreateAuthorizationUrlResponseBody {
 async fn create_authorization_url(
     header_map: HeaderMap,
     State(app_state): State<AppState>,
-) -> Json<CreateAuthorizationUrlResponseBody> {
+) -> Result<Json<CreateAuthorizationUrlResponseBody>, Error> {
     let jwt = header_map
         .get("authorization")
-        .unwrap()
+        .ok_or_else(|| Error::Client)?
         .to_str()
-        .unwrap()
+        .map_err(|_| Error::Client)?
         .strip_prefix("Bearer ")
-        .unwrap();
+        .ok_or_else(|| Error::Client)?;
 
     // decode jwt
     let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../../key.pem"))
-        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-        .unwrap();
+        .map_err(|_| Error::Server)?;
     let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
         jwt,
         &decoding_key,
         &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
     )
-    .unwrap();
+    .map_err(|_| Error::Client)?;
 
     // get session_id
-    let mut sessions = app_state
-        .sessions
-        .lock()
-        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-        .unwrap();
-    let session_id = SessionId::from_str(&claims.sid)
-        .map_err(|_| reqwest::StatusCode::INTERNAL_SERVER_ERROR)
-        .unwrap();
+    let mut sessions = app_state.sessions.lock()?;
+    let session_id = SessionId::from_str(&claims.sid).map_err(|_| Error::Client)?;
 
     // generate state
     let state = "FIXME";
@@ -58,7 +51,7 @@ async fn create_authorization_url(
     let nonce = "FIXME";
     let redirect_uri = "http://localhost:3000/callback";
     let state = "FIXME";
-    let mut url = url::Url::parse(&app_state.authorization_endpoint).unwrap();
+    let mut url = url::Url::parse(&app_state.authorization_endpoint).map_err(|_| Error::Server)?;
     url.query_pairs_mut()
         .clear()
         .append_pair("response_type", "code")
@@ -68,7 +61,9 @@ async fn create_authorization_url(
         .append_pair("state", state)
         .append_pair("nonce", nonce);
     let authorization_url = url.to_string();
-    Json(CreateAuthorizationUrlResponseBody { authorization_url })
+    Ok(Json(CreateAuthorizationUrlResponseBody {
+        authorization_url,
+    }))
 }
 
 pub fn route() -> axum::Router<AppState> {
