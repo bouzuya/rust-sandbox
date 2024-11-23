@@ -1,10 +1,42 @@
-use super::{AppState, Error};
+use super::{AppState, Claims, Error};
 
 use std::str::FromStr as _;
 
-use crate::handlers::Claims;
 use crate::session_id::SessionId;
-use axum::{extract::State, http::HeaderMap, Json};
+use axum::{extract::State, Json};
+
+struct SessionIdExtractor(SessionId);
+
+#[axum::async_trait]
+impl axum::extract::FromRequestParts<AppState> for SessionIdExtractor {
+    type Rejection = Error;
+
+    async fn from_request_parts(
+        parts: &mut axum::http::request::Parts,
+        _state: &AppState,
+    ) -> Result<Self, Self::Rejection> {
+        let jwt = parts
+            .headers
+            .get("authorization")
+            .ok_or_else(|| Error::Client)?
+            .to_str()
+            .map_err(|_| Error::Client)?
+            .strip_prefix("Bearer ")
+            .ok_or_else(|| Error::Client)?;
+
+        let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../../key.pem"))
+            .map_err(|_| Error::Server)?;
+        let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
+            jwt,
+            &decoding_key,
+            &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
+        )
+        .map_err(|_| Error::Client)?;
+
+        let session_id = SessionId::from_str(&claims.sid).map_err(|_| Error::Client)?;
+        Ok(Self(session_id))
+    }
+}
 
 #[derive(serde::Serialize)]
 struct CreateAuthorizationUrlResponseBody {
@@ -12,30 +44,10 @@ struct CreateAuthorizationUrlResponseBody {
 }
 
 async fn create_authorization_url(
-    header_map: HeaderMap,
+    SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
 ) -> Result<Json<CreateAuthorizationUrlResponseBody>, Error> {
-    let jwt = header_map
-        .get("authorization")
-        .ok_or_else(|| Error::Client)?
-        .to_str()
-        .map_err(|_| Error::Client)?
-        .strip_prefix("Bearer ")
-        .ok_or_else(|| Error::Client)?;
-
-    // decode jwt
-    let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../../key.pem"))
-        .map_err(|_| Error::Server)?;
-    let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
-        jwt,
-        &decoding_key,
-        &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
-    )
-    .map_err(|_| Error::Client)?;
-
-    // get session_id
     let mut sessions = app_state.sessions.lock()?;
-    let session_id = SessionId::from_str(&claims.sid).map_err(|_| Error::Client)?;
 
     // generate state
     let state = "FIXME";
@@ -44,8 +56,6 @@ async fn create_authorization_url(
     sessions.entry(session_id).and_modify(|session| {
         session.state = Some(state.to_owned());
     });
-
-    println!("jwt = {}", jwt);
 
     let client_id = &app_state.client_id;
     let nonce = "FIXME";
