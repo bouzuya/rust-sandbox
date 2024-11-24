@@ -56,8 +56,26 @@ async function main() {
   console.log(user);
   const session = await createSession(user);
   console.log(session);
-  const { authorizationUrl } = await createAuthorizationUrl(session);
-  console.log(authorizationUrl);
+
+  const bodyElement = document.querySelector('body');
+  const rootElement = document.createElement('div');
+  const signUpButtonElement = document.createElement('button');
+  signUpButtonElement.appendChild(document.createTextNode('SignUp'));
+  signUpButtonElement.addEventListener('click', (e) => {
+    void (async () => {
+      const { authorizationUrl } = await createAuthorizationUrl(session);
+      console.log(authorizationUrl);
+    })();
+  });
+  rootElement.appendChild(signUpButtonElement);
+  const signInButtonElement = document.createElement('button');
+  signInButtonElement.appendChild(document.createTextNode('SignUp'));
+  signInButtonElement.addEventListener('click', (e) => {
+    void (async () => {
+      console.log('FIXME: sign in');
+    })();
+  });
+  bodyElement.appendChild(rootElement);
 }
 
 main();
