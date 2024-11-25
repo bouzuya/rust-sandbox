@@ -24,8 +24,9 @@ impl axum::extract::FromRequestParts<AppState> for SessionIdExtractor {
             .strip_prefix("Bearer ")
             .ok_or_else(|| Error::Client)?;
 
-        let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../../key.pem"))
-            .map_err(|_| Error::Server)?;
+        let decoding_key =
+            jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../../public_key.pem"))
+                .map_err(|_| Error::Server)?;
         let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
             jwt,
             &decoding_key,

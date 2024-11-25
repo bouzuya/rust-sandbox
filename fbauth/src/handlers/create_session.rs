@@ -3,6 +3,7 @@ use std::str::FromStr as _;
 use crate::session_id::SessionId;
 use crate::user_id::UserId;
 use crate::{session::Session, AppState};
+use anyhow::Context as _;
 use axum::{extract::State, routing::post, Json};
 
 use super::{Claims, Error};
@@ -43,14 +44,24 @@ async fn create_session(
         },
     );
 
+    let encoding_key =
+        jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../../private_key.pem"))
+            .map_err(|_| Error::Server)?;
+    let exp = std::time::SystemTime::now()
+        .checked_add(std::time::Duration::from_secs(60 * 60))
+        .context("std::time::SystemTime::checked_add")
+        .map_err(|_| Error::Server)?
+        .duration_since(std::time::SystemTime::UNIX_EPOCH)
+        .map_err(|_| Error::Server)?
+        .as_secs();
     let token = jsonwebtoken::encode(
         &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
         &Claims {
+            exp,
             sid: session_id.to_string(),
             sub: user_id.to_string(),
         },
-        &jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../../key.pem"))
-            .map_err(|_| Error::Server)?,
+        &encoding_key,
     )
     .map_err(|_| Error::Server)?;
     Ok(Json(CreateSessionResponse {

@@ -57,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
     fn test() -> anyhow::Result<()> {
         let url = url::Url::parse("https://accounts.google.com/o/oauth2/v2/auth")?;
@@ -64,6 +65,46 @@ mod tests {
             url.to_string(),
             "https://accounts.google.com/o/oauth2/v2/auth"
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_jwt() -> anyhow::Result<()> {
+        #[derive(Debug, serde::Serialize, serde::Deserialize)]
+        pub(crate) struct Claims {
+            /// session_id
+            exp: u64,
+            sid: String,
+            sub: String,
+            // ...
+        }
+
+        let exp = std::time::SystemTime::now()
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)?
+            .as_secs()
+            + 60 * 60;
+
+        let pem = include_bytes!("../private_key.pem");
+        let encoding_key = jsonwebtoken::EncodingKey::from_rsa_pem(pem)?;
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
+            &Claims {
+                exp,
+                sid: "sid1".to_owned(),
+                sub: "uid1".to_owned(),
+            },
+            &encoding_key,
+        )?;
+        let pem = include_bytes!("../public_key.pem");
+        let decoding_key = jsonwebtoken::DecodingKey::from_rsa_pem(pem)?;
+        let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
+            &token,
+            &decoding_key,
+            &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
+        )?;
+
+        assert_ne!(format!("{:?}", claims), "");
+
         Ok(())
     }
 }

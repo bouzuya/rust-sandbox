@@ -9,6 +9,7 @@ use crate::AppState;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Claims {
+    exp: u64,
     /// session_id
     sid: String,
     sub: String,
