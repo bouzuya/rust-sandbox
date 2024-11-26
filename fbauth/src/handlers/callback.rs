@@ -1,8 +1,7 @@
-use crate::AppState;
+use crate::{session_id_extractor::SessionIdExtractor, AppState};
 use axum::{
     extract::{Query, State},
     response::Html,
-    routing::get,
 };
 
 use super::Error;
@@ -27,11 +26,16 @@ struct TokenRequestBody {
 }
 
 async fn callback(
-    State(app_state): State<AppState>,
+    SessionIdExtractor(session_id): SessionIdExtractor,
     Query(query): Query<CallbackQueryParams>,
+    State(app_state): State<AppState>,
 ) -> Result<Html<String>, Error> {
-    // FIXME: check state
-    println!("query.state = {}", query.state);
+    let sessions = app_state.sessions.lock().await;
+    let session = sessions.get(&session_id).ok_or_else(|| Error::Client)?;
+    if session.state != Some(query.state) {
+        return Err(Error::Client);
+    }
+
     let redirect_uri = "http://localhost:3000/callback".to_owned();
 
     let response = reqwest::Client::new()
@@ -60,5 +64,5 @@ async fn callback(
 }
 
 pub fn route() -> axum::Router<AppState> {
-    axum::Router::new().route("/callback", get(callback))
+    axum::Router::new().route("/callback", axum::routing::get(callback))
 }

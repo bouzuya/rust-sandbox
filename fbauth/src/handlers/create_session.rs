@@ -26,14 +26,14 @@ async fn create_session(
         user_secret,
     }): Json<CreateSessionRequestBody>,
 ) -> Result<Json<CreateSessionResponse>, Error> {
-    let users = app_state.users.lock()?;
+    let users = app_state.users.lock().await;
     let user_id = UserId::from_str(&user_id).map_err(|_| Error::Client)?;
     let user = users.get(&user_id).ok_or_else(|| Error::Client)?;
     user.secret
         .verify(&user_secret)
         .map_err(|_| Error::Client)?;
 
-    let mut sessions = app_state.sessions.lock().map_err(|_| Error::Server)?;
+    let mut sessions = app_state.sessions.lock().await;
     let session_id = SessionId::generate();
     sessions.insert(
         session_id,

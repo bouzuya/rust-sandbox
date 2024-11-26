@@ -2,14 +2,14 @@ mod discovery_document;
 mod handlers;
 mod session;
 mod session_id;
+mod session_id_extractor;
 mod user;
 mod user_id;
 mod user_secret;
 
-use std::{
-    collections::HashMap,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, sync::Arc};
+
+use tokio::sync::Mutex;
 
 use discovery_document::DiscoveryDocument;
 use session::Session;

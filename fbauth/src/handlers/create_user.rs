@@ -11,7 +11,7 @@ struct CreateUserResponse {
 }
 
 async fn create_user(State(app_state): State<AppState>) -> Result<Json<CreateUserResponse>, Error> {
-    let mut users = app_state.users.lock()?;
+    let mut users = app_state.users.lock().await;
     let (user, raw) = User::new().map_err(|_| Error::Server)?;
     users.insert(user.id, user.clone());
     Ok(Json(CreateUserResponse {

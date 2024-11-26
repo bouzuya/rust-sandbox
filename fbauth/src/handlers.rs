@@ -9,15 +9,15 @@ use crate::AppState;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub(crate) struct Claims {
-    exp: u64,
+    pub(crate) exp: u64,
     /// session_id
-    sid: String,
-    sub: String,
+    pub(crate) sid: String,
+    pub(crate) sub: String,
     // ...
 }
 
 #[derive(Debug, thiserror::Error)]
-enum Error {
+pub(crate) enum Error {
     #[error("client")]
     Client,
     #[error("server")]
@@ -30,12 +30,6 @@ impl axum::response::IntoResponse for Error {
             Error::Client => reqwest::StatusCode::BAD_REQUEST,
             Error::Server => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
         })
-    }
-}
-
-impl<T> From<std::sync::PoisonError<T>> for Error {
-    fn from(_: std::sync::PoisonError<T>) -> Self {
-        Error::Server
     }
 }
 
