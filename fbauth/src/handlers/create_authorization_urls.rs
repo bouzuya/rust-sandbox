@@ -30,7 +30,7 @@ async fn create_authorization_url(
 
     let client_id = &app_state.client_id;
     let nonce = "FIXME";
-    let redirect_uri = "http://localhost:3000/callback";
+    let redirect_uri = "http://localhost:3000/";
     let mut url = url::Url::parse(&app_state.authorization_endpoint).map_err(|_| Error::Server)?;
     url.query_pairs_mut()
         .clear()

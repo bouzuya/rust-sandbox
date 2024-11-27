@@ -1,7 +1,7 @@
 use crate::{session_id_extractor::SessionIdExtractor, AppState};
 use axum::{
     extract::{Query, State},
-    response::Html,
+    Json,
 };
 
 use super::Error;
@@ -25,18 +25,18 @@ struct TokenRequestBody {
     grant_type: String,
 }
 
-async fn callback(
+async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     Query(query): Query<CallbackQueryParams>,
     State(app_state): State<AppState>,
-) -> Result<Html<String>, Error> {
+) -> Result<Json<String>, Error> {
     let sessions = app_state.sessions.lock().await;
     let session = sessions.get(&session_id).ok_or_else(|| Error::Client)?;
     if session.state != Some(query.state) {
         return Err(Error::Client);
     }
 
-    let redirect_uri = "http://localhost:3000/callback".to_owned();
+    let redirect_uri = "http://localhost:3000/".to_owned();
 
     let response = reqwest::Client::new()
         .post(app_state.token_endpoint)
@@ -56,13 +56,17 @@ async fn callback(
             "response body = {}",
             response.text().await.map_err(|_| Error::Server)?
         );
-        Ok(Html("ERROR".to_owned()))
+        return Err(Error::Client);
     } else {
         let response_body = response.text().await.map_err(|_| Error::Server)?;
-        Ok(Html(response_body))
+
+        // FIXME: fetch the user_id using the id token
+
+        Ok(Json(response_body))
     }
 }
 
 pub fn route() -> axum::Router<AppState> {
-    axum::Router::new().route("/callback", axum::routing::get(callback))
+    // FIXME: path
+    axum::Router::new().route("/associate_google_account", axum::routing::post(handle))
 }

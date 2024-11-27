@@ -1,5 +1,5 @@
 mod assets;
-mod callback;
+mod associate_google_account;
 mod create_authorization_urls;
 mod create_session;
 mod create_user;
@@ -36,7 +36,7 @@ impl axum::response::IntoResponse for Error {
 pub fn route() -> axum::Router<AppState> {
     axum::Router::new()
         .merge(assets::route())
-        .merge(callback::route())
+        .merge(associate_google_account::route())
         .merge(create_authorization_urls::route())
         .merge(create_session::route())
         .merge(create_user::route())

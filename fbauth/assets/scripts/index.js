@@ -51,11 +51,82 @@ async function createSession({ userId, userSecret }) {
   return { sessionToken };
 }
 
-async function main() {
-  const user = await createUser();
+async function associateGoogleAccount({ sessionToken }, { code, state }) {
+  const response = await fetch("/associate_google_account?code=" + encodeURIComponent(code) + "&state=" + encodeURIComponent(state), {
+    headers: {
+      "Authorization": `Bearer ${sessionToken}`,
+      "Content-Type": "application/json"
+    },
+    method: "POST"
+  });
+  if (((response.status / 100) | 0) !== 2) {
+    throw new Error(`response status code is not success (code = ${response.status})`);
+  }
+  const responseBody = await response.json();
+  console.log("associate google account parsed response body", JSON.stringify(responseBody));
+  return responseBody;
+}
+
+async function callback(code, state) {
+  const stored = localStorage.getItem("session");
+  if (stored === null) {
+    throw new Error("stored session is invalid");
+  }
+  const session = JSON.parse(stored);
+
+  const response = await associateGoogleAccount(session, { code, state });
+  console.log(response);
+}
+
+async function initial() {
+  const user = await (async () => {
+    const key = "user";
+    const stored = localStorage.getItem(key);
+    if (stored === null) {
+      const user = await createUser();
+      localStorage.setItem(key, JSON.stringify(user));
+      return user;
+    } else {
+      const user = JSON.parse(stored);
+      if (
+        typeof user === "object" &&
+          user !== null &&
+          "userId" in user &&
+          typeof user["userId"] === "string" &&
+          "userSecret" in user &&
+          typeof user["userSecret"] === "string"
+      ) {
+        return user;
+      } else {
+        localStorage.removeItem(key);
+        throw new Error("stored user is invalid");
+      }
+    }
+  })();
   console.log(user);
-  const session = await createSession(user);
-  console.log(session);
+
+  const session = await (async (user) => {
+    const key = "session";
+    const stored = localStorage.getItem(key);
+    if (stored === null) {
+      const session = await createSession(user);
+      localStorage.setItem(key, JSON.stringify(session));
+      return session;
+    } else {
+      const session = JSON.parse(stored);
+      if (
+        typeof session === "object" &&
+          session !== null &&
+          "sessionToken" in session &&
+          typeof user["sessionToken"] === "string"
+      ) {
+        return session;
+      } else {
+        localStorage.removeItem(key);
+        throw new Error("stored session is invalid");
+      }
+     }
+  })(user);
 
   const bodyElement = document.querySelector('body');
   const rootElement = document.createElement('div');
@@ -76,6 +147,15 @@ async function main() {
     })();
   });
   bodyElement.appendChild(rootElement);
+}
+
+async function main() {
+  const url = new URL(window.location.href);
+  if (url.searchParams.get("code") === null || url.searchParams.get("state") === null) {
+    initial();
+  } else {
+    callback(url.searchParams.get("code"), url.searchParams.get("state"));
+  }
 }
 
 main();
