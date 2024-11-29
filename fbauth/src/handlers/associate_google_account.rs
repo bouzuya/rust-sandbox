@@ -25,6 +25,15 @@ struct TokenRequestBody {
     grant_type: String,
 }
 
+#[derive(Debug, serde::Deserialize)]
+struct TokenResponseBody {
+    access_token: String,
+    expires_in: u32,
+    id_token: String,
+    scope: String,
+    token_type: String,
+}
+
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     Query(query): Query<CallbackQueryParams>,
@@ -59,6 +68,36 @@ async fn handle(
         return Err(Error::Client);
     } else {
         let response_body = response.text().await.map_err(|_| Error::Server)?;
+        println!("response body = {}", response_body);
+
+        let token_response_body =
+            serde_json::from_str::<TokenResponseBody>(&response_body).map_err(|_| Error::Server)?;
+        println!("token response body = {:?}", token_response_body);
+
+        // FIXME: cache jwks
+        let response = reqwest::get(&app_state.jwks_uri)
+            .await
+            .map_err(|_| Error::Server)?;
+        let jwks: jsonwebtoken::jwk::JwkSet = response.json().await.map_err(|_| Error::Server)?;
+
+        let header = jsonwebtoken::decode_header(&token_response_body.id_token)
+            .map_err(|_| Error::Server)?;
+        let kid = header.kid.ok_or_else(|| Error::Server)?;
+        let jwk = jwks.find(&kid).ok_or_else(|| Error::Server)?;
+        let decoding_key = jsonwebtoken::DecodingKey::from_jwk(&jwk).map_err(|_| Error::Server)?;
+        #[derive(serde::Deserialize)]
+        struct IdTokenClaims {
+            nonce: String,
+        }
+        let decoded = jsonwebtoken::decode::<IdTokenClaims>(
+            &token_response_body.id_token,
+            &decoding_key,
+            &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
+        )
+        .map_err(|_| Error::Server)?;
+        if Some(decoded.claims.nonce) != session.nonce {
+            return Err(Error::Server);
+        }
 
         // FIXME: fetch the user_id using the id token
 
