@@ -22,14 +22,21 @@ async fn create_authorization_url(
         OsRng.fill_bytes(&mut bytes);
         hex::encode(bytes)
     };
+    // generate nonce
+    let nonce = {
+        let mut bytes = [0u8; 32];
+        OsRng.fill_bytes(&mut bytes);
+        hex::encode(bytes)
+    };
 
-    // set state to session
+    // set state and nonce to session
     sessions.entry(session_id).and_modify(|session| {
         session.state = Some(state.to_owned());
+        session.nonce = Some(nonce.to_owned());
     });
 
     let client_id = &app_state.client_id;
-    let nonce = "FIXME";
+
     let redirect_uri = "http://localhost:3000/";
     let mut url = url::Url::parse(&app_state.authorization_endpoint).map_err(|_| Error::Server)?;
     url.query_pairs_mut()
@@ -39,7 +46,7 @@ async fn create_authorization_url(
         .append_pair("scope", "openid email")
         .append_pair("redirect_uri", redirect_uri)
         .append_pair("state", &state)
-        .append_pair("nonce", nonce);
+        .append_pair("nonce", &nonce);
     let authorization_url = url.to_string();
     Ok(Json(CreateAuthorizationUrlResponseBody {
         authorization_url,
