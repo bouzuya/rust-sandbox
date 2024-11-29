@@ -4,6 +4,7 @@ use anyhow::Context as _;
 #[derive(serde::Deserialize)]
 pub struct DiscoveryDocument {
     pub authorization_endpoint: String,
+    pub jwks_uri: String,
     pub token_endpoint: String,
 }
 

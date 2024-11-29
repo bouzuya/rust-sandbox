@@ -22,6 +22,7 @@ pub(crate) struct AppState {
     authorization_endpoint: String,
     client_id: String,
     client_secret: String,
+    jwks_uri: String,
     sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     token_endpoint: String,
     users: Arc<Mutex<HashMap<UserId, User>>>,
@@ -31,6 +32,7 @@ pub(crate) struct AppState {
 async fn main() -> anyhow::Result<()> {
     let DiscoveryDocument {
         authorization_endpoint,
+        jwks_uri,
         token_endpoint,
     } = DiscoveryDocument::fetch().await?;
     let client_id = std::env::var("CLIENT_ID")?;
@@ -45,6 +47,7 @@ async fn main() -> anyhow::Result<()> {
         authorization_endpoint,
         client_id,
         client_secret,
+        jwks_uri,
         sessions: Arc::new(Mutex::new(Default::default())),
         token_endpoint,
         users: Arc::new(Mutex::new(Default::default())),
