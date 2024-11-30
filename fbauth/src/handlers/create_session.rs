@@ -39,6 +39,7 @@ async fn create_session(
         session_id,
         Session {
             id: session_id,
+            nonce: None,
             user_id,
             state: None,
         },

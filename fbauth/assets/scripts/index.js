@@ -136,6 +136,7 @@ async function initial() {
     void (async () => {
       const { authorizationUrl } = await createAuthorizationUrl(session);
       console.log(authorizationUrl);
+      window.location.href = authorizationUrl;
     })();
   });
   rootElement.appendChild(signUpButtonElement);

@@ -51,7 +51,7 @@ async fn handle(
         .post(app_state.token_endpoint)
         .json(&TokenRequestBody {
             code: query.code,
-            client_id: app_state.client_id,
+            client_id: app_state.client_id.clone(),
             client_secret: app_state.client_secret,
             redirect_uri,
             grant_type: "authorization_code".to_owned(),
@@ -78,26 +78,39 @@ async fn handle(
         let response = reqwest::get(&app_state.jwks_uri)
             .await
             .map_err(|_| Error::Server)?;
+        println!("fetched jwks = {:?}", response.status());
         let jwks: jsonwebtoken::jwk::JwkSet = response.json().await.map_err(|_| Error::Server)?;
+        println!("parsed jwks = {:?}", jwks);
 
         let header = jsonwebtoken::decode_header(&token_response_body.id_token)
             .map_err(|_| Error::Server)?;
+        println!("decode_header = {:?}", header);
         let kid = header.kid.ok_or_else(|| Error::Server)?;
+        println!("kid = {:?}", kid);
         let jwk = jwks.find(&kid).ok_or_else(|| Error::Server)?;
+        println!("jwk = {:?}", jwk);
         let decoding_key = jsonwebtoken::DecodingKey::from_jwk(&jwk).map_err(|_| Error::Server)?;
-        #[derive(serde::Deserialize)]
+        #[derive(Debug, serde::Deserialize)]
         struct IdTokenClaims {
             nonce: String,
         }
+        let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+        validation.set_audience(&[app_state.client_id]);
+        validation.set_issuer(&["https://accounts.google.com"]);
         let decoded = jsonwebtoken::decode::<IdTokenClaims>(
             &token_response_body.id_token,
             &decoding_key,
-            &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
+            &validation,
         )
-        .map_err(|_| Error::Server)?;
+        .map_err(|e| {
+            println!("decode error = {:?}", e);
+            Error::Server
+        })?;
+        println!("decoded = {:?}", decoded);
         if Some(decoded.claims.nonce) != session.nonce {
             return Err(Error::Server);
         }
+        println!("OK");
 
         // FIXME: fetch the user_id using the id token
 
