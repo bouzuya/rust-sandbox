@@ -27,11 +27,11 @@ struct TokenRequestBody {
 
 #[derive(Debug, serde::Deserialize)]
 struct TokenResponseBody {
-    access_token: String,
-    expires_in: u32,
+    // access_token: String,
+    // expires_in: u32,
     id_token: String,
-    scope: String,
-    token_type: String,
+    // scope: String,
+    // token_type: String,
 }
 
 async fn handle(
@@ -39,8 +39,8 @@ async fn handle(
     Query(query): Query<CallbackQueryParams>,
     State(app_state): State<AppState>,
 ) -> Result<Json<String>, Error> {
-    let sessions = app_state.sessions.lock().await;
-    let session = sessions.get(&session_id).ok_or_else(|| Error::Client)?;
+    let mut sessions = app_state.sessions.lock().await;
+    let session = sessions.get_mut(&session_id).ok_or_else(|| Error::Client)?;
     if session.state != Some(query.state) {
         return Err(Error::Client);
     }
@@ -110,6 +110,8 @@ async fn handle(
         if Some(decoded.claims.nonce) != session.nonce {
             return Err(Error::Server);
         }
+
+        session.nonce = None;
         println!("OK");
 
         // FIXME: fetch the user_id using the id token
