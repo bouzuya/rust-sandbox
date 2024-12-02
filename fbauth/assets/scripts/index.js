@@ -79,6 +79,19 @@ async function callback(code, state) {
 }
 
 async function initial() {
+  const bodyElement = document.querySelector('body');
+  const rootElement = document.createElement('div');
+  bodyElement.appendChild(rootElement);
+  const resetButtonElement = document.createElement('button');
+  resetButtonElement.appendChild(document.createTextNode('Reset'));
+  resetButtonElement.addEventListener('click', (e) => {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      localStorage.removeItem(key);
+    }
+  });
+  rootElement.appendChild(resetButtonElement);
+
   const user = await (async () => {
     const key = "user";
     const stored = localStorage.getItem(key);
@@ -128,8 +141,6 @@ async function initial() {
      }
   })(user);
 
-  const bodyElement = document.querySelector('body');
-  const rootElement = document.createElement('div');
   const signUpButtonElement = document.createElement('button');
   signUpButtonElement.appendChild(document.createTextNode('SignUp'));
   signUpButtonElement.addEventListener('click', (e) => {
@@ -141,13 +152,13 @@ async function initial() {
   });
   rootElement.appendChild(signUpButtonElement);
   const signInButtonElement = document.createElement('button');
-  signInButtonElement.appendChild(document.createTextNode('SignUp'));
+  signInButtonElement.appendChild(document.createTextNode('SignIn'));
   signInButtonElement.addEventListener('click', (e) => {
     void (async () => {
       console.log('FIXME: sign in');
     })();
   });
-  bodyElement.appendChild(rootElement);
+  rootElement.appendChild(signInButtonElement);
 }
 
 async function main() {
