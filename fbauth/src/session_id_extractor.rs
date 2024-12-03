@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 use super::AppState;
 
 use std::str::FromStr as _;
@@ -18,23 +20,36 @@ impl axum::extract::FromRequestParts<AppState> for SessionIdExtractor {
         let jwt = parts
             .headers
             .get("authorization")
-            .ok_or_else(|| Error::Client)?
+            .ok_or_else(|| {
+                Error::Client(anyhow::anyhow!(
+                    "SessionIdExtractor authorization header not found"
+                ))
+            })?
             .to_str()
-            .map_err(|_| Error::Client)?
+            .context("SessionIdExtractor authorization header value is not UTF-8")
+            .map_err(Error::Client)?
             .strip_prefix("Bearer ")
-            .ok_or_else(|| Error::Client)?;
+            .ok_or_else(|| {
+                Error::Client(anyhow::anyhow!(
+                    "SessionIdExtractor authorization header value does not start with `Bearer `"
+                ))
+            })?;
 
         let decoding_key =
             jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../public_key.pem"))
-                .map_err(|_| Error::Server)?;
+                .context("SessionIdExtractor DecodingKey::from_rsa_pem")
+                .map_err(Error::Server)?;
         let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
             jwt,
             &decoding_key,
             &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
         )
-        .map_err(|_| Error::Client)?;
+        .context("SessionIdExtractor decode")
+        .map_err(Error::Client)?;
 
-        let session_id = SessionId::from_str(&claims.sid).map_err(|_| Error::Client)?;
+        let session_id = SessionId::from_str(&claims.sid)
+            .context("SessionIdExtractor SessionId::from_str")
+            .map_err(Error::Client)?;
         Ok(Self(session_id))
     }
 }

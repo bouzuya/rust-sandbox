@@ -1,4 +1,5 @@
 use crate::{session_id_extractor::SessionIdExtractor, AppState};
+use anyhow::Context as _;
 use axum::{
     extract::{Query, State},
     Json,
@@ -40,9 +41,15 @@ async fn handle(
     State(app_state): State<AppState>,
 ) -> Result<Json<String>, Error> {
     let mut sessions = app_state.sessions.lock().await;
-    let session = sessions.get_mut(&session_id).ok_or_else(|| Error::Client)?;
+    let session = sessions.get_mut(&session_id).ok_or_else(|| {
+        Error::Client(anyhow::anyhow!(
+            "associate_google_account session not found"
+        ))
+    })?;
     if session.state != Some(query.state) {
-        return Err(Error::Client);
+        return Err(Error::Client(anyhow::anyhow!(
+            "associate_google_account session state not match"
+        )));
     }
 
     let redirect_uri = "http://localhost:3000/".to_owned();
@@ -58,38 +65,62 @@ async fn handle(
         })
         .send()
         .await
-        .map_err(|_| Error::Server)?;
+        .context("associate_google_account token request")
+        .map_err(Error::Server)?;
     if !response.status().is_success() {
         println!("status code = {}", response.status());
         println!(
             "response body = {}",
-            response.text().await.map_err(|_| Error::Server)?
+            response
+                .text()
+                .await
+                .context("associate_google_account response.text")
+                .map_err(Error::Server)?
         );
-        return Err(Error::Client);
+        return Err(Error::Client(anyhow::anyhow!(
+            "associate_google_account status is not success"
+        )));
     } else {
-        let response_body = response.text().await.map_err(|_| Error::Server)?;
+        let response_body = response
+            .text()
+            .await
+            .context("associate_google_account response.text")
+            .map_err(Error::Server)?;
         println!("response body = {}", response_body);
 
-        let token_response_body =
-            serde_json::from_str::<TokenResponseBody>(&response_body).map_err(|_| Error::Server)?;
+        let token_response_body = serde_json::from_str::<TokenResponseBody>(&response_body)
+            .context("associate_google_account serde_json::from_str")
+            .map_err(Error::Server)?;
         println!("token response body = {:?}", token_response_body);
 
         // FIXME: cache jwks
         let response = reqwest::get(&app_state.jwks_uri)
             .await
-            .map_err(|_| Error::Server)?;
+            .context("associate_google_account request::get(jwks_uri)")
+            .map_err(Error::Server)?;
         println!("fetched jwks = {:?}", response.status());
-        let jwks: jsonwebtoken::jwk::JwkSet = response.json().await.map_err(|_| Error::Server)?;
+        let jwks: jsonwebtoken::jwk::JwkSet = response
+            .json()
+            .await
+            .context("associate_google_account response.json (JwkSet)")
+            .map_err(Error::Server)?;
         println!("parsed jwks = {:?}", jwks);
 
         let header = jsonwebtoken::decode_header(&token_response_body.id_token)
-            .map_err(|_| Error::Server)?;
+            .context("associate_google_account decode_header")
+            .map_err(Error::Server)?;
         println!("decode_header = {:?}", header);
-        let kid = header.kid.ok_or_else(|| Error::Server)?;
+        let kid = header.kid.ok_or_else(|| {
+            Error::Server(anyhow::anyhow!("associate_google_account kid not found"))
+        })?;
         println!("kid = {:?}", kid);
-        let jwk = jwks.find(&kid).ok_or_else(|| Error::Server)?;
+        let jwk = jwks.find(&kid).ok_or_else(|| {
+            Error::Server(anyhow::anyhow!("associate_google_account jwk not found"))
+        })?;
         println!("jwk = {:?}", jwk);
-        let decoding_key = jsonwebtoken::DecodingKey::from_jwk(&jwk).map_err(|_| Error::Server)?;
+        let decoding_key = jsonwebtoken::DecodingKey::from_jwk(&jwk)
+            .context("associate_google_account DecodingKey::from_jwk")
+            .map_err(Error::Server)?;
         #[derive(Debug, serde::Deserialize)]
         struct IdTokenClaims {
             nonce: String,
@@ -102,13 +133,13 @@ async fn handle(
             &decoding_key,
             &validation,
         )
-        .map_err(|e| {
-            println!("decode error = {:?}", e);
-            Error::Server
-        })?;
+        .context("associate_google_account jsonwebtoken::decode")
+        .map_err(Error::Server)?;
         println!("decoded = {:?}", decoded);
         if Some(decoded.claims.nonce) != session.nonce {
-            return Err(Error::Server);
+            return Err(Error::Server(anyhow::anyhow!(
+                "associate_google_account nonce not match"
+            )));
         }
 
         session.nonce = None;

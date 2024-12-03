@@ -1,5 +1,6 @@
 use crate::user::User;
 use crate::AppState;
+use anyhow::Context as _;
 use axum::{extract::State, routing::post, Json};
 
 use super::Error;
@@ -10,9 +11,11 @@ struct CreateUserResponse {
     user_secret: String,
 }
 
-async fn create_user(State(app_state): State<AppState>) -> Result<Json<CreateUserResponse>, Error> {
+async fn handle(State(app_state): State<AppState>) -> Result<Json<CreateUserResponse>, Error> {
     let mut users = app_state.users.lock().await;
-    let (user, raw) = User::new().map_err(|_| Error::Server)?;
+    let (user, raw) = User::new()
+        .context("create_user User::new")
+        .map_err(Error::Server)?;
     users.insert(user.id, user.clone());
     Ok(Json(CreateUserResponse {
         user_id: user.id.to_string(),
@@ -21,5 +24,5 @@ async fn create_user(State(app_state): State<AppState>) -> Result<Json<CreateUse
 }
 
 pub fn route() -> axum::Router<AppState> {
-    axum::Router::new().route("/users", post(create_user))
+    axum::Router::new().route("/users", post(handle))
 }

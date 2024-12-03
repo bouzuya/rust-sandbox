@@ -2,6 +2,7 @@ use crate::session_id_extractor::SessionIdExtractor;
 
 use super::{AppState, Error};
 
+use anyhow::Context as _;
 use argon2::password_hash::rand_core::{OsRng, RngCore};
 use axum::{extract::State, Json};
 
@@ -10,7 +11,7 @@ struct CreateAuthorizationUrlResponseBody {
     authorization_url: String,
 }
 
-async fn create_authorization_url(
+async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
 ) -> Result<Json<CreateAuthorizationUrlResponseBody>, Error> {
@@ -38,7 +39,9 @@ async fn create_authorization_url(
     let client_id = &app_state.client_id;
 
     let redirect_uri = "http://localhost:3000/";
-    let mut url = url::Url::parse(&app_state.authorization_endpoint).map_err(|_| Error::Server)?;
+    let mut url = url::Url::parse(&app_state.authorization_endpoint)
+        .context("create_authorization_url Url::parse(authorization_endpoint)")
+        .map_err(Error::Server)?;
     url.query_pairs_mut()
         .clear()
         .append_pair("response_type", "code")
@@ -54,8 +57,5 @@ async fn create_authorization_url(
 }
 
 pub fn route() -> axum::Router<AppState> {
-    axum::Router::new().route(
-        "/authorization_urls",
-        axum::routing::post(create_authorization_url),
-    )
+    axum::Router::new().route("/authorization_urls", axum::routing::post(handle))
 }

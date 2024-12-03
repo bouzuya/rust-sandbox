@@ -19,16 +19,16 @@ pub(crate) struct Claims {
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum Error {
     #[error("client")]
-    Client,
+    Client(#[source] anyhow::Error),
     #[error("server")]
-    Server,
+    Server(#[source] anyhow::Error),
 }
 
 impl axum::response::IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         axum::response::IntoResponse::into_response(match self {
-            Error::Client => reqwest::StatusCode::BAD_REQUEST,
-            Error::Server => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+            Error::Client(_) => reqwest::StatusCode::BAD_REQUEST,
+            Error::Server(_) => reqwest::StatusCode::INTERNAL_SERVER_ERROR,
         })
     }
 }
