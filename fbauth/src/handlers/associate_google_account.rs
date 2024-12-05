@@ -68,15 +68,16 @@ async fn handle(
         .context("associate_google_account token request")
         .map_err(Error::Server)?;
     if !response.status().is_success() {
-        println!("status code = {}", response.status());
-        println!(
-            "response body = {}",
-            response
-                .text()
-                .await
-                .context("associate_google_account response.text")
-                .map_err(Error::Server)?
+        tracing::error!(
+            "token request status is not success status_code = {}",
+            response.status()
         );
+        let response_body = response
+            .text()
+            .await
+            .context("associate_google_account response.text")
+            .map_err(Error::Server)?;
+        tracing::error!("token request response body = {}", response_body);
         return Err(Error::Client(anyhow::anyhow!(
             "associate_google_account status is not success"
         )));
@@ -86,38 +87,38 @@ async fn handle(
             .await
             .context("associate_google_account response.text")
             .map_err(Error::Server)?;
-        println!("response body = {}", response_body);
+        tracing::debug!("token request response body = {}", response_body);
 
-        let token_response_body = serde_json::from_str::<TokenResponseBody>(&response_body)
+        let response_body = serde_json::from_str::<TokenResponseBody>(&response_body)
             .context("associate_google_account serde_json::from_str")
             .map_err(Error::Server)?;
-        println!("token response body = {:?}", token_response_body);
+        tracing::debug!("token request response body (parsed) = {:?}", response_body);
 
         // FIXME: cache jwks
         let response = reqwest::get(&app_state.jwks_uri)
             .await
             .context("associate_google_account request::get(jwks_uri)")
             .map_err(Error::Server)?;
-        println!("fetched jwks = {:?}", response.status());
+        tracing::debug!("fetched jwks = {:?}", response.status());
         let jwks: jsonwebtoken::jwk::JwkSet = response
             .json()
             .await
             .context("associate_google_account response.json (JwkSet)")
             .map_err(Error::Server)?;
-        println!("parsed jwks = {:?}", jwks);
+        tracing::debug!("parsed jwks = {:?}", jwks);
 
-        let header = jsonwebtoken::decode_header(&token_response_body.id_token)
+        let header = jsonwebtoken::decode_header(&response_body.id_token)
             .context("associate_google_account decode_header")
             .map_err(Error::Server)?;
-        println!("decode_header = {:?}", header);
+        tracing::debug!("decode_header = {:?}", header);
         let kid = header.kid.ok_or_else(|| {
             Error::Server(anyhow::anyhow!("associate_google_account kid not found"))
         })?;
-        println!("kid = {:?}", kid);
+        tracing::debug!("kid = {:?}", kid);
         let jwk = jwks.find(&kid).ok_or_else(|| {
             Error::Server(anyhow::anyhow!("associate_google_account jwk not found"))
         })?;
-        println!("jwk = {:?}", jwk);
+        tracing::debug!("jwk = {:?}", jwk);
         let decoding_key = jsonwebtoken::DecodingKey::from_jwk(&jwk)
             .context("associate_google_account DecodingKey::from_jwk")
             .map_err(Error::Server)?;
@@ -129,13 +130,13 @@ async fn handle(
         validation.set_audience(&[app_state.client_id]);
         validation.set_issuer(&["https://accounts.google.com"]);
         let decoded = jsonwebtoken::decode::<IdTokenClaims>(
-            &token_response_body.id_token,
+            &response_body.id_token,
             &decoding_key,
             &validation,
         )
         .context("associate_google_account jsonwebtoken::decode")
         .map_err(Error::Server)?;
-        println!("decoded = {:?}", decoded);
+        tracing::debug!("decoded = {:?}", decoded);
         if Some(decoded.claims.nonce) != session.nonce {
             return Err(Error::Server(anyhow::anyhow!(
                 "associate_google_account nonce not match"
@@ -143,7 +144,7 @@ async fn handle(
         }
 
         session.nonce = None;
-        println!("OK");
+        tracing::debug!("OK");
 
         // FIXME: fetch the user_id using the id token
 
