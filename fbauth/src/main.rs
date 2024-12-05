@@ -9,6 +9,8 @@ mod user_secret;
 
 use std::{collections::HashMap, sync::Arc};
 
+use anyhow::Context as _;
+use handlers::Claims;
 use tokio::sync::Mutex;
 
 use discovery_document::DiscoveryDocument;
@@ -28,6 +30,43 @@ pub(crate) struct AppState {
     sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     token_endpoint: String,
     users: Arc<Mutex<HashMap<UserId, User>>>,
+}
+
+impl AppState {
+    pub async fn create_session_token(&self, user_id: UserId) -> anyhow::Result<String> {
+        let mut sessions = self.sessions.lock().await;
+        let session_id = SessionId::generate();
+        sessions.insert(
+            session_id,
+            Session {
+                id: session_id,
+                nonce: None,
+                user_id,
+                state: None,
+            },
+        );
+
+        let encoding_key =
+            jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
+                .context("create_session EncodingKey::from_rsa_pem")?;
+        let exp = std::time::SystemTime::now()
+            .checked_add(std::time::Duration::from_secs(60 * 60))
+            .context("create_session std::time::SystemTime::checked_add")?
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .context("create_session SystemTime::duration_since")?
+            .as_secs();
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
+            &Claims {
+                exp,
+                sid: session_id.to_string(),
+                sub: user_id.to_string(),
+            },
+            &encoding_key,
+        )
+        .context("create_session encode")?;
+        Ok(token.to_string())
+    }
 }
 
 #[tokio::main]
