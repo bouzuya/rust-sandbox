@@ -4,6 +4,7 @@ mod create_authorization_urls;
 mod create_session;
 mod create_user;
 mod root;
+mod sign_in;
 
 use crate::AppState;
 
@@ -41,4 +42,5 @@ pub fn route() -> axum::Router<AppState> {
         .merge(create_session::route())
         .merge(create_user::route())
         .merge(root::route())
+        .merge(sign_in::route())
 }
