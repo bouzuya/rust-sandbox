@@ -125,6 +125,7 @@ async fn handle(
         #[derive(Debug, serde::Deserialize)]
         struct IdTokenClaims {
             nonce: String,
+            sub: String,
         }
         let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
         validation.set_audience(&[app_state.client_id]);
@@ -144,11 +145,20 @@ async fn handle(
         }
 
         session.nonce = None;
-        tracing::debug!("OK");
+
+        let mut google_accounts = app_state.google_accounts.lock().await;
+        if google_accounts.contains_key(&decoded.claims.sub) {
+            return Err(Error::Client(anyhow::anyhow!(
+                "associate_google_account already associated"
+            )));
+        }
+        google_accounts
+            .entry(decoded.claims.sub)
+            .or_insert(session.user_id);
 
         // FIXME: fetch the user_id using the id token
 
-        Ok(Json(response_body))
+        Ok(Json("OK".to_owned()))
     }
 }
 
