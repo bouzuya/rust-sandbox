@@ -1,13 +1,10 @@
 use crate::{session_id_extractor::SessionIdExtractor, AppState};
-use axum::{
-    extract::{Query, State},
-    Json,
-};
+use axum::{extract::State, Json};
 
 use super::Error;
 
 #[derive(serde::Deserialize)]
-struct CallbackQueryParams {
+struct RequestBody {
     // authuser: String,
     code: String,
     // hd: String,
@@ -18,8 +15,8 @@ struct CallbackQueryParams {
 
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
-    Query(query): Query<CallbackQueryParams>,
     State(app_state): State<AppState>,
+    Json(body): Json<RequestBody>,
 ) -> Result<Json<String>, Error> {
     let mut sessions = app_state.sessions.lock().await;
     let session = sessions.get_mut(&session_id).ok_or_else(|| {
@@ -27,7 +24,7 @@ async fn handle(
             "associate_google_account session not found"
         ))
     })?;
-    if session.state != Some(query.state) {
+    if session.state != Some(body.state) {
         return Err(Error::Client(anyhow::anyhow!(
             "associate_google_account session state not match"
         )));
@@ -39,7 +36,7 @@ async fn handle(
         .ok_or_else(|| Error::Client(anyhow::anyhow!("associate_google_account nonce is none")))?;
     // FIXME: Error::Client or Error::Server
     let google_account_id = app_state
-        .send_token_request_and_verify_id_token(query.code, nonce)
+        .send_token_request_and_verify_id_token(body.code, nonce)
         .await
         .map_err(Error::Server)?;
     session.nonce = None;
@@ -61,5 +58,5 @@ async fn handle(
 
 pub fn route() -> axum::Router<AppState> {
     // FIXME: path
-    axum::Router::new().route("/associate_google_account", axum::routing::post(handle))
+    axum::Router::new().route("/sign_up", axum::routing::post(handle))
 }

@@ -28,10 +28,13 @@ async fn main() -> anyhow::Result<()> {
     let client_id = std::env::var("CLIENT_ID")?;
     let client_secret = std::env::var("CLIENT_SECRET")?;
 
-    tracing::debug!("authorization_endpoint={}", authorization_endpoint);
-    tracing::debug!("client_id={}", client_id);
-    tracing::debug!("client_secret={}", client_secret);
-    tracing::debug!("token_endpoint={}", token_endpoint);
+    tracing::debug!(
+        authorization_endpoint,
+        client_id,
+        client_secret,
+        token_endpoint,
+        "config loaded"
+    );
 
     let state = AppState {
         authorization_endpoint,

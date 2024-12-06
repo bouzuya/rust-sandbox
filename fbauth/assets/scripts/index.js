@@ -51,8 +51,12 @@ async function createSession({ userId, userSecret }) {
   return { sessionToken };
 }
 
-async function associateGoogleAccount({ sessionToken }, { code, state }) {
-  const response = await fetch("/associate_google_account?code=" + encodeURIComponent(code) + "&state=" + encodeURIComponent(state), {
+async function signUp({ sessionToken }, { code, state }) {
+  const response = await fetch("/sign_up", {
+    body: JSON.stringify({
+      code,
+      state,
+    }),
     headers: {
       "Authorization": `Bearer ${sessionToken}`,
       "Content-Type": "application/json"
