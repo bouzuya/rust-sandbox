@@ -1,0 +1,68 @@
+sequenceDiagram
+    %% ref. https://infosec.mozilla.org/guidelines/iam/openid_connect.html
+    participant browser as Browser (User-Agent)
+    participant server as Server (Relying Party)
+    participant idp as IdP (IdP)
+
+    participant User
+    %% participant SPA
+    participant BE
+    participant IdP
+
+    server ->> idp : GET https://accounts.google.com/.well-known/openid-configuration    
+    idp -->> server : discovery document
+    note left of idp : {"authorization_endpoint":"https://...",<br />"jwks_uri":"https://...",<br />"token_endpoint":"https://..."}
+    
+    note over server : load env : client_id + client_secret
+
+    note over browser : User visits /
+
+    browser ->> server : GET /
+    server -->> browser : index.html
+
+    note over browser, server: create user
+    browser ->> server : POST /users
+    server -->> browser : created user
+    note left of server : {"user_id":"...",<br />"user_secret":"..."}
+
+
+    note over browser, server: create session
+    browser ->> server : POST /sessions
+    note right of browser : {"user_id":"...",<br />"user_secret":"..."}
+    server -->> browser : created session
+    note left of server : {"session_token":"..."}
+
+
+    note over browser, idp: sign up
+    browser ->> server : POST /authorization_urls
+    note right of browser : (with bearer)
+    server -->> browser : created authorization_url
+    note left of server : {"authorization_url":"https://..."}<br />client_id=...<br />nonce=...<br />redirect_uri=...<br />response_type=code<br />scope=openid email<br />state=...
+
+    browser ->> idp : GET ${authorization_url}
+    note right of browser : (TODO)
+    idp -->> browser : login page
+    browser ->> idp : login
+    idp -->> browser : 302 Redirect ${callback_uri}
+
+    browser ->> server : GET / (callback_uri)
+    note right of browser : code=...<br />state=...
+    server -->> browser : index.html
+
+    browser ->> server : POST /sign_up
+    note right of browser : (with bearer)<br />{"code":"...",<br />"state":"..."}
+
+    server ->> idp : POST ${token_endpoint}
+    note right of server : {"client_id":"...",<br />"client_secret":"...",<br />"code":"...",<br />"grant_type":"authorization_code",<br />"redirect_uri":"..."}
+    idp -->> server : token response
+    note left of idp : (TODO)
+
+    server ->> idp : GET ${jwks_uri}
+    server ->> server : verify id token
+
+    server -->> browser : "OK"
+
+
+    note over browser, idp: sign in
+    %% TODO
+

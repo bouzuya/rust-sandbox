@@ -64,11 +64,11 @@ impl AppState {
     ) -> anyhow::Result<String> {
         #[derive(serde::Serialize)]
         struct TokenRequestBody {
-            code: String,
             client_id: String,
             client_secret: String,
-            redirect_uri: String,
+            code: String,
             grant_type: String,
+            redirect_uri: String,
         }
 
         #[derive(Debug, serde::Deserialize)]
@@ -85,11 +85,11 @@ impl AppState {
         let response = reqwest::Client::new()
             .post(self.token_endpoint.clone())
             .json(&TokenRequestBody {
-                code,
                 client_id: self.client_id.clone(),
                 client_secret: self.client_secret.clone(),
-                redirect_uri,
+                code,
                 grant_type: "authorization_code".to_owned(),
+                redirect_uri,
             })
             .send()
             .await

@@ -44,12 +44,12 @@ async fn handle(
         .map_err(Error::Server)?;
     url.query_pairs_mut()
         .clear()
-        .append_pair("response_type", "code")
         .append_pair("client_id", client_id)
-        .append_pair("scope", "openid email")
+        .append_pair("nonce", &nonce)
         .append_pair("redirect_uri", redirect_uri)
-        .append_pair("state", &state)
-        .append_pair("nonce", &nonce);
+        .append_pair("response_type", "code")
+        .append_pair("scope", "openid email")
+        .append_pair("state", &state);
     let authorization_url = url.to_string();
     Ok(Json(CreateAuthorizationUrlResponseBody {
         authorization_url,

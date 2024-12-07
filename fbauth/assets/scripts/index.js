@@ -78,7 +78,7 @@ async function callback(code, state) {
   }
   const session = JSON.parse(stored);
 
-  const response = await associateGoogleAccount(session, { code, state });
+  const response = await signUp(session, { code, state });
   console.log(response);
 }
 
