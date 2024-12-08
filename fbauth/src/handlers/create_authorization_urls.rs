@@ -7,14 +7,14 @@ use argon2::password_hash::rand_core::{OsRng, RngCore};
 use axum::{extract::State, Json};
 
 #[derive(serde::Serialize)]
-struct CreateAuthorizationUrlResponseBody {
+struct ResponseBody {
     authorization_url: String,
 }
 
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
-) -> Result<Json<CreateAuthorizationUrlResponseBody>, Error> {
+) -> Result<Json<ResponseBody>, Error> {
     let mut sessions = app_state.sessions.lock().await;
 
     // generate state
@@ -51,9 +51,7 @@ async fn handle(
         .append_pair("scope", "openid email")
         .append_pair("state", &state);
     let authorization_url = url.to_string();
-    Ok(Json(CreateAuthorizationUrlResponseBody {
-        authorization_url,
-    }))
+    Ok(Json(ResponseBody { authorization_url }))
 }
 
 pub fn route() -> axum::Router<AppState> {
