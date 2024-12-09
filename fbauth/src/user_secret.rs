@@ -32,6 +32,12 @@ impl UserSecret {
     }
 }
 
+impl std::fmt::Debug for UserSecret {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("UserSecret").field(&"[FILTERED]").finish()
+    }
+}
+
 impl std::fmt::Display for UserSecret {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)

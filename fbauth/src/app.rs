@@ -9,7 +9,7 @@ use crate::session_id::SessionId;
 use crate::user::User;
 use crate::user_id::UserId;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub(crate) struct AppState {
     pub(crate) authorization_endpoint: String,
     pub(crate) client_id: String,

@@ -4,6 +4,7 @@ use axum::{extract::State, routing::post, Json};
 
 use super::Error;
 
+// MEMO: code??? state???
 #[derive(serde::Deserialize)]
 struct RequestBody {
     code: String,
@@ -15,11 +16,21 @@ struct ResponseBody {
     session_token: String,
 }
 
+impl std::fmt::Debug for ResponseBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseBody")
+            .field("session_token", &"[FILTERED]")
+            .finish()
+    }
+}
+
+#[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
     Json(RequestBody { code, state }): Json<RequestBody>,
 ) -> Result<Json<ResponseBody>, Error> {
+    tracing::debug!("sign in");
     let mut sessions = app_state.sessions.lock().await;
     let session = sessions
         .get_mut(&session_id)
@@ -50,6 +61,7 @@ async fn handle(
         .create_session_token(user_id)
         .await
         .map_err(Error::Server)?;
+    tracing::debug!("signed in");
 
     Ok(Json(ResponseBody { session_token }))
 }

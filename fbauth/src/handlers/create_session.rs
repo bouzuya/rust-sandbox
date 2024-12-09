@@ -13,11 +13,29 @@ struct RequestBody {
     user_secret: String,
 }
 
+impl std::fmt::Debug for RequestBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestBody")
+            .field("user_id", &self.user_id)
+            .field("user_secret", &"[FILTERED]")
+            .finish()
+    }
+}
+
 #[derive(serde::Serialize)]
 struct ResponseBody {
     session_token: String,
 }
 
+impl std::fmt::Debug for ResponseBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseBody")
+            .field("session_token", &"[FILTERED]")
+            .finish()
+    }
+}
+
+#[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state, user_secret))]
 async fn handle(
     State(app_state): State<AppState>,
     Json(RequestBody {
@@ -25,6 +43,8 @@ async fn handle(
         user_secret,
     }): Json<RequestBody>,
 ) -> Result<Json<ResponseBody>, Error> {
+    tracing::debug!("create session");
+
     let users = app_state.users.lock().await;
     let user_id = UserId::from_str(&user_id)
         .context("create_session UserId::from_str")
@@ -41,6 +61,7 @@ async fn handle(
         .create_session_token(user_id)
         .await
         .map_err(Error::Server)?;
+    tracing::debug!("session created");
 
     Ok(Json(ResponseBody { session_token }))
 }

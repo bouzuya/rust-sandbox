@@ -3,7 +3,8 @@ use axum::{extract::State, Json};
 
 use super::Error;
 
-#[derive(serde::Deserialize)]
+// MEMO: code??? state???
+#[derive(Debug, serde::Deserialize)]
 struct RequestBody {
     // authuser: String,
     code: String,
@@ -13,11 +14,13 @@ struct RequestBody {
     state: String,
 }
 
+#[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
     Json(body): Json<RequestBody>,
 ) -> Result<Json<String>, Error> {
+    tracing::debug!("sign up");
     let mut sessions = app_state.sessions.lock().await;
     let session = sessions.get_mut(&session_id).ok_or_else(|| {
         Error::Client(anyhow::anyhow!(
@@ -52,6 +55,7 @@ async fn handle(
         .or_insert(session.user_id);
 
     // FIXME: fetch the user_id using the id token
+    tracing::debug!("signed up");
 
     Ok(Json("OK".to_owned()))
 }

@@ -6,15 +6,18 @@ use anyhow::Context as _;
 use argon2::password_hash::rand_core::{OsRng, RngCore};
 use axum::{extract::State, Json};
 
-#[derive(serde::Serialize)]
+// MEMO: Debug???
+#[derive(Debug, serde::Serialize)]
 struct ResponseBody {
     authorization_url: String,
 }
 
+#[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
 ) -> Result<Json<ResponseBody>, Error> {
+    tracing::debug!("create authorization_url");
     let mut sessions = app_state.sessions.lock().await;
 
     // generate state
@@ -51,6 +54,7 @@ async fn handle(
         .append_pair("scope", "openid email")
         .append_pair("state", &state);
     let authorization_url = url.to_string();
+    tracing::debug!("authorization_url created");
     Ok(Json(ResponseBody { authorization_url }))
 }
 
