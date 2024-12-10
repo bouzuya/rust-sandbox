@@ -1,6 +1,6 @@
 use argon2::password_hash::rand_core::{OsRng, RngCore};
 
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SessionId([u8; 54]);
 
 impl SessionId {
@@ -8,6 +8,14 @@ impl SessionId {
         let mut bytes = [0u8; 54];
         OsRng.fill_bytes(&mut bytes);
         Self(bytes)
+    }
+}
+
+impl std::fmt::Debug for SessionId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("SessionId")
+            .field(&hex::encode(&self.0))
+            .finish()
     }
 }
 
