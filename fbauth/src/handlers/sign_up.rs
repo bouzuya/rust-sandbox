@@ -22,14 +22,12 @@ async fn handle(
 ) -> Result<Json<String>, Error> {
     tracing::debug!("sign up");
     let mut sessions = app_state.sessions.lock().await;
-    let session = sessions.get_mut(&session_id).ok_or_else(|| {
-        Error::Client(anyhow::anyhow!(
-            "associate_google_account session not found"
-        ))
-    })?;
+    let session = sessions
+        .get_mut(&session_id)
+        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_up session not found")))?;
     if session.state != Some(body.state) {
         return Err(Error::Client(anyhow::anyhow!(
-            "associate_google_account session state not match"
+            "sign_up session state not match"
         )));
     }
 
