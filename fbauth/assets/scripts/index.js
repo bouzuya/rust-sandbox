@@ -128,10 +128,16 @@ async function initial() {
   const resetButtonElement = document.createElement('button');
   resetButtonElement.appendChild(document.createTextNode('Reset'));
   resetButtonElement.addEventListener('click', (e) => {
+    const keys = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
+      keys.push(key);
+    }
+    for (const key of keys) {
+      console.log(`remove key ${key}`);
       localStorage.removeItem(key);
     }
+    console.log(localStorage.length);
   });
   rootElement.appendChild(resetButtonElement);
 
@@ -174,7 +180,7 @@ async function initial() {
         typeof session === "object" &&
           session !== null &&
           "sessionToken" in session &&
-          typeof user["sessionToken"] === "string"
+          typeof session["sessionToken"] === "string"
       ) {
         return session;
       } else {
