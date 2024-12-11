@@ -31,26 +31,29 @@ async fn handle(
     Json(RequestBody { code, state }): Json<RequestBody>,
 ) -> Result<Json<ResponseBody>, Error> {
     tracing::debug!("sign in");
-    let mut sessions = app_state.sessions.lock().await;
-    let session = sessions
-        .get_mut(&session_id)
-        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in session not found")))?;
-    if session.state != Some(state) {
-        return Err(Error::Client(anyhow::anyhow!(
-            "sign_in session state not match"
-        )));
-    }
+    let google_account_id = {
+        let mut sessions = app_state.sessions.lock().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in session not found")))?;
+        if session.state != Some(state) {
+            return Err(Error::Client(anyhow::anyhow!(
+                "sign_in session state not match"
+            )));
+        }
 
-    let nonce = session
-        .nonce
-        .clone()
-        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in nonce not found")))?;
-    // FIXME: Error::Client or Error::Server
-    let google_account_id = app_state
-        .send_token_request_and_verify_id_token(code, nonce)
-        .await
-        .map_err(Error::Server)?;
-    session.nonce = None;
+        let nonce = session
+            .nonce
+            .clone()
+            .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in nonce not found")))?;
+        // FIXME: Error::Client or Error::Server
+        let google_account_id = app_state
+            .send_token_request_and_verify_id_token(code, nonce)
+            .await
+            .map_err(Error::Server)?;
+        session.nonce = None;
+        google_account_id
+    };
 
     let google_accounts = app_state.google_accounts.lock().await;
     let user_id = *google_accounts
