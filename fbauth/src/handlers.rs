@@ -2,6 +2,7 @@ mod assets;
 mod create_authorization_urls;
 mod create_session;
 mod create_user;
+mod get_user;
 mod root;
 mod sign_in;
 mod sign_up;
@@ -40,6 +41,7 @@ pub fn route() -> axum::Router<AppState> {
         .merge(create_authorization_urls::route())
         .merge(create_session::route())
         .merge(create_user::route())
+        .merge(get_user::route())
         .merge(root::route())
         .merge(sign_in::route())
         .merge(sign_up::route())
