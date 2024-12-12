@@ -9,7 +9,7 @@ use crate::session_id::SessionId;
 use crate::user::User;
 use crate::user_id::UserId;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) authorization_endpoint: String,
     pub(crate) client_id: String,
@@ -19,6 +19,21 @@ pub(crate) struct AppState {
     pub(crate) sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     pub(crate) token_endpoint: String,
     pub(crate) users: Arc<Mutex<HashMap<UserId, User>>>,
+}
+
+impl std::fmt::Debug for AppState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AppState")
+            .field("authorization_endpoint", &self.authorization_endpoint)
+            .field("client_id", &self.client_id)
+            .field("client_secret", &"[FILTERED]")
+            .field("google_accounts", &self.google_accounts)
+            .field("jwks_uri", &self.jwks_uri)
+            .field("sessions", &self.sessions)
+            .field("token_endpoint", &self.token_endpoint)
+            .field("users", &self.users)
+            .finish()
+    }
 }
 
 impl AppState {

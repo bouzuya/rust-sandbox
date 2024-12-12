@@ -4,11 +4,19 @@ use axum::{extract::State, routing::post, Json};
 
 use super::Error;
 
-// MEMO: code??? state???
 #[derive(serde::Deserialize)]
 struct RequestBody {
     code: String,
     state: String,
+}
+
+impl std::fmt::Debug for RequestBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestBody")
+            .field("code", &"[FILTERED]")
+            .field("state", &"[FILTERED]")
+            .finish()
+    }
 }
 
 #[derive(serde::Serialize)]

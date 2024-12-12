@@ -6,10 +6,17 @@ use anyhow::Context as _;
 use argon2::password_hash::rand_core::{OsRng, RngCore};
 use axum::{extract::State, Json};
 
-// MEMO: Debug???
-#[derive(Debug, serde::Serialize)]
+#[derive(serde::Serialize)]
 struct ResponseBody {
     authorization_url: String,
+}
+
+impl std::fmt::Debug for ResponseBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseBody")
+            .field("authorization_url", &"[FILTERED]")
+            .finish()
+    }
 }
 
 #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]

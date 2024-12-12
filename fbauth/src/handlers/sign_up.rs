@@ -3,15 +3,19 @@ use axum::{extract::State, Json};
 
 use super::Error;
 
-// MEMO: code??? state???
-#[derive(Debug, serde::Deserialize)]
+#[derive(serde::Deserialize)]
 struct RequestBody {
-    // authuser: String,
     code: String,
-    // hd: String,
-    // prompt: String
-    // scope: String,
     state: String,
+}
+
+impl std::fmt::Debug for RequestBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RequestBody")
+            .field("code", &"[FILTERED]")
+            .field("state", &"[FILTERED]")
+            .finish()
+    }
 }
 
 #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]
