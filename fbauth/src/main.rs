@@ -8,44 +8,15 @@ mod user;
 mod user_id;
 mod user_secret;
 
-use std::sync::Arc;
-
 use app::AppState;
-use tokio::sync::Mutex;
 
-use discovery_document::DiscoveryDocument;
 use tower_http::trace::TraceLayer;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
-    let DiscoveryDocument {
-        authorization_endpoint,
-        jwks_uri,
-        token_endpoint,
-    } = DiscoveryDocument::fetch().await?;
-    let client_id = std::env::var("CLIENT_ID")?;
-    let client_secret = std::env::var("CLIENT_SECRET")?;
-
-    tracing::debug!(
-        authorization_endpoint,
-        client_id,
-        client_secret,
-        token_endpoint,
-        "config loaded"
-    );
-
-    let state = AppState {
-        authorization_endpoint,
-        client_id,
-        client_secret,
-        google_accounts: Arc::new(Mutex::new(Default::default())),
-        jwks_uri,
-        sessions: Arc::new(Mutex::new(Default::default())),
-        token_endpoint,
-        users: Arc::new(Mutex::new(Default::default())),
-    };
+    let state = AppState::new().await?;
     let router = handlers::route()
         .with_state(state)
         .layer(TraceLayer::new_for_http());

@@ -3,6 +3,7 @@ use std::{collections::HashMap, sync::Arc};
 use anyhow::Context as _;
 use tokio::sync::Mutex;
 
+use crate::discovery_document::DiscoveryDocument;
 use crate::handlers::Claims;
 use crate::session::Session;
 use crate::session_id::SessionId;
@@ -19,6 +20,37 @@ pub(crate) struct AppState {
     pub(crate) sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     pub(crate) token_endpoint: String,
     pub(crate) users: Arc<Mutex<HashMap<UserId, User>>>,
+}
+
+impl AppState {
+    pub async fn new() -> anyhow::Result<Self> {
+        let DiscoveryDocument {
+            authorization_endpoint,
+            jwks_uri,
+            token_endpoint,
+        } = DiscoveryDocument::fetch().await?;
+        let client_id = std::env::var("CLIENT_ID")?;
+        let client_secret = std::env::var("CLIENT_SECRET")?;
+
+        tracing::debug!(
+            authorization_endpoint,
+            client_id,
+            client_secret,
+            token_endpoint,
+            "config loaded"
+        );
+
+        Ok(Self {
+            authorization_endpoint,
+            client_id,
+            client_secret,
+            google_accounts: Arc::new(Mutex::new(Default::default())),
+            jwks_uri,
+            sessions: Arc::new(Mutex::new(Default::default())),
+            token_endpoint,
+            users: Arc::new(Mutex::new(Default::default())),
+        })
+    }
 }
 
 impl std::fmt::Debug for AppState {
