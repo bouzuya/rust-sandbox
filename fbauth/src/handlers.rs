@@ -1,7 +1,6 @@
 mod assets;
 mod create_authorization_url;
 mod create_session;
-mod create_user;
 mod get_user;
 mod root;
 mod sign_in;
@@ -14,7 +13,7 @@ pub(crate) struct Claims {
     pub(crate) exp: u64,
     /// session_id
     pub(crate) sid: String,
-    pub(crate) sub: String,
+    pub(crate) sub: Option<String>,
     // ...
 }
 
@@ -40,7 +39,6 @@ pub fn route() -> axum::Router<AppState> {
         .merge(assets::route())
         .merge(create_authorization_url::route())
         .merge(create_session::route())
-        .merge(create_user::route())
         .merge(get_user::route())
         .merge(root::route())
         .merge(sign_in::route())

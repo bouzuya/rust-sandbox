@@ -69,6 +69,40 @@ impl std::fmt::Debug for AppState {
 }
 
 impl AppState {
+    pub async fn create_anonymous_session(&self) -> anyhow::Result<String> {
+        let mut sessions = self.sessions.lock().await;
+        let session_id = SessionId::generate();
+        sessions.insert(
+            session_id,
+            Session {
+                id: session_id,
+                nonce: None,
+                user_id: None,
+                state: None,
+            },
+        );
+        let encoding_key =
+            jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
+                .context("create_session EncodingKey::from_rsa_pem")?;
+        let exp = std::time::SystemTime::now()
+            .checked_add(std::time::Duration::from_secs(60 * 60))
+            .context("create_session std::time::SystemTime::checked_add")?
+            .duration_since(std::time::SystemTime::UNIX_EPOCH)
+            .context("create_session SystemTime::duration_since")?
+            .as_secs();
+        let token = jsonwebtoken::encode(
+            &jsonwebtoken::Header::new(jsonwebtoken::Algorithm::RS256),
+            &Claims {
+                exp,
+                sid: session_id.to_string(),
+                sub: None,
+            },
+            &encoding_key,
+        )
+        .context("create_session encode")?;
+        Ok(token.to_string())
+    }
+
     pub async fn create_session_token(&self, user_id: UserId) -> anyhow::Result<String> {
         let mut sessions = self.sessions.lock().await;
         let session_id = SessionId::generate();
@@ -77,7 +111,7 @@ impl AppState {
             Session {
                 id: session_id,
                 nonce: None,
-                user_id,
+                user_id: Some(user_id),
                 state: None,
             },
         );
@@ -96,7 +130,7 @@ impl AppState {
             &Claims {
                 exp,
                 sid: session_id.to_string(),
-                sub: user_id.to_string(),
+                sub: Some(user_id.to_string()),
             },
             &encoding_key,
         )

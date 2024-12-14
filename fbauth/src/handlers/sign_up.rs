@@ -1,4 +1,5 @@
-use crate::{session_id_extractor::SessionIdExtractor, AppState};
+use crate::{session_id_extractor::SessionIdExtractor, user::User, AppState};
+use anyhow::Context as _;
 use axum::{extract::State, Json};
 
 use super::Error;
@@ -18,48 +19,80 @@ impl std::fmt::Debug for RequestBody {
     }
 }
 
+#[derive(serde::Serialize)]
+struct ResponseBody {
+    session_token: String,
+    user_id: String,
+}
+
+impl std::fmt::Debug for ResponseBody {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResponseBody")
+            .field("session_token", &"[FILTERED]")
+            .field("user_id", &self.user_id)
+            .finish()
+    }
+}
+
 #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(app_state))]
 async fn handle(
     SessionIdExtractor(session_id): SessionIdExtractor,
     State(app_state): State<AppState>,
     Json(body): Json<RequestBody>,
-) -> Result<Json<String>, Error> {
+) -> Result<Json<ResponseBody>, Error> {
     tracing::debug!("sign up");
-    let mut sessions = app_state.sessions.lock().await;
-    let session = sessions
-        .get_mut(&session_id)
-        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_up session not found")))?;
-    if session.state != Some(body.state) {
-        return Err(Error::Client(anyhow::anyhow!(
-            "sign_up session state not match"
-        )));
-    }
+    let user_id = {
+        let mut sessions = app_state.sessions.lock().await;
+        let session = sessions
+            .get_mut(&session_id)
+            .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_up session not found")))?;
+        if session.state != Some(body.state) {
+            return Err(Error::Client(anyhow::anyhow!(
+                "sign_up session state not match"
+            )));
+        }
 
-    let nonce = session
-        .nonce
-        .clone()
-        .ok_or_else(|| Error::Client(anyhow::anyhow!("associate_google_account nonce is none")))?;
-    // FIXME: Error::Client or Error::Server
-    let google_account_id = app_state
-        .send_token_request_and_verify_id_token(body.code, nonce)
+        let nonce = session.nonce.clone().ok_or_else(|| {
+            Error::Client(anyhow::anyhow!("associate_google_account nonce is none"))
+        })?;
+        // FIXME: Error::Client or Error::Server
+        let google_account_id = app_state
+            .send_token_request_and_verify_id_token(body.code, nonce)
+            .await
+            .map_err(Error::Server)?;
+        session.nonce = None;
+
+        // FIXME: fetch the user_id using the id token
+
+        let mut users = app_state.users.lock().await;
+        let (user, _raw) = User::new()
+            .context("create_user User::new")
+            .map_err(Error::Server)?;
+        users.insert(user.id, user.clone());
+        session.user_id = Some(user.id);
+
+        let mut google_accounts = app_state.google_accounts.lock().await;
+        if google_accounts.contains_key(&google_account_id) {
+            return Err(Error::Client(anyhow::anyhow!(
+                "associate_google_account already associated"
+            )));
+        }
+        google_accounts.entry(google_account_id).or_insert(user.id);
+
+        user.id
+    };
+
+    let session_token = app_state
+        .create_session_token(user_id)
         .await
         .map_err(Error::Server)?;
-    session.nonce = None;
 
-    let mut google_accounts = app_state.google_accounts.lock().await;
-    if google_accounts.contains_key(&google_account_id) {
-        return Err(Error::Client(anyhow::anyhow!(
-            "associate_google_account already associated"
-        )));
-    }
-    google_accounts
-        .entry(google_account_id)
-        .or_insert(session.user_id);
-
-    // FIXME: fetch the user_id using the id token
     tracing::debug!("signed up");
 
-    Ok(Json("OK".to_owned()))
+    Ok(Json(ResponseBody {
+        session_token,
+        user_id: user_id.to_string(),
+    }))
 }
 
 pub fn route() -> axum::Router<AppState> {

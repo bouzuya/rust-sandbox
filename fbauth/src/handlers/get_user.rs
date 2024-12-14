@@ -19,9 +19,14 @@ async fn handle(
     let session = sessions
         .get_mut(&session_id)
         .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_up session not found")))?;
-    Ok(Json(ResponseBody {
-        user_id: session.user_id.to_string(),
-    }))
+    match session.user_id {
+        None => Err(Error::Client(anyhow::anyhow!(
+            "user not found (anonymous session)"
+        ))),
+        Some(user_id) => Ok(Json(ResponseBody {
+            user_id: user_id.to_string(),
+        })),
+    }
 }
 
 pub fn route() -> axum::Router<AppState> {

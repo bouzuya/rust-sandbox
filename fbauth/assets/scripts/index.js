@@ -31,12 +31,8 @@ async function createUser() {
   return { userId, userSecret };
 }
 
-async function createSession({ userId, userSecret }) {
+async function createSession() {
   const response = await fetch("/sessions", {
-    body: JSON.stringify({
-      user_id: userId,
-      user_secret: userSecret
-    }),
     headers: {
       "Content-Type": "application/json"
     },
@@ -192,8 +188,8 @@ async function initial() {
     const key = "session";
     const stored = localStorage.getItem(key);
     if (stored === null) {
-      const user = await createUser();
-      const session = await createSession(user);
+      // const user = await createUser();
+      const session = await createSession();
       localStorage.setItem(key, JSON.stringify(session));
       return session;
     } else {
