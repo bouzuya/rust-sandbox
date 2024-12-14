@@ -1,5 +1,5 @@
 mod assets;
-mod create_authorization_urls;
+mod create_authorization_url;
 mod create_session;
 mod create_user;
 mod get_user;
@@ -38,7 +38,7 @@ impl axum::response::IntoResponse for Error {
 pub fn route() -> axum::Router<AppState> {
     axum::Router::new()
         .merge(assets::route())
-        .merge(create_authorization_urls::route())
+        .merge(create_authorization_url::route())
         .merge(create_session::route())
         .merge(create_user::route())
         .merge(get_user::route())
