@@ -19,7 +19,7 @@ use crate::user_id::UserId;
 /// );
 #[derive(Clone, Debug, Default)]
 pub(crate) struct UserStore {
-    pub(crate) google_accounts: HashMap<GoogleAccountId, UserId>,
+    pub(crate) google_account_id_index: HashMap<GoogleAccountId, UserId>,
     pub(crate) users: HashMap<UserId, User>,
 }
 
@@ -28,7 +28,7 @@ impl UserStore {
         &self,
         google_account_id: &GoogleAccountId,
     ) -> Option<User> {
-        match self.google_accounts.get(google_account_id) {
+        match self.google_account_id_index.get(google_account_id) {
             None => None,
             Some(user_id) => self.users.get(&user_id).cloned(),
         }
