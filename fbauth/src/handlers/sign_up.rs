@@ -64,20 +64,23 @@ async fn handle(
 
         // FIXME: fetch the user_id using the id token
 
-        let mut users = app_state.users.lock().await;
+        let mut user_store = app_state.user_store.lock().await;
         let user = User::new()
             .context("create_user User::new")
             .map_err(Error::Server)?;
-        users.insert(user.id, user.clone());
-        session.user_id = Some(user.id);
+        user_store.users.insert(user.id, user.clone());
 
-        let mut google_accounts = app_state.google_accounts.lock().await;
-        if google_accounts.contains_key(&google_account_id) {
+        if user_store.google_accounts.contains_key(&google_account_id) {
             return Err(Error::Client(anyhow::anyhow!(
                 "associate_google_account already associated"
             )));
         }
-        google_accounts.entry(google_account_id).or_insert(user.id);
+        user_store
+            .google_accounts
+            .entry(google_account_id)
+            .or_insert(user.id);
+
+        session.user_id = Some(user.id);
 
         user.id
     };

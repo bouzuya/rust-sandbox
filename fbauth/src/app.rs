@@ -10,16 +10,36 @@ use crate::session_id::SessionId;
 use crate::user::User;
 use crate::user_id::UserId;
 
+/// CREATE TABLE users (
+///   id             VARCHAR NOT NULL,
+///   google_account VARCHAR     NULL,
+///   PRIMARY KEY (id),
+///   UNIQUE (google_account),
+/// );
+#[derive(Clone, Debug, Default)]
+pub(crate) struct UserStore {
+    pub(crate) google_accounts: HashMap<String, UserId>,
+    pub(crate) users: HashMap<UserId, User>,
+}
+
+impl UserStore {
+    pub(crate) fn find_by_google_account(&self, google_account_id: &String) -> Option<User> {
+        match self.google_accounts.get(google_account_id) {
+            None => None,
+            Some(user_id) => self.users.get(&user_id).cloned(),
+        }
+    }
+}
+
 #[derive(Clone)]
 pub(crate) struct AppState {
     pub(crate) authorization_endpoint: String,
     pub(crate) client_id: String,
     pub(crate) client_secret: String,
-    pub(crate) google_accounts: Arc<Mutex<HashMap<String, UserId>>>,
     pub(crate) jwks_uri: String,
     pub(crate) sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     pub(crate) token_endpoint: String,
-    pub(crate) users: Arc<Mutex<HashMap<UserId, User>>>,
+    pub(crate) user_store: Arc<Mutex<UserStore>>,
 }
 
 impl AppState {
@@ -44,11 +64,10 @@ impl AppState {
             authorization_endpoint,
             client_id,
             client_secret,
-            google_accounts: Arc::new(Mutex::new(Default::default())),
             jwks_uri,
             sessions: Arc::new(Mutex::new(Default::default())),
             token_endpoint,
-            users: Arc::new(Mutex::new(Default::default())),
+            user_store: Arc::new(Mutex::new(UserStore::default())),
         })
     }
 }
@@ -59,11 +78,10 @@ impl std::fmt::Debug for AppState {
             .field("authorization_endpoint", &self.authorization_endpoint)
             .field("client_id", &self.client_id)
             .field("client_secret", &"[FILTERED]")
-            .field("google_accounts", &self.google_accounts)
             .field("jwks_uri", &self.jwks_uri)
             .field("sessions", &self.sessions)
             .field("token_endpoint", &self.token_endpoint)
-            .field("users", &self.users)
+            .field("user_store", &self.user_store)
             .finish()
     }
 }

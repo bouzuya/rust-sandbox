@@ -63,10 +63,11 @@ async fn handle(
         google_account_id
     };
 
-    let google_accounts = app_state.google_accounts.lock().await;
-    let user_id = *google_accounts
-        .get(&google_account_id)
-        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in user not found")))?;
+    let user_store = app_state.user_store.lock().await;
+    let user_id = user_store
+        .find_by_google_account(&google_account_id)
+        .ok_or_else(|| Error::Client(anyhow::anyhow!("sign_in user not found")))?
+        .id;
 
     let session_token = app_state
         .create_session_token(user_id)
