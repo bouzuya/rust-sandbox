@@ -1,5 +1,7 @@
-use crate::session_id_extractor::SessionIdExtractor;
+use std::str::FromStr as _;
+
 use crate::AppState;
+use crate::{google_account_id::GoogleAccountId, session_id_extractor::SessionIdExtractor};
 use axum::{extract::State, routing::post, Json};
 
 use super::Error;
@@ -60,7 +62,8 @@ async fn handle(
             .await
             .map_err(Error::Server)?;
         session.nonce = None;
-        google_account_id
+
+        GoogleAccountId::from_str(&google_account_id).map_err(Error::Server)?
     };
 
     let user_store = app_state.user_store.lock().await;

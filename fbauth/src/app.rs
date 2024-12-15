@@ -4,6 +4,7 @@ use anyhow::Context as _;
 use tokio::sync::Mutex;
 
 use crate::discovery_document::DiscoveryDocument;
+use crate::google_account_id::GoogleAccountId;
 use crate::handlers::Claims;
 use crate::session::Session;
 use crate::session_id::SessionId;
@@ -18,12 +19,15 @@ use crate::user_id::UserId;
 /// );
 #[derive(Clone, Debug, Default)]
 pub(crate) struct UserStore {
-    pub(crate) google_accounts: HashMap<String, UserId>,
+    pub(crate) google_accounts: HashMap<GoogleAccountId, UserId>,
     pub(crate) users: HashMap<UserId, User>,
 }
 
 impl UserStore {
-    pub(crate) fn find_by_google_account(&self, google_account_id: &String) -> Option<User> {
+    pub(crate) fn find_by_google_account(
+        &self,
+        google_account_id: &GoogleAccountId,
+    ) -> Option<User> {
         match self.google_accounts.get(google_account_id) {
             None => None,
             Some(user_id) => self.users.get(&user_id).cloned(),

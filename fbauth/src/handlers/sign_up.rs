@@ -1,4 +1,7 @@
-use crate::{session_id_extractor::SessionIdExtractor, user::User, AppState};
+use crate::{
+    google_account_id::GoogleAccountId, session_id_extractor::SessionIdExtractor, user::User,
+    AppState,
+};
 use anyhow::Context as _;
 use axum::{extract::State, Json};
 
@@ -60,6 +63,8 @@ async fn handle(
             .send_token_request_and_verify_id_token(body.code, nonce)
             .await
             .map_err(Error::Server)?;
+        let google_account_id =
+            GoogleAccountId::try_from(google_account_id).map_err(Error::Server)?;
         session.nonce = None;
 
         // FIXME: fetch the user_id using the id token
