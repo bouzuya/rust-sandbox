@@ -73,21 +73,7 @@ async fn handle(
         let user = User::new(google_account_id)
             .context("create_user User::new")
             .map_err(Error::Server)?;
-        user_store.users.insert(user.id, user.clone());
-
-        if user_store
-            .google_account_id_index
-            .contains_key(&user.google_account_id)
-        {
-            return Err(Error::Client(anyhow::anyhow!(
-                "associate_google_account already associated"
-            )));
-        }
-        user_store
-            .google_account_id_index
-            .entry(user.google_account_id.clone())
-            .or_insert(user.id);
-
+        user_store.create(user.clone()).map_err(Error::Client)?;
         session.user_id = Some(user.id);
 
         user.id

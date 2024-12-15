@@ -24,6 +24,25 @@ pub(crate) struct UserStore {
 }
 
 impl UserStore {
+    pub(crate) fn create(&mut self, user: User) -> anyhow::Result<()> {
+        if self
+            .google_account_id_index
+            .contains_key(&user.google_account_id)
+        {
+            anyhow::bail!("google_account_id is already in use")
+        }
+
+        if self.users.contains_key(&user.id) {
+            anyhow::bail!("user_id is already in use")
+        }
+
+        self.google_account_id_index
+            .insert(user.google_account_id.clone(), user.id);
+        self.users.insert(user.id, user);
+
+        Ok(())
+    }
+
     pub(crate) fn find_by_google_account(
         &self,
         google_account_id: &GoogleAccountId,
