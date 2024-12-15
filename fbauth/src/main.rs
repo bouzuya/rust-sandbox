@@ -6,7 +6,6 @@ mod session_id;
 mod session_id_extractor;
 mod user;
 mod user_id;
-mod user_secret;
 
 use app::AppState;
 

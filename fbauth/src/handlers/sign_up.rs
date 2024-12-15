@@ -65,7 +65,7 @@ async fn handle(
         // FIXME: fetch the user_id using the id token
 
         let mut users = app_state.users.lock().await;
-        let (user, _raw) = User::new()
+        let user = User::new()
             .context("create_user User::new")
             .map_err(Error::Server)?;
         users.insert(user.id, user.clone());
