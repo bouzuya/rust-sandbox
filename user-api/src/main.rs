@@ -1,16 +1,9 @@
 mod handlers;
 mod models;
+mod services;
 
-use std::{collections::BTreeMap, sync::Arc};
-
-use models::{user::User, user_id::UserId};
-use tokio::sync::Mutex;
+use services::AppState;
 use tower_http::trace::TraceLayer;
-
-#[derive(Clone, Default)]
-pub struct AppState {
-    users: Arc<Mutex<BTreeMap<UserId, User>>>,
-}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

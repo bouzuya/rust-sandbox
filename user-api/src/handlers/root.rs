@@ -24,7 +24,7 @@ mod tests {
 
     #[tokio::test]
     async fn test() -> anyhow::Result<()> {
-        let routes = route().with_state(AppState {});
+        let routes = route().with_state(AppState::default());
         let request = axum::http::Request::builder()
             .uri("/")
             .body(axum::body::Body::empty())?;
