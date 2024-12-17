@@ -126,7 +126,7 @@ mod tests {
                 name: "user_name1".to_owned(),
             })?))?;
         let response = send_request(routes, request).await?;
-        assert_eq!(response.status(), axum::http::StatusCode::OK);
+        assert_eq!(response.status(), axum::http::StatusCode::CREATED);
         assert_eq!(
             response.into_body_as_json::<SuccessfulResponse>().await?,
             SuccessfulResponse {
