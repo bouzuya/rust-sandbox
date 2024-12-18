@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::{collections::BTreeMap, str::FromStr as _, sync::Arc};
 
 use tokio::sync::Mutex;
 
@@ -8,6 +8,8 @@ use crate::models::{user::User, user_id::UserId};
 pub struct AppState {
     users: Arc<Mutex<BTreeMap<UserId, User>>>,
 }
+
+// create_user
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateUserError {
@@ -59,5 +61,43 @@ impl CreateUserService for AppState {
             user_name: user.name,
             user_secret: secret,
         })
+    }
+}
+
+// delete_user
+
+#[derive(Debug, thiserror::Error)]
+pub enum DeleteUserError {
+    #[error("invalid user_id")]
+    InvalidUserId(#[source] anyhow::Error),
+}
+
+#[derive(Debug)]
+pub struct DeleteUserInput {
+    pub user_id: String,
+}
+
+#[derive(Debug)]
+pub struct DeleteUserOutput;
+
+#[axum::async_trait]
+pub trait DeleteUserService {
+    async fn delete_user(
+        &self,
+        input: DeleteUserInput,
+    ) -> Result<DeleteUserOutput, DeleteUserError>;
+}
+
+#[axum::async_trait]
+impl DeleteUserService for AppState {
+    #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(self))]
+    async fn delete_user(
+        &self,
+        DeleteUserInput { user_id }: DeleteUserInput,
+    ) -> Result<DeleteUserOutput, DeleteUserError> {
+        let user_id = UserId::from_str(&user_id).map_err(DeleteUserError::InvalidUserId)?;
+        let mut users = self.users.lock().await;
+        users.remove(&user_id);
+        Ok(DeleteUserOutput)
     }
 }

@@ -1,11 +1,13 @@
 use crate::AppState;
 
-pub mod create_user;
-pub mod root;
+mod create_user;
+mod delete_user;
+mod root;
 
 pub fn route() -> axum::Router<AppState> {
     axum::Router::new()
         .merge(create_user::route())
+        .merge(delete_user::route())
         .merge(root::route())
 }
 
