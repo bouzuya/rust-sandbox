@@ -23,4 +23,12 @@ impl User {
             raw,
         ))
     }
+
+    pub fn update(&mut self, name: String) -> anyhow::Result<()> {
+        if name.is_empty() {
+            anyhow::bail!("name is empty");
+        }
+        self.name = name;
+        Ok(())
+    }
 }

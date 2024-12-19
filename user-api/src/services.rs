@@ -101,3 +101,55 @@ impl DeleteUserService for AppState {
         Ok(DeleteUserOutput)
     }
 }
+
+// update_user
+
+#[derive(Debug, thiserror::Error)]
+pub enum UpdateUserError {
+    #[error("invalid user_id")]
+    InvalidUserId(#[source] anyhow::Error),
+    #[error("user not found")]
+    UserNotFound(UserId),
+    #[error("user update")]
+    UserUpdate(#[source] anyhow::Error),
+}
+
+#[derive(Debug)]
+pub struct UpdateUserInput {
+    pub name: String,
+    pub user_id: String,
+}
+
+#[derive(Debug)]
+pub struct UpdateUserOutput {
+    pub user_id: String,
+    pub user_name: String,
+}
+
+#[axum::async_trait]
+pub trait UpdateUserService {
+    async fn update_user(
+        &self,
+        input: UpdateUserInput,
+    ) -> Result<UpdateUserOutput, UpdateUserError>;
+}
+
+#[axum::async_trait]
+impl UpdateUserService for AppState {
+    #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(self))]
+    async fn update_user(
+        &self,
+        UpdateUserInput { name, user_id }: UpdateUserInput,
+    ) -> Result<UpdateUserOutput, UpdateUserError> {
+        let user_id = UserId::from_str(&user_id).map_err(UpdateUserError::InvalidUserId)?;
+        let mut users = self.users.lock().await;
+        let user = users
+            .get_mut(&user_id)
+            .ok_or_else(|| UpdateUserError::UserNotFound(user_id))?;
+        user.update(name).map_err(UpdateUserError::UserUpdate)?;
+        Ok(UpdateUserOutput {
+            user_id: user.id.to_string(),
+            user_name: user.name.clone(),
+        })
+    }
+}
