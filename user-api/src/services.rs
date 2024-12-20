@@ -147,6 +147,47 @@ impl GetUserService for AppState {
     }
 }
 
+// get_users
+
+#[derive(Debug, thiserror::Error)]
+#[error("get users")]
+pub struct GetUsersError;
+
+#[derive(Debug)]
+pub struct GetUsersInput;
+
+#[derive(Debug)]
+pub struct GetUsersOutput {
+    pub users: Vec<GetUsersOutputItem>,
+}
+
+#[derive(Debug)]
+pub struct GetUsersOutputItem {
+    pub user_id: String,
+    pub user_name: String,
+}
+
+#[axum::async_trait]
+pub trait GetUsersService {
+    async fn get_users(&self, input: GetUsersInput) -> Result<GetUsersOutput, GetUsersError>;
+}
+
+#[axum::async_trait]
+impl GetUsersService for AppState {
+    #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(self))]
+    async fn get_users(&self, _: GetUsersInput) -> Result<GetUsersOutput, GetUsersError> {
+        let users = self.users.lock().await;
+        let users = users
+            .values()
+            .map(|it| GetUsersOutputItem {
+                user_id: it.id.to_string(),
+                user_name: it.name.clone(),
+            })
+            .collect::<Vec<GetUsersOutputItem>>();
+        Ok(GetUsersOutput { users })
+    }
+}
+
 // update_user
 
 #[derive(Debug, thiserror::Error)]
