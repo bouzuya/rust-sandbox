@@ -102,6 +102,51 @@ impl DeleteUserService for AppState {
     }
 }
 
+// get_user
+
+#[derive(Debug, thiserror::Error)]
+pub enum GetUserError {
+    #[error("invalid user_id")]
+    InvalidUserId(#[source] anyhow::Error),
+    #[error("user not found")]
+    UserNotFound(UserId),
+}
+
+#[derive(Debug)]
+pub struct GetUserInput {
+    pub user_id: String,
+}
+
+#[derive(Debug)]
+pub struct GetUserOutput {
+    pub user_id: String,
+    pub user_name: String,
+}
+
+#[axum::async_trait]
+pub trait GetUserService {
+    async fn get_user(&self, input: GetUserInput) -> Result<GetUserOutput, GetUserError>;
+}
+
+#[axum::async_trait]
+impl GetUserService for AppState {
+    #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(self))]
+    async fn get_user(
+        &self,
+        GetUserInput { user_id }: GetUserInput,
+    ) -> Result<GetUserOutput, GetUserError> {
+        let user_id = UserId::from_str(&user_id).map_err(GetUserError::InvalidUserId)?;
+        let users = self.users.lock().await;
+        let user = users
+            .get(&user_id)
+            .ok_or_else(|| GetUserError::UserNotFound(user_id))?;
+        Ok(GetUserOutput {
+            user_id: user.id.to_string(),
+            user_name: user.name.clone(),
+        })
+    }
+}
+
 // update_user
 
 #[derive(Debug, thiserror::Error)]
