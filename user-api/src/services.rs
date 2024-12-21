@@ -9,6 +9,68 @@ pub struct AppState {
     users: Arc<Mutex<BTreeMap<UserId, User>>>,
 }
 
+// auth
+
+#[derive(Debug, thiserror::Error)]
+pub enum AuthError {
+    #[error("invalid user_id")]
+    InvalidUserId(#[source] anyhow::Error),
+    #[error("secret not match")]
+    SecretNotMatch(UserId),
+    #[error("user not found")]
+    UserNotFound(UserId),
+}
+
+pub struct AuthInput {
+    pub user_id: String,
+    pub user_secret: String,
+}
+
+impl std::fmt::Debug for AuthInput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthInput")
+            .field("user_id", &self.user_id)
+            .field("user_secret", &"[FILTERED]")
+            .finish()
+    }
+}
+
+#[derive(Debug)]
+pub struct AuthOutput {
+    pub user_id: String,
+    pub user_name: String,
+}
+
+#[axum::async_trait]
+pub trait AuthService {
+    async fn auth(&self, input: AuthInput) -> Result<AuthOutput, AuthError>;
+}
+
+#[axum::async_trait]
+impl AuthService for AppState {
+    #[tracing::instrument(err(Debug), ret(level = tracing::Level::DEBUG), skip(self))]
+    async fn auth(
+        &self,
+        AuthInput {
+            user_id,
+            user_secret,
+        }: AuthInput,
+    ) -> Result<AuthOutput, AuthError> {
+        let user_id = UserId::from_str(&user_id).map_err(AuthError::InvalidUserId)?;
+        let users = self.users.lock().await;
+        let user = users
+            .get(&user_id)
+            .ok_or_else(|| AuthError::UserNotFound(user_id))?;
+        user.secret
+            .verify(&user_secret)
+            .map_err(|_| AuthError::SecretNotMatch(user_id))?;
+        Ok(AuthOutput {
+            user_id: user.id.to_string(),
+            user_name: user.name.clone(),
+        })
+    }
+}
+
 // create_user
 
 #[derive(Debug, thiserror::Error)]
