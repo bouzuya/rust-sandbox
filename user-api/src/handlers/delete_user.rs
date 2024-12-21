@@ -10,11 +10,9 @@ struct PathParams {
     user_id: String,
 }
 
-impl TryFrom<PathParams> for DeleteUserInput {
-    type Error = ErrorResponse;
-
-    fn try_from(PathParams { user_id }: PathParams) -> Result<Self, Self::Error> {
-        Ok(DeleteUserInput { user_id })
+impl From<PathParams> for DeleteUserInput {
+    fn from(PathParams { user_id }: PathParams) -> Self {
+        Self { user_id }
     }
 }
 
@@ -61,7 +59,7 @@ async fn handle<T: Clone + DeleteUserService + Send + Sync + 'static>(
     Path(path_params): Path<PathParams>,
     State(state): State<T>,
 ) -> Result<SuccessfulResponse, ErrorResponse> {
-    let input = DeleteUserInput::try_from(path_params)?;
+    let input = DeleteUserInput::from(path_params);
     match state.delete_user(input).await {
         Err(error) => Err(ErrorResponse::from(error)),
         Ok(output) => Ok(SuccessfulResponse::from(output)),

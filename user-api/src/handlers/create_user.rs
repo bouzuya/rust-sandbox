@@ -7,17 +7,9 @@ struct RequestBody {
     name: String,
 }
 
-impl TryFrom<RequestBody> for CreateUserInput {
-    type Error = ErrorResponse;
-
-    fn try_from(RequestBody { name }: RequestBody) -> Result<Self, Self::Error> {
-        if name.is_empty() {
-            return Err(ErrorResponse(
-                axum::http::StatusCode::BAD_REQUEST,
-                "name is empty".to_owned(),
-            ));
-        }
-        Ok(Self { name })
+impl From<RequestBody> for CreateUserInput {
+    fn from(RequestBody { name }: RequestBody) -> Self {
+        Self { name }
     }
 }
 
@@ -27,6 +19,10 @@ struct ErrorResponse(axum::http::StatusCode, String);
 impl From<CreateUserError> for ErrorResponse {
     fn from(error: CreateUserError) -> Self {
         match error {
+            CreateUserError::InvalidUserName => Self(
+                axum::http::StatusCode::BAD_REQUEST,
+                "invalid user_name".to_owned(),
+            ),
             CreateUserError::NewUser(_) => Self(
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR,
                 "new_user".to_owned(),
@@ -78,7 +74,7 @@ async fn handle<T: Clone + CreateUserService + Send + Sync + 'static>(
     State(state): State<T>,
     Json(request_body): Json<RequestBody>,
 ) -> Result<SuccessfulResponse, ErrorResponse> {
-    let input = CreateUserInput::try_from(request_body)?;
+    let input = CreateUserInput::from(request_body);
     match state.create_user(input).await {
         Err(error) => Err(ErrorResponse::from(error)),
         Ok(output) => Ok(SuccessfulResponse::from(output)),

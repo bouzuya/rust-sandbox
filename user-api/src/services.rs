@@ -75,6 +75,8 @@ impl AuthService for AppState {
 
 #[derive(Debug, thiserror::Error)]
 pub enum CreateUserError {
+    #[error("invalid user name")]
+    InvalidUserName,
     #[error("new user")]
     NewUser(#[source] anyhow::Error),
 }
@@ -115,6 +117,9 @@ impl CreateUserService for AppState {
         &self,
         CreateUserInput { name }: CreateUserInput,
     ) -> Result<CreateUserOutput, CreateUserError> {
+        if name.is_empty() {
+            return Err(CreateUserError::InvalidUserName);
+        }
         let (user, secret) = User::new(name).map_err(CreateUserError::NewUser)?;
         let mut users = self.users.lock().await;
         users.insert(user.id, user.clone());

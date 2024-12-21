@@ -10,11 +10,9 @@ struct PathParams {
     user_id: String,
 }
 
-impl TryFrom<PathParams> for GetUserInput {
-    type Error = ErrorResponse;
-
-    fn try_from(PathParams { user_id }: PathParams) -> Result<Self, Self::Error> {
-        Ok(GetUserInput { user_id })
+impl From<PathParams> for GetUserInput {
+    fn from(PathParams { user_id }: PathParams) -> Self {
+        Self { user_id }
     }
 }
 
@@ -68,7 +66,7 @@ async fn handle<T: Clone + GetUserService + Send + Sync + 'static>(
     Path(path_params): Path<PathParams>,
     State(state): State<T>,
 ) -> Result<SuccessfulResponse, ErrorResponse> {
-    let input = GetUserInput::try_from(path_params)?;
+    let input = GetUserInput::from(path_params);
     match state.get_user(input).await {
         Err(error) => Err(ErrorResponse::from(error)),
         Ok(output) => Ok(SuccessfulResponse::from(output)),
