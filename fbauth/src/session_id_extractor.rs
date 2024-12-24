@@ -5,7 +5,7 @@ use super::AppState;
 use std::str::FromStr as _;
 
 use crate::handlers::{Claims, Error};
-use crate::session_id::SessionId;
+use crate::models::session_id::SessionId;
 
 pub(crate) struct SessionIdExtractor(pub(crate) SessionId);
 

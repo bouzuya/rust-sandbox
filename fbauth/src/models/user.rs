@@ -1,4 +1,4 @@
-use crate::{google_account_id::GoogleAccountId, user_id::UserId};
+use crate::models::{google_account_id::GoogleAccountId, user_id::UserId};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct User {

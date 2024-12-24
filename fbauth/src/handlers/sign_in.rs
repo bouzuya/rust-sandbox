@@ -1,7 +1,7 @@
 use std::str::FromStr as _;
 
 use crate::AppState;
-use crate::{google_account_id::GoogleAccountId, session_id_extractor::SessionIdExtractor};
+use crate::{models::google_account_id::GoogleAccountId, session_id_extractor::SessionIdExtractor};
 use axum::{extract::State, routing::post, Json};
 
 use super::Error;

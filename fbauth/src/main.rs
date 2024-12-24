@@ -1,12 +1,8 @@
 mod app;
 mod discovery_document;
-mod google_account_id;
 mod handlers;
-mod session;
-mod session_id;
+mod models;
 mod session_id_extractor;
-mod user;
-mod user_id;
 
 use app::AppState;
 

@@ -1,4 +1,4 @@
-use crate::{session_id::SessionId, user_id::UserId};
+use crate::models::{session_id::SessionId, user_id::UserId};
 
 #[derive(Clone, Eq, PartialEq)]
 pub struct Session {

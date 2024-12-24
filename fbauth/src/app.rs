@@ -4,12 +4,12 @@ use anyhow::Context as _;
 use tokio::sync::Mutex;
 
 use crate::discovery_document::DiscoveryDocument;
-use crate::google_account_id::GoogleAccountId;
 use crate::handlers::Claims;
-use crate::session::Session;
-use crate::session_id::SessionId;
-use crate::user::User;
-use crate::user_id::UserId;
+use crate::models::google_account_id::GoogleAccountId;
+use crate::models::session::Session;
+use crate::models::session_id::SessionId;
+use crate::models::user::User;
+use crate::models::user_id::UserId;
 
 /// CREATE TABLE users (
 ///   id             VARCHAR NOT NULL,

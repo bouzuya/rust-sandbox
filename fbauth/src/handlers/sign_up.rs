@@ -1,7 +1,6 @@
-use crate::{
-    google_account_id::GoogleAccountId, session_id_extractor::SessionIdExtractor, user::User,
-    AppState,
-};
+use crate::models::google_account_id::GoogleAccountId;
+use crate::models::user::User;
+use crate::{session_id_extractor::SessionIdExtractor, AppState};
 use anyhow::Context as _;
 use axum::{extract::State, Json};
 
