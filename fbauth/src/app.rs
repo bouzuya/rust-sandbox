@@ -59,6 +59,7 @@ pub(crate) struct AppState {
     pub(crate) authorization_endpoint: String,
     pub(crate) client_id: String,
     pub(crate) client_secret: String,
+    pub(crate) encoding_key: jsonwebtoken::EncodingKey,
     pub(crate) jwks_uri: String,
     pub(crate) sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
     pub(crate) token_endpoint: String,
@@ -67,6 +68,10 @@ pub(crate) struct AppState {
 
 impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
+        let encoding_key =
+            jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
+                .context("create_session EncodingKey::from_rsa_pem")?;
+
         let DiscoveryDocument {
             authorization_endpoint,
             jwks_uri,
@@ -87,6 +92,7 @@ impl AppState {
             authorization_endpoint,
             client_id,
             client_secret,
+            encoding_key,
             jwks_uri,
             sessions: Arc::new(Mutex::new(Default::default())),
             token_endpoint,
@@ -101,6 +107,7 @@ impl std::fmt::Debug for AppState {
             .field("authorization_endpoint", &self.authorization_endpoint)
             .field("client_id", &self.client_id)
             .field("client_secret", &"[FILTERED]")
+            .field("encoding_key", &"[FILTERED]")
             .field("jwks_uri", &self.jwks_uri)
             .field("sessions", &self.sessions)
             .field("token_endpoint", &self.token_endpoint)
@@ -122,9 +129,6 @@ impl AppState {
                 state: None,
             },
         );
-        let encoding_key =
-            jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
-                .context("create_session EncodingKey::from_rsa_pem")?;
         let exp = std::time::SystemTime::now()
             .checked_add(std::time::Duration::from_secs(60 * 60))
             .context("create_session std::time::SystemTime::checked_add")?
@@ -138,7 +142,7 @@ impl AppState {
                 sid: session_id.to_string(),
                 sub: None,
             },
-            &encoding_key,
+            &self.encoding_key,
         )
         .context("create_session encode")?;
         Ok(token.to_string())
@@ -157,9 +161,6 @@ impl AppState {
             },
         );
 
-        let encoding_key =
-            jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
-                .context("create_session EncodingKey::from_rsa_pem")?;
         let exp = std::time::SystemTime::now()
             .checked_add(std::time::Duration::from_secs(60 * 60))
             .context("create_session std::time::SystemTime::checked_add")?
@@ -173,7 +174,7 @@ impl AppState {
                 sid: session_id.to_string(),
                 sub: Some(user_id.to_string()),
             },
-            &encoding_key,
+            &self.encoding_key,
         )
         .context("create_session encode")?;
         Ok(token.to_string())
