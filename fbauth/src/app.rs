@@ -59,6 +59,7 @@ pub(crate) struct AppState {
     pub(crate) authorization_endpoint: String,
     pub(crate) client_id: String,
     pub(crate) client_secret: String,
+    pub(crate) decoding_key: jsonwebtoken::DecodingKey,
     pub(crate) encoding_key: jsonwebtoken::EncodingKey,
     pub(crate) jwks_uri: String,
     pub(crate) sessions: Arc<Mutex<HashMap<SessionId, Session>>>,
@@ -68,9 +69,12 @@ pub(crate) struct AppState {
 
 impl AppState {
     pub async fn new() -> anyhow::Result<Self> {
+        let decoding_key =
+            jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../public_key.pem"))
+                .context("DecodingKey::from_rsa_pem")?;
         let encoding_key =
             jsonwebtoken::EncodingKey::from_rsa_pem(include_bytes!("../private_key.pem"))
-                .context("create_session EncodingKey::from_rsa_pem")?;
+                .context("EncodingKey::from_rsa_pem")?;
 
         let DiscoveryDocument {
             authorization_endpoint,
@@ -92,6 +96,7 @@ impl AppState {
             authorization_endpoint,
             client_id,
             client_secret,
+            decoding_key,
             encoding_key,
             jwks_uri,
             sessions: Arc::new(Mutex::new(Default::default())),

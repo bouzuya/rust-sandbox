@@ -15,7 +15,7 @@ impl axum::extract::FromRequestParts<AppState> for SessionIdExtractor {
 
     async fn from_request_parts(
         parts: &mut axum::http::request::Parts,
-        _state: &AppState,
+        state: &AppState,
     ) -> Result<Self, Self::Rejection> {
         let jwt = parts
             .headers
@@ -35,13 +35,9 @@ impl axum::extract::FromRequestParts<AppState> for SessionIdExtractor {
                 ))
             })?;
 
-        let decoding_key =
-            jsonwebtoken::DecodingKey::from_rsa_pem(include_bytes!("../public_key.pem"))
-                .context("SessionIdExtractor DecodingKey::from_rsa_pem")
-                .map_err(Error::Server)?;
         let jsonwebtoken::TokenData { header: _, claims } = jsonwebtoken::decode::<Claims>(
             jwt,
-            &decoding_key,
+            &state.decoding_key,
             &jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256),
         )
         .context("SessionIdExtractor decode")
