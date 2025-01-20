@@ -1,7 +1,7 @@
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let email = "".to_owned();
-    let password = "".to_owned();
+    let email = std::env::var("EMAIL")?;
+    let password = std::env::var("PASSWORD")?;
 
     let browser = headless_chrome::Browser::default()?;
 
