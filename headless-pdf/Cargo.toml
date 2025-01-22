@@ -4,4 +4,13 @@ edition = "2021"
 publish = false
 
 [dependencies]
+anyhow = "1.0.95"
+axum = "0.8.2"
+handlebars = "6.3.0"
 headless_chrome = { version = "1.0.15", features = ["fetch", "rustls"] }
+hex = "0.4.3"
+rand = { version = "0.8.5", features = ["getrandom"] }
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.137"
+thiserror = "2.0.11"
+tokio = { version = "1.43.0", features = ["full"] }
