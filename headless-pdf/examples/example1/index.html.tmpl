@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+	<head>
+		<title>{{title}}</title>
+		<style>
+	@page {
+		size: A4;
+		margin: 0;
+	}
+	table {
+		border: 1px solid black;
+		table-layout: fixed;
+		width: 100%;
+	}
+	th.kana,
+	th.name {
+		font-weight: normal;
+		width: 50mm;
+	}
+	td.kana,
+	td.name {
+		width: 50mm;
+		text-align: center;
+	}
+	td.photo {
+		overflow: hidden;
+		width: 100mm;
+	}
+	td.photo img {
+		height: auto;
+		width: 100%;
+	}
+		</style>
+	</head>
+	<body>
+		<h1>{{title}}</h1>
+		<table>
+			<tbody>
+				<tr>
+					<th class="kana">ふりがな</th>
+					<td class="kana">{{kana}}</td>
+					<td class="photo" rowspan="2">
+						<img src="{{photo_url}}" />
+					</td>
+				</tr>
+				<tr>
+					<th class="name">氏名</th>
+					<td class="name">{{name}}</td>
+				</tr>
+			</tbody>
+		</table>
+	</body>
+</html>
