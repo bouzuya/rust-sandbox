@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, thiserror::Error)]
 enum Error {
+    #[error("close target")]
+    CloseTarget(#[source] anyhow::Error),
     #[error("initialize browser")]
     InitializeBrowser(#[source] anyhow::Error),
     #[error("navigate to")]
@@ -19,12 +21,14 @@ enum Error {
 impl axum::response::IntoResponse for Error {
     fn into_response(self) -> axum::response::Response {
         match self {
-            Error::InitializeBrowser(_)
+            Error::CloseTarget(_)
+            | Error::InitializeBrowser(_)
             | Error::NavigateTo(_)
             | Error::NewTab(_)
             | Error::PrintToPdf(_)
             | Error::RenderTemplate(_)
             | Error::WaitUntilNavigated(_) => {
+                tracing::error!("{:?}", anyhow::anyhow!(self));
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
             }
         }
@@ -66,13 +70,20 @@ async fn pdf_create(
         id
     };
 
+    let url = format!("http://localhost:3000/htmls/{}", id);
+
+    let response = reqwest::get(&url).await.unwrap();
+    let response_body = response.text().await.unwrap();
+    println!("{}", response_body.len());
+
     let browser = headless_chrome::Browser::default().map_err(Error::InitializeBrowser)?;
     let tab = browser.new_tab().map_err(Error::NewTab)?;
-    tab.navigate_to(&format!("http://localhost:3000/htmls/{}", id))
-        .map_err(Error::NavigateTo)?;
+    tab.set_default_timeout(std::time::Duration::from_secs(5));
+    tab.navigate_to(&url).map_err(Error::NavigateTo)?;
     tab.wait_until_navigated()
         .map_err(Error::WaitUntilNavigated)?;
     let pdf = tab.print_to_pdf(None).map_err(Error::PrintToPdf)?;
+    tab.close_target().map_err(Error::CloseTarget)?;
 
     {
         let mut db = db.lock().await;
