@@ -10,7 +10,11 @@ handlebars = "6.3.0"
 headless_chrome = { version = "1.0.15", features = ["fetch", "rustls"] }
 hex = "0.4.3"
 rand = { version = "0.8.5", features = ["getrandom"] }
+reqwest = { version = "0.12.12", default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0.217", features = ["derive"] }
 serde_json = "1.0.137"
 thiserror = "2.0.11"
 tokio = { version = "1.43.0", features = ["full"] }
+tower-http = { version = "0.6.2", features = ["trace"] }
+tracing = "0.1.41"
+tracing-subscriber = { version = "0.3.19", features = ["env-filter"] }

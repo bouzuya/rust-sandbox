@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+
 #[derive(Debug, thiserror::Error)]
 enum Error {
     #[error("close target")]
@@ -100,11 +102,35 @@ struct App {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer().with_span_events(
+            tracing_subscriber::fmt::format::FmtSpan::NEW
+                | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
+        ))
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .init();
+
     let router = axum::Router::new()
         .route("/", axum::routing::get(|| async { "OK" }))
         .route("/htmls/{id}", axum::routing::get(html_show))
         .route("/pdfs", axum::routing::post(pdf_create))
-        .with_state(App::default());
+        .with_state(App::default())
+        .layer(
+            tower_http::trace::TraceLayer::new_for_http().make_span_with(
+                |request: &axum::http::Request<_>| {
+                    // Use request.uri() or OriginalUri if you want the real path.
+                    let matched_path = request
+                        .extensions()
+                        .get::<axum::extract::MatchedPath>()
+                        .map(axum::extract::MatchedPath::as_str);
+                    tracing::info_span!(
+                        "http_request",
+                        method = ?request.method(),
+                        matched_path,
+                    )
+                },
+            ),
+        );
     let listener = tokio::net::TcpListener::bind(("0.0.0.0", 3000_u16)).await?;
     axum::serve(listener, router).await?;
     Ok(())
