@@ -16,6 +16,10 @@ enum Error {
     PrintToPdf(#[source] anyhow::Error),
     #[error("render template")]
     RenderTemplate(#[source] handlebars::RenderError),
+    #[error("test request read body")]
+    TestRequestReadBody(#[source] reqwest::Error),
+    #[error("test request send")]
+    TestRequestSend(#[source] reqwest::Error),
     #[error("wait until navigated")]
     WaitUntilNavigated(#[source] anyhow::Error),
 }
@@ -29,6 +33,8 @@ impl axum::response::IntoResponse for Error {
             | Error::NewTab(_)
             | Error::PrintToPdf(_)
             | Error::RenderTemplate(_)
+            | Error::TestRequestReadBody(_)
+            | Error::TestRequestSend(_)
             | Error::WaitUntilNavigated(_) => {
                 tracing::error!("{:?}", anyhow::anyhow!(self));
                 axum::http::StatusCode::INTERNAL_SERVER_ERROR.into_response()
@@ -73,11 +79,18 @@ async fn pdf_create(
     };
 
     let url = format!("http://localhost:3000/htmls/{}", id);
+    test_html_request(&url).await?;
+    let pdf = save_to_pdf(&url)?;
 
-    let response = reqwest::get(&url).await.unwrap();
-    let response_body = response.text().await.unwrap();
-    println!("{}", response_body.len());
+    {
+        let mut db = db.lock().await;
+        db.remove(&id);
+    }
 
+    Ok(pdf)
+}
+
+fn save_to_pdf(url: &str) -> Result<Vec<u8>, Error> {
     let browser = headless_chrome::Browser::default().map_err(Error::InitializeBrowser)?;
     let tab = browser.new_tab().map_err(Error::NewTab)?;
     tab.set_default_timeout(std::time::Duration::from_secs(5));
@@ -86,13 +99,13 @@ async fn pdf_create(
         .map_err(Error::WaitUntilNavigated)?;
     let pdf = tab.print_to_pdf(None).map_err(Error::PrintToPdf)?;
     tab.close_target().map_err(Error::CloseTarget)?;
-
-    {
-        let mut db = db.lock().await;
-        db.remove(&id);
-    }
-
     Ok(pdf)
+}
+
+async fn test_html_request(url: &str) -> Result<(), Error> {
+    let response = reqwest::get(url).await.map_err(Error::TestRequestSend)?;
+    let _response_body = response.text().await.map_err(Error::TestRequestReadBody)?;
+    Ok(())
 }
 
 #[derive(Clone, Default)]
@@ -118,7 +131,6 @@ async fn main() -> anyhow::Result<()> {
         .layer(
             tower_http::trace::TraceLayer::new_for_http().make_span_with(
                 |request: &axum::http::Request<_>| {
-                    // Use request.uri() or OriginalUri if you want the real path.
                     let matched_path = request
                         .extensions()
                         .get::<axum::extract::MatchedPath>()
