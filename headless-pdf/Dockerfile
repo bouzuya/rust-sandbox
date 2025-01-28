@@ -18,7 +18,7 @@ COPY --from=cacher /app/target target
 RUN CARGO_BUILD_INCREMENTAL=true cargo build --release --target=x86_64-unknown-linux-musl
 
 FROM debian:bookworm
-RUN apt update && apt install -y chromium
+RUN apt update && apt install -y chromium fonts-noto
 RUN useradd --create-home bouzuya \
   && mkdir -p /home/bouzuya/app
 USER bouzuya
