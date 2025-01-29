@@ -7,24 +7,50 @@
 		size: A4;
 		margin: 0;
 	}
+	html {
+		margin: 0;
+		padding: 0;
+	}
+	body {
+		background-color: magenta;
+		margin: 0;
+		padding: 0;
+	}
+	.root {
+		background-color: white;
+		height: 297mm;
+		width: 210mm;
+	}
+	h1 {
+		margin: 0;
+		padding: 0 5mm;
+	}
 	table {
 		border: 1px solid black;
+		border-collapse: collapse;
 		table-layout: fixed;
-		width: 100%;
+		margin: 0 auto; /* 0 5mm */
+		width: 200mm;
 	}
+	th.birthday,
 	th.kana,
-	th.name {
+	th.name,
+	th.sex {
+		border: 1px solid black;
 		font-weight: normal;
-		width: 50mm;
+		width: 40mm;
 	}
+	td.birthday,
 	td.kana,
-	td.name {
-		width: 50mm;
+	td.name,
+	td.sex {
+		border: 1px solid black;
 		text-align: center;
+		width: 60mm;
 	}
 	td.photo {
 		overflow: hidden;
-		width: 100mm;
+		/* width: 100mm */
 	}
 	td.photo img {
 		height: auto;
@@ -33,21 +59,34 @@
 		</style>
 	</head>
 	<body>
-		<h1>{{title}}</h1>
-		<table>
-			<tbody>
-				<tr>
-					<th class="kana">ふりがな</th>
-					<td class="kana">{{kana}}</td>
-					<td class="photo" rowspan="2">
-						<img src="{{photo_url}}" />
-					</td>
-				</tr>
-				<tr>
-					<th class="name">氏名</th>
-					<td class="name">{{name}}</td>
-				</tr>
-			</tbody>
-		</table>
+		<div class="root">
+			<h1>{{title}}</h1>
+			<table>
+				<tbody>
+					<tr>
+						<th class="kana">ふりがな</th>
+						<td class="kana">{{kana}}</td>
+						<td class="photo" rowspan="4">
+							<img src="{{photo_url}}" />
+						</td>
+					</tr>
+					<tr>
+						<th class="name">氏名</th>
+						<td class="name">{{name}}</td>
+						<!-- photo -->
+					</tr>
+					<tr>
+						<th class="birthday">生年月日</th>
+						<td class="birthday">{{birthday}}</td>
+						<!-- photo -->
+					</tr>
+					<tr>
+						<th class="sex">性別</th>
+						<td class="sex">{{sex}}</td>
+						<!-- photo -->
+					</tr>
+				</tbody>
+			</table>
+		</div>
 	</body>
 </html>

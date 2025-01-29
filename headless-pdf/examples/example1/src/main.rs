@@ -6,9 +6,11 @@ struct Body {
 
 #[derive(serde::Serialize)]
 struct Data {
+    birthday: String,
     kana: String,
     name: String,
     photo_url: String,
+    sex: String,
     title: String,
 }
 
@@ -20,9 +22,11 @@ async fn main() -> anyhow::Result<()> {
         .json(&Body {
             template: include_str!("../index.html.tmpl").to_owned(),
             data: Data {
+                birthday: "1970年1月1日".to_owned(),
                 kana: "ぼうずや".to_owned(),
                 name: "bouzuya".to_owned(),
                 photo_url: "https://bouzuya.net/images/bouzuya-icon-v3.png".to_owned(),
+                sex: "男性".to_owned(),
                 title: "履歴書".to_owned(),
             },
         })
