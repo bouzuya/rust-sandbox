@@ -7,13 +7,11 @@ edition = "2021"
 anyhow = "1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
-firestore-path = "0.9.7"
-google-api-proto = { version = "1.495.0", features = ["google-firestore-v1"] }
-google-authz = { version = "1.0.0-alpha.5", default-features = false, features = [
-  "webpki-roots",
-  "tonic",
-] }
+firestore-path = "1"
+googleapis-tonic-google-firestore-v1 = { version = "0.13.0" }
+google-cloud-auth = { version = "0.17.2", default-features = false, features = ["rustls-tls"] }
+google-cloud-token = "0.1.2"
 serde = { version = "1", features = ["derive"] }
-serde-firestore-value = { version = "0.7", features = ["chrono"] }
+serde-firestore-value = { version = "0.14", features = ["chrono"] }
 tokio = { version = "1", features = ["full"] }
-tonic = { version = "0.11", features = ["tls-webpki-roots"] }
+tonic = { version = "0.12", features = ["tls-webpki-roots"] }
