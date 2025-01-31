@@ -1,17 +1,15 @@
 use std::{
     collections::HashMap,
     ops::{Add, Range},
-    path::Path,
     str::FromStr as _,
 };
 
+use anyhow::Context as _;
 use chrono::{prelude::Utc, DateTime, Duration};
 use firestore_path::{DatabaseId, DatabaseName, ProjectId};
-use google_api_proto::google::firestore::v1::{
-    firestore_client::FirestoreClient, value::ValueType, ListDocumentsRequest, MapValue, Value,
+use googleapis_tonic_google_firestore_v1::google::firestore::v1::{
+    value::ValueType, ListDocumentsRequest, MapValue, Value,
 };
-use google_authz::{Credentials, GoogleAuthz};
-use tonic::transport::Channel;
 
 #[derive(Debug, clap::Parser)]
 struct Args {
@@ -29,12 +27,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = <Args as clap::Parser>::parse();
 
     let date_time_range = build_date_time_range(&cli.yyyy_mm)?;
-    let events = list_event_documents(
-        &cli.google_application_credentials,
-        &cli.project_id,
-        &cli.account_id,
-    )
-    .await?;
+    let events = list_event_documents(&cli.project_id, &cli.account_id).await?;
 
     let (categories, transactions) = build_state(events)?;
     let filtered = filter_and_sort_transactions(transactions, &date_time_range);
@@ -123,22 +116,75 @@ impl EventDocumentData {
 
 type Transaction = (String, String, String, String, String);
 
-async fn build_firestore_client(
-    google_application_credentials: &str,
-) -> anyhow::Result<FirestoreClient<GoogleAuthz<Channel>>> {
-    let channel = Channel::from_static("https://firestore.googleapis.com")
-        .connect()
-        .await?;
-    let credentials = Credentials::builder()
-        .json_file(Path::new(&google_application_credentials))
-        .build()
-        .await?;
-    let google_authz = GoogleAuthz::builder(channel)
-        .credentials(credentials)
-        .build()
-        .await;
-    let client = FirestoreClient::new(google_authz);
-    Ok(client)
+type MyInterceptor =
+    Box<dyn FnMut(tonic::Request<()>) -> Result<tonic::Request<()>, tonic::Status> + Send + Sync>;
+type Client =
+    googleapis_tonic_google_firestore_v1::google::firestore::v1::firestore_client::FirestoreClient<
+        tonic::service::interceptor::InterceptedService<tonic::transport::Channel, MyInterceptor>,
+    >;
+
+#[derive(Clone)]
+pub struct FirestoreClient {
+    channel: tonic::transport::Channel,
+    database_name: firestore_path::DatabaseName,
+    token_source: std::sync::Arc<dyn google_cloud_token::TokenSource>,
+}
+
+impl FirestoreClient {
+    pub async fn new() -> anyhow::Result<Self> {
+        let default_token_source_provider =
+            google_cloud_auth::token::DefaultTokenSourceProvider::new(
+                google_cloud_auth::project::Config::default().with_scopes(&[
+                    "https://www.googleapis.com/auth/cloud-platform",
+                    "https://www.googleapis.com/auth/datastore",
+                ]),
+            )
+            .await?;
+        let token_source =
+            google_cloud_token::TokenSourceProvider::token_source(&default_token_source_provider);
+        let project_id = default_token_source_provider
+            .project_id
+            .context("project_id not found")?;
+        let channel = tonic::transport::Channel::from_static("https://firestore.googleapis.com")
+            .tls_config(tonic::transport::ClientTlsConfig::new().with_webpki_roots())?
+            .connect()
+            .await?;
+        let database_name = DatabaseName::from_project_id(project_id)?;
+        Ok(Self {
+            channel,
+            database_name,
+            token_source,
+        })
+    }
+
+    pub async fn client(&self) -> anyhow::Result<Client> {
+        let inner = self.channel.clone();
+        let token = self
+            .token_source
+            .token()
+            .await
+            .map_err(|_| anyhow::anyhow!("token_source.token()"))?;
+        let mut metadata_value = tonic::metadata::AsciiMetadataValue::try_from(token)?;
+        metadata_value.set_sensitive(true);
+        let interceptor: MyInterceptor = Box::new(
+            move |mut request: tonic::Request<()>| -> Result<tonic::Request<()>, tonic::Status> {
+                request
+                    .metadata_mut()
+                    .insert("authorization", metadata_value.clone());
+                Ok(request)
+            },
+        );
+        let client = googleapis_tonic_google_firestore_v1::google::firestore::v1::firestore_client::FirestoreClient::with_interceptor(inner, interceptor);
+        Ok(client)
+    }
+
+    pub fn database_name(&self) -> &DatabaseName {
+        &self.database_name
+    }
+}
+
+async fn build_firestore_client() -> anyhow::Result<FirestoreClient> {
+    FirestoreClient::new().await
 }
 
 fn build_date_time_range(yyyy_mm: &str) -> anyhow::Result<Range<DateTime<Utc>>> {
@@ -152,11 +198,10 @@ fn build_date_time_range(yyyy_mm: &str) -> anyhow::Result<Range<DateTime<Utc>>> 
 }
 
 async fn list_event_documents(
-    google_application_credentials: &str,
     project_id: &str,
     account_id: &str,
 ) -> anyhow::Result<Vec<EventDocumentData>> {
-    let mut client = build_firestore_client(google_application_credentials).await?;
+    let mut client = build_firestore_client().await?.client().await?;
     let project_id = ProjectId::from_str(project_id)?;
     let database_id = DatabaseId::from_str("(default)")?;
     let database_name = DatabaseName::new(project_id, database_id);
