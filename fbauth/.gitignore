@@ -1,2 +1,4 @@
-/target/
 /.env*
+/*.pem
+/shell.nix
+/target/
