@@ -1,7 +1,15 @@
+use anyhow::Context;
+
 #[derive(Clone)]
 struct Position {
     x: i64,
     y: i64,
+}
+
+impl std::fmt::Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{},{}", self.x, self.y)
+    }
 }
 
 impl std::str::FromStr for Position {
@@ -23,27 +31,38 @@ struct Args {
     /// The path to the stamp image file
     stamp: std::path::PathBuf,
     /// The path to the output PDF file
-    #[arg(long)]
+    #[arg(long, default_value = "output.pdf")]
     output: Option<std::path::PathBuf>,
     /// The position of the stamp image as x,y (top-left is 0,0)
-    #[arg(long)]
+    #[arg(long, default_value = "0,0")]
     position: Option<Position>,
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     let args = <Args as clap::Parser>::parse();
 
-    println!(
-        "pdfoin{}{} {} {}",
-        args.output
-            .as_ref()
-            .map(|it| format!(" --output {}", it.display()))
-            .unwrap_or_default(),
-        args.position
-            .as_ref()
-            .map(|it| format!(" --position {},{}", it.x, it.y))
-            .unwrap_or_default(),
-        args.input.display(),
-        args.stamp.display()
-    );
+    let input = args.input;
+    let output = args.output.context("output is none")?;
+    let position = args.position.context("position is none")?;
+    let stamp = args.stamp;
+
+    // println!(
+    //     "pdfoin --output {} --position {} {} {}",
+    //     output.display(),
+    //     position,
+    //     input.display(),
+    //     stamp.display()
+    // );
+
+    let mut document = ::lopdf::Document::load(input).context("load input pdf")?;
+
+    // FIXME: load image file
+    // FIXME: insert image to pdf
+
+    let file = std::fs::File::create_new(&output).context("create output pdf")?;
+    let mut writer = std::io::BufWriter::new(file);
+    document.save_to(&mut writer).context("write output pdf")?;
+    println!("The PDF file is output to {}", output.display());
+
+    Ok(())
 }
