@@ -1,4 +1,9 @@
+mod pdf;
+
 use anyhow::Context;
+use pdf::Document;
+use pdf::F32Ext as _;
+use pdf::Image;
 
 #[derive(Clone)]
 struct Position {
@@ -54,15 +59,26 @@ fn main() -> anyhow::Result<()> {
     //     stamp.display()
     // );
 
-    let mut document = ::lopdf::Document::load(input).context("load input pdf")?;
+    let mut document = Document::load(input).context("load input pdf")?;
 
-    // FIXME: load image file
-    // FIXME: insert image to pdf
+    // load image file
+    let image = Image::from_png_file_path(stamp).context("read stamp image file")?;
+    let width = (image.width() as f32).px();
+    let height = (image.height() as f32).px();
+
+    // insert image to pdf
+    let page_no = 1_u32;
+    // FIXME: posiiton
+    let x = 210.0.mm().to_px() - width;
+    let y = 297.0.mm().to_px() - height;
+    document
+        .insert_image(page_no, image, (x, y))
+        .context("insert image to pdf")?;
 
     let file = std::fs::File::create_new(&output).context("create output pdf")?;
     let mut writer = std::io::BufWriter::new(file);
     document.save_to(&mut writer).context("write output pdf")?;
-    println!("The PDF file is output to {}", output.display());
+    println!("The PDF file has been output to `{}`", output.display());
 
     Ok(())
 }
