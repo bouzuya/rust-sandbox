@@ -4,7 +4,7 @@ mod image;
 mod unit;
 
 pub use self::image::Image;
-pub(crate) use self::unit::F32Ext;
+pub(crate) use self::unit::NumExt;
 
 use anyhow::Context;
 
@@ -25,6 +25,33 @@ impl Document {
         (x, y): (Px, Px),
     ) -> anyhow::Result<()> {
         let page_object_id = *self.0.get_pages().get(&page_no).context("page not found")?;
+
+        let page_height = {
+            let media_box_rectangle = self
+                .0
+                .get_object(page_object_id)
+                .expect("page with the specified page id to exist")
+                .as_dict()
+                .expect("page to be a dictionary")
+                .get("MediaBox".as_bytes())
+                .expect("page dictionary to contain MediaBox entry")
+                .as_array()
+                .expect("MediaBox value to be a rectangle")
+                .iter()
+                .map(|it| {
+                    it.as_float()
+                        .expect("MediaBox rectangle element to be float")
+                })
+                .collect::<Vec<f32>>();
+            let lly = media_box_rectangle[1]; // lly: lower-left y
+            let ury = media_box_rectangle[3]; // ury: upper-right y
+            ury.px() - lly.px()
+        };
+
+        // top-left -> bottom-left
+        let height = (image.height() as f32).px();
+        let y = page_height - height - y;
+
         let position = (x.to_f32(), y.to_f32());
         let size = ((image.width() as f32), (image.height() as f32));
         self.0

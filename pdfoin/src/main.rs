@@ -2,13 +2,13 @@ mod pdf;
 
 use anyhow::Context;
 use pdf::Document;
-use pdf::F32Ext as _;
 use pdf::Image;
+use pdf::NumExt as _;
 
 #[derive(Clone)]
 struct Position {
-    x: i64,
-    y: i64,
+    x: i16,
+    y: i16,
 }
 
 impl std::fmt::Display for Position {
@@ -23,8 +23,8 @@ impl std::str::FromStr for Position {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts = s.split(',').collect::<Vec<&str>>();
         anyhow::ensure!(parts.len() == 2);
-        let x = i64::from_str(parts[0])?;
-        let y = i64::from_str(parts[1])?;
+        let x = i16::from_str(parts[0])?;
+        let y = i16::from_str(parts[1])?;
         Ok(Self { x, y })
     }
 }
@@ -63,16 +63,11 @@ fn main() -> anyhow::Result<()> {
 
     // load image file
     let image = Image::from_png_file_path(stamp).context("read stamp image file")?;
-    let width = (image.width() as f32).px();
-    let height = (image.height() as f32).px();
 
     // insert image to pdf
     let page_no = 1_u32;
-    // FIXME: posiiton
-    let x = 210.0.mm().to_px() - width;
-    let y = 297.0.mm().to_px() - height;
     document
-        .insert_image(page_no, image, (x, y))
+        .insert_image(page_no, image, (position.x.px(), position.y.px()))
         .context("insert image to pdf")?;
 
     let file = std::fs::File::create_new(&output).context("create output pdf")?;

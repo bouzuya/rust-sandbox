@@ -2,6 +2,7 @@
 pub(crate) struct Mm(f32);
 
 impl Mm {
+    #[allow(dead_code)]
     pub(crate) fn to_px(&self) -> Px {
         Px(mm_to_px(self.0))
     }
@@ -37,12 +38,23 @@ impl std::ops::Sub<Px> for Px {
     }
 }
 
-pub(crate) trait F32Ext {
+#[allow(dead_code)]
+pub(crate) trait NumExt {
     fn mm(&self) -> Mm;
     fn px(&self) -> Px;
 }
 
-impl F32Ext for f32 {
+impl NumExt for i16 {
+    fn mm(&self) -> Mm {
+        Mm(f32::from(*self))
+    }
+
+    fn px(&self) -> Px {
+        Px(f32::from(*self))
+    }
+}
+
+impl NumExt for f32 {
     fn mm(&self) -> Mm {
         Mm(*self)
     }
@@ -52,6 +64,7 @@ impl F32Ext for f32 {
     }
 }
 
+#[allow(dead_code)]
 fn mm_to_px(mm: f32) -> f32 {
     let mmpi = 25.4; // mm per inch
     let dpi = 72.0; // dot (px) per inch

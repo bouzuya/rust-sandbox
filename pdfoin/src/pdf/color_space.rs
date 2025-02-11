@@ -36,6 +36,7 @@ impl From<SpecialColorSpace> for ColorSpace {
 }
 
 // Figure 20 - Colour Specification
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum CIEBasedColorSpace {
     CalGray,
@@ -57,6 +58,7 @@ impl CIEBasedColorSpace {
 }
 
 // Figure 20 - Colour Specification
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DeviceColorSpace {
     DeviceGray,
@@ -76,6 +78,7 @@ impl DeviceColorSpace {
 }
 
 // Figure 20 - Colour Specification
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum SpecialColorSpace {
     Indexed,
