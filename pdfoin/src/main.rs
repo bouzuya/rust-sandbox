@@ -66,7 +66,8 @@ fn main() -> anyhow::Result<()> {
     let mut document = Document::load(input).context("load input pdf")?;
 
     // load image file
-    let image = Image::from_png_file_path(stamp).context("read stamp image file")?;
+    // let image = Image::from_png_file_path(stamp).context("read stamp image file")?;
+    let image = Image::from_file_path(stamp).context("read stamp image file")?;
 
     // insert image to pdf
     let page_no = u32::from(page);

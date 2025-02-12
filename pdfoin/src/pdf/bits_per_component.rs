@@ -9,6 +9,7 @@ pub enum BitsPerComponent {
 }
 
 impl BitsPerComponent {
+    #[allow(dead_code)]
     pub fn from_u8(n: u8) -> Option<BitsPerComponent> {
         match n {
             1 => Some(BitsPerComponent::One),

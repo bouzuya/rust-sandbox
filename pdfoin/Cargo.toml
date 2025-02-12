@@ -7,5 +7,6 @@ publish = false
 anyhow = "1.0.95"
 clap = { version = "4.5.28", features = ["derive"] }
 clap_derive = "4.5.28"
+image = "0.25.5"
 lopdf = "0.35.0"
 png = "0.17.16"

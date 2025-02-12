@@ -16,6 +16,59 @@ pub struct Image {
 }
 
 impl Image {
+    pub(crate) fn from_file_path<P: AsRef<std::path::Path>>(p: P) -> anyhow::Result<Self> {
+        let dynamic_image =
+            image::ImageReader::new(std::io::BufReader::new(std::fs::File::open(p)?))
+                .with_guessed_format()?
+                .decode()?;
+        let color_space = ColorSpace::from(if dynamic_image.color().has_color() {
+            DeviceColorSpace::DeviceRGB
+        } else {
+            DeviceColorSpace::DeviceGray
+        });
+        let bits_per_component = match dynamic_image.color() {
+            image::ColorType::L8
+            | image::ColorType::La8
+            | image::ColorType::Rgb8
+            | image::ColorType::Rgba8 => BitsPerComponent::Eight,
+            image::ColorType::L16
+            | image::ColorType::La16
+            | image::ColorType::Rgb16
+            | image::ColorType::Rgba16 => BitsPerComponent::Sixteen,
+            image::ColorType::Rgb32F | image::ColorType::Rgba32F => {
+                unimplemented!("32-bit float RGB is not supported")
+            }
+            _ => todo!(),
+        };
+        let width = i64::from(dynamic_image.width());
+        let height = i64::from(dynamic_image.height());
+        let (samples, alphas) = {
+            let alpha = dynamic_image.color().has_alpha();
+            let step = 4;
+            let bytes = dynamic_image.into_rgba8().into_vec();
+            let mut s = Vec::with_capacity(bytes.len() / step);
+            let mut a = Vec::with_capacity(bytes.len() / step);
+            for i in (0..bytes.len()).step_by(step) {
+                for j in 0..step - 1 {
+                    s.push(bytes[i + j]);
+                }
+                if alpha {
+                    a.push(bytes[i + step - 1]);
+                }
+            }
+            (s, alpha.then_some(a))
+        };
+        Ok(Self {
+            color_space,
+            width,
+            height,
+            bits_per_component,
+            samples,
+            alphas,
+        })
+    }
+
+    #[allow(dead_code)]
     pub(crate) fn from_png_file_path<P: AsRef<std::path::Path>>(p: P) -> anyhow::Result<Self> {
         let decoder = png::Decoder::new(std::fs::File::open(p)?);
         let mut reader = decoder.read_info()?;
