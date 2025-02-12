@@ -38,6 +38,9 @@ struct Args {
     /// The path to the output PDF file
     #[arg(long, default_value = "output.pdf")]
     output: Option<std::path::PathBuf>,
+    /// The 1-based page number to stamp image on
+    #[arg(long, default_value = "1")]
+    page: Option<u16>,
     /// The position of the stamp image as x,y (top-left is 0,0)
     #[arg(long, default_value = "0,0")]
     position: Option<Position>,
@@ -48,6 +51,7 @@ fn main() -> anyhow::Result<()> {
 
     let input = args.input;
     let output = args.output.context("output is none")?;
+    let page = args.page.context("page is none")?;
     let position = args.position.context("position is none")?;
     let stamp = args.stamp;
 
@@ -65,7 +69,7 @@ fn main() -> anyhow::Result<()> {
     let image = Image::from_png_file_path(stamp).context("read stamp image file")?;
 
     // insert image to pdf
-    let page_no = 1_u32;
+    let page_no = u32::from(page);
     document
         .insert_image(page_no, image, (position.x.px(), position.y.px()))
         .context("insert image to pdf")?;
