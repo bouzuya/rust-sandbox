@@ -1,0 +1,10 @@
+[package]
+name = "grpcal"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tonic = "0.12.3"
+
+[build-dependencies]
+tonic-build = "0.12.3"
