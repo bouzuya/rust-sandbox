@@ -3,7 +3,30 @@ syntax = "proto3";
 package grpcal;
 
 service Grpcal {
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse) {}
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse) {}
   rpc Hello(HelloRequest) returns (HelloResponse) {}
+}
+
+message CreateEventRequest {
+  string date_time = 1;
+  string summary = 2;
+}
+
+message CreateEventResponse {
+  string id = 1;
+  string date_time = 2;
+  string summary = 3;
+}
+
+message GetEventRequest {
+  string id = 1;
+}
+
+message GetEventResponse {
+  string id = 1;
+  string date_time = 2;
+  string summary = 3;
 }
 
 message HelloRequest {
