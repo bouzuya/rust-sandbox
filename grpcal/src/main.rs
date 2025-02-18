@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 use tokio::sync::Mutex;
-use tonic::{async_trait, Request};
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
 mod grpcal {
     tonic::include_proto!("grpcal");
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Event {
     date_time: String,
     id: String,
@@ -46,12 +46,14 @@ impl From<Event> for grpcal::GetEventResponse {
     }
 }
 
+#[derive(Debug)]
 struct Server {
     data: Mutex<BTreeMap<String, Event>>,
 }
 
 #[tonic::async_trait]
 impl grpcal::grpcal_server::Grpcal for Server {
+    #[tracing::instrument(skip(self))]
     async fn create_event(
         &self,
         request: tonic::Request<grpcal::CreateEventRequest>,
@@ -70,6 +72,7 @@ impl grpcal::grpcal_server::Grpcal for Server {
         )))
     }
 
+    #[tracing::instrument(skip(self))]
     async fn get_event(
         &self,
         request: tonic::Request<grpcal::GetEventRequest>,
@@ -83,6 +86,7 @@ impl grpcal::grpcal_server::Grpcal for Server {
             .ok_or_else(|| tonic::Status::not_found("event not found"))
     }
 
+    #[tracing::instrument(skip(self))]
     async fn hello(
         &self,
         request: tonic::Request<grpcal::HelloRequest>,
@@ -95,7 +99,16 @@ impl grpcal::grpcal_server::Grpcal for Server {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer().with_span_events(
+            tracing_subscriber::fmt::format::FmtSpan::NEW
+                | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
+        ))
+        .init();
+
     tonic::transport::Server::builder()
+        .trace_fn(|_http_request| tracing::info_span!("info_span"))
         .add_service(grpcal::grpcal_server::GrpcalServer::new(Server {
             data: Default::default(),
         }))
