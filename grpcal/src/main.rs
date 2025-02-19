@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, str::FromStr};
 
 use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
@@ -7,10 +7,33 @@ mod grpcal {
     tonic::include_proto!("grpcal");
 }
 
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct EventId(uuid::Uuid);
+
+impl EventId {
+    fn new() -> Self {
+        Self(uuid::Uuid::new_v4())
+    }
+}
+
+impl std::str::FromStr for EventId {
+    type Err = anyhow::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(uuid::Uuid::from_str(s).map(Self)?)
+    }
+}
+
+impl std::fmt::Display for EventId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string())
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Event {
     date_time: String,
-    id: String,
+    id: EventId,
     summary: String,
 }
 
@@ -24,7 +47,7 @@ impl From<Event> for grpcal::CreateEventResponse {
     ) -> Self {
         Self {
             date_time,
-            id,
+            id: id.to_string(),
             summary,
         }
     }
@@ -40,7 +63,7 @@ impl From<Event> for grpcal::GetEventResponse {
     ) -> Self {
         Self {
             date_time,
-            id,
+            id: id.to_string(),
             summary,
         }
     }
@@ -48,7 +71,7 @@ impl From<Event> for grpcal::GetEventResponse {
 
 #[derive(Debug)]
 struct Server {
-    data: Mutex<BTreeMap<String, Event>>,
+    data: Mutex<BTreeMap<EventId, Event>>,
 }
 
 #[tonic::async_trait]
@@ -60,13 +83,12 @@ impl grpcal::grpcal_server::Grpcal for Server {
     ) -> Result<tonic::Response<grpcal::CreateEventResponse>, tonic::Status> {
         let grpcal::CreateEventRequest { date_time, summary } = request.into_inner();
         let mut data = self.data.lock().await;
-        let id = data.len().to_string();
         let event = Event {
             date_time,
-            id,
+            id: EventId::new(),
             summary,
         };
-        data.insert(event.id.clone(), event.clone());
+        data.insert(event.id, event.clone());
         Ok(tonic::Response::new(grpcal::CreateEventResponse::from(
             event,
         )))
@@ -78,6 +100,7 @@ impl grpcal::grpcal_server::Grpcal for Server {
         request: tonic::Request<grpcal::GetEventRequest>,
     ) -> Result<tonic::Response<grpcal::GetEventResponse>, tonic::Status> {
         let grpcal::GetEventRequest { id } = request.into_inner();
+        let id = EventId::from_str(&id).map_err(|_| tonic::Status::invalid_argument("id"))?;
         let data = self.data.lock().await;
         data.get(&id)
             .cloned()
