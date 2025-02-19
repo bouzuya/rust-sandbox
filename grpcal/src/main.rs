@@ -98,7 +98,7 @@ impl grpcal::grpcal_server::Grpcal for Server {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::from_default_env())
         .with(tracing_subscriber::fmt::layer().with_span_events(
@@ -112,7 +112,7 @@ async fn main() {
         .add_service(grpcal::grpcal_server::GrpcalServer::new(Server {
             data: Default::default(),
         }))
-        .serve("0.0.0.0:3000".parse().unwrap())
-        .await
-        .unwrap()
+        .serve("0.0.0.0:3000".parse()?)
+        .await?;
+    Ok(())
 }
