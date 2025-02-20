@@ -38,6 +38,14 @@ struct Event {
 }
 
 impl From<Event> for grpcal::CreateEventResponse {
+    fn from(event: Event) -> Self {
+        Self {
+            event: Some(grpcal::Event::from(event)),
+        }
+    }
+}
+
+impl From<Event> for grpcal::Event {
     fn from(
         Event {
             date_time,
@@ -54,17 +62,9 @@ impl From<Event> for grpcal::CreateEventResponse {
 }
 
 impl From<Event> for grpcal::GetEventResponse {
-    fn from(
-        Event {
-            date_time,
-            id,
-            summary,
-        }: Event,
-    ) -> Self {
+    fn from(event: Event) -> Self {
         Self {
-            date_time,
-            id: id.to_string(),
-            summary,
+            event: Some(grpcal::Event::from(event)),
         }
     }
 }
@@ -117,6 +117,21 @@ impl grpcal::grpcal_server::Grpcal for Server {
         let grpcal::HelloRequest { name } = request.into_inner();
         let message = format!("Hello, {}!", name);
         Ok(tonic::Response::new(grpcal::HelloResponse { message }))
+    }
+
+    #[tracing::instrument(skip(self))]
+    async fn list_events(
+        &self,
+        _request: tonic::Request<grpcal::ListEventsRequest>,
+    ) -> Result<tonic::Response<grpcal::ListEventsResponse>, tonic::Status> {
+        let data = self.data.lock().await;
+        let events = data
+            .values()
+            .cloned()
+            .into_iter()
+            .map(grpcal::Event::from)
+            .collect::<Vec<grpcal::Event>>();
+        Ok(tonic::Response::new(grpcal::ListEventsResponse { events }))
     }
 }
 

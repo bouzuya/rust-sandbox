@@ -5,6 +5,7 @@ package grpcal;
 service Grpcal {
   rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse) {}
   rpc GetEvent(GetEventRequest) returns (GetEventResponse) {}
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {}
   rpc Hello(HelloRequest) returns (HelloResponse) {}
 }
 
@@ -14,6 +15,10 @@ message CreateEventRequest {
 }
 
 message CreateEventResponse {
+  Event event = 4;
+}
+
+message Event {
   string id = 1;
   string date_time = 2;
   string summary = 3;
@@ -24,9 +29,7 @@ message GetEventRequest {
 }
 
 message GetEventResponse {
-  string id = 1;
-  string date_time = 2;
-  string summary = 3;
+  Event event = 4;
 }
 
 message HelloRequest {
@@ -36,3 +39,10 @@ message HelloRequest {
 message HelloResponse {
   string message = 1;
 }
+
+message ListEventsRequest {}
+
+message ListEventsResponse {
+  repeated Event events = 1;
+}
+
