@@ -15,6 +15,7 @@ message CreateEventRequest {
 }
 
 message CreateEventResponse {
+  reserved 1, 2, 3;
   Event event = 4;
 }
 
@@ -29,6 +30,7 @@ message GetEventRequest {
 }
 
 message GetEventResponse {
+  reserved 1, 2, 3;
   Event event = 4;
 }
 
