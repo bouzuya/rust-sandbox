@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package grpcal;
+
+import "event.proto";
+
+message GetEventResponse {
+  reserved 1, 2, 3;
+  Event event = 4;
+}
+

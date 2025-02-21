@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package grpcal;
+
+import "event.proto";
+
+message ListEventsResponse {
+  repeated Event events = 1;
+}

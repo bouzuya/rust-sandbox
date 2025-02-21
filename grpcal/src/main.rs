@@ -75,7 +75,7 @@ struct Server {
 }
 
 #[tonic::async_trait]
-impl grpcal::grpcal_server::Grpcal for Server {
+impl grpcal::grpcal_service_server::GrpcalService for Server {
     #[tracing::instrument(skip(self))]
     async fn create_event(
         &self,
@@ -110,16 +110,6 @@ impl grpcal::grpcal_server::Grpcal for Server {
     }
 
     #[tracing::instrument(skip(self))]
-    async fn hello(
-        &self,
-        request: tonic::Request<grpcal::HelloRequest>,
-    ) -> Result<tonic::Response<grpcal::HelloResponse>, tonic::Status> {
-        let grpcal::HelloRequest { name } = request.into_inner();
-        let message = format!("Hello, {}!", name);
-        Ok(tonic::Response::new(grpcal::HelloResponse { message }))
-    }
-
-    #[tracing::instrument(skip(self))]
     async fn list_events(
         &self,
         _request: tonic::Request<grpcal::ListEventsRequest>,
@@ -147,9 +137,11 @@ async fn main() -> anyhow::Result<()> {
 
     tonic::transport::Server::builder()
         .trace_fn(|_http_request| tracing::info_span!("info_span"))
-        .add_service(grpcal::grpcal_server::GrpcalServer::new(Server {
-            data: Default::default(),
-        }))
+        .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
+            Server {
+                data: Default::default(),
+            },
+        ))
         .serve("0.0.0.0:3000".parse()?)
         .await?;
     Ok(())

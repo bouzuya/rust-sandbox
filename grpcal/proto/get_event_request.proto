@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package grpcal;
+
+message GetEventRequest {
+  string id = 1;
+}
+

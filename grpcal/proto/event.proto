@@ -1,0 +1,10 @@
+syntax = "proto3";
+
+package grpcal;
+
+message Event {
+  string id = 1;
+  string date_time = 2;
+  string summary = 3;
+}
+

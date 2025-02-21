@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package grpcal;
+
+import "create_event_request.proto";
+import "create_event_response.proto";
+import "get_event_request.proto";
+import "get_event_response.proto";
+import "list_events_request.proto";
+import "list_events_response.proto";
+
+service GrpcalService {
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse) {}
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse) {}
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse) {}
+}
+

@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+package grpcal;
+
+message CreateEventRequest {
+  string date_time = 1;
+  string summary = 2;
+}
+
