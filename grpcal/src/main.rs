@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use grpcal::ListEventsRequest;
+use anyhow::Context as _;
 use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
@@ -134,22 +134,43 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Subcommand {
+    /// Create an event
+    Create(CreateSubcommand),
     /// List events
     List,
     /// Run server
     Server,
 }
 
+#[derive(clap::Args)]
+struct CreateSubcommand {
+    #[arg(long)]
+    date_time: String,
+    #[arg(long)]
+    summary: String,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
     match cli.subcommand {
+        Subcommand::Create(CreateSubcommand { date_time, summary }) => {
+            let channel = tonic::transport::Endpoint::from_static("http://localhost:3000")
+                .connect()
+                .await?;
+            let mut client = grpcal::grpcal_service_client::GrpcalServiceClient::new(channel);
+            let response = client
+                .create_event(grpcal::CreateEventRequest { date_time, summary })
+                .await?;
+            let event = response.into_inner().event.context("event not found")?;
+            println!("{} {} {}", event.id, event.date_time, event.summary);
+        }
         Subcommand::List => {
             let channel = tonic::transport::Endpoint::from_static("http://localhost:3000")
                 .connect()
                 .await?;
             let mut client = grpcal::grpcal_service_client::GrpcalServiceClient::new(channel);
-            let response = client.list_events(ListEventsRequest {}).await?;
+            let response = client.list_events(grpcal::ListEventsRequest {}).await?;
             for event in response.into_inner().events {
                 println!("{} {} {}", event.id, event.date_time, event.summary);
             }
