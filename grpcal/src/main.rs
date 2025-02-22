@@ -1,5 +1,6 @@
 use std::{collections::BTreeMap, str::FromStr};
 
+use grpcal::ListEventsRequest;
 use tokio::sync::Mutex;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 
@@ -133,6 +134,8 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Subcommand {
+    /// List events
+    List,
     /// Run server
     Server,
 }
@@ -141,6 +144,16 @@ enum Subcommand {
 async fn main() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
     match cli.subcommand {
+        Subcommand::List => {
+            let channel = tonic::transport::Endpoint::from_static("http://localhost:3000")
+                .connect()
+                .await?;
+            let mut client = grpcal::grpcal_service_client::GrpcalServiceClient::new(channel);
+            let response = client.list_events(ListEventsRequest {}).await?;
+            for event in response.into_inner().events {
+                println!("{} {} {}", event.id, event.date_time, event.summary);
+            }
+        }
         Subcommand::Server => {
             tracing_subscriber::registry()
                 .with(tracing_subscriber::EnvFilter::from_default_env())
