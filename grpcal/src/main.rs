@@ -125,24 +125,40 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
     }
 }
 
+#[derive(clap::Parser)]
+struct Cli {
+    #[command(subcommand)]
+    subcommand: Subcommand,
+}
+
+#[derive(clap::Subcommand)]
+enum Subcommand {
+    /// Run server
+    Server,
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::from_default_env())
-        .with(tracing_subscriber::fmt::layer().with_span_events(
-            tracing_subscriber::fmt::format::FmtSpan::NEW
-                | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
-        ))
-        .init();
-
-    tonic::transport::Server::builder()
-        .trace_fn(|_http_request| tracing::info_span!("info_span"))
-        .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
-            Server {
-                data: Default::default(),
-            },
-        ))
-        .serve("0.0.0.0:3000".parse()?)
-        .await?;
+    let cli = <Cli as clap::Parser>::parse();
+    match cli.subcommand {
+        Subcommand::Server => {
+            tracing_subscriber::registry()
+                .with(tracing_subscriber::EnvFilter::from_default_env())
+                .with(tracing_subscriber::fmt::layer().with_span_events(
+                    tracing_subscriber::fmt::format::FmtSpan::NEW
+                        | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
+                ))
+                .init();
+            tonic::transport::Server::builder()
+                .trace_fn(|_http_request| tracing::info_span!("info_span"))
+                .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
+                    Server {
+                        data: Default::default(),
+                    },
+                ))
+                .serve("0.0.0.0:3000".parse()?)
+                .await?;
+        }
+    }
     Ok(())
 }
