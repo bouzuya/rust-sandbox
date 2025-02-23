@@ -128,6 +128,8 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
 
 #[derive(clap::Parser)]
 struct Cli {
+    #[arg(long)]
+    endpoint: Option<String>,
     #[command(subcommand)]
     subcommand: Subcommand,
 }
@@ -153,9 +155,14 @@ struct CreateSubcommand {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
+
     match cli.subcommand {
         Subcommand::Create(CreateSubcommand { date_time, summary }) => {
-            let channel = tonic::transport::Endpoint::from_static("http://localhost:3000")
+            let endpoint = cli
+                .endpoint
+                // TODO: read from config
+                .unwrap_or_else(|| "http://localhost:3000".to_owned());
+            let channel = tonic::transport::Endpoint::from_shared(endpoint)?
                 .connect()
                 .await?;
             let mut client = grpcal::grpcal_service_client::GrpcalServiceClient::new(channel);
@@ -166,7 +173,11 @@ async fn main() -> anyhow::Result<()> {
             println!("{} {} {}", event.id, event.date_time, event.summary);
         }
         Subcommand::List => {
-            let channel = tonic::transport::Endpoint::from_static("http://localhost:3000")
+            let endpoint = cli
+                .endpoint
+                // TODO: read from config
+                .unwrap_or_else(|| "http://localhost:3000".to_owned());
+            let channel = tonic::transport::Endpoint::from_shared(endpoint)?
                 .connect()
                 .await?;
             let mut client = grpcal::grpcal_service_client::GrpcalServiceClient::new(channel);
