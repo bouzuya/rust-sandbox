@@ -71,8 +71,30 @@ impl From<Event> for grpcal::GetEventResponse {
 }
 
 #[derive(Debug)]
-struct Server {
+struct EventStorage {
     data: Mutex<BTreeMap<EventId, Event>>,
+}
+
+impl EventStorage {
+    async fn find(&self, event_id: &EventId) -> Option<Event> {
+        let data = self.data.lock().await;
+        data.get(event_id).cloned()
+    }
+
+    async fn find_all(&self) -> Vec<Event> {
+        let data = self.data.lock().await;
+        data.values().cloned().collect::<Vec<Event>>()
+    }
+
+    async fn store(&self, event: Event) {
+        let mut data = self.data.lock().await;
+        data.insert(event.id, event);
+    }
+}
+
+#[derive(Debug)]
+struct Server {
+    event_storage: EventStorage,
 }
 
 #[tonic::async_trait]
@@ -83,13 +105,12 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
         request: tonic::Request<grpcal::CreateEventRequest>,
     ) -> Result<tonic::Response<grpcal::CreateEventResponse>, tonic::Status> {
         let grpcal::CreateEventRequest { date_time, summary } = request.into_inner();
-        let mut data = self.data.lock().await;
         let event = Event {
             date_time,
             id: EventId::new(),
             summary,
         };
-        data.insert(event.id, event.clone());
+        self.event_storage.store(event.clone()).await;
         Ok(tonic::Response::new(grpcal::CreateEventResponse::from(
             event,
         )))
@@ -102,9 +123,8 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
     ) -> Result<tonic::Response<grpcal::GetEventResponse>, tonic::Status> {
         let grpcal::GetEventRequest { id } = request.into_inner();
         let id = EventId::from_str(&id).map_err(|_| tonic::Status::invalid_argument("id"))?;
-        let data = self.data.lock().await;
-        data.get(&id)
-            .cloned()
+        let event = self.event_storage.find(&id).await;
+        event
             .map(grpcal::GetEventResponse::from)
             .map(tonic::Response::new)
             .ok_or_else(|| tonic::Status::not_found("event not found"))
@@ -115,10 +135,8 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
         &self,
         _request: tonic::Request<grpcal::ListEventsRequest>,
     ) -> Result<tonic::Response<grpcal::ListEventsResponse>, tonic::Status> {
-        let data = self.data.lock().await;
-        let events = data
-            .values()
-            .cloned()
+        let events = self.event_storage.find_all().await;
+        let events = events
             .into_iter()
             .map(grpcal::Event::from)
             .collect::<Vec<grpcal::Event>>();
