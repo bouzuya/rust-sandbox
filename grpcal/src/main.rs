@@ -70,15 +70,33 @@ impl From<Event> for grpcal::GetEventResponse {
     }
 }
 
+#[derive(Debug, thiserror::Error)]
+enum Error {
+    #[error("deserialize")]
+    Deserialize(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("read")]
+    Read(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("serialize")]
+    Serialize(#[source] Box<dyn std::error::Error + Send + Sync>),
+    #[error("write")]
+    Write(#[source] Box<dyn std::error::Error + Send + Sync>),
+}
+
+trait EventStorage {
+    async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error>;
+
+    async fn find_all(&self) -> Result<Vec<Event>, Error>;
+
+    async fn store(&self, event: Event) -> Result<(), Error>;
+}
+
+#[allow(dead_code)]
 #[derive(Debug)]
-struct EventStorage {
+struct InMemoryEventStorage {
     data: Mutex<BTreeMap<EventId, Event>>,
 }
 
-#[derive(Debug, thiserror::Error)]
-enum Error {}
-
-impl EventStorage {
+impl EventStorage for InMemoryEventStorage {
     async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error> {
         let data = self.data.lock().await;
         let event = data.get(event_id).cloned();
@@ -98,9 +116,123 @@ impl EventStorage {
     }
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+struct EventStorageData {
+    events: BTreeMap<String, EventData>,
+}
+#[derive(serde::Deserialize, serde::Serialize)]
+struct EventData {
+    date_time: String,
+    id: String,
+    summary: String,
+}
+
+#[derive(Debug)]
+struct FileSystemEventStorage {
+    cache: Mutex<BTreeMap<EventId, Event>>,
+    path: std::path::PathBuf,
+}
+
+impl FileSystemEventStorage {
+    async fn new(path: std::path::PathBuf) -> Result<Self, Error> {
+        let deserialized = if tokio::fs::try_exists(path.as_path())
+            .await
+            .map_err(Into::into)
+            .map_err(Error::Read)?
+        {
+            let stored = tokio::fs::read_to_string(path.as_path())
+                .await
+                .map_err(Into::into)
+                .map_err(Error::Read)?;
+            let deserialized = serde_json::from_str::<EventStorageData>(&stored)
+                .map_err(Into::into)
+                .map_err(Error::Deserialize)?;
+            deserialized
+        } else {
+            EventStorageData {
+                events: BTreeMap::default(),
+            }
+        };
+        let cache = Mutex::new(
+            deserialized
+                .events
+                .into_iter()
+                .map(|(k, v)| {
+                    Ok((
+                        EventId::from_str(&k)
+                            .map_err(Into::into)
+                            .map_err(Error::Deserialize)?,
+                        Event {
+                            date_time: v.date_time,
+                            id: EventId::from_str(&v.id)
+                                .map_err(Into::into)
+                                .map_err(Error::Deserialize)?,
+                            summary: v.summary,
+                        },
+                    ))
+                })
+                .collect::<Result<BTreeMap<EventId, Event>, Error>>()?,
+        );
+        Ok(Self { cache, path })
+    }
+}
+
+impl EventStorage for FileSystemEventStorage {
+    async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error> {
+        let data = self.cache.lock().await;
+        let event = data.get(event_id).cloned();
+        Ok(event)
+    }
+
+    async fn find_all(&self) -> Result<Vec<Event>, Error> {
+        let data = self.cache.lock().await;
+        let events = data.values().cloned().collect::<Vec<Event>>();
+        Ok(events)
+    }
+
+    async fn store(&self, event: Event) -> Result<(), Error> {
+        let mut deserialized = if tokio::fs::try_exists(self.path.as_path())
+            .await
+            .map_err(Into::into)
+            .map_err(Error::Read)?
+        {
+            let stored = tokio::fs::read_to_string(self.path.as_path())
+                .await
+                .map_err(Into::into)
+                .map_err(Error::Read)?;
+            let deserialized = serde_json::from_str::<EventStorageData>(&stored)
+                .map_err(Into::into)
+                .map_err(Error::Deserialize)?;
+            deserialized
+        } else {
+            EventStorageData {
+                events: BTreeMap::default(),
+            }
+        };
+        deserialized.events.insert(
+            event.id.to_string(),
+            EventData {
+                date_time: event.date_time.clone(),
+                id: event.id.to_string(),
+                summary: event.summary.clone(),
+            },
+        );
+        let serialized = serde_json::to_string(&deserialized)
+            .map_err(Into::into)
+            .map_err(Error::Serialize)?;
+        tokio::fs::write(self.path.as_path(), serialized.as_bytes())
+            .await
+            .map_err(Into::into)
+            .map_err(Error::Write)?;
+        let mut data = self.cache.lock().await;
+        data.insert(event.id, event);
+        Ok(())
+    }
+}
+
 #[derive(Debug)]
 struct Server {
-    event_storage: EventStorage,
+    event_storage: FileSystemEventStorage,
 }
 
 #[tonic::async_trait]
@@ -253,9 +385,10 @@ async fn main() -> anyhow::Result<()> {
                 .trace_fn(|_http_request| tracing::info_span!("info_span"))
                 .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
                     Server {
-                        event_storage: InMemoryEventStorage {
-                            data: Default::default(),
-                        },
+                        event_storage: FileSystemEventStorage::new(std::path::PathBuf::from(
+                            "./events.json",
+                        ))
+                        .await?,
                     },
                 ))
                 .serve("0.0.0.0:3000".parse()?)
