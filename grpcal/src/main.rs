@@ -75,20 +75,26 @@ struct EventStorage {
     data: Mutex<BTreeMap<EventId, Event>>,
 }
 
+#[derive(Debug, thiserror::Error)]
+enum Error {}
+
 impl EventStorage {
-    async fn find(&self, event_id: &EventId) -> Option<Event> {
+    async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error> {
         let data = self.data.lock().await;
-        data.get(event_id).cloned()
+        let event = data.get(event_id).cloned();
+        Ok(event)
     }
 
-    async fn find_all(&self) -> Vec<Event> {
+    async fn find_all(&self) -> Result<Vec<Event>, Error> {
         let data = self.data.lock().await;
-        data.values().cloned().collect::<Vec<Event>>()
+        let events = data.values().cloned().collect::<Vec<Event>>();
+        Ok(events)
     }
 
-    async fn store(&self, event: Event) {
+    async fn store(&self, event: Event) -> Result<(), Error> {
         let mut data = self.data.lock().await;
         data.insert(event.id, event);
+        Ok(())
     }
 }
 
@@ -110,7 +116,10 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
             id: EventId::new(),
             summary,
         };
-        self.event_storage.store(event.clone()).await;
+        self.event_storage
+            .store(event.clone())
+            .await
+            .map_err(|_| tonic::Status::unavailable("event storage store"))?;
         Ok(tonic::Response::new(grpcal::CreateEventResponse::from(
             event,
         )))
@@ -123,7 +132,11 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
     ) -> Result<tonic::Response<grpcal::GetEventResponse>, tonic::Status> {
         let grpcal::GetEventRequest { id } = request.into_inner();
         let id = EventId::from_str(&id).map_err(|_| tonic::Status::invalid_argument("id"))?;
-        let event = self.event_storage.find(&id).await;
+        let event = self
+            .event_storage
+            .find(&id)
+            .await
+            .map_err(|_| tonic::Status::unavailable("event storage find"))?;
         event
             .map(grpcal::GetEventResponse::from)
             .map(tonic::Response::new)
@@ -135,7 +148,11 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
         &self,
         _request: tonic::Request<grpcal::ListEventsRequest>,
     ) -> Result<tonic::Response<grpcal::ListEventsResponse>, tonic::Status> {
-        let events = self.event_storage.find_all().await;
+        let events = self
+            .event_storage
+            .find_all()
+            .await
+            .map_err(|_| tonic::Status::unavailable("event storage find_all"))?;
         let events = events
             .into_iter()
             .map(grpcal::Event::from)
@@ -236,7 +253,9 @@ async fn main() -> anyhow::Result<()> {
                 .trace_fn(|_http_request| tracing::info_span!("info_span"))
                 .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
                     Server {
-                        data: Default::default(),
+                        event_storage: InMemoryEventStorage {
+                            data: Default::default(),
+                        },
                     },
                 ))
                 .serve("0.0.0.0:3000".parse()?)
