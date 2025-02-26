@@ -70,6 +70,7 @@ impl From<Event> for grpcal::GetEventResponse {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, thiserror::Error)]
 enum Error {
     #[error("deserialize")]
@@ -82,6 +83,7 @@ enum Error {
     Write(#[source] Box<dyn std::error::Error + Send + Sync>),
 }
 
+#[tonic::async_trait]
 trait EventStorage {
     async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error>;
 
@@ -90,12 +92,23 @@ trait EventStorage {
     async fn store(&self, event: Event) -> Result<(), Error>;
 }
 
-#[allow(dead_code)]
+#[cfg(feature = "memory")]
 #[derive(Debug)]
 struct InMemoryEventStorage {
     data: Mutex<BTreeMap<EventId, Event>>,
 }
 
+#[cfg(feature = "memory")]
+impl InMemoryEventStorage {
+    fn new() -> Self {
+        Self {
+            data: Mutex::new(Default::default()),
+        }
+    }
+}
+
+#[cfg(feature = "memory")]
+#[tonic::async_trait]
 impl EventStorage for InMemoryEventStorage {
     async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error> {
         let data = self.data.lock().await;
@@ -127,12 +140,14 @@ struct EventData {
     summary: String,
 }
 
+#[cfg(feature = "fs")]
 #[derive(Debug)]
 struct FileSystemEventStorage {
     cache: Mutex<BTreeMap<EventId, Event>>,
     path: std::path::PathBuf,
 }
 
+#[cfg(feature = "fs")]
 impl FileSystemEventStorage {
     async fn new(path: std::path::PathBuf) -> Result<Self, Error> {
         let deserialized = if tokio::fs::try_exists(path.as_path())
@@ -177,6 +192,8 @@ impl FileSystemEventStorage {
     }
 }
 
+#[cfg(feature = "fs")]
+#[tonic::async_trait]
 impl EventStorage for FileSystemEventStorage {
     async fn find(&self, event_id: &EventId) -> Result<Option<Event>, Error> {
         let data = self.cache.lock().await;
@@ -230,9 +247,8 @@ impl EventStorage for FileSystemEventStorage {
     }
 }
 
-#[derive(Debug)]
 struct Server {
-    event_storage: FileSystemEventStorage,
+    event_storage: Box<dyn EventStorage + Send + Sync>,
 }
 
 #[tonic::async_trait]
@@ -385,10 +401,7 @@ async fn main() -> anyhow::Result<()> {
                 .trace_fn(|_http_request| tracing::info_span!("info_span"))
                 .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
                     Server {
-                        event_storage: FileSystemEventStorage::new(std::path::PathBuf::from(
-                            "./events.json",
-                        ))
-                        .await?,
+                        event_storage: new_event_storage().await?,
                     },
                 ))
                 .serve("0.0.0.0:3000".parse()?)
@@ -396,4 +409,16 @@ async fn main() -> anyhow::Result<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(feature = "fs")]
+async fn new_event_storage() -> anyhow::Result<Box<dyn EventStorage + Send + Sync>> {
+    Ok(Box::new(
+        FileSystemEventStorage::new(std::path::PathBuf::from("./events.json")).await?,
+    ))
+}
+
+#[cfg(feature = "memory")]
+async fn new_event_storage() -> anyhow::Result<Box<dyn EventStorage + Send + Sync>> {
+    Ok(Box::new(InMemoryEventStorage::new()))
 }

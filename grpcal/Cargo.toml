@@ -18,3 +18,8 @@ uuid = { version = "1.13.2", features = ["v4"] }
 
 [build-dependencies]
 tonic-build = "0.12.3"
+
+[features]
+default = ["memory"]
+fs = []
+memory = []
