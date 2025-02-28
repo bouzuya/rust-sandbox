@@ -1,0 +1,17 @@
+{
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "GitHub.copilot",
+                "ms-azuretools.vscode-docker",
+                "rust-lang.rust-analyzer",
+                "tamasfe.even-better-toml"
+            ]
+        }
+    },
+    "dockerComposeFile": "../compose.yaml",
+    "name": "workspace",
+    "service": "workspace",
+    "shutdownAction": "none",
+    "workspaceFolder": "/home/bouzuya/app"
+}
