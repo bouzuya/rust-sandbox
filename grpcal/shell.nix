@@ -3,6 +3,7 @@
     buildInputs = with pkgs; [
       jq
       protobuf
+      google-cloud-sdk
       grpcurl
     ];
   }
