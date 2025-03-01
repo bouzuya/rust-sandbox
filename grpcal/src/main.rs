@@ -395,7 +395,7 @@ async fn main() -> anyhow::Result<()> {
                 .with(tracing_subscriber::fmt::layer().with_span_events(
                     tracing_subscriber::fmt::format::FmtSpan::NEW
                         | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
-                ))
+                ).json())
                 .init();
             let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_owned()).parse::<u16>()?;
             tonic::transport::Server::builder()
