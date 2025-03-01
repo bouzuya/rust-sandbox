@@ -397,6 +397,7 @@ async fn main() -> anyhow::Result<()> {
                         | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
                 ))
                 .init();
+            let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_owned()).parse::<u16>()?;
             tonic::transport::Server::builder()
                 .trace_fn(|_http_request| tracing::info_span!("info_span"))
                 .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
@@ -404,7 +405,7 @@ async fn main() -> anyhow::Result<()> {
                         event_storage: new_event_storage().await?,
                     },
                 ))
-                .serve("0.0.0.0:3000".parse()?)
+                .serve(format!("0.0.0.0:{}", port).parse()?)
                 .await?;
         }
     }
