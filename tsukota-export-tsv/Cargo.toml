@@ -8,10 +8,10 @@ anyhow = "1"
 chrono = "0.4"
 clap = { version = "4", features = ["derive", "env"] }
 firestore-path = "1"
-googleapis-tonic-google-firestore-v1 = { version = "0.13.0" }
+googleapis-tonic-google-firestore-v1 = { version = "0.15.0" }
 google-cloud-auth = { version = "0.17.2", default-features = false, features = ["rustls-tls"] }
 google-cloud-token = "0.1.2"
 serde = { version = "1", features = ["derive"] }
-serde-firestore-value = { version = "0.14", features = ["chrono"] }
+serde-firestore-value = { version = "0.16", features = ["chrono"] }
 tokio = { version = "1", features = ["full"] }
 tonic = { version = "0.12", features = ["tls-webpki-roots"] }
