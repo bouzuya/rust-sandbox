@@ -392,12 +392,20 @@ async fn main() -> anyhow::Result<()> {
         Subcommand::Server => {
             tracing_subscriber::registry()
                 .with(tracing_subscriber::EnvFilter::from_default_env())
-                .with(tracing_subscriber::fmt::layer().with_span_events(
-                    tracing_subscriber::fmt::format::FmtSpan::NEW
-                        | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
-                ).json())
+                .with(
+                    tracing_stackdriver::Layer::from(
+                        tracing_subscriber::fmt::layer()
+                            .with_span_events(
+                                tracing_subscriber::fmt::format::FmtSpan::NEW
+                                    | tracing_subscriber::fmt::format::FmtSpan::CLOSE,
+                            )
+                            .json(),
+                    ),
+                )
                 .init();
-            let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_owned()).parse::<u16>()?;
+            let port = std::env::var("PORT")
+                .unwrap_or_else(|_| "3000".to_owned())
+                .parse::<u16>()?;
             tonic::transport::Server::builder()
                 .trace_fn(|_http_request| tracing::info_span!("info_span"))
                 .add_service(grpcal::grpcal_service_server::GrpcalServiceServer::new(
