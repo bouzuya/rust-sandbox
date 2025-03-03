@@ -253,7 +253,7 @@ struct Server {
 
 #[tonic::async_trait]
 impl grpcal::grpcal_service_server::GrpcalService for Server {
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug), ret, skip(self))]
     async fn create_event(
         &self,
         request: tonic::Request<grpcal::CreateEventRequest>,
@@ -273,7 +273,7 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
         )))
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug), ret, skip(self))]
     async fn get_event(
         &self,
         request: tonic::Request<grpcal::GetEventRequest>,
@@ -291,7 +291,7 @@ impl grpcal::grpcal_service_server::GrpcalService for Server {
             .ok_or_else(|| tonic::Status::not_found("event not found"))
     }
 
-    #[tracing::instrument(skip(self))]
+    #[tracing::instrument(err(Debug), ret, skip(self))]
     async fn list_events(
         &self,
         _request: tonic::Request<grpcal::ListEventsRequest>,
