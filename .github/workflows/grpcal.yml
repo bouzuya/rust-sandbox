@@ -1,0 +1,77 @@
+name: grpcal
+on:
+  push:
+    branches: [master]
+    paths:
+      - "grpcal/**"
+      - ".github/workflows/grpcal.yml"
+defaults:
+  run:
+    working-directory: grpcal
+env:
+  CARGO_TERM_COLOR: always
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: arduino/setup-protoc@v3
+        with:
+          version: "29.3"
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        with:
+          path: |
+            target/
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+      - run: cargo test --verbose
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Deploy to Google Artifacts Registry & Cloud Run
+      # <https://github.com/google-github-actions/auth>
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GRPCAL_GCP_WORKLOAD_IDENTITY_PROVIDER }}
+      # <https://github.com/google-github-actions/setup-gcloud>
+      - uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GRPCAL_GCP_PROJECT_ID }}
+      - run: |-
+          region='${{ secrets.GRPCAL_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          gcloud --project "${project_id}" auth configure-docker "${host}"
+      - run: |-
+          region='${{ secrets.GRPCAL_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          project_id='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          repo='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          image='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          tag='${{ github.sha }}'
+          url="${host}/${project_id}/${repo}/${image}:${tag}"
+          docker build -t "${url}" .
+          docker push "${url}"
+      - run: |-
+          region='${{ secrets.GRPCAL_GCP_REGION }}'
+          host="${region}-docker.pkg.dev"
+          project_id='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          repo='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          image='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          tag='${{ github.sha }}'
+          url="${host}/${project_id}/${repo}/${image}:${tag}"
+          service='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          gcloud run deploy "${service}" \
+            --allow-unauthenticated \
+            --args "server" \
+            --image "${url}" \
+            --max-instances "1" \
+            --memory "1024Mi" \
+            --platform "managed" \
+            --quiet \
+            --region "${region}" \
+            --service-account ${{ secrets.GRPCAL_GCP_SERVICE_ACCOUNT }}
