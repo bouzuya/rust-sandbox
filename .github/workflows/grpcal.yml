@@ -5,6 +5,7 @@ on:
     paths:
       - "grpcal/**"
       - ".github/workflows/grpcal.yml"
+  workflow_dispatch:
 defaults:
   run:
     working-directory: grpcal
