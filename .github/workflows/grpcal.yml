@@ -12,7 +12,6 @@ env:
   CARGO_TERM_COLOR: always
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     steps:
       - uses: arduino/setup-protoc@v3
         with:
