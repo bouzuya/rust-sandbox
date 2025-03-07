@@ -42,6 +42,7 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: ${{ secrets.GRPCAL_GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GRPCAL_WORKLOAD_IDENTITY_SERVICE_ACCOUNT }}
       # <https://github.com/google-github-actions/setup-gcloud>
       - uses: google-github-actions/setup-gcloud@v2
         with:
