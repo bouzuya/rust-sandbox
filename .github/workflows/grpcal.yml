@@ -55,8 +55,8 @@ jobs:
           region='${{ secrets.GRPCAL_GCP_REGION }}'
           host="${region}-docker.pkg.dev"
           project_id='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
-          repo='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
-          image='${{ secrets.GRPCAL_GCP_PROJECT_ID }}'
+          repo='grpcal'
+          image='grpcal'
           tag='${{ github.sha }}'
           url="${host}/${project_id}/${repo}/${image}:${tag}"
           docker build -t "${url}" .
