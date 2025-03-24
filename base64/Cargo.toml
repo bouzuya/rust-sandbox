@@ -1,0 +1,6 @@
+[package]
+name = "base64"
+edition = "2024"
+publish = false
+
+[dependencies]
