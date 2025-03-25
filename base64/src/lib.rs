@@ -1,3 +1,23 @@
+//! A simple Base64 encoding and decoding library.
+//!
+//! This library provides functions to encode and decode Base64 strings.
+//!
+//! # Examples
+//!
+//! ```rust
+//! # fn example_of_base64() -> Result<(), base64::Error> {
+//! use base64::{encode, decode};
+//!
+//! let encoded = encode("hello world");
+//! assert_eq!(encoded, "aGVsbG8gd29ybGQ=");
+//!
+//! let decoded = decode("aGVsbG8gd29ybGQ=")?;
+//! assert_eq!(decoded, "hello world".as_bytes());
+//! #     Ok(())
+//! # }
+//! ```
+
+/// Represents errors that can occur during Base64 decoding.
 #[derive(Debug)]
 pub struct Error(ErrorKind);
 
@@ -24,6 +44,27 @@ impl From<ErrorKind> for Error {
     }
 }
 
+/// Decodes a Base64 encoded string into a vector of bytes.
+///
+/// # Arguments
+///
+/// * `s` - A string slice that holds the Base64 encoded string.
+///
+/// # Errors
+///
+/// Returns an `Error` if the input string has an invalid length or contains invalid characters.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn example_of_decode() -> Result<(), base64::Error> {
+/// use base64::decode;
+///
+/// let decoded = decode("aGVsbG8gd29ybGQ=")?;
+/// assert_eq!(decoded, "hello world".as_bytes());
+/// #     Ok(())
+/// # }
+/// ```
 pub fn decode<S: AsRef<str>>(s: S) -> Result<Vec<u8>, Error> {
     let s = s.as_ref();
     if s.len() % 4 != 0 {
@@ -67,6 +108,22 @@ pub fn decode<S: AsRef<str>>(s: S) -> Result<Vec<u8>, Error> {
     Ok(bytes)
 }
 
+/// Encodes a slice of bytes into a Base64 string.
+///
+/// # Arguments
+///
+/// * `bytes` - A slice of bytes to encode.
+///
+/// # Examples
+///
+/// ```rust
+/// # fn example_of_encode() {
+/// use base64::encode;
+///
+/// let encoded = encode("hello world".as_bytes());
+/// assert_eq!(encoded, "aGVsbG8gd29ybGQ=");
+/// # }
+/// ```
 pub fn encode<I: AsRef<[u8]>>(bytes: I) -> String {
     let bytes = bytes.as_ref();
     let pad_len = (3 - (bytes.len() % 3)) % 3;

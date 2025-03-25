@@ -1,3 +1,5 @@
+#![allow(missing_docs)]
+
 #[test]
 fn test_decode() -> Result<(), base64::Error> {
     use base64::decode;
