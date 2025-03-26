@@ -1,5 +1,4 @@
 # rust-sandbox
 
-- [bouzuya/nostr-keyconv]
-
-[bouzuya/nostr-keyconv]: https://github.com/bouzuya/nostr-keyconv
+- <https://github.com/bouzuya/base64>
+- <https://github.com/bouzuya/nostr-keyconv>
