@@ -4,3 +4,4 @@
 - <https://github.com/bouzuya/nom-ics>
 - <https://github.com/bouzuya/nom-uri>
 - <https://github.com/bouzuya/nostr-keyconv>
+- <https://github.com/bouzuya/rust-ddd-traits-lab>
