@@ -1,0 +1,11 @@
+[package]
+edition = "2024"
+name = "example"
+publish = false
+
+[dependencies]
+firestore-path = "1.0.8"
+thiserror = "2.0.12"
+
+[dev-dependencies]
+anyhow = "1.0.98"

@@ -1,0 +1,14 @@
+[package]
+name = "firestore-path-helper-proc-macro"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+quote = "1.0.40"
+syn = "2.0.104"
+
+[dev-dependencies]
+trybuild = "1.0.110"
+
+[lib]
+proc-macro = true
