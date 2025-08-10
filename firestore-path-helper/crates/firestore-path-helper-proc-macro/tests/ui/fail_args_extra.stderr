@@ -1,0 +1,5 @@
+error: argument 'repo_id' does not match any document id segment
+ --> tests/ui/fail_args_extra.rs:5:9
+  |
+5 |         repo_id = String, // extra argument
+  |         ^^^^^^^

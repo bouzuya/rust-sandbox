@@ -1,0 +1,28 @@
+error[E0599]: `RepoId` doesn't implement `std::fmt::Display`
+  --> tests/ui/fail_args_no_to_string.rs:6:5
+   |
+2  |       struct RepoId(String);
+   |       ------------- method `to_string` not found for this struct because it doesn't satisfy `RepoId: ToString` or `RepoId: std::fmt::Display`
+...
+6  |       firestore_path_helper_proc_macro::firestore_path_helper!(
+   |  _____^
+7  | |         "users/{user_id}/repos/{repo_id}/issues/{issue_number}",
+8  | |         user_id = String,
+9  | |         repo_id = RepoId,
+10 | |         issue_number = u32,
+11 | |     );
+   | |_____^ `RepoId` cannot be formatted with the default formatter
+   |
+   = note: the following trait bounds were not satisfied:
+           `RepoId: std::fmt::Display`
+           which is required by `RepoId: ToString`
+   = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+note: the trait `std::fmt::Display` must be implemented
+  --> $RUST/core/src/fmt/mod.rs
+   |
+   | pub trait Display {
+   | ^^^^^^^^^^^^^^^^^
+   = help: items from traits can only be used if the trait is implemented and in scope
+   = note: the following trait defines an item `to_string`, perhaps you need to implement it:
+           candidate #1: `ToString`
+   = note: this error originates in the macro `firestore_path_helper_proc_macro::firestore_path_helper` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,5 @@
+error: duplicate document id argument: 'user_id'
+ --> tests/ui/fail_args_duplicate.rs:5:9
+  |
+5 |         user_id = String, // duplicate argument
+  |         ^^^^^^^

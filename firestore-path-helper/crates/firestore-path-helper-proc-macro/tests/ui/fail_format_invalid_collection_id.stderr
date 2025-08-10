@@ -1,0 +1,5 @@
+error: format contains invalid collection id segment: 'user$'
+ --> tests/ui/fail_format_invalid_collection_id.rs:2:62
+  |
+2 |     firestore_path_helper_proc_macro::firestore_path_helper!("user$/{user_id}", user_id = String);
+  |                                                              ^^^^^^^^^^^^^^^^^

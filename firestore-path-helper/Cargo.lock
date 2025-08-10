@@ -40,6 +40,8 @@ version = "0.0.0"
 name = "firestore-path-helper-proc-macro"
 version = "0.0.0"
 dependencies = [
+ "firestore-path",
+ "proc-macro2",
  "quote",
  "syn",
  "trybuild",

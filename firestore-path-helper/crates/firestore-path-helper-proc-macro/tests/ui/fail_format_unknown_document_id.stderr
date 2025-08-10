@@ -1,0 +1,5 @@
+error: document id segment 'repo_id' does not match any argument
+ --> tests/ui/fail_format_unknown_document_id.rs:3:9
+  |
+3 |         "users/{user_id}/repos/{repo_id}",
+  |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

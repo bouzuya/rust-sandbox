@@ -1,0 +1,5 @@
+error: format contains invalid document id segment: '{u$er_id}'
+ --> tests/ui/fail_format_invalid_document_id.rs:2:62
+  |
+2 |     firestore_path_helper_proc_macro::firestore_path_helper!("users/{u$er_id}", user_id = String);
+  |                                                              ^^^^^^^^^^^^^^^^^

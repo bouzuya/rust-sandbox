@@ -1,0 +1,5 @@
+error: format must contain an even number of segments separated by '/'
+ --> tests/ui/fail_format_odd_segments.rs:3:9
+  |
+3 |         "users/{user_id}/repos",
+  |         ^^^^^^^^^^^^^^^^^^^^^^^

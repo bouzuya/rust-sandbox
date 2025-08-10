@@ -1,0 +1,5 @@
+error: format must contain an even number of segments separated by '/'
+ --> tests/ui/fail_format_empty.rs:2:62
+  |
+2 |     firestore_path_helper_proc_macro::firestore_path_helper!("", user_id = String);
+  |                                                              ^^
