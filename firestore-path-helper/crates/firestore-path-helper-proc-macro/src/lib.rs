@@ -55,6 +55,22 @@ impl syn::parse::Parse for MacroInput {
 fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
     let MacroInput { segments } = input;
 
+    let collection_struct = format_macro_output_collection_struct(&segments);
+    let document_struct = format_macro_output_document_struct(&segments);
+    let output = quote::quote! {
+        #collection_struct
+        #document_struct
+    };
+    proc_macro::TokenStream::from(output)
+}
+
+fn format_macro_output_collection_struct(segments: &[Segment]) -> proc_macro2::TokenStream {
+    assert!(segments.len() >= 2);
+    let segments = segments
+        .iter()
+        .take(segments.len() - 1)
+        .collect::<Vec<&Segment>>();
+
     let fields = {
         let mut fields = Vec::new();
         let mut seen = HashSet::new();
@@ -119,7 +135,83 @@ fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
         }
     };
 
-    let output = quote::quote! {
+    quote::quote! {
+        pub struct Collection {
+            #(#fields,)*
+        }
+
+        impl Collection {
+            #path_method
+        }
+    }
+}
+
+fn format_macro_output_document_struct(segments: &[Segment]) -> proc_macro2::TokenStream {
+    let fields = {
+        let mut fields = Vec::new();
+        let mut seen = HashSet::new();
+        for segment in segments {
+            match segment {
+                Segment::CollectionId(_) => {
+                    // do nothing
+                }
+                Segment::DocumentId(document_id) => match document_id {
+                    DocumentId::Fixed(_) => {
+                        // do nothing
+                    }
+                    DocumentId::Variable(field_name, field_type) => {
+                        if seen.insert(field_name.to_string()) {
+                            fields.push(quote::quote! {
+                                pub #field_name: #field_type
+                            });
+                        }
+                    }
+                },
+            }
+        }
+        fields
+    };
+
+    let path_method = {
+        let push_first_segment = match segments.first() {
+            Some(Segment::CollectionId(id)) => quote::quote! {
+                path.push_str(#id);
+            },
+            Some(Segment::DocumentId(_)) | None => unreachable!(),
+        };
+        let push_other_segments = segments.iter().skip(1).map(|segment| match segment {
+            Segment::CollectionId(id) => quote::quote! {
+                path.push('/');
+                path.push_str(#id);
+            },
+            Segment::DocumentId(document_id) => match document_id {
+                DocumentId::Fixed(id) => {
+                    quote::quote! {
+                        path.push('/');
+                        path.push_str(#id);
+                    }
+                }
+                DocumentId::Variable(field_name, _) => {
+                    let field =
+                        syn::Ident::new(&field_name.to_string(), proc_macro2::Span::call_site());
+                    quote::quote! {
+                        path.push('/');
+                        path.push_str(self.#field.to_string().as_str());
+                    }
+                }
+            },
+        });
+        quote::quote! {
+            pub fn path(&self) -> ::std::string::String {
+                let mut path = ::std::string::String::new();
+                #push_first_segment
+                #(#push_other_segments)*
+                path
+            }
+        }
+    };
+
+    quote::quote! {
         pub struct Document {
             #(#fields,)*
         }
@@ -127,9 +219,7 @@ fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
         impl Document {
             #path_method
         }
-    };
-
-    proc_macro::TokenStream::from(output)
+    }
 }
 
 fn parse_format(

@@ -15,6 +15,14 @@ fn main() {
     );
 
     assert_eq!(
+        Collection {
+            user_id: String::from("user123"),
+            repo_id: RepoId(String::from("repo456")),
+        }
+        .path(),
+        "users/user123/repos/repo456/issues"
+    );
+    assert_eq!(
         Document {
             user_id: String::from("user123"),
             repo_id: RepoId(String::from("repo456")),
