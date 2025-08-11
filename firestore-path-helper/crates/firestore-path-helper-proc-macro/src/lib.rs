@@ -7,7 +7,12 @@ pub fn firestore_path_helper(input: proc_macro::TokenStream) -> proc_macro::Toke
 
 enum Segment {
     CollectionId(String),
-    DocumentId(syn::Ident, syn::Type),
+    DocumentId(DocumentId),
+}
+
+enum DocumentId {
+    Fixed(String),
+    Variable(syn::Ident, syn::Type),
 }
 
 struct MacroInput {
@@ -17,25 +22,29 @@ struct MacroInput {
 impl syn::parse::Parse for MacroInput {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
         let format: syn::LitStr = input.parse()?;
-        let _comma: syn::Token![,] = input.parse()?;
+        let args = if input.is_empty() {
+            Vec::new()
+        } else {
+            let _comma: syn::Token![,] = input.parse()?;
 
-        struct Arg {
-            ident: syn::Ident,
-            _eq: syn::Token![=],
-            typ: syn::Type,
-        }
-        impl syn::parse::Parse for Arg {
-            fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-                let ident: syn::Ident = input.parse()?;
-                let _eq: syn::Token![=] = input.parse()?;
-                let typ: syn::Type = input.parse()?;
-                Ok(Arg { ident, _eq, typ })
+            struct Arg {
+                ident: syn::Ident,
+                _eq: syn::Token![=],
+                typ: syn::Type,
             }
-        }
-        let args = syn::punctuated::Punctuated::<Arg, syn::Token![,]>::parse_terminated(input)?
-            .into_iter()
-            .map(|arg| (arg.ident, arg.typ))
-            .collect::<Vec<(syn::Ident, syn::Type)>>();
+            impl syn::parse::Parse for Arg {
+                fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
+                    let ident: syn::Ident = input.parse()?;
+                    let _eq: syn::Token![=] = input.parse()?;
+                    let typ: syn::Type = input.parse()?;
+                    Ok(Arg { ident, _eq, typ })
+                }
+            }
+            syn::punctuated::Punctuated::<Arg, syn::Token![,]>::parse_terminated(input)?
+                .into_iter()
+                .map(|arg| (arg.ident, arg.typ))
+                .collect::<Vec<(syn::Ident, syn::Type)>>()
+        };
 
         let segments = parse_format(format, &args)?;
 
@@ -54,13 +63,18 @@ fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
                 Segment::CollectionId(_) => {
                     // do nothing
                 }
-                Segment::DocumentId(field_name, field_type) => {
-                    if seen.insert(field_name.to_string()) {
-                        fields.push(quote::quote! {
-                            pub #field_name: #field_type
-                        });
+                Segment::DocumentId(document_id) => match document_id {
+                    DocumentId::Fixed(_) => {
+                        // do nothing
                     }
-                }
+                    DocumentId::Variable(field_name, field_type) => {
+                        if seen.insert(field_name.to_string()) {
+                            fields.push(quote::quote! {
+                                pub #field_name: #field_type
+                            });
+                        }
+                    }
+                },
             }
         }
         fields
@@ -71,21 +85,29 @@ fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
             Some(Segment::CollectionId(id)) => quote::quote! {
                 path.push_str(#id);
             },
-            Some(Segment::DocumentId(_, _)) | None => unreachable!(),
+            Some(Segment::DocumentId(_)) | None => unreachable!(),
         };
         let push_other_segments = segments.iter().skip(1).map(|segment| match segment {
             Segment::CollectionId(id) => quote::quote! {
                 path.push('/');
                 path.push_str(#id);
             },
-            Segment::DocumentId(field_name, _) => {
-                let field =
-                    syn::Ident::new(&field_name.to_string(), proc_macro2::Span::call_site());
-                quote::quote! {
-                    path.push('/');
-                    path.push_str(self.#field.to_string().as_str());
+            Segment::DocumentId(document_id) => match document_id {
+                DocumentId::Fixed(id) => {
+                    quote::quote! {
+                        path.push('/');
+                        path.push_str(#id);
+                    }
                 }
-            }
+                DocumentId::Variable(field_name, _) => {
+                    let field =
+                        syn::Ident::new(&field_name.to_string(), proc_macro2::Span::call_site());
+                    quote::quote! {
+                        path.push('/');
+                        path.push_str(self.#field.to_string().as_str());
+                    }
+                }
+            },
         });
         quote::quote! {
             pub fn path(&self) -> ::std::string::String {
@@ -126,7 +148,8 @@ fn parse_format(
 
     enum S {
         C(String),
-        D(String),
+        DF(String),
+        DV(String),
     }
 
     let segments = segments
@@ -151,11 +174,6 @@ fn parse_format(
                     ))
                 }
             } else {
-                // ??? TODO: Allow literal document id???
-                // ```rust
-                // firestore_path_helper!("col1/doc1/col2/{doc_id}", doc_id = i32);
-                // assert_eq!(Document { doc_id = 123 }.path(), "col1/doc1/col2/123");
-                // ```
                 if segment.starts_with('{') && segment.ends_with('}') {
                     let field_name = &segment[1..segment.len() - 1]; // remove '{' and '}'
                     if !field_name.is_empty()
@@ -168,7 +186,7 @@ fn parse_format(
                             .chars()
                             .all(|c| c.is_ascii_alphanumeric() || c == '_')
                     {
-                        Ok(S::D(field_name.to_owned()))
+                        Ok(S::DV(field_name.to_owned()))
                     } else {
                         Err(syn::Error::new(
                             input_format.span(),
@@ -176,10 +194,18 @@ fn parse_format(
                         ))
                     }
                 } else {
-                    Err(syn::Error::new(
-                        input_format.span(),
-                        format!("format contains invalid document id segment: '{}'", segment),
-                    ))
+                    if !segment.is_empty()
+                        && segment
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '_')
+                    {
+                        Ok(S::DF(segment.to_string()))
+                    } else {
+                        Err(syn::Error::new(
+                            input_format.span(),
+                            format!("format contains invalid document id segment: '{}'", segment),
+                        ))
+                    }
                 }
             }
         })
@@ -201,7 +227,8 @@ fn parse_format(
     // (missing arguments are not allowed)
     for document_id in segments.iter().filter_map(|it| match it {
         S::C(_) => None,
-        S::D(field_name) => Some(field_name),
+        S::DF(_) => None,
+        S::DV(field_name) => Some(field_name),
     }) {
         if !input_args
             .iter()
@@ -216,19 +243,14 @@ fn parse_format(
             ));
         }
     }
-    // ??? TODO: Allow empty args ???
-    // ```rust
-    // firestore_path_helper!("col1/doc1");
-    // assert_eq!(Document {}.path(), "col1/doc1");
-    // ```
-    assert!(!input_args.is_empty());
 
     // Check that all arguments match a document id segment
     // (extra arguments are not allowed)
     for (ident, _) in input_args {
         if !segments.iter().any(|segment| match segment {
             S::C(_) => false,
-            S::D(field_name) => field_name == &ident.to_string(),
+            S::DF(_) => false,
+            S::DV(field_name) => field_name == &ident.to_string(),
         }) {
             return Err(syn::Error::new(
                 ident.span(),
@@ -244,11 +266,12 @@ fn parse_format(
         .into_iter()
         .map(|segment| match segment {
             S::C(id) => Segment::CollectionId(id),
-            S::D(field_name) => input_args
+            S::DF(id) => Segment::DocumentId(DocumentId::Fixed(id)),
+            S::DV(field_name) => input_args
                 .iter()
                 .find(|(ident, _)| &ident.to_string() == &field_name)
                 .cloned()
-                .map(|(ident, typ)| Segment::DocumentId(ident, typ))
+                .map(|(ident, typ)| Segment::DocumentId(DocumentId::Variable(ident, typ)))
                 .expect("document id segment must match an argument"),
         })
         .collect::<Vec<Segment>>())
