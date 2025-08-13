@@ -31,4 +31,8 @@ fn main() {
         .path(),
         "users/user123/repos/repo456/issues/789"
     );
+    assert_eq!(
+        document_id("users/user123/repos/repo456/issues/789").expect("document_id to return Ok"),
+        789_u32
+    );
 }

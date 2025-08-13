@@ -57,9 +57,11 @@ fn format_macro_output(input: MacroInput) -> proc_macro::TokenStream {
 
     let collection_struct = format_macro_output_collection_struct(&segments);
     let document_struct = format_macro_output_document_struct(&segments);
+    let document_id_fn = format_macro_output_document_id_fn(&segments);
     let output = quote::quote! {
         #collection_struct
         #document_struct
+        #document_id_fn
     };
     proc_macro::TokenStream::from(output)
 }
@@ -143,6 +145,32 @@ fn format_macro_output_collection_struct(segments: &[Segment]) -> proc_macro2::T
         impl Collection {
             #path_method
         }
+    }
+}
+
+fn format_macro_output_document_id_fn(segments: &[Segment]) -> proc_macro2::TokenStream {
+    match segments.last() {
+        Some(Segment::DocumentId(document_id)) => match document_id {
+            DocumentId::Fixed(_) => {
+                // no document_id fn
+                quote::quote! {}
+            }
+            DocumentId::Variable(_, field_type) => {
+                // FIXME: check parent path
+                // FIXME: define error type
+                quote::quote! {
+                    pub fn document_id(document_path: &str) -> ::std::result::Result<#field_type, &'static str> {
+                        <#field_type as ::std::str::FromStr>::from_str(
+                            document_path
+                                .split('/')
+                                .last()
+                                .ok_or("document path is empty")?
+                        ).map_err(|_| "failed to parse document id")
+                    }
+                }
+            }
+        },
+        _ => unreachable!(),
     }
 }
 
