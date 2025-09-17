@@ -1,0 +1,5 @@
+error: unknown argument: #[enum_str_conv(error = ..., unknown = ...)]
+ --> tests/ui/compile_fail_7.rs:7:33
+  |
+7 |     #[enum_str_conv(error = (), str = "invalid", unknown = unknown_fn)]
+  |                                 ^^^^^^^^^^^^^^^

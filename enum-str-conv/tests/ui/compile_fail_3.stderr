@@ -1,0 +1,5 @@
+error: expected attribute arguments: #[enum_str_conv(error = ..., unknown = ...)]
+ --> tests/ui/compile_fail_3.rs:3:7
+  |
+3 |     #[enum_str_conv]
+  |       ^^^^^^^^^^^^^

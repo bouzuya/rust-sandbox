@@ -1,0 +1,8 @@
+error: expected attribute: #[enum_str_conv(error = ..., unknown = ...)]
+ --> tests/ui/compile_fail_2.rs:4:5
+  |
+4 | /     enum MyEnum {
+5 | |         #[enum_str_conv(str = "apple")]
+6 | |         A,
+7 | |     }
+  | |_____^

@@ -1,0 +1,5 @@
+error: unknown argument type: #[enum_str_conv(str = "...")]
+ --> tests/ui/compile_fail_9.rs:9:31
+  |
+9 |         #[enum_str_conv(str = 123)]
+  |                               ^^^

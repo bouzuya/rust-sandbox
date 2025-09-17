@@ -1,0 +1,5 @@
+error: unknown argument: #[enum_str_conv(str = ...)]
+ --> tests/ui/compile_fail_8.rs:9:25
+  |
+9 |         #[enum_str_conv(error = (), str = "apple")]
+  |                         ^^^^^^^^^^

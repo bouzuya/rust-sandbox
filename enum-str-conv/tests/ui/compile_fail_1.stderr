@@ -1,0 +1,5 @@
+error: EnumStrConv can only be derived for enums
+ --> tests/ui/compile_fail_1.rs:3:5
+  |
+3 |     struct MyStruct;
+  |     ^^^^^^^^^^^^^^^^

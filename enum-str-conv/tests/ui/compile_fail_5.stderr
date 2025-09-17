@@ -1,0 +1,5 @@
+error: expected `unknown` argument: #[enum_str_conv(unknown = ...)]
+ --> tests/ui/compile_fail_5.rs:4:7
+  |
+4 |     #[enum_str_conv(error = ())]
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,0 +1,5 @@
+error: expected `error` argument: #[enum_str_conv(error = ...)]
+ --> tests/ui/compile_fail_4.rs:8:7
+  |
+8 |     #[enum_str_conv(unknown = unknown_fn)]
+  |       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
