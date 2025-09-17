@@ -1,14 +1,56 @@
 # enum-str-conv
 
-`enum-str-conv` is a Rust procedural macro to automatically implement string conversions (`FromStr`/`ToString`) for enums.
-
-## Overview
-
-This crate allows you to easily implement conversions between enums and strings by adding `#[derive(enum_str_conv::EnumStrConv)]` to your enum and specifying `#[enum_str_conv(str = "...")]` for each variant.
-
-You can also customize the error type and how unknown values are handled.
+A Rust library that provides derive macro to convert between enum and str (`Display`/`FromStr`).
 
 ## Usage
+
+1. Add `#[derive(enum_str_conv::EnumStrConv)]` to your enum
+2. Add `#[enum_str_conv(error = ErrorType, unknown = unknown_fn)]` to your enum
+3. Add `#[enum_str_conv(str = "...")]` to your enum variants
+
+This code generates the following code:
+
+```rust
+#[derive(enum_str_conv::EnumStrConv)]
+#[enum_str_conv(error = MyError, unknown = MyError::Unknown)]
+enum MyEnum {
+	#[enum_str_conv(str = "apple")]
+	A,
+	#[enum_str_conv(str = "banana")]
+	B,
+	#[enum_str_conv(str = "cherry")]
+	C,
+}
+```
+
+```rust
+#[automatically_derived]
+impl ::std::fmt::Display for MyEnum {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+			Self::A => write!(f, "apple"),
+			Self::B => write!(f, "banana"),
+			Self::C => write!(f, "cherry"),
+        }
+    }
+}
+
+#[automatically_derived]
+impl ::std::str::FromStr for MyEnum {
+    type Err = MyError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+			"apple" => Ok(Self::A),
+			"banana" => Ok(Self::B),
+			"cherry" => Ok(Self::C),
+            _ => Err(MyError::Unknown(s.to_owned())),
+        }
+    }
+}
+```
+
+## Examples
 
 ```rust
 #[derive(Debug)]

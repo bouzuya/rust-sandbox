@@ -68,7 +68,8 @@ fn format(
         }
     });
     let output = quote::quote! {
-        impl std::fmt::Display for #enum_ident {
+        #[automatically_derived]
+        impl ::std::fmt::Display for #enum_ident {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self {
                     #(#display_variants,)*
@@ -76,7 +77,8 @@ fn format(
             }
         }
 
-        impl std::str::FromStr for #enum_ident {
+        #[automatically_derived]
+        impl ::std::str::FromStr for #enum_ident {
             type Err = #error_ident;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
