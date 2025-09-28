@@ -10,6 +10,7 @@ pub struct UserCreated {
     pub at: String,
     pub id: String,
     pub name: String,
+    pub user_id: String,
     pub version: u32,
 }
 
@@ -18,5 +19,6 @@ pub struct UserUpdated {
     pub at: String,
     pub id: String,
     pub name: String,
+    pub user_id: String,
     pub version: u32,
 }

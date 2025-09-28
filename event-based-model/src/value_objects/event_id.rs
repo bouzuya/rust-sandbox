@@ -1,13 +1,13 @@
 #[derive(Debug, thiserror::Error)]
-#[error("user id")]
-pub struct UserIdError(#[source] Box<dyn std::error::Error + Send + Sync>);
+#[error("event id")]
+pub struct EventIdError(#[source] Box<dyn std::error::Error + Send + Sync>);
 
 #[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct UserId(String);
+pub struct EventId(String);
 
-impl UserId {
+impl EventId {
     pub fn new() -> Self {
-        UserId(uuid::Uuid::new_v4().to_string())
+        EventId(uuid::Uuid::new_v4().to_string())
     }
 
     #[cfg(test)]
@@ -16,36 +16,36 @@ impl UserId {
     }
 }
 
-impl std::convert::TryFrom<String> for UserId {
-    type Error = UserIdError;
+impl std::convert::TryFrom<String> for EventId {
+    type Error = EventIdError;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         if value.len() != 36 {
-            return Err(UserIdError("invalid length".into()));
+            return Err(EventIdError("invalid length".into()));
         }
         if !value
             .chars()
             .all(|c| c == '-' || ('0'..='9').contains(&c) || ('a'..='f').contains(&c))
         {
-            return Err(UserIdError("invalid characters".into()));
+            return Err(EventIdError("invalid characters".into()));
         }
         let v = <uuid::Uuid as std::str::FromStr>::from_str(&value)
-            .map_err(|_| UserIdError("invalid format".into()))?;
+            .map_err(|_| EventIdError("invalid format".into()))?;
         if v.get_version_num() != 4 {
-            return Err(UserIdError("invalid value".into()));
+            return Err(EventIdError("invalid value".into()));
         }
-        Ok(UserId(value))
+        Ok(EventId(value))
     }
 }
 
-impl std::convert::From<&UserId> for String {
-    fn from(value: &UserId) -> Self {
+impl std::convert::From<&EventId> for String {
+    fn from(value: &EventId) -> Self {
         value.0.clone()
     }
 }
 
-impl std::convert::From<UserId> for String {
-    fn from(value: UserId) -> Self {
+impl std::convert::From<EventId> for String {
+    fn from(value: EventId) -> Self {
         value.0
     }
 }
@@ -57,25 +57,25 @@ mod tests {
     #[test]
     fn test_impl_try_from_string_for_user_id() -> anyhow::Result<()> {
         let s = uuid::Uuid::new_v4().to_string();
-        assert_eq!(UserId::try_from(s.clone())?, UserId(s));
-        assert!(UserId::try_from("0".repeat(36 + 1)).is_err());
-        assert!(UserId::try_from("A".repeat(36 + 1)).is_err());
-        assert!(UserId::try_from("".to_owned()).is_err());
+        assert_eq!(EventId::try_from(s.clone())?, EventId(s));
+        assert!(EventId::try_from("0".repeat(36 + 1)).is_err());
+        assert!(EventId::try_from("A".repeat(36 + 1)).is_err());
+        assert!(EventId::try_from("".to_owned()).is_err());
         Ok(())
     }
 
     #[test]
     fn test_impl_from_user_id_for_string() -> anyhow::Result<()> {
-        let user_id = UserId::new();
+        let user_id = EventId::new();
         let s = String::from(user_id.clone());
-        let user_id2 = UserId::try_from(s.clone())?;
+        let user_id2 = EventId::try_from(s.clone())?;
         assert_eq!(user_id, user_id2);
         Ok(())
     }
 
     #[test]
     fn test_new() -> anyhow::Result<()> {
-        let user_id = UserId::new();
+        let user_id = EventId::new();
         assert_eq!(String::from(user_id.clone()).len(), 36);
         assert_eq!(
             <uuid::Uuid as std::str::FromStr>::from_str(&String::from(user_id))?.get_version_num(),
@@ -89,7 +89,7 @@ mod tests {
         let len = 100;
         let mut set = std::collections::BTreeSet::new();
         for _ in 0..len {
-            let user_id = UserId::new_for_testing();
+            let user_id = EventId::new_for_testing();
             set.insert(user_id);
         }
         assert_eq!(set.len(), len);

@@ -1,6 +1,7 @@
 use crate::event::UserCreated;
 use crate::event::UserEvent;
 use crate::event::UserUpdated;
+use crate::value_objects::EventId;
 use crate::value_objects::UserId;
 use crate::value_objects::UserIdError;
 use crate::value_objects::UserName;
@@ -32,8 +33,9 @@ impl User {
     pub fn create(name: UserName) -> Result<(User, Vec<UserEvent>), UserError> {
         let event = UserEvent::Created(UserCreated {
             at: now(),
-            id: String::from(UserId::new()),
+            id: String::from(EventId::new()),
             name: String::from(name.clone()),
+            user_id: String::from(UserId::new()),
             version: u32::from(Version::new()),
         });
         let state = User::recreate(event.clone())?;
@@ -57,11 +59,12 @@ impl User {
         match event {
             UserEvent::Created(UserCreated {
                 at: _,
-                id,
+                id: _,
                 name,
+                user_id,
                 version,
             }) => Ok(User {
-                id: UserId::try_from(id).map_err(UserError::InvalidPersistedUserId)?,
+                id: UserId::try_from(user_id).map_err(UserError::InvalidPersistedUserId)?,
                 name: UserName::try_from(name).map_err(UserError::InvalidPersistedUserName)?,
                 version: Version::from(version),
             }),
@@ -74,13 +77,14 @@ impl User {
             UserEvent::Created(_) => Err(UserError::ApplyWithInitialEvent(event)),
             UserEvent::Updated(UserUpdated {
                 at: _,
-                id,
+                id: _,
                 name,
+                user_id,
                 version,
             }) => {
                 assert_eq!(
                     self.id,
-                    UserId::try_from(id).map_err(UserError::InvalidPersistedUserId)?
+                    UserId::try_from(user_id).map_err(UserError::InvalidPersistedUserId)?
                 );
                 self.name =
                     UserName::try_from(name).map_err(UserError::InvalidPersistedUserName)?;
@@ -92,11 +96,16 @@ impl User {
         }
     }
 
+    pub fn id(&self) -> &UserId {
+        &self.id
+    }
+
     pub fn update(&self, name: UserName) -> Result<(Self, Vec<UserEvent>), UserError> {
         let event = UserEvent::Updated(UserUpdated {
             at: now(),
-            id: String::from(self.id.clone()),
+            id: String::from(EventId::new()),
             name: String::from(name),
+            user_id: String::from(self.id.clone()),
             version: u32::from(self.version.next()),
         });
 
@@ -104,6 +113,10 @@ impl User {
         cloned.apply(event.clone())?;
 
         Ok((cloned, vec![event]))
+    }
+
+    pub fn version(&self) -> Version {
+        self.version
     }
 }
 
@@ -129,11 +142,12 @@ mod tests {
         match &events[0] {
             UserEvent::Created(UserCreated {
                 at: _,
-                id,
+                id: _,
                 name,
+                user_id,
                 version,
             }) => {
-                assert_eq!(String::from(user.id.clone()), *id);
+                assert_eq!(String::from(user.id.clone()), *user_id);
                 assert_eq!(String::from(user.name.clone()), *name);
                 assert_eq!(u32::from(user.version), *version);
             }
@@ -150,20 +164,38 @@ mod tests {
         let user = User::from_events(vec![
             UserEvent::Created(UserCreated {
                 at: "2020-01-02T15:16:17.000Z".to_owned(),
-                id: String::from(user_id.clone()),
+                id: String::from(EventId::new()),
                 name: String::from(user_name1.clone()),
+                user_id: String::from(user_id.clone()),
                 version: 1,
             }),
             UserEvent::Updated(UserUpdated {
                 at: "2020-01-02T15:16:18.000Z".to_owned(),
-                id: String::from(user_id.clone()),
+                id: String::from(EventId::new()),
                 name: String::from(user_name2.clone()),
+                user_id: String::from(user_id.clone()),
                 version: 2,
             }),
         ])?;
         assert_eq!(user.id, user_id);
         assert_eq!(user.name, user_name2);
         assert_eq!(user.version, Version::from(2));
+        Ok(())
+    }
+
+    #[test]
+    fn test_id() -> anyhow::Result<()> {
+        let user_name = UserName::new_for_testing();
+        let (user, _) = User::create(user_name)?;
+        assert_eq!(user.id(), &user.id);
+        Ok(())
+    }
+
+    #[test]
+    fn test_version() -> anyhow::Result<()> {
+        let user_name = UserName::new_for_testing();
+        let (user, _) = User::create(user_name)?;
+        assert_eq!(user.version(), user.version);
         Ok(())
     }
 }
