@@ -10,7 +10,7 @@ use crate::value_objects::Version;
 
 #[derive(Debug, thiserror::Error)]
 pub enum UserError {
-    #[error("invalid update event: {0:?}")]
+    #[error("apply with initial event: {0:?}")]
     ApplyWithInitialEvent(UserEvent),
     #[error("empty event stream")]
     EmptyEventStream,
@@ -18,7 +18,7 @@ pub enum UserError {
     InvalidPersistedUserId(#[source] UserIdError),
     #[error("invalid persisted user name: {0:?}")]
     InvalidPersistedUserName(#[source] UserNameError),
-    #[error("invalid initial event: {0:?}")]
+    #[error("recreate with non initial event: {0:?}")]
     RecreateWithNonInitialEvent(UserEvent),
 }
 
