@@ -4,6 +4,7 @@ mod user_name;
 mod version;
 
 pub use self::event_id::EventId;
+#[allow(unused_imports)]
 pub use self::event_id::EventIdError;
 pub use self::user_id::UserId;
 pub use self::user_id::UserIdError;

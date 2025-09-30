@@ -10,7 +10,7 @@ pub struct ListUsersOutput {
     pub items: Vec<ListUsersOutputItem>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct ListUsersOutputItem {
     pub id: String,
     pub name: String,

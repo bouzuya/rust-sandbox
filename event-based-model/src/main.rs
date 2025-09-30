@@ -7,6 +7,7 @@ mod query_use_cases;
 mod readers;
 mod repositories;
 mod value_objects;
+mod writers;
 
 #[tokio::main]
 async fn main() {
@@ -49,6 +50,8 @@ enum Sample2Error {
     UserNotFound,
     #[error("user repository")]
     UserRepository(#[from] self::repositories::UserRepositoryError),
+    #[error("user writer")]
+    UserWriter(#[source] self::writers::UserWriterError),
 }
 
 async fn sample2() -> Result<(), Sample2Error> {
@@ -79,15 +82,29 @@ async fn sample2() -> Result<(), Sample2Error> {
     assert_eq!(String::from(found.id()), id);
     assert_eq!(u32::from(found.version()), version);
 
-    // TODO: read events and write query model
+    let read_model_store = in_memory_impls::InMemoryReadModelStore::new();
+    let user_writer =
+        in_memory_impls::InMemoryUserWriter::new(event_store, read_model_store.clone());
+    writers::UserWriter::update(&user_writer, found.id())
+        .await
+        .map_err(Sample2Error::UserWriter)?;
 
-    let user_reader = std::sync::Arc::new(in_memory_impls::InMemoryUserReader::new());
+    let user_reader =
+        std::sync::Arc::new(in_memory_impls::InMemoryUserReader::new(read_model_store));
     let self::query_use_cases::ListUsersOutput { items } = self::query_use_cases::list_users(
         self::query_use_cases::ListUsersDeps { user_reader },
         self::query_use_cases::ListUsersInput,
     )
     .await?;
-    assert!(items.is_empty());
+    assert_eq!(items.len(), 1);
+    assert_eq!(
+        items[0],
+        self::query_use_cases::ListUsersOutputItem {
+            id,
+            name: "Alice".to_owned(),
+            version: 1,
+        }
+    );
 
     Ok(())
 }
