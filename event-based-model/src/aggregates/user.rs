@@ -1,6 +1,6 @@
-use crate::event::UserCreated;
-use crate::event::UserEvent;
-use crate::event::UserUpdated;
+use crate::events::UserCreated;
+use crate::events::UserEvent;
+use crate::events::UserUpdated;
 use crate::value_objects::EventId;
 use crate::value_objects::UserId;
 use crate::value_objects::UserIdError;
@@ -128,9 +128,9 @@ fn now() -> String {
 mod tests {
     use super::*;
 
-    use crate::event::UserCreated;
-    use crate::event::UserEvent;
-    use crate::event::UserUpdated;
+    use crate::events::UserCreated;
+    use crate::events::UserEvent;
+    use crate::events::UserUpdated;
 
     #[test]
     fn test_create() -> anyhow::Result<()> {

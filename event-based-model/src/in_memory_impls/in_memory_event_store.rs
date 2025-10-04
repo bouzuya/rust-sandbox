@@ -1,7 +1,7 @@
 #[derive(Clone)]
 pub struct InMemoryEventStore(
     pub(super)  std::sync::Arc<
-        std::sync::Mutex<std::collections::HashMap<String, Vec<crate::event::UserEvent>>>,
+        std::sync::Mutex<std::collections::HashMap<String, Vec<crate::events::UserEvent>>>,
     >,
 );
 

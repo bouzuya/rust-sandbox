@@ -12,6 +12,6 @@ pub trait UserRepository {
     async fn store(
         &self,
         version: Option<crate::value_objects::Version>,
-        user_events: Vec<crate::event::UserEvent>,
+        user_events: Vec<crate::events::UserEvent>,
     ) -> Result<(), UserRepositoryError>;
 }

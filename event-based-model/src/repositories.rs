@@ -23,7 +23,7 @@ mod tests {
             async fn store(
                 &self,
                 _version: Option<crate::value_objects::Version>,
-                _user_events: Vec<crate::event::UserEvent>,
+                _user_events: Vec<crate::events::UserEvent>,
             ) -> Result<(), crate::repositories::UserRepositoryError> {
                 Ok(())
             }

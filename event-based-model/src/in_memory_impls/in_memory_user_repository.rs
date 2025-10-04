@@ -46,7 +46,7 @@ impl crate::repositories::UserRepository for InMemoryUserRepository {
     async fn store(
         &self,
         version: Option<crate::value_objects::Version>,
-        user_events: Vec<crate::event::UserEvent>,
+        user_events: Vec<crate::events::UserEvent>,
     ) -> Result<(), crate::repositories::UserRepositoryError> {
         if user_events.is_empty() {
             return Ok(());
@@ -82,16 +82,16 @@ impl crate::repositories::UserRepository for InMemoryUserRepository {
     }
 }
 
-fn event_to_user_id(e: &crate::event::UserEvent) -> String {
+fn event_to_user_id(e: &crate::events::UserEvent) -> String {
     match e {
-        crate::event::UserEvent::Created(e) => e.user_id.clone(),
-        crate::event::UserEvent::Updated(e) => e.user_id.clone(),
+        crate::events::UserEvent::Created(e) => e.user_id.clone(),
+        crate::events::UserEvent::Updated(e) => e.user_id.clone(),
     }
 }
 
-fn event_to_version(e: &crate::event::UserEvent) -> u32 {
+fn event_to_version(e: &crate::events::UserEvent) -> u32 {
     match e {
-        crate::event::UserEvent::Created(e) => e.version,
-        crate::event::UserEvent::Updated(e) => e.version,
+        crate::events::UserEvent::Created(e) => e.version,
+        crate::events::UserEvent::Updated(e) => e.version,
     }
 }

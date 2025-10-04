@@ -1,6 +1,6 @@
-use crate::event::UserCreated;
-use crate::event::UserEvent;
-use crate::event::UserUpdated;
+use crate::events::UserCreated;
+use crate::events::UserEvent;
+use crate::events::UserUpdated;
 
 #[derive(Debug, thiserror::Error)]
 pub enum QueryUserError {
