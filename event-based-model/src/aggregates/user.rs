@@ -192,6 +192,33 @@ mod tests {
     }
 
     #[test]
+    fn test_update() -> anyhow::Result<()> {
+        let user_name1 = UserName::new_for_testing();
+        let (user, _) = User::create(user_name1.clone())?;
+        let user_name2 = UserName::new_for_testing();
+        let (updated_user, events) = user.update(user_name2.clone())?;
+        assert_eq!(updated_user.id, user.id);
+        assert_eq!(updated_user.name, user_name2);
+        assert_eq!(updated_user.version, Version::from(2));
+        assert_eq!(events.len(), 1);
+        match &events[0] {
+            UserEvent::Updated(UserUpdated {
+                at: _,
+                id: _,
+                name,
+                user_id,
+                version,
+            }) => {
+                assert_eq!(String::from(updated_user.id.clone()), *user_id);
+                assert_eq!(String::from(updated_user.name.clone()), *name);
+                assert_eq!(u32::from(updated_user.version), *version);
+            }
+            _ => anyhow::bail!("unexpected event: {:?}", events[0]),
+        }
+        Ok(())
+    }
+
+    #[test]
     fn test_version() -> anyhow::Result<()> {
         let user_name = UserName::new_for_testing();
         let (user, _) = User::create(user_name)?;
