@@ -1,3 +1,5 @@
+mod page_meta;
+
 use anyhow::Context;
 
 #[derive(clap::Parser)]
@@ -95,7 +97,7 @@ async fn preview() -> anyhow::Result<()> {
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
         axum::extract::Path(id): axum::extract::Path<PageId>,
     ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
-        if !state.page_ids.contains(&id) {
+        if !state.page_metas.contains_key(&id) {
             return Err(axum::http::StatusCode::NOT_FOUND);
         }
 
@@ -122,9 +124,9 @@ async fn preview() -> anyhow::Result<()> {
         html.push_str("<!DOCTYPE html><html><body>");
         html.push_str(r#"<nav><ol><li><a href="/">/</a></li></ol></nav>"#);
         html.push_str("<h1>Index</h1>");
-        if !state.page_ids.is_empty() {
+        if !state.page_metas.is_empty() {
             html.push_str("<ul>");
-            for page_id in &state.page_ids {
+            for page_id in state.page_metas.keys() {
                 html.push_str("<li>");
                 html.push_str(r#"<a href="/"#);
                 html.push_str(page_id.to_string().as_str());
@@ -151,14 +153,21 @@ async fn preview() -> anyhow::Result<()> {
         page_ids.insert(page_id);
     }
 
+    let mut page_metas = std::collections::BTreeMap::new();
+    for page_id in &page_ids {
+        let md = std::fs::read_to_string(format!("data/{}.md", page_id)).context("read page")?;
+        let page_meta = page_meta::PageMeta::from_markdown(&md);
+        page_metas.insert(page_id.clone(), page_meta);
+    }
+
     struct State {
-        page_ids: std::collections::BTreeSet<PageId>,
+        page_metas: std::collections::BTreeMap<PageId, page_meta::PageMeta>,
     }
 
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
         .route("/{id}", axum::routing::get(get))
-        .with_state(std::sync::Arc::new(State { page_ids }));
+        .with_state(std::sync::Arc::new(State { page_metas }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
