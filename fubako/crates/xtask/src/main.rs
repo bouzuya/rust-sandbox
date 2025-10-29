@@ -106,39 +106,41 @@ async fn preview() -> anyhow::Result<()> {
             .map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
         let parser = pulldown_cmark::Parser::new(&md);
         let mut html = String::new();
-        html.push_str("<!DOCTYPE html><html><body>");
-        html.push_str(r#"<nav><ol><li><a href="/">/</a></li><li><a href=""#);
-        html.push_str(id_str.as_str());
-        html.push_str(r#"">"#);
-        html.push_str(id_str.as_str());
-        html.push_str("</a></li></ol></nav>");
         pulldown_cmark::html::push_html(&mut html, parser);
-        html.push_str("</body></html>");
-        Ok(axum::response::Html(html))
+
+        #[derive(Debug, askama::Template)]
+        #[template(path = "get.html")]
+        struct Tmpl {
+            html: String,
+            id: String,
+        }
+
+        Ok(axum::response::Html(Tmpl { html, id: id_str }.to_string()))
     }
 
     async fn list(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
     ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
-        let mut html = String::new();
-        html.push_str("<!DOCTYPE html><html><body>");
-        html.push_str(r#"<nav><ol><li><a href="/">/</a></li></ol></nav>"#);
-        html.push_str("<h1>Index</h1>");
-        if !state.page_metas.is_empty() {
-            html.push_str("<ul>");
-            for page_id in state.page_metas.keys() {
-                html.push_str("<li>");
-                html.push_str(r#"<a href="/"#);
-                html.push_str(page_id.to_string().as_str());
-                html.push_str(r#"">"#);
-                html.push_str(page_id.to_string().as_str());
-                html.push_str("</a>");
-                html.push_str("</li>")
-            }
-            html.push_str("</ul>");
+        #[derive(askama::Template)]
+        #[template(path = "list.html")]
+        struct Tmpl {
+            page_metas: Vec<TmplPageMeta>,
         }
-        html.push_str("</body></html>");
-        Ok(axum::response::Html(html))
+        struct TmplPageMeta {
+            id: String,
+            title: String,
+        }
+
+        let page_metas = state
+            .page_metas
+            .iter()
+            .map(|(id, meta)| TmplPageMeta {
+                id: id.to_string(),
+                title: meta.title.clone().unwrap_or_default(),
+            })
+            .collect::<Vec<TmplPageMeta>>();
+
+        Ok(axum::response::Html(Tmpl { page_metas }.to_string()))
     }
 
     // create index

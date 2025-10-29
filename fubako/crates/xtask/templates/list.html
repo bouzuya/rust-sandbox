@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+</head>
+
+<body>
+    <nav>
+        <ol>
+            <li><a href="/">/</a></li>
+        </ol>
+    </nav>
+
+    <h1>Index</h1>
+
+    {% if !page_metas.is_empty() %}
+    <ul>
+        {% for page_meta in page_metas %}
+        <li>
+            <a href="/{{ page_meta.id }}">{{ page_meta.id }}</a>
+            <a href="/{{ page_meta.id }}">{{ page_meta.title }}</a>
+        </li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+</html>
