@@ -1,3 +1,5 @@
+use anyhow::Context;
+
 #[derive(clap::Parser)]
 struct Cli {
     #[clap(subcommand)]
@@ -33,15 +35,33 @@ async fn new() -> anyhow::Result<()> {
 }
 
 async fn preview() -> anyhow::Result<()> {
-    struct Id(String);
+    #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+    struct PageId(String);
 
-    impl std::fmt::Display for Id {
+    impl PageId {
+        fn from_str(s: &str) -> anyhow::Result<Self> {
+            (s.len() == "00000000T000000Z".len()
+                && s.chars().all(|c| matches!(c, '0'..='9' | 'T' | 'Z')))
+            .then_some(Self(s.to_string()))
+            .ok_or_else(|| anyhow::anyhow!("invalid ID format"))
+        }
+    }
+
+    impl std::str::FromStr for PageId {
+        type Err = anyhow::Error;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            Self::from_str(s)
+        }
+    }
+
+    impl std::fmt::Display for PageId {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             self.0.fmt(f)
         }
     }
 
-    impl<'de> serde::de::Deserialize<'de> for Id {
+    impl<'de> serde::de::Deserialize<'de> for PageId {
         fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
             D: serde::Deserializer<'de>,
@@ -49,7 +69,7 @@ async fn preview() -> anyhow::Result<()> {
             struct Visitor;
 
             impl<'vi> serde::de::Visitor<'vi> for Visitor {
-                type Value = Id;
+                type Value = PageId;
 
                 fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
                     formatter.write_str("a string matching the ID format")
@@ -62,7 +82,7 @@ async fn preview() -> anyhow::Result<()> {
                     (v.len() == "00000000T000000Z".len()
                         && v.chars().all(|c| matches!(c, '0'..='9' | 'T' | 'Z')))
                     .then_some(v)
-                    .map(Id)
+                    .map(PageId)
                     .ok_or_else(|| E::custom("invalid ID format"))
                 }
             }
@@ -72,8 +92,13 @@ async fn preview() -> anyhow::Result<()> {
     }
 
     async fn get(
-        axum::extract::Path(id): axum::extract::Path<Id>,
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
+        axum::extract::Path(id): axum::extract::Path<PageId>,
     ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
+        if !state.page_ids.contains(&id) {
+            return Err(axum::http::StatusCode::NOT_FOUND);
+        }
+
         let id_str = id.to_string();
         let md = std::fs::read_to_string(format!("data/{}.md", &id_str))
             .map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
@@ -90,34 +115,21 @@ async fn preview() -> anyhow::Result<()> {
         Ok(axum::response::Html(html))
     }
 
-    async fn list() -> Result<axum::response::Html<String>, axum::http::StatusCode> {
-        let read_dir =
-            std::fs::read_dir("data").map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-        let mut ids = Vec::new();
-        for dir_entry in read_dir {
-            let dir_entry = dir_entry.map_err(|_| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-            let path_buf = dir_entry.path();
-            let file_stem = path_buf
-                .file_stem()
-                .ok_or_else(|| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-            let id = file_stem
-                .to_str()
-                .ok_or_else(|| axum::http::StatusCode::INTERNAL_SERVER_ERROR)?;
-            ids.push(id.to_string());
-        }
-        ids.sort();
+    async fn list(
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
+    ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
         let mut html = String::new();
         html.push_str("<!DOCTYPE html><html><body>");
         html.push_str(r#"<nav><ol><li><a href="/">/</a></li></ol></nav>"#);
         html.push_str("<h1>Index</h1>");
-        if !ids.is_empty() {
+        if !state.page_ids.is_empty() {
             html.push_str("<ul>");
-            for id in ids {
+            for page_id in &state.page_ids {
                 html.push_str("<li>");
                 html.push_str(r#"<a href="/"#);
-                html.push_str(id.as_str());
+                html.push_str(page_id.to_string().as_str());
                 html.push_str(r#"">"#);
-                html.push_str(id.as_str());
+                html.push_str(page_id.to_string().as_str());
                 html.push_str("</a>");
                 html.push_str("</li>")
             }
@@ -127,9 +139,26 @@ async fn preview() -> anyhow::Result<()> {
         Ok(axum::response::Html(html))
     }
 
+    // create index
+    let read_dir = std::fs::read_dir("data").context("data dir not found")?;
+    let mut page_ids = std::collections::BTreeSet::new();
+    for dir_entry in read_dir {
+        let dir_entry = dir_entry.context("dir_entry")?;
+        let path_buf = dir_entry.path();
+        let file_stem = path_buf.file_stem().context("file_stem")?;
+        let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
+        let page_id = PageId::from_str(page_id).context("invalid ID in data dir")?;
+        page_ids.insert(page_id);
+    }
+
+    struct State {
+        page_ids: std::collections::BTreeSet<PageId>,
+    }
+
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
-        .route("/{id}", axum::routing::get(get));
+        .route("/{id}", axum::routing::get(get))
+        .with_state(std::sync::Arc::new(State { page_ids }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
