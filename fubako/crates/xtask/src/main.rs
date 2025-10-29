@@ -6,6 +6,9 @@ struct Cli {
 
 #[derive(clap::Subcommand)]
 enum Subcommand {
+    /// Create a new page
+    New,
+    /// Start a local preview server
     Preview,
 }
 
@@ -13,8 +16,20 @@ enum Subcommand {
 async fn main() -> anyhow::Result<()> {
     let cli = <Cli as clap::Parser>::parse();
     match cli.subcommand {
+        Subcommand::New => new().await,
         Subcommand::Preview => preview().await,
     }
+}
+
+async fn new() -> anyhow::Result<()> {
+    let dir = std::path::PathBuf::from("data");
+    let now = chrono::Utc::now();
+    let id = now.format("%Y%m%dT%H%M%SZ").to_string();
+    let path = dir.join(id).with_extension("md");
+    std::fs::create_dir_all(&dir)?;
+    std::fs::write(&path, "")?;
+    println!("Created new page: {}", path.display());
+    Ok(())
 }
 
 async fn preview() -> anyhow::Result<()> {
