@@ -30,64 +30,80 @@ async fn main() -> anyhow::Result<()> {
 
 async fn new() -> anyhow::Result<()> {
     let config = load_config().await?;
-    let dir = config.data_dir;
     let page_id = page_id::PageId::new();
-    let path = dir.join(page_id.to_string()).with_extension("md");
-    std::fs::create_dir_all(&dir)?;
+    let path = page_path(&config, &page_id);
+    std::fs::create_dir_all(path.parent().context("invalid path")?)?;
     std::fs::write(&path, "")?;
     println!("Created new page: {}", path.display());
     Ok(())
 }
 
 async fn preview() -> anyhow::Result<()> {
+    #[derive(Debug, askama::Template)]
+    #[template(path = "get.html")]
+    struct GetResponse {
+        html: String,
+        id: String,
+    }
+
+    impl axum::response::IntoResponse for GetResponse {
+        fn into_response(self) -> axum::response::Response {
+            let body = self.to_string();
+            axum::response::Html(body).into_response()
+        }
+    }
+
     async fn get(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
         axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
-    ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
+    ) -> Result<GetResponse, axum::http::StatusCode> {
         if !state.page_metas.contains_key(&id) {
             return Err(axum::http::StatusCode::NOT_FOUND);
         }
 
-        let id_str = id.to_string();
-        let path = state.config.data_dir.join(&id_str).with_extension("md");
+        let path = page_path(&state.config, &id);
         let md = std::fs::read_to_string(path).map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
         let parser = pulldown_cmark::Parser::new(&md);
         let mut html = String::new();
         pulldown_cmark::html::push_html(&mut html, parser);
 
-        #[derive(Debug, askama::Template)]
-        #[template(path = "get.html")]
-        struct Tmpl {
-            html: String,
-            id: String,
-        }
+        Ok(GetResponse {
+            html,
+            id: id.to_string(),
+        })
+    }
 
-        Ok(axum::response::Html(Tmpl { html, id: id_str }.to_string()))
+    #[derive(askama::Template)]
+    #[template(path = "list.html")]
+    struct ListResponse {
+        page_metas: Vec<ListResponsePageMeta>,
+    }
+
+    impl axum::response::IntoResponse for ListResponse {
+        fn into_response(self) -> axum::response::Response {
+            let body = self.to_string();
+            axum::response::Html(body).into_response()
+        }
+    }
+
+    struct ListResponsePageMeta {
+        id: String,
+        title: String,
     }
 
     async fn list(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
-    ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
-        #[derive(askama::Template)]
-        #[template(path = "list.html")]
-        struct Tmpl {
-            page_metas: Vec<TmplPageMeta>,
-        }
-        struct TmplPageMeta {
-            id: String,
-            title: String,
-        }
-
+    ) -> Result<ListResponse, axum::http::StatusCode> {
         let page_metas = state
             .page_metas
             .iter()
-            .map(|(id, meta)| TmplPageMeta {
+            .map(|(id, meta)| ListResponsePageMeta {
                 id: id.to_string(),
                 title: meta.title.clone().unwrap_or_default(),
             })
-            .collect::<Vec<TmplPageMeta>>();
+            .collect::<Vec<ListResponsePageMeta>>();
 
-        Ok(axum::response::Html(Tmpl { page_metas }.to_string()))
+        Ok(ListResponse { page_metas })
     }
 
     let config = load_config().await?;
@@ -106,10 +122,7 @@ async fn preview() -> anyhow::Result<()> {
 
     let mut page_metas = std::collections::BTreeMap::new();
     for page_id in &page_ids {
-        let path = config
-            .data_dir
-            .join(page_id.to_string())
-            .with_extension("md");
+        let path = page_path(&config, page_id);
         let md = std::fs::read_to_string(path).context("read page")?;
         let page_meta = page_meta::PageMeta::from_markdown(&md);
         page_metas.insert(page_id.clone(), page_meta);
@@ -127,6 +140,13 @@ async fn preview() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+fn page_path(config: &Config, page_id: &page_id::PageId) -> std::path::PathBuf {
+    config
+        .data_dir
+        .join(page_id.to_string())
+        .with_extension("md")
 }
 
 struct Config {
