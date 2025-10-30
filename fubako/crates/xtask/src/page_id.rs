@@ -1,6 +1,14 @@
 #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PageId(String);
 
+impl PageId {
+    pub fn new() -> Self {
+        let now = chrono::Utc::now();
+        let s = now.format("%Y%m%dT%H%M%SZ").to_string();
+        Self(s)
+    }
+}
+
 impl std::fmt::Display for PageId {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.0.fmt(f)
@@ -51,6 +59,12 @@ impl<'de> serde::de::Deserialize<'de> for PageId {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_impl_page_id_new() {
+        let page_id = PageId::new();
+        assert_eq!(page_id.0.len(), "00000000T000000Z".len());
+    }
 
     #[test]
     fn test_impl_display_for_page_id() -> anyhow::Result<()> {

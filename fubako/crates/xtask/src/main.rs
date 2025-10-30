@@ -31,9 +31,8 @@ async fn main() -> anyhow::Result<()> {
 async fn new() -> anyhow::Result<()> {
     let config = load_config().await?;
     let dir = config.data_dir;
-    let now = chrono::Utc::now();
-    let id = now.format("%Y%m%dT%H%M%SZ").to_string();
-    let path = dir.join(id).with_extension("md");
+    let page_id = page_id::PageId::new();
+    let path = dir.join(page_id.to_string()).with_extension("md");
     std::fs::create_dir_all(&dir)?;
     std::fs::write(&path, "")?;
     println!("Created new page: {}", path.display());
