@@ -1,4 +1,7 @@
+mod page_id;
 mod page_meta;
+
+use std::str::FromStr as _;
 
 use anyhow::Context;
 
@@ -38,65 +41,9 @@ async fn new() -> anyhow::Result<()> {
 }
 
 async fn preview() -> anyhow::Result<()> {
-    #[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
-    struct PageId(String);
-
-    impl PageId {
-        fn from_str(s: &str) -> anyhow::Result<Self> {
-            (s.len() == "00000000T000000Z".len()
-                && s.chars().all(|c| matches!(c, '0'..='9' | 'T' | 'Z')))
-            .then_some(Self(s.to_string()))
-            .ok_or_else(|| anyhow::anyhow!("invalid ID format"))
-        }
-    }
-
-    impl std::str::FromStr for PageId {
-        type Err = anyhow::Error;
-
-        fn from_str(s: &str) -> Result<Self, Self::Err> {
-            Self::from_str(s)
-        }
-    }
-
-    impl std::fmt::Display for PageId {
-        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-            self.0.fmt(f)
-        }
-    }
-
-    impl<'de> serde::de::Deserialize<'de> for PageId {
-        fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            struct Visitor;
-
-            impl<'vi> serde::de::Visitor<'vi> for Visitor {
-                type Value = PageId;
-
-                fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                    formatter.write_str("a string matching the ID format")
-                }
-
-                fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-                where
-                    E: serde::de::Error,
-                {
-                    (v.len() == "00000000T000000Z".len()
-                        && v.chars().all(|c| matches!(c, '0'..='9' | 'T' | 'Z')))
-                    .then_some(v)
-                    .map(PageId)
-                    .ok_or_else(|| E::custom("invalid ID format"))
-                }
-            }
-
-            deserializer.deserialize_string(Visitor)
-        }
-    }
-
     async fn get(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
-        axum::extract::Path(id): axum::extract::Path<PageId>,
+        axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
     ) -> Result<axum::response::Html<String>, axum::http::StatusCode> {
         if !state.page_metas.contains_key(&id) {
             return Err(axum::http::StatusCode::NOT_FOUND);
@@ -154,7 +101,7 @@ async fn preview() -> anyhow::Result<()> {
         let path_buf = dir_entry.path();
         let file_stem = path_buf.file_stem().context("file_stem")?;
         let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
-        let page_id = PageId::from_str(page_id).context("invalid ID in data dir")?;
+        let page_id = page_id::PageId::from_str(page_id).context("invalid ID in data dir")?;
         page_ids.insert(page_id);
     }
 
@@ -171,7 +118,7 @@ async fn preview() -> anyhow::Result<()> {
 
     struct State {
         config: Config,
-        page_metas: std::collections::BTreeMap<PageId, page_meta::PageMeta>,
+        page_metas: std::collections::BTreeMap<page_id::PageId, page_meta::PageMeta>,
     }
 
     let router = axum::Router::new()
