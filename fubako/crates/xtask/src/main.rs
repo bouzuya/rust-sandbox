@@ -26,7 +26,8 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn new() -> anyhow::Result<()> {
-    let dir = std::path::PathBuf::from("data");
+    let config = load_config().await?;
+    let dir = config.data_dir;
     let now = chrono::Utc::now();
     let id = now.format("%Y%m%dT%H%M%SZ").to_string();
     let path = dir.join(id).with_extension("md");
@@ -102,8 +103,8 @@ async fn preview() -> anyhow::Result<()> {
         }
 
         let id_str = id.to_string();
-        let md = std::fs::read_to_string(format!("data/{}.md", &id_str))
-            .map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
+        let path = state.config.data_dir.join(&id_str).with_extension("md");
+        let md = std::fs::read_to_string(path).map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
         let parser = pulldown_cmark::Parser::new(&md);
         let mut html = String::new();
         pulldown_cmark::html::push_html(&mut html, parser);
@@ -143,8 +144,10 @@ async fn preview() -> anyhow::Result<()> {
         Ok(axum::response::Html(Tmpl { page_metas }.to_string()))
     }
 
+    let config = load_config().await?;
+
     // create index
-    let read_dir = std::fs::read_dir("data").context("data dir not found")?;
+    let read_dir = std::fs::read_dir(&config.data_dir).context("data dir not found")?;
     let mut page_ids = std::collections::BTreeSet::new();
     for dir_entry in read_dir {
         let dir_entry = dir_entry.context("dir_entry")?;
@@ -157,20 +160,35 @@ async fn preview() -> anyhow::Result<()> {
 
     let mut page_metas = std::collections::BTreeMap::new();
     for page_id in &page_ids {
-        let md = std::fs::read_to_string(format!("data/{}.md", page_id)).context("read page")?;
+        let path = config
+            .data_dir
+            .join(page_id.to_string())
+            .with_extension("md");
+        let md = std::fs::read_to_string(path).context("read page")?;
         let page_meta = page_meta::PageMeta::from_markdown(&md);
         page_metas.insert(page_id.clone(), page_meta);
     }
 
     struct State {
+        config: Config,
         page_metas: std::collections::BTreeMap<PageId, page_meta::PageMeta>,
     }
 
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
         .route("/{id}", axum::routing::get(get))
-        .with_state(std::sync::Arc::new(State { page_metas }));
+        .with_state(std::sync::Arc::new(State { config, page_metas }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
+}
+
+struct Config {
+    data_dir: std::path::PathBuf,
+}
+
+async fn load_config() -> anyhow::Result<Config> {
+    Ok(Config {
+        data_dir: std::path::PathBuf::from("data"),
+    })
 }
