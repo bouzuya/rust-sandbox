@@ -44,6 +44,8 @@ async fn preview() -> anyhow::Result<()> {
     struct GetResponse {
         html: String,
         id: String,
+        links: Vec<String>,
+        title: String,
     }
 
     impl axum::response::IntoResponse for GetResponse {
@@ -57,19 +59,39 @@ async fn preview() -> anyhow::Result<()> {
         axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
         axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
     ) -> Result<GetResponse, axum::http::StatusCode> {
-        if !state.page_metas.contains_key(&id) {
-            return Err(axum::http::StatusCode::NOT_FOUND);
-        }
+        let page_meta = state
+            .page_metas
+            .get(&id)
+            .ok_or(axum::http::StatusCode::NOT_FOUND)?;
 
         let path = page_path(&state.config, &id);
         let md = std::fs::read_to_string(path).map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
-        let parser = pulldown_cmark::Parser::new(&md);
+        let parser = pulldown_cmark::Parser::new_with_broken_link_callback(
+            &md,
+            pulldown_cmark::Options::empty(),
+            Some(|broken_link: pulldown_cmark::BrokenLink<'_>| {
+                match <page_id::PageId as std::str::FromStr>::from_str(&broken_link.reference) {
+                    Err(_) => None,
+                    Ok(page_id) => Some((
+                        pulldown_cmark::CowStr::Boxed(page_id.to_string().into_boxed_str()),
+                        pulldown_cmark::CowStr::Boxed(format!("/{page_id}").into_boxed_str()),
+                    )),
+                }
+            }),
+        );
         let mut html = String::new();
         pulldown_cmark::html::push_html(&mut html, parser);
 
         Ok(GetResponse {
             html,
             id: id.to_string(),
+            links: page_meta
+                .links
+                .clone()
+                .into_iter()
+                .map(|id| id.to_string())
+                .collect::<Vec<String>>(),
+            title: page_meta.title.clone().unwrap_or_default(),
         })
     }
 

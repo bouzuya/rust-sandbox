@@ -4,14 +4,25 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ id }} {{ title }}</title>
 </head>
 
 <body>
     <nav>
+        <!-- Breadcrumb -->
         <ol>
             <li><a href="/">/</a></li>
             <li><a href="/{{ id }}">{{ id }}</a></li>
         </ol>
+
+        <!-- Links -->
+        {% if !links.is_empty() %}
+        <ul>
+            {% for page_id in links %}
+            <li><a href="/{{ page_id }}">{{ page_id }}</a></li>
+            {% endfor %}
+        </ul>
+        {% endif %}
     </nav>
 
     {{ html | safe }}
