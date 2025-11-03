@@ -45,6 +45,7 @@ async fn preview() -> anyhow::Result<()> {
         html: String,
         id: String,
         links: Vec<String>,
+        rev_links: Vec<String>,
         title: String,
     }
 
@@ -91,6 +92,16 @@ async fn preview() -> anyhow::Result<()> {
                 .into_iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<String>>(),
+            rev_links: state
+                .rev_index
+                .get(&id)
+                .map(|set| {
+                    set.iter()
+                        .cloned()
+                        .map(|id| id.to_string())
+                        .collect::<Vec<String>>()
+                })
+                .unwrap_or_default(),
             title: page_meta.title.clone().unwrap_or_default(),
         })
     }
@@ -150,15 +161,33 @@ async fn preview() -> anyhow::Result<()> {
         page_metas.insert(page_id.clone(), page_meta);
     }
 
+    let mut rev_index = std::collections::BTreeMap::new();
+    for (page_id, page_meta) in &page_metas {
+        for linked_page_id in &page_meta.links {
+            rev_index
+                .entry(linked_page_id.clone())
+                .or_insert_with(std::collections::BTreeSet::new)
+                .insert(page_id.clone());
+        }
+    }
+
     struct State {
         config: Config,
         page_metas: std::collections::BTreeMap<page_id::PageId, page_meta::PageMeta>,
+        rev_index: std::collections::BTreeMap<
+            page_id::PageId,
+            std::collections::BTreeSet<page_id::PageId>,
+        >,
     }
 
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
         .route("/{id}", axum::routing::get(get))
-        .with_state(std::sync::Arc::new(State { config, page_metas }));
+        .with_state(std::sync::Arc::new(State {
+            config,
+            page_metas,
+            rev_index,
+        }));
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
