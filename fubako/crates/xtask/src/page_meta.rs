@@ -1,5 +1,6 @@
 use crate::page_id::PageId;
 
+#[derive(Clone)]
 pub struct PageMeta {
     pub links: std::collections::BTreeSet<PageId>,
     pub title: Option<String>,

@@ -57,9 +57,11 @@ async fn preview() -> anyhow::Result<()> {
     }
 
     async fn get(
-        axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
         axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
     ) -> Result<GetResponse, axum::http::StatusCode> {
+        // FIXME: unwrap
+        let state = state.lock().unwrap();
         let page_meta = state
             .page_metas
             .get(&id)
@@ -125,8 +127,10 @@ async fn preview() -> anyhow::Result<()> {
     }
 
     async fn list(
-        axum::extract::State(state): axum::extract::State<std::sync::Arc<State>>,
+        axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
     ) -> Result<ListResponse, axum::http::StatusCode> {
+        // FIXME: unwrap
+        let state = state.lock().unwrap();
         let page_metas = state
             .page_metas
             .iter()
@@ -180,14 +184,110 @@ async fn preview() -> anyhow::Result<()> {
         >,
     }
 
+    let watch_dir = config.data_dir.clone();
+    let state = std::sync::Arc::new(std::sync::Mutex::new(State {
+        config,
+        page_metas,
+        rev_index,
+    }));
+
+    // run watcher
+    fn update_page_meta(
+        state: std::sync::Arc<std::sync::Mutex<State>>,
+        path: &std::path::Path,
+    ) -> anyhow::Result<()> {
+        let mut state = state.lock().unwrap();
+
+        let file_stem = path.file_stem().context("file_stem")?;
+        let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
+        let page_id = page_id::PageId::from_str(page_id).context("invalid ID in data dir")?;
+
+        if !path.exists() {
+            let old_page_meta = state.page_metas.get(&page_id).cloned();
+            match old_page_meta {
+                Some(old_page_meta) => {
+                    // remove old links from rev_index
+                    for linked_page_id in &old_page_meta.links {
+                        if let Some(set) = state.rev_index.get_mut(linked_page_id) {
+                            set.remove(&page_id);
+                        }
+                    }
+                }
+                None => {
+                    // do nothing
+                }
+            }
+            return Ok(());
+        }
+
+        let md = std::fs::read_to_string(path).context("read page")?;
+        let new_page_meta = page_meta::PageMeta::from_markdown(&md);
+
+        let old_page_meta = state.page_metas.get(&page_id).cloned();
+        match old_page_meta {
+            Some(old_page_meta) => {
+                // remove old links from rev_index
+                for linked_page_id in &old_page_meta.links {
+                    if let Some(set) = state.rev_index.get_mut(linked_page_id) {
+                        set.remove(&page_id);
+                    }
+                }
+            }
+            None => {
+                // do nothing
+            }
+        }
+
+        for linked_page_id in &new_page_meta.links {
+            state
+                .rev_index
+                .entry(linked_page_id.clone())
+                .or_insert_with(std::collections::BTreeSet::new)
+                .insert(page_id.clone());
+        }
+
+        state
+            .page_metas
+            .insert(page_id.clone(), new_page_meta.clone());
+
+        Ok(())
+    }
+
+    let state_for_watcher = state.clone();
+    tokio::spawn(async move {
+        let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
+        // FIXME: unwrap
+        let mut watcher = notify::recommended_watcher(tx).unwrap();
+        // FIXME: unwrap
+        notify::Watcher::watch(&mut watcher, &watch_dir, notify::RecursiveMode::Recursive).unwrap();
+        for res in rx {
+            match res {
+                Ok(event) => {
+                    match event.kind {
+                        notify::EventKind::Any
+                        | notify::EventKind::Access(_)
+                        | notify::EventKind::Other => {
+                            // do nothing
+                        }
+                        notify::EventKind::Create(_)
+                        | notify::EventKind::Modify(_)
+                        | notify::EventKind::Remove(_) => {
+                            for path in event.paths {
+                                // FIXME: unwrap
+                                update_page_meta(state_for_watcher.clone(), &path).unwrap();
+                            }
+                        }
+                    }
+                }
+                Err(e) => println!("watch error: {:?}", e),
+            }
+        }
+    });
+
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
         .route("/{id}", axum::routing::get(get))
-        .with_state(std::sync::Arc::new(State {
-            config,
-            page_metas,
-            rev_index,
-        }));
+        .with_state(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
