@@ -1,4 +1,4 @@
-#[derive(Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct PageId(String);
 
 impl PageId {
