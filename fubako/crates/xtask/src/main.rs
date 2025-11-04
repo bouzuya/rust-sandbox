@@ -1,7 +1,6 @@
 mod page_id;
+mod page_io;
 mod page_meta;
-
-use std::str::FromStr as _;
 
 use anyhow::Context as _;
 
@@ -31,9 +30,7 @@ async fn main() -> anyhow::Result<()> {
 async fn new() -> anyhow::Result<()> {
     let config = load_config().await?;
     let page_id = page_id::PageId::new();
-    let path = page_path(&config, &page_id);
-    std::fs::create_dir_all(path.parent().context("invalid path")?)?;
-    std::fs::write(&path, "")?;
+    let path = page_io::PageIo::create_page(&config, &page_id)?;
     println!("Created new page: {}", path.display());
     Ok(())
 }
@@ -58,35 +55,20 @@ async fn preview() -> anyhow::Result<()> {
 
     async fn get(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
-        axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
+        axum::extract::Path(page_id): axum::extract::Path<page_id::PageId>,
     ) -> Result<GetResponse, axum::http::StatusCode> {
         let state = state.lock().map_err(|_| axum::http::StatusCode::CONFLICT)?;
         let page_meta = state
             .page_metas
-            .get(&id)
+            .get(&page_id)
             .ok_or(axum::http::StatusCode::NOT_FOUND)?;
 
-        let path = page_path(&state.config, &id);
-        let md = std::fs::read_to_string(path).map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
-        let parser = pulldown_cmark::Parser::new_with_broken_link_callback(
-            &md,
-            pulldown_cmark::Options::empty(),
-            Some(|broken_link: pulldown_cmark::BrokenLink<'_>| {
-                match <page_id::PageId as std::str::FromStr>::from_str(&broken_link.reference) {
-                    Err(_) => None,
-                    Ok(page_id) => Some((
-                        pulldown_cmark::CowStr::Boxed(page_id.to_string().into_boxed_str()),
-                        pulldown_cmark::CowStr::Boxed(format!("/{page_id}").into_boxed_str()),
-                    )),
-                }
-            }),
-        );
-        let mut html = String::new();
-        pulldown_cmark::html::push_html(&mut html, parser);
+        let html = self::page_io::PageIo::read_page_content(&state.config, &page_id)
+            .map_err(|_| axum::http::StatusCode::NOT_FOUND)?;
 
         Ok(GetResponse {
             html,
-            id: id.to_string(),
+            id: page_id.to_string(),
             links: page_meta
                 .links
                 .iter()
@@ -94,7 +76,7 @@ async fn preview() -> anyhow::Result<()> {
                 .collect::<Vec<String>>(),
             rev_links: state
                 .rev_index
-                .get(&id)
+                .get(&page_id)
                 .map(|set| set.iter().map(|id| id.to_string()).collect::<Vec<String>>())
                 .unwrap_or_default(),
             title: page_meta.title.clone().unwrap_or_default(),
@@ -138,22 +120,11 @@ async fn preview() -> anyhow::Result<()> {
     let config = load_config().await?;
 
     // create index
-    let read_dir = std::fs::read_dir(&config.data_dir).context("data dir not found")?;
-    let mut page_ids = std::collections::BTreeSet::new();
-    for dir_entry in read_dir {
-        let dir_entry = dir_entry.context("dir_entry")?;
-        let path_buf = dir_entry.path();
-        let file_stem = path_buf.file_stem().context("file_stem")?;
-        let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
-        let page_id = page_id::PageId::from_str(page_id).context("invalid ID in data dir")?;
-        page_ids.insert(page_id);
-    }
+    let page_ids = page_io::PageIo::read_page_ids(&config)?;
 
     let mut page_metas = std::collections::BTreeMap::new();
     for page_id in &page_ids {
-        let path = page_path(&config, page_id);
-        let md = std::fs::read_to_string(path).context("read page")?;
-        let page_meta = page_meta::PageMeta::from_markdown(&md);
+        let page_meta = page_io::PageIo::read_page_meta(&config, page_id)?;
         page_metas.insert(page_id.clone(), page_meta);
     }
 
@@ -190,9 +161,7 @@ async fn preview() -> anyhow::Result<()> {
     ) -> anyhow::Result<()> {
         let mut state = state.lock().map_err(|_| anyhow::anyhow!("locking state"))?;
 
-        let file_stem = path.file_stem().context("file_stem")?;
-        let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
-        let page_id = page_id::PageId::from_str(page_id).context("invalid ID in data dir")?;
+        let page_id = page_io::PageIo::page_id(path)?;
 
         if !path.exists() {
             let old_page_meta = state.page_metas.get(&page_id).cloned();
@@ -212,8 +181,7 @@ async fn preview() -> anyhow::Result<()> {
             return Ok(());
         }
 
-        let md = std::fs::read_to_string(path).context("read page")?;
-        let new_page_meta = page_meta::PageMeta::from_markdown(&md);
+        let new_page_meta = page_io::PageIo::read_page_meta(&state.config, &page_id)?;
 
         let old_page_meta = state.page_metas.get(&page_id).cloned();
         match old_page_meta {
@@ -286,13 +254,6 @@ async fn preview() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
-}
-
-fn page_path(config: &Config, page_id: &page_id::PageId) -> std::path::PathBuf {
-    config
-        .data_dir
-        .join(page_id.to_string())
-        .with_extension("md")
 }
 
 struct Config {
