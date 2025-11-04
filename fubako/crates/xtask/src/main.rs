@@ -3,7 +3,7 @@ mod page_meta;
 
 use std::str::FromStr as _;
 
-use anyhow::Context;
+use anyhow::Context as _;
 
 #[derive(clap::Parser)]
 struct Cli {
@@ -60,8 +60,7 @@ async fn preview() -> anyhow::Result<()> {
         axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
         axum::extract::Path(id): axum::extract::Path<page_id::PageId>,
     ) -> Result<GetResponse, axum::http::StatusCode> {
-        // FIXME: unwrap
-        let state = state.lock().unwrap();
+        let state = state.lock().map_err(|_| axum::http::StatusCode::CONFLICT)?;
         let page_meta = state
             .page_metas
             .get(&id)
@@ -90,19 +89,13 @@ async fn preview() -> anyhow::Result<()> {
             id: id.to_string(),
             links: page_meta
                 .links
-                .clone()
-                .into_iter()
+                .iter()
                 .map(|id| id.to_string())
                 .collect::<Vec<String>>(),
             rev_links: state
                 .rev_index
                 .get(&id)
-                .map(|set| {
-                    set.iter()
-                        .cloned()
-                        .map(|id| id.to_string())
-                        .collect::<Vec<String>>()
-                })
+                .map(|set| set.iter().map(|id| id.to_string()).collect::<Vec<String>>())
                 .unwrap_or_default(),
             title: page_meta.title.clone().unwrap_or_default(),
         })
@@ -129,8 +122,7 @@ async fn preview() -> anyhow::Result<()> {
     async fn list(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
     ) -> Result<ListResponse, axum::http::StatusCode> {
-        // FIXME: unwrap
-        let state = state.lock().unwrap();
+        let state = state.lock().map_err(|_| axum::http::StatusCode::CONFLICT)?;
         let page_metas = state
             .page_metas
             .iter()
@@ -196,7 +188,7 @@ async fn preview() -> anyhow::Result<()> {
         state: std::sync::Arc<std::sync::Mutex<State>>,
         path: &std::path::Path,
     ) -> anyhow::Result<()> {
-        let mut state = state.lock().unwrap();
+        let mut state = state.lock().map_err(|_| anyhow::anyhow!("locking state"))?;
 
         let file_stem = path.file_stem().context("file_stem")?;
         let page_id = file_stem.to_str().context("file_stem is not UTF-8")?;
@@ -253,13 +245,14 @@ async fn preview() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let state_for_watcher = state.clone();
-    tokio::spawn(async move {
+    async fn new_watcher(
+        state_for_watcher: std::sync::Arc<std::sync::Mutex<State>>,
+        watch_dir: std::path::PathBuf,
+    ) -> anyhow::Result<()> {
         let (tx, rx) = std::sync::mpsc::channel::<notify::Result<notify::Event>>();
-        // FIXME: unwrap
-        let mut watcher = notify::recommended_watcher(tx).unwrap();
-        // FIXME: unwrap
-        notify::Watcher::watch(&mut watcher, &watch_dir, notify::RecursiveMode::Recursive).unwrap();
+        let mut watcher = notify::recommended_watcher(tx).context("create watcher")?;
+        notify::Watcher::watch(&mut watcher, &watch_dir, notify::RecursiveMode::Recursive)
+            .context("watch dir")?;
         for res in rx {
             match res {
                 Ok(event) => {
@@ -273,16 +266,18 @@ async fn preview() -> anyhow::Result<()> {
                         | notify::EventKind::Modify(_)
                         | notify::EventKind::Remove(_) => {
                             for path in event.paths {
-                                // FIXME: unwrap
-                                update_page_meta(state_for_watcher.clone(), &path).unwrap();
+                                update_page_meta(state_for_watcher.clone(), &path)
+                                    .context("update page meta")?;
                             }
                         }
                     }
                 }
-                Err(e) => println!("watch error: {:?}", e),
+                Err(e) => anyhow::bail!("watch error: {:?}", e),
             }
         }
-    });
+        Ok(())
+    }
+    tokio::spawn(new_watcher(state.clone(), watch_dir));
 
     let router = axum::Router::new()
         .route("/", axum::routing::get(list))
