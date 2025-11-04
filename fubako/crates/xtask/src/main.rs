@@ -1,8 +1,11 @@
+mod config;
 mod page_id;
 mod page_io;
 mod page_meta;
 
 use anyhow::Context as _;
+
+use crate::config::Config;
 
 #[derive(clap::Parser)]
 struct Cli {
@@ -28,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn new() -> anyhow::Result<()> {
-    let config = load_config().await?;
+    let config = Config::load().await?;
     let page_id = page_id::PageId::new();
     let path = page_io::PageIo::create_page(&config, &page_id)?;
     println!("Created new page: {}", path.display());
@@ -117,7 +120,7 @@ async fn preview() -> anyhow::Result<()> {
         Ok(ListResponse { page_metas })
     }
 
-    let config = load_config().await?;
+    let config = Config::load().await?;
 
     // create index
     let page_ids = page_io::PageIo::read_page_ids(&config)?;
@@ -254,14 +257,4 @@ async fn preview() -> anyhow::Result<()> {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:3000").await?;
     axum::serve(listener, router).await?;
     Ok(())
-}
-
-struct Config {
-    data_dir: std::path::PathBuf,
-}
-
-async fn load_config() -> anyhow::Result<Config> {
-    Ok(Config {
-        data_dir: std::path::PathBuf::from("data"),
-    })
 }
