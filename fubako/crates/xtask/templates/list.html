@@ -17,6 +17,11 @@
 
     <h1>Index</h1>
 
+    <form method="get">
+        <input name="q" type="text" value="{{ q }}" />
+        <input type="submit" value="search" />
+    </form>
+
     {% if !page_metas.is_empty() %}
     <ul>
         {% for page_meta in page_metas %}

@@ -90,6 +90,7 @@ async fn preview() -> anyhow::Result<()> {
     #[template(path = "list.html")]
     struct ListResponse {
         page_metas: Vec<ListResponsePageMeta>,
+        q: String,
     }
 
     impl axum::response::IntoResponse for ListResponse {
@@ -104,20 +105,33 @@ async fn preview() -> anyhow::Result<()> {
         title: String,
     }
 
+    #[derive(serde::Deserialize)]
+    struct ListRequestQuery {
+        q: Option<String>,
+    }
+
     async fn list(
         axum::extract::State(state): axum::extract::State<std::sync::Arc<std::sync::Mutex<State>>>,
+        axum::extract::Query(ListRequestQuery { q }): axum::extract::Query<ListRequestQuery>,
     ) -> Result<ListResponse, axum::http::StatusCode> {
+        let q = q.unwrap_or_default().trim().to_owned();
         let state = state.lock().map_err(|_| axum::http::StatusCode::CONFLICT)?;
+        let config = &state.config;
         let page_metas = state
             .page_metas
             .iter()
+            .filter(|(page_id, _page_meta)| {
+                q.is_empty() || {
+                    page_io::PageIo::read_page_content(config, page_id)
+                        .is_ok_and(|content| content.contains(&q))
+                }
+            })
             .map(|(id, meta)| ListResponsePageMeta {
                 id: id.to_string(),
                 title: meta.title.clone().unwrap_or_default(),
             })
             .collect::<Vec<ListResponsePageMeta>>();
-
-        Ok(ListResponse { page_metas })
+        Ok(ListResponse { page_metas, q })
     }
 
     let config = Config::load().await?;
