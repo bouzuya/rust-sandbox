@@ -1,8 +1,3 @@
 # fubako
 
-Use [Development Containers](https://containers.dev/).
-
-## TODOs
-
-- image download
-- `images/`
+See: <https://github.com/bouzuya/fubako>
